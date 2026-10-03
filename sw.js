@@ -1,7 +1,8 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v13';
+const VERSION = 'flaski-v14';
+const STROKES = 'flaski-strokes-v1';
 const SHELL = [
   './',
   './index.html',
@@ -46,7 +47,6 @@ self.addEventListener('activate', e => {
 
 // Trazos de kanji/hanzi (jsDelivr): nunca cambian, así que se guardan la primera vez
 // y desde entonces funcionan sin conexión.
-const STROKES = 'flaski-strokes-v1';
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method === 'GET' && u.hostname === 'cdn.jsdelivr.net' && u.pathname.includes('hanzi-writer-data')) {
