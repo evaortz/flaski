@@ -1,0 +1,68 @@
+{
+  "format": "kartlar-deck",
+  "version": 1,
+  "name": "Turco · Casos -de, -e, -den",
+  "description": "En, a y desde: los casos de lugar con ejemplos.",
+  "cards": [
+    {
+      "front": "«En casa»",
+      "back": "evde",
+      "note": "-de = en (lugar)"
+    },
+    {
+      "front": "«A casa»",
+      "back": "eve",
+      "note": "-e = a, hacia (dirección)"
+    },
+    {
+      "front": "«De casa» (desde)",
+      "back": "evden",
+      "note": "-den = de, desde (origen)"
+    },
+    {
+      "front": "«Estoy en casa»",
+      "back": "Evdeyim.",
+      "note": ""
+    },
+    {
+      "front": "«Voy a casa»",
+      "back": "Eve gidiyorum.",
+      "note": ""
+    },
+    {
+      "front": "«Vengo de casa»",
+      "back": "Evden geliyorum.",
+      "note": ""
+    },
+    {
+      "front": "«A la escuela»",
+      "back": "okula",
+      "note": ""
+    },
+    {
+      "front": "«De la escuela»",
+      "back": "okuldan",
+      "note": ""
+    },
+    {
+      "front": "«En Estambul»",
+      "back": "İstanbul'da",
+      "note": "Con nombres propios, apóstrofo antes del sufijo."
+    },
+    {
+      "front": "«A Ankara»",
+      "back": "Ankara'ya",
+      "note": "Si la palabra acaba en vocal, se añade una -y- de unión."
+    },
+    {
+      "front": "«En el coche» (*araba*)",
+      "back": "arabada",
+      "note": ""
+    },
+    {
+      "front": "*araba* + acusativo («el coche» como objeto)",
+      "back": "arabayı",
+      "note": "Acaba en vocal → -y- de unión"
+    }
+  ]
+}

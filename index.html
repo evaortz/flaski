@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flaski</title>
+<meta name="description" content="Flashcards con repaso espaciado. Crea tus mazos, compártelos con tus amigos y estudia desde el móvil.">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#191919" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Flaski">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="no-nav">
+<div class="app">
+  <header class="top">
+    <div class="brand"><div class="mark" aria-hidden="true">F</div><div><div class="name" id="appName">Flaski</div><div class="sub" id="appSub">Flashcards con repaso espaciado</div></div></div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <main id="main"><div class="empty"><div class="spin" aria-label="Cargando"></div></div></main>
+</div>
+
+<nav class="nav" id="nav" hidden aria-label="Secciones">
+  <div class="nav-inner">
+    <button data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v16" /> <path d="m16 12 2 2 4-4" /> <path d="M22 6V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2h4.001A2 2 0 0022 17v-1.344" /></svg>Estudiar</button>
+    <button data-nav="decks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 6 4 14" /> <path d="M12 6v14" /> <path d="M8 8v12" /> <path d="M4 4v16" /></svg>Mis mazos</button>
+    <button data-nav="explore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></svg>Explorar</button>
+    <button data-nav="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.925 20.056a6 6 0 0 0-11.851.001" /> <circle cx="12" cy="11" r="4" /> <circle cx="12" cy="12" r="10" /></svg>Perfil</button>
+  </div>
+</nav>
+
+<div id="sheet" class="sheet" hidden><div class="sheet-card" role="dialog" aria-modal="true" id="sheetBody"></div></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<input id="backupFile" type="file" accept=".json,application/json" hidden>
+  <input id="importFile" type="file" accept=".csv,.tsv,.txt,.json,text/csv,text/plain,application/json" hidden>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

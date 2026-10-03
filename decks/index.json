@@ -1,0 +1,32 @@
+[
+  {
+    "file": "japones-demo.json",
+    "name": "Japonés · Demo de Flaski",
+    "description": "Un recorrido por todo lo que sabe hacer Flaski: kanji a mano trazo a trazo, furigana, partículas con huecos, ordenar frases, dictado, hiragana dibujado y opción múltiple.",
+    "count": 43
+  },
+  {
+    "file": "turco-armonia-vocalica.json",
+    "name": "Turco · Armonía vocálica",
+    "description": "Las 8 vocales y cómo eligen los sufijos su vocal: 2 vías, 4 vías, sufijos encadenados y excepciones.",
+    "count": 20
+  },
+  {
+    "file": "turco-mutaciones.json",
+    "name": "Turco · Mutaciones consonánticas",
+    "description": "p→b, ç→c, t→d, k→ğ y la regla Fıstıkçı Şahap (d→t).",
+    "count": 14
+  },
+  {
+    "file": "turco-pasado.json",
+    "name": "Turco · Pasado -dı",
+    "description": "Pasado simple: formación, personas y negación.",
+    "count": 11
+  },
+  {
+    "file": "turco-casos.json",
+    "name": "Turco · Casos -de, -e, -den",
+    "description": "En, a y desde: los casos de lugar con ejemplos.",
+    "count": 12
+  }
+]

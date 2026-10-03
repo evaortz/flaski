@@ -1,0 +1,108 @@
+{
+  "format": "kartlar-deck",
+  "version": 1,
+  "name": "Turco · Armonía vocálica",
+  "description": "Las 8 vocales y cómo eligen los sufijos su vocal: 2 vías, 4 vías, sufijos encadenados y excepciones.",
+  "cards": [
+    {
+      "front": "Vocales de **detrás** (gruesas)",
+      "back": "a ı o u",
+      "note": "La lengua se va hacia el fondo de la boca."
+    },
+    {
+      "front": "Vocales de **delante** (finas)",
+      "back": "e i ö ü",
+      "note": "La lengua se adelanta, cerca de los dientes."
+    },
+    {
+      "front": "Vocales **redondeadas**",
+      "back": "o u ö ü",
+      "note": "Los labios se redondean."
+    },
+    {
+      "front": "Armonía de **2 vías**: ¿qué vocales puede llevar el sufijo?",
+      "back": "e / a",
+      "note": "a ı o u → a · e i ö ü → e"
+    },
+    {
+      "front": "Armonía de **4 vías**: ¿qué vocales puede llevar el sufijo?",
+      "back": "ı / i / u / ü",
+      "note": "a ı → ı · e i → i · o u → u · ö ü → ü"
+    },
+    {
+      "front": "4 vías: última vocal **o** → el sufijo lleva…",
+      "back": "u",
+      "note": "*okul → okulu*"
+    },
+    {
+      "front": "4 vías: última vocal **a** → el sufijo lleva…",
+      "back": "ı",
+      "note": "*kitap → kitabı*"
+    },
+    {
+      "front": "4 vías: última vocal **ö** → el sufijo lleva…",
+      "back": "ü",
+      "note": "*göz → gözü*"
+    },
+    {
+      "front": "4 vías: última vocal **e** → el sufijo lleva…",
+      "back": "i",
+      "note": "*ev → evi*"
+    },
+    {
+      "front": "Plural de *kitap*",
+      "back": "kitaplar",
+      "note": "2 vías: última vocal a → -lar"
+    },
+    {
+      "front": "Plural de *göz* (ojo)",
+      "back": "gözler",
+      "note": "2 vías: ö es fina → -ler"
+    },
+    {
+      "front": "Plural de *okul* (escuela)",
+      "back": "okullar",
+      "note": ""
+    },
+    {
+      "front": "*-ler*, *-de*, *-ecek*, *-mek*: ¿2 o 4 vías?",
+      "back": "2 vías (e/a)",
+      "note": "También *-e*, *-den*, *-meli*, *-se*."
+    },
+    {
+      "front": "*-di*, *-miş*, *mi*, posesivos: ¿2 o 4 vías?",
+      "back": "4 vías (ı/i/u/ü)",
+      "note": "También el acusativo *-i*, *-li*, *-siz*."
+    },
+    {
+      "front": "¿Qué significa *evlerimde*?",
+      "back": "en mis casas",
+      "note": "ev + ler + im + de: cada sufijo mira la vocal del anterior."
+    },
+    {
+      "front": "«En mis escuelas»",
+      "back": "okullarımda",
+      "note": "okul + lar + ım + da"
+    },
+    {
+      "front": "*geliyorum*: ¿por qué *-um* y no *-im*?",
+      "back": "Porque *-yor* siempre lleva **o**, y lo que va detrás armoniza con esa o.",
+      "note": ""
+    },
+    {
+      "front": "Plural de *saat* (hora, reloj)",
+      "back": "saatler",
+      "note": "Excepción: palabra árabe con sufijos finos. Acusativo: *saati*."
+    },
+    {
+      "front": "Acusativo de *rol*",
+      "back": "rolü",
+      "note": "Excepción: *l* suave → sufijo fino."
+    },
+    {
+      "front": "*-yor*, *-ken*, *-ki*: ¿qué tienen en común?",
+      "back": "No cambian con la armonía",
+      "note": "*gelirken*, *okurken*, *yarınki* (ojo: *bugünkü*)"
+    }
+  ]
+}

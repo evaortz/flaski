@@ -1,0 +1,788 @@
+{
+  "format": "flaski-deck",
+  "version": 2,
+  "name": "Japonés · Demo de Flaski",
+  "description": "Un recorrido por todo lo que sabe hacer Flaski: kanji a mano trazo a trazo, furigana, partículas con huecos, ordenar frases, dictado, hiragana dibujado y opción múltiple.",
+  "types": [
+    {
+      "id": "jp-vocab",
+      "name": "Vocabulario japonés",
+      "icon": "🗾",
+      "description": "Palabra con furigana. Reconocer (furigana oculto delante) y recordar con opción múltiple.",
+      "fields": [
+        {
+          "id": "w",
+          "name": "Palabra",
+          "lang": "ja-JP",
+          "autoplay": true,
+          "help": "Con furigana: 学校[がっこう]"
+        },
+        {
+          "id": "m",
+          "name": "Significado",
+          "lang": "es-ES",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "e",
+          "name": "Ejemplo",
+          "lang": "ja-JP",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "n",
+          "name": "Nota",
+          "lang": "",
+          "autoplay": false,
+          "help": ""
+        }
+      ],
+      "templates": [
+        {
+          "id": "t1",
+          "name": "Leer (japonés → significado)",
+          "mode": "flip",
+          "front": [
+            "w"
+          ],
+          "back": [
+            "m",
+            "e",
+            "n"
+          ],
+          "hideRuby": true
+        },
+        {
+          "id": "t2",
+          "name": "Recordar (significado → elegir palabra)",
+          "mode": "choice",
+          "front": [
+            "m"
+          ],
+          "back": [
+            "e",
+            "n"
+          ],
+          "answer": "w",
+          "wrong": ""
+        }
+      ]
+    },
+    {
+      "id": "jp-listen",
+      "name": "Dictado japonés",
+      "icon": "🎧",
+      "description": "Escuchas japonés y lo escribes en kana. Necesita el teclado japonés.",
+      "fields": [
+        {
+          "id": "x",
+          "name": "Lo que se escucha",
+          "lang": "ja-JP",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "m",
+          "name": "Significado",
+          "lang": "",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "n",
+          "name": "Nota",
+          "lang": "",
+          "autoplay": false,
+          "help": ""
+        }
+      ],
+      "templates": [
+        {
+          "id": "t1",
+          "name": "Dictado",
+          "mode": "listen",
+          "front": [],
+          "back": [
+            "m",
+            "n"
+          ],
+          "answer": "x"
+        }
+      ]
+    },
+    {
+      "id": "jp-order",
+      "name": "Ordenar frase japonesa",
+      "icon": "🧱",
+      "description": "Colocas los bloques de la frase en orden. Separa los bloques con «/».",
+      "fields": [
+        {
+          "id": "f",
+          "name": "Frase (bloques con /)",
+          "lang": "ja-JP",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "m",
+          "name": "Traducción",
+          "lang": "",
+          "autoplay": false,
+          "help": ""
+        },
+        {
+          "id": "n",
+          "name": "Nota",
+          "lang": "",
+          "autoplay": false,
+          "help": ""
+        }
+      ],
+      "templates": [
+        {
+          "id": "t1",
+          "name": "Ordenar",
+          "mode": "order",
+          "front": [
+            "m"
+          ],
+          "back": [
+            "n"
+          ],
+          "answer": "f"
+        }
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "front": "水",
+      "back": "agua",
+      "note": "スイ\nみず\n水[みず]を 飲[の]む (beber agua)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "水",
+        "m": "agua",
+        "on": "スイ",
+        "kun": "みず",
+        "e": "水[みず]を 飲[の]む (beber agua)"
+      },
+      "note_id": "n1",
+      "hint": ""
+    },
+    {
+      "front": "agua\nみず\nスイ",
+      "back": "水",
+      "note": "水[みず]を 飲[の]む (beber agua)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "水",
+        "m": "agua",
+        "on": "スイ",
+        "kun": "みず",
+        "e": "水[みず]を 飲[の]む (beber agua)"
+      },
+      "note_id": "n1",
+      "hint": ""
+    },
+    {
+      "front": "学校[がっこう]",
+      "back": "escuela",
+      "note": "学校[がっこう]に 行[い]きます。(Voy a la escuela.)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "学校[がっこう]",
+        "m": "escuela",
+        "e": "学校[がっこう]に 行[い]きます。(Voy a la escuela.)"
+      },
+      "note_id": "n2",
+      "hint": ""
+    },
+    {
+      "front": "escuela",
+      "back": "学校[がっこう]",
+      "note": "学校[がっこう]に 行[い]きます。(Voy a la escuela.)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "学校[がっこう]",
+        "m": "escuela",
+        "e": "学校[がっこう]に 行[い]きます。(Voy a la escuela.)"
+      },
+      "note_id": "n2",
+      "hint": ""
+    },
+    {
+      "front": "私[わたし][tema]学生[がくせい]です。",
+      "back": "私[わたし]は学生[がくせい]です。",
+      "note": "は marca el tema: «Yo soy estudiante».",
+      "type_id": "cloze",
+      "template": "t1",
+      "fields": {
+        "x": "私[わたし]{{は::tema}}学生[がくせい]です。",
+        "e": "は marca el tema: «Yo soy estudiante»."
+      },
+      "note_id": "n3",
+      "hint": ""
+    },
+    {
+      "front": "Tomo café todas las mañanas.",
+      "back": "私は毎朝コーヒーを飲みます",
+      "note": "Orden típico: tema · tiempo · objeto · verbo.",
+      "type_id": "jp-order",
+      "template": "t1",
+      "fields": {
+        "f": "私[わたし]は / 毎朝[まいあさ] / コーヒーを / 飲[の]みます",
+        "m": "Tomo café todas las mañanas.",
+        "n": "Orden típico: tema · tiempo · objeto · verbo."
+      },
+      "note_id": "n4",
+      "hint": ""
+    },
+    {
+      "front": "Dictado",
+      "back": "こんにちは",
+      "note": "hola, buenas tardes",
+      "type_id": "jp-listen",
+      "template": "t1",
+      "fields": {
+        "x": "こんにちは",
+        "m": "hola, buenas tardes"
+      },
+      "note_id": "n5",
+      "hint": ""
+    },
+    {
+      "front": "Hiragana de «a»",
+      "back": "あ",
+      "note": "Tres trazos.",
+      "type_id": "handwrite",
+      "template": "t1",
+      "fields": {
+        "q": "Hiragana de «a»",
+        "a": "あ",
+        "n": "Tres trazos."
+      },
+      "note_id": "n6",
+      "hint": ""
+    },
+    {
+      "front": "¿Qué significa «すみません»?",
+      "back": "perdón / disculpe",
+      "note": "También se usa para llamar la atención de alguien.",
+      "type_id": "choice",
+      "template": "t1",
+      "fields": {
+        "q": "¿Qué significa «すみません»?",
+        "a": "perdón / disculpe",
+        "w": "buenas noches; hasta luego; por favor",
+        "n": "También se usa para llamar la atención de alguien."
+      },
+      "note_id": "n7",
+      "hint": ""
+    },
+    {
+      "front": "火",
+      "back": "fuego",
+      "note": "カ\nひ\n火曜日[かようび] (martes)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "火",
+        "m": "fuego",
+        "on": "カ",
+        "kun": "ひ",
+        "e": "火曜日[かようび] (martes)"
+      },
+      "note_id": "n8",
+      "hint": ""
+    },
+    {
+      "front": "fuego\nひ\nカ",
+      "back": "火",
+      "note": "火曜日[かようび] (martes)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "火",
+        "m": "fuego",
+        "on": "カ",
+        "kun": "ひ",
+        "e": "火曜日[かようび] (martes)"
+      },
+      "note_id": "n8",
+      "hint": ""
+    },
+    {
+      "front": "先生[せんせい]",
+      "back": "profesor, profesora",
+      "note": "田中[たなか]先生[せんせい] (el profesor Tanaka)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "先生[せんせい]",
+        "m": "profesor, profesora",
+        "e": "田中[たなか]先生[せんせい] (el profesor Tanaka)"
+      },
+      "note_id": "n9",
+      "hint": ""
+    },
+    {
+      "front": "profesor, profesora",
+      "back": "先生[せんせい]",
+      "note": "田中[たなか]先生[せんせい] (el profesor Tanaka)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "先生[せんせい]",
+        "m": "profesor, profesora",
+        "e": "田中[たなか]先生[せんせい] (el profesor Tanaka)"
+      },
+      "note_id": "n9",
+      "hint": ""
+    },
+    {
+      "front": "学校[がっこう][dirección]行[い]きます。",
+      "back": "学校[がっこう]に行[い]きます。",
+      "note": "に indica el destino: «Voy a la escuela».",
+      "type_id": "cloze",
+      "template": "t1",
+      "fields": {
+        "x": "学校[がっこう]{{に::dirección}}行[い]きます。",
+        "e": "に indica el destino: «Voy a la escuela»."
+      },
+      "note_id": "n10",
+      "hint": ""
+    },
+    {
+      "front": "Quiero ir a Japón.",
+      "back": "日本に行きたいです",
+      "note": "",
+      "type_id": "jp-order",
+      "template": "t1",
+      "fields": {
+        "f": "日本[にほん]に / 行[い]きたい / です",
+        "m": "Quiero ir a Japón."
+      },
+      "note_id": "n11",
+      "hint": ""
+    },
+    {
+      "front": "Dictado",
+      "back": "ありがとう",
+      "note": "gracias",
+      "type_id": "jp-listen",
+      "template": "t1",
+      "fields": {
+        "x": "ありがとう",
+        "m": "gracias"
+      },
+      "note_id": "n12",
+      "hint": ""
+    },
+    {
+      "front": "Hiragana de «ka»",
+      "back": "か",
+      "note": "Tres trazos.",
+      "type_id": "handwrite",
+      "template": "t1",
+      "fields": {
+        "q": "Hiragana de «ka»",
+        "a": "か",
+        "n": "Tres trazos."
+      },
+      "note_id": "n13",
+      "hint": ""
+    },
+    {
+      "front": "¿Cuántos alfabetos se usan al escribir japonés?",
+      "back": "tres: hiragana, katakana y kanji",
+      "note": "Además se usa el alfabeto latino (rōmaji).",
+      "type_id": "choice",
+      "template": "t1",
+      "fields": {
+        "q": "¿Cuántos alfabetos se usan al escribir japonés?",
+        "a": "tres: hiragana, katakana y kanji",
+        "w": "uno; dos: hiragana y kanji; cuatro",
+        "n": "Además se usa el alfabeto latino (rōmaji)."
+      },
+      "note_id": "n14",
+      "hint": ""
+    },
+    {
+      "front": "木",
+      "back": "árbol",
+      "note": "ボク・モク\nき\n大[おお]きい 木[き] (un árbol grande)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "木",
+        "m": "árbol",
+        "on": "ボク・モク",
+        "kun": "き",
+        "e": "大[おお]きい 木[き] (un árbol grande)"
+      },
+      "note_id": "n15",
+      "hint": ""
+    },
+    {
+      "front": "árbol\nき\nボク・モク",
+      "back": "木",
+      "note": "大[おお]きい 木[き] (un árbol grande)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "木",
+        "m": "árbol",
+        "on": "ボク・モク",
+        "kun": "き",
+        "e": "大[おお]きい 木[き] (un árbol grande)"
+      },
+      "note_id": "n15",
+      "hint": ""
+    },
+    {
+      "front": "友達[ともだち]",
+      "back": "amigo, amiga",
+      "note": "友達[ともだち]と 話[はな]します。(Hablo con un amigo.)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "友達[ともだち]",
+        "m": "amigo, amiga",
+        "e": "友達[ともだち]と 話[はな]します。(Hablo con un amigo.)"
+      },
+      "note_id": "n16",
+      "hint": ""
+    },
+    {
+      "front": "amigo, amiga",
+      "back": "友達[ともだち]",
+      "note": "友達[ともだち]と 話[はな]します。(Hablo con un amigo.)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "友達[ともだち]",
+        "m": "amigo, amiga",
+        "e": "友達[ともだち]と 話[はな]します。(Hablo con un amigo.)"
+      },
+      "note_id": "n16",
+      "hint": ""
+    },
+    {
+      "front": "水[みず][objeto]飲[の]みます。",
+      "back": "水[みず]を飲[の]みます。",
+      "note": "を marca el complemento directo: «Bebo agua».",
+      "type_id": "cloze",
+      "template": "t1",
+      "fields": {
+        "x": "水[みず]{{を::objeto}}飲[の]みます。",
+        "e": "を marca el complemento directo: «Bebo agua»."
+      },
+      "note_id": "n17",
+      "hint": ""
+    },
+    {
+      "front": "Leo libros en la biblioteca.",
+      "back": "図書館で本を読みます",
+      "note": "",
+      "type_id": "jp-order",
+      "template": "t1",
+      "fields": {
+        "f": "図書館[としょかん]で / 本[ほん]を / 読[よ]みます",
+        "m": "Leo libros en la biblioteca."
+      },
+      "note_id": "n18",
+      "hint": ""
+    },
+    {
+      "front": "Dictado",
+      "back": "おはよう",
+      "note": "buenos días (informal)",
+      "type_id": "jp-listen",
+      "template": "t1",
+      "fields": {
+        "x": "おはよう",
+        "m": "buenos días (informal)"
+      },
+      "note_id": "n19",
+      "hint": ""
+    },
+    {
+      "front": "Hiragana de «su»",
+      "back": "す",
+      "note": "Dos trazos.",
+      "type_id": "handwrite",
+      "template": "t1",
+      "fields": {
+        "q": "Hiragana de «su»",
+        "a": "す",
+        "n": "Dos trazos."
+      },
+      "note_id": "n20",
+      "hint": ""
+    },
+    {
+      "front": "山",
+      "back": "montaña",
+      "note": "サン\nやま\n富士山[ふじさん] (el monte Fuji)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "山",
+        "m": "montaña",
+        "on": "サン",
+        "kun": "やま",
+        "e": "富士山[ふじさん] (el monte Fuji)"
+      },
+      "note_id": "n21",
+      "hint": ""
+    },
+    {
+      "front": "montaña\nやま\nサン",
+      "back": "山",
+      "note": "富士山[ふじさん] (el monte Fuji)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "山",
+        "m": "montaña",
+        "on": "サン",
+        "kun": "やま",
+        "e": "富士山[ふじさん] (el monte Fuji)"
+      },
+      "note_id": "n21",
+      "hint": ""
+    },
+    {
+      "front": "猫[ねこ]",
+      "back": "gato",
+      "note": "猫[ねこ]が 好[す]きです。(Me gustan los gatos.)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "猫[ねこ]",
+        "m": "gato",
+        "e": "猫[ねこ]が 好[す]きです。(Me gustan los gatos.)"
+      },
+      "note_id": "n22",
+      "hint": ""
+    },
+    {
+      "front": "gato",
+      "back": "猫[ねこ]",
+      "note": "猫[ねこ]が 好[す]きです。(Me gustan los gatos.)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "猫[ねこ]",
+        "m": "gato",
+        "e": "猫[ねこ]が 好[す]きです。(Me gustan los gatos.)"
+      },
+      "note_id": "n22",
+      "hint": ""
+    },
+    {
+      "front": "図書館[としょかん][lugar de la acción]勉強[べんきょう]します。",
+      "back": "図書館[としょかん]で勉強[べんきょう]します。",
+      "note": "で indica dónde ocurre algo: «Estudio en la biblioteca».",
+      "type_id": "cloze",
+      "template": "t1",
+      "fields": {
+        "x": "図書館[としょかん]{{で::lugar de la acción}}勉強[べんきょう]します。",
+        "e": "で indica dónde ocurre algo: «Estudio en la biblioteca»."
+      },
+      "note_id": "n23",
+      "hint": ""
+    },
+    {
+      "front": "日",
+      "back": "sol, día",
+      "note": "ニチ・ジツ\nひ・か\n日曜日[にちようび] (domingo)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "日",
+        "m": "sol, día",
+        "on": "ニチ・ジツ",
+        "kun": "ひ・か",
+        "e": "日曜日[にちようび] (domingo)"
+      },
+      "note_id": "n24",
+      "hint": ""
+    },
+    {
+      "front": "sol, día\nひ・か\nニチ・ジツ",
+      "back": "日",
+      "note": "日曜日[にちようび] (domingo)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "日",
+        "m": "sol, día",
+        "on": "ニチ・ジツ",
+        "kun": "ひ・か",
+        "e": "日曜日[にちようび] (domingo)"
+      },
+      "note_id": "n24",
+      "hint": ""
+    },
+    {
+      "front": "電車[でんしゃ]",
+      "back": "tren",
+      "note": "電車[でんしゃ]で 来[き]ました。(He venido en tren.)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "電車[でんしゃ]",
+        "m": "tren",
+        "e": "電車[でんしゃ]で 来[き]ました。(He venido en tren.)"
+      },
+      "note_id": "n25",
+      "hint": ""
+    },
+    {
+      "front": "tren",
+      "back": "電車[でんしゃ]",
+      "note": "電車[でんしゃ]で 来[き]ました。(He venido en tren.)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "電車[でんしゃ]",
+        "m": "tren",
+        "e": "電車[でんしゃ]で 来[き]ました。(He venido en tren.)"
+      },
+      "note_id": "n25",
+      "hint": ""
+    },
+    {
+      "front": "月",
+      "back": "luna, mes",
+      "note": "ゲツ・ガツ\nつき\n月曜日[げつようび] (lunes)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "月",
+        "m": "luna, mes",
+        "on": "ゲツ・ガツ",
+        "kun": "つき",
+        "e": "月曜日[げつようび] (lunes)"
+      },
+      "note_id": "n26",
+      "hint": ""
+    },
+    {
+      "front": "luna, mes\nつき\nゲツ・ガツ",
+      "back": "月",
+      "note": "月曜日[げつようび] (lunes)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "月",
+        "m": "luna, mes",
+        "on": "ゲツ・ガツ",
+        "kun": "つき",
+        "e": "月曜日[げつようび] (lunes)"
+      },
+      "note_id": "n26",
+      "hint": ""
+    },
+    {
+      "front": "食[た]べる",
+      "back": "comer",
+      "note": "すしを 食[た]べる (comer sushi)",
+      "type_id": "jp-vocab",
+      "template": "t1",
+      "fields": {
+        "w": "食[た]べる",
+        "m": "comer",
+        "e": "すしを 食[た]べる (comer sushi)"
+      },
+      "note_id": "n27",
+      "hint": ""
+    },
+    {
+      "front": "comer",
+      "back": "食[た]べる",
+      "note": "すしを 食[た]べる (comer sushi)",
+      "type_id": "jp-vocab",
+      "template": "t2",
+      "fields": {
+        "w": "食[た]べる",
+        "m": "comer",
+        "e": "すしを 食[た]べる (comer sushi)"
+      },
+      "note_id": "n27",
+      "hint": ""
+    },
+    {
+      "front": "人",
+      "back": "persona",
+      "note": "ジン・ニン\nひと\n日本人[にほんじん] (japonés, persona)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "人",
+        "m": "persona",
+        "on": "ジン・ニン",
+        "kun": "ひと",
+        "e": "日本人[にほんじん] (japonés, persona)"
+      },
+      "note_id": "n28",
+      "hint": ""
+    },
+    {
+      "front": "persona\nひと\nジン・ニン",
+      "back": "人",
+      "note": "日本人[にほんじん] (japonés, persona)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "人",
+        "m": "persona",
+        "on": "ジン・ニン",
+        "kun": "ひと",
+        "e": "日本人[にほんじん] (japonés, persona)"
+      },
+      "note_id": "n28",
+      "hint": ""
+    },
+    {
+      "front": "口",
+      "back": "boca",
+      "note": "コウ・ク\nくち\n入口[いりぐち] (entrada)",
+      "type_id": "kanji",
+      "template": "t1",
+      "fields": {
+        "k": "口",
+        "m": "boca",
+        "on": "コウ・ク",
+        "kun": "くち",
+        "e": "入口[いりぐち] (entrada)"
+      },
+      "note_id": "n29",
+      "hint": ""
+    },
+    {
+      "front": "boca\nくち\nコウ・ク",
+      "back": "口",
+      "note": "入口[いりぐち] (entrada)",
+      "type_id": "kanji",
+      "template": "t2",
+      "fields": {
+        "k": "口",
+        "m": "boca",
+        "on": "コウ・ク",
+        "kun": "くち",
+        "e": "入口[いりぐち] (entrada)"
+      },
+      "note_id": "n29",
+      "hint": ""
+    }
+  ]
+}

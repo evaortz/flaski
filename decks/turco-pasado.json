@@ -1,0 +1,63 @@
+{
+  "format": "kartlar-deck",
+  "version": 1,
+  "name": "Turco · Pasado -dı",
+  "description": "Pasado simple: formación, personas y negación.",
+  "cards": [
+    {
+      "front": "«Hice» (*yapmak*)",
+      "back": "yaptım",
+      "note": "yap + tı + m. No *yapıydım*."
+    },
+    {
+      "front": "«Fui» (*gitmek*)",
+      "back": "gittim",
+      "note": ""
+    },
+    {
+      "front": "«Bebí» (*içmek*)",
+      "back": "içtim",
+      "note": ""
+    },
+    {
+      "front": "«Vine» (*gelmek*)",
+      "back": "geldim",
+      "note": "l no es dura → se queda -di"
+    },
+    {
+      "front": "«Leí» (*okumak*)",
+      "back": "okudum",
+      "note": "Última vocal u → -du"
+    },
+    {
+      "front": "«Vi» (*görmek*)",
+      "back": "gördüm",
+      "note": ""
+    },
+    {
+      "front": "«Trabajé» (*çalışmak*)",
+      "back": "çalıştım",
+      "note": ""
+    },
+    {
+      "front": "Pasado de *yapmak*, todas las personas",
+      "back": "yaptım, yaptın, yaptı, yaptık, yaptınız, yaptılar",
+      "note": ""
+    },
+    {
+      "front": "«No vine»",
+      "back": "gelmedim",
+      "note": "Negación -me antes del pasado: gel + me + di + m"
+    },
+    {
+      "front": "«¿Fuiste a casa?»",
+      "back": "Eve gittin mi?",
+      "note": ""
+    },
+    {
+      "front": "«Ayer hice la comida»",
+      "back": "Dün öğle yemeği yaptım.",
+      "note": "Error típico: *yapıydım*. El pasado es raíz + -dı/-tı + persona."
+    }
+  ]
+}

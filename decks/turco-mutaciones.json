@@ -1,0 +1,78 @@
+{
+  "format": "kartlar-deck",
+  "version": 1,
+  "name": "Turco · Mutaciones consonánticas",
+  "description": "p→b, ç→c, t→d, k→ğ y la regla Fıstıkçı Şahap (d→t).",
+  "cards": [
+    {
+      "front": "*kitap* + acusativo",
+      "back": "kitabı",
+      "note": "p → b delante de vocal"
+    },
+    {
+      "front": "*ağaç* (árbol) + acusativo",
+      "back": "ağacı",
+      "note": "ç → c"
+    },
+    {
+      "front": "*ekmek* (pan) + acusativo",
+      "back": "ekmeği",
+      "note": "k → ğ tras vocal"
+    },
+    {
+      "front": "*renk* (color) + posesivo 3ª persona",
+      "back": "rengi",
+      "note": "nk → ng"
+    },
+    {
+      "front": "*kanat* (ala) + acusativo",
+      "back": "kanadı",
+      "note": "t → d"
+    },
+    {
+      "front": "*top* (pelota) + acusativo",
+      "back": "topu",
+      "note": "Una sílaba: normalmente **no** cambia."
+    },
+    {
+      "front": "*Mehmet* + acusativo",
+      "back": "Mehmet'i",
+      "note": "Los nombres propios no mutan."
+    },
+    {
+      "front": "*gitmek*: «voy» (presente continuo)",
+      "back": "gidiyorum",
+      "note": "Algunos verbos también mutan: t → d"
+    },
+    {
+      "front": "Las consonantes duras (*Fıstıkçı Şahap*)",
+      "back": "ç f h k p s ş t",
+      "note": "Tras ellas, la d del sufijo pasa a t."
+    },
+    {
+      "front": "«En el libro»",
+      "back": "kitapta",
+      "note": "p es dura → -de pasa a -ta"
+    },
+    {
+      "front": "«En la calle» (*sokak*)",
+      "back": "sokakta",
+      "note": ""
+    },
+    {
+      "front": "«De París»",
+      "back": "Paris'ten",
+      "note": "s es dura → -den pasa a -ten"
+    },
+    {
+      "front": "«Librería / librero» (*kitap* + -ci)",
+      "back": "kitapçı",
+      "note": "-ci pasa a -çi tras consonante dura"
+    },
+    {
+      "front": "«Lechero» (*süt* + -ci)",
+      "back": "sütçü",
+      "note": ""
+    }
+  ]
+}
