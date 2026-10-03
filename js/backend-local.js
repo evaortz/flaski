@@ -65,17 +65,26 @@ export function resetLocal() {
 export async function loadAll() {
   db = read();
   const since = new Date(Date.now() - 372 * 864e5).toISOString().slice(0, 10);
+  const logArr = Array.isArray(db.log) ? db.log : (db.log && typeof db.log === 'object' ? Object.entries(db.log).map(([day, count]) => ({ day, count })) : []);
+  const decksArr = Array.isArray(db.decks) ? db.decks : [];
+  const cardsArr = Array.isArray(db.cards) ? db.cards : [];
+  const progressArr = Array.isArray(db.progress) ? db.progress : [];
+  const foldersArr = Array.isArray(db.folders) ? db.folders : [];
+  const tagsArr = Array.isArray(db.tags) ? db.tags : [];
+  const typesArr = Array.isArray(db.types) ? db.types : [];
+  const eventsArr = Array.isArray(db.events) ? db.events : [];
+
   return clone({
-    profile: db.profile,
-    settings: db.settings,
-    decks: [...db.decks].sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    cards: [...db.cards].sort((a, b) => a.position - b.position),
-    progress: db.progress,
-    log: db.log.filter(r => r.day >= since),
-    folders: [...db.folders].sort((a, b) => a.position - b.position),
-    tags: [...db.tags].sort((a, b) => a.name.localeCompare(b.name)),
-    types: db.types,
-    events: db.events.filter(e => e.ts >= new Date(Date.now() - 400 * 864e5).toISOString()),
+    profile: db.profile || { id: UID, display_name: '' },
+    settings: db.settings || { new_per_day: 15, prefs: {} },
+    decks: [...decksArr].sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || ''))),
+    cards: [...cardsArr].sort((a, b) => Number(a?.position || 0) - Number(b?.position || 0)),
+    progress: progressArr,
+    log: logArr.filter(r => r && r.day >= since),
+    folders: [...foldersArr].sort((a, b) => Number(a?.position || 0) - Number(b?.position || 0)),
+    tags: [...tagsArr].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))),
+    types: typesArr,
+    events: eventsArr.filter(e => e && e.ts >= new Date(Date.now() - 400 * 864e5).toISOString()),
   });
 }
 
@@ -104,7 +113,8 @@ export async function clearManyProgress(uid, cardIds) {
 export function dumpLocal() { return clone(db); }
 export async function restoreLocal(data) { localStorage.setItem(KEY, JSON.stringify(data)); }
 export async function saveLog(uid, day, count) {
-  db.log = db.log.filter(r => r.day !== day);
+  if (!Array.isArray(db.log)) db.log = [];
+  db.log = db.log.filter(r => r && r.day !== day);
   if (count > 0) db.log.push({ day, count });
   persist();
 }
