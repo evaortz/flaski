@@ -23,8 +23,29 @@ export function dateKey(t = Date.now()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function schedule(prev, g, now = Date.now()) {
-  const s = prev ? { ...prev } : { reps: 0, interval: 0, ease: 2.5, lapses: 0 };
+export const DEFAULT_ALGO = {
+  againMin: 1,
+  hardNewMin: 10,
+  gradDays: 1,
+  easyDays: 4,
+  secondDays: 3,
+  startEase: 2.5,
+  easyBonus: 1.3,
+  hardFactor: 1.2,
+  intervalMod: 1.0,
+  maxDays: 365,
+  lapseEase: 0.2,
+};
+
+export const ALGO_PRESETS = {
+  standard: { label: 'Estándar', help: 'El ritmo recomendado. Equilibrado para retener el 90 %.', algo: { ...DEFAULT_ALGO } },
+  gentle: { label: 'Suave', help: 'Para temas difíciles o si tienes poco tiempo diario.', algo: { ...DEFAULT_ALGO, startEase: 2.3, easyDays: 3, intervalMod: 0.85 } },
+  intense: { label: 'Intenso', help: 'Avanza más rápido si te resulta fácil.', algo: { ...DEFAULT_ALGO, startEase: 2.7, easyDays: 5, intervalMod: 1.15 } },
+};
+
+export function schedule(prev, g, now = Date.now(), algo = DEFAULT_ALGO) {
+  const A = { ...DEFAULT_ALGO, ...algo };
+  const s = prev ? { ...prev } : { reps: 0, interval: 0, ease: A.startEase, lapses: 0 };
   if (!s.firstSeen) s.firstSeen = now;
   s.last = now;
 
@@ -32,8 +53,8 @@ export function schedule(prev, g, now = Date.now()) {
     if (s.reps > 0) s.lapses = (s.lapses || 0) + 1;
     s.reps = 0;
     s.interval = 0;
-    s.ease = Math.max(1.3, s.ease - 0.2);
-    s.due = now + 60e3; // vuelve en 1 minuto
+    s.ease = Math.max(1.3, s.ease - A.lapseEase);
+    s.due = now + (A.againMin || 1) * 60e3;
     return s;
   }
 
@@ -41,21 +62,21 @@ export function schedule(prev, g, now = Date.now()) {
   if (s.reps === 0) {
     if (g === 2) {
       s.ease = Math.max(1.3, s.ease - 0.15);
-      s.due = now + 10 * 60e3; // vuelve en 10 minutos
+      s.due = now + (A.hardNewMin || 10) * 60e3;
       return s;
     }
-    iv = g === 3 ? 1 : 4;
+    iv = g === 3 ? A.gradDays : A.easyDays;
     if (g === 4) s.ease += 0.15;
   } else if (g === 2) {
-    iv = Math.max(1, Math.round(s.interval * 1.2));
+    iv = Math.max(1, Math.round(s.interval * A.hardFactor * A.intervalMod));
     s.ease = Math.max(1.3, s.ease - 0.15);
   } else if (g === 3) {
-    iv = s.reps === 1 ? Math.max(3, s.interval + 1) : Math.max(s.interval + 1, Math.round(s.interval * s.ease));
+    iv = s.reps === 1 ? Math.max(A.secondDays, s.interval + 1) : Math.max(s.interval + 1, Math.round(s.interval * s.ease * A.intervalMod));
   } else {
-    iv = Math.max(s.interval + 2, Math.round(Math.max(1, s.interval) * s.ease * 1.3));
+    iv = Math.max(s.interval + 2, Math.round(Math.max(1, s.interval) * s.ease * A.easyBonus * A.intervalMod));
     s.ease += 0.15;
   }
-  iv = Math.min(iv, 365);
+  iv = Math.min(iv, A.maxDays || 365);
   s.reps += 1;
   s.interval = iv;
   s.due = startOfDay(now) + iv * DAY;
