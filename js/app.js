@@ -327,7 +327,7 @@ function renderHome() {
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
       <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} repasos en el último año</span></div>
       <div class="streaks">
-        <span class="streak-cur">🔥 <b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
+        <span class="streak-cur">${icon('flame', { size: 16, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
         <span><b>${st.best}</b> mejor racha</span>
         <span><b>${hm.active}</b> ${hm.active === 1 ? 'día' : 'días'} estudiando</span>
       </div>
@@ -1005,7 +1005,7 @@ function renderStats() {
   const { html, data } = statsView(ctx, f);
   statsData = data;
   main.innerHTML = html;
-  drawStats(main, data);
+  drawStats(main, data, { animate: true });
   scrollChartsToEnd(main);
 }
 

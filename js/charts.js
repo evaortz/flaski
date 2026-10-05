@@ -143,20 +143,28 @@ export function initChartTips() {
   tip.setAttribute('role', 'tooltip');
   const v = document.createElement('strong');
   const l = document.createElement('span');
-  tip.append(v, l);
+  tip.append(l, v);   // nombre arriba, valor debajo
   document.body.appendChild(tip);
   let hideTimer, shownAt = 0;
 
-  function show(el) {
+  // Con ratón el tooltip sigue al cursor; con teclado o al tocar se coloca sobre la marca
+  function show(el, at = null) {
     v.textContent = el.dataset.tipV;      // textContent: nunca HTML
     l.textContent = el.dataset.tipL;
     tip.hidden = false;
-    const r = el.getBoundingClientRect();
     const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let x = r.left + r.width / 2 - tw / 2;
+    let x, y;
+    if (at) {
+      x = at.x + 14; y = at.y - th - 14;
+      if (x + tw > window.innerWidth - 8) x = at.x - tw - 14;
+      if (y < 8) y = at.y + 18;
+    } else {
+      const r = el.getBoundingClientRect();
+      x = r.left + r.width / 2 - tw / 2; y = r.top - th - 8;
+      if (y < 8) y = r.bottom + 8;
+    }
     x = Math.max(8, Math.min(window.innerWidth - tw - 8, x));
-    let y = r.top - th - 8;
-    if (y < 8) y = r.bottom + 8;
+    y = Math.max(8, Math.min(window.innerHeight - th - 8, y));
     tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     document.querySelectorAll('.is-hot').forEach(n => n.classList.remove('is-hot'));
     el.classList.add('is-hot');
@@ -167,7 +175,9 @@ export function initChartTips() {
     document.querySelectorAll('.is-hot').forEach(n => n.classList.remove('is-hot'));
   }
   const target = e => e.target.closest?.('[data-tip-v]');
-  document.addEventListener('pointerover', e => { const el = target(e); if (el && e.pointerType === 'mouse') show(el); });
+  const cursor = e => ({ x: e.clientX, y: e.clientY });
+  document.addEventListener('pointerover', e => { const el = target(e); if (el && e.pointerType === 'mouse') show(el, cursor(e)); });
+  document.addEventListener('pointermove', e => { const el = e.pointerType === 'mouse' && !tip.hidden && target(e); if (el) show(el, cursor(e)); }, { passive: true });
   document.addEventListener('pointerout', e => { if (target(e) && e.pointerType === 'mouse') hide(); });
   document.addEventListener('pointerdown', e => {
     const el = target(e);

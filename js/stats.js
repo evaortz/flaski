@@ -185,8 +185,14 @@ export function statsView(ctx, f) {
 }
 
 /* ---------------- gráfico de barras genérico (apiladas o simples) ---------------- */
-// Ancho aproximado de un texto del eje (10 px), para reservar sitio y no cortarlo
-const textW = s => String(s).length * 6;
+// Ancho aproximado de un texto del eje (11 px), para reservar sitio y no cortarlo
+const textW = s => String(s).length * 6.6;
+// Barra con la parte de arriba redondeada (radio r) y la base recta
+function barPath(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  return r ? `M${x},${y + h}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h}Z` : `M${x},${y + h}V${y}H${x + w}V${y + h}Z`;
+}
+let animate = false;   // drawStats lo activa al pintar por primera vez o al cambiar filtros (no al redimensionar)
 const padLeft = labels => Math.max(24, 10 + Math.max(...labels.map(textW)));
 // Etiqueta del eje X: centrada bajo la barra, salvo en los bordes, donde se ancla para no salirse
 function xLabel(x, y, label, width) {
@@ -202,7 +208,8 @@ function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.form
   const max = niceMax(rawMax);
   const PADL = padLeft([yFmt(max), yFmt(max / 2), yFmt(0)]), PADR = 4, TOP = 10, BASE = height - 22, PLOT = BASE - TOP;
   const slot = (width - PADL - PADR) / Math.max(1, n);
-  const bw = Math.max(2, Math.min(26, slot * (slot > 8 ? 0.68 : 0.82)));
+  const bw = Math.max(2, Math.min(32, slot * (slot > 8 ? 0.65 : 0.82)));
+  const step = Math.min(20, 400 / Math.max(1, n));   // escalonado de la animación: ~20 ms, 400 ms como mucho en total
   let grid = '', bars = '', labels = '';
   for (const frac of [0, 0.5, 1]) {
     const y = BASE - frac * PLOT;
@@ -212,17 +219,19 @@ function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.form
   const every = Math.max(1, Math.ceil(40 / slot));
   rows.forEach((r, i) => {
     const cx = PADL + slot * i + slot / 2;
-    let y = BASE;
-    r.v.forEach((v, k) => {
-      if (!v) return;
+    // Segmentos de abajo arriba; solo el de arriba lleva las esquinas redondeadas
+    const segs = r.v.map((v, k) => [v, k]).filter(([v]) => v);
+    let y = BASE, stack = '';
+    segs.forEach(([v, k], j) => {
       const h = Math.max(1.5, (v / max) * PLOT);
-      bars += `<rect class="st-bar ${series[k].cls}${highlight(i, n) ? ' bar-strong' : ''}" x="${cx - bw / 2}" y="${y - h}" width="${bw}" height="${h}" rx="${Math.min(4, bw / 3, h / 2)}"></rect>`;
+      stack += `<path class="st-bar ${series[k].cls}${highlight(i, n) ? ' bar-strong' : ''}" d="${barPath(cx - bw / 2, y - h, bw, h, j === segs.length - 1 ? 6 : 0)}"></path>`;
       y -= h + (series.length > 1 ? 1 : 0);   // separación de 1px entre segmentos apilados
     });
-    bars += `<rect class="hit" x="${cx - slot / 2}" y="${TOP - 6}" width="${slot}" height="${PLOT + 6}" tabindex="0" data-tip-v="${escA(tipV(r, totals[i]))}" data-tip-l="${escA(r.tip)}"></rect>`;
+    bars += `<g class="bar-g">${stack ? `<g class="bar-stack"${animate ? ` style="animation-delay:${Math.round(i * step)}ms"` : ''}>${stack}</g>` : ''}`
+      + `<rect class="hit" x="${cx - slot / 2}" y="${TOP - 6}" width="${slot}" height="${PLOT + 6}" tabindex="0" data-tip-v="${escA(tipV(r, totals[i]))}" data-tip-l="${escA(r.tip)}"></rect></g>`;
     if (r.label && labelEvery(i, n, every)) labels += xLabel(cx, BASE + 15, r.label, width);
   });
-  return `<svg class="st-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${grid}${bars}${labels}</svg>`;
+  return `<svg class="st-svg${animate ? ' st-anim' : ''}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${grid}${bars}${labels}</svg>`;
 }
 function niceMax(v) {
   if (v <= 4) return 4;
@@ -251,7 +260,8 @@ function lineChart(width, rows, { height = 150, tipV }) {
 }
 
 /* ---------------- pinta los gráficos según el ancho disponible ---------------- */
-export function drawStats(root, D) {
+export function drawStats(root, D, { animate: anim = false } = {}) {
+  animate = anim;
   const today = startOfDay();
   const charts = {
     reviews: w => barChart(w, D.B.list.map(b => ({ v: b.g, label: b.label, tip: b.tip })), {
