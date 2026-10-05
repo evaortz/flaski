@@ -327,7 +327,7 @@ function renderHome() {
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
       <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} repasos en el último año</span></div>
       <div class="streaks">
-        <span class="streak-cur">${icon('flame', { size: 16, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
+        <span class="streak-cur">${icon('fire', { size: 18, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
         <span><b>${st.best}</b> mejor racha</span>
         <span><b>${hm.active}</b> ${hm.active === 1 ? 'día' : 'días'} estudiando</span>
       </div>
@@ -973,7 +973,7 @@ function renderProfile() {
           <div class="btnrow"><button class="ghost danger" data-act="ask-reset-local">Borrar datos locales</button></div></div>`
       : `<div class="panel"><p class="small muted">Has entrado como <b>${esc(S.email)}</b></p>
           <div class="btnrow"><button class="ghost" data-act="change-pass">Cambiar contraseña</button><button class="ghost danger" data-act="signout">Cerrar sesión</button></div></div>`}
-    <p class="muted small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC). Detalles en la carpeta <i>licenses</i>.</p>
+    <p class="muted small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
     <p class="muted small">Flaski es software libre. Consejo: en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p>`;
 }
 

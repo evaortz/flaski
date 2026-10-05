@@ -201,6 +201,7 @@ Para un grupo de amigos sobra: 500 MB de base de datos (cientos de miles de tarj
 - **[Hanzi Writer](https://hanziwriter.org)**, de David Chanin (licencia MIT), para corregir y animar trazos. Va incluido en `js/vendor/`.
 - **Datos de trazos**: japoneses de [hanzi-writer-data-jp](https://github.com/chanind/hanzi-writer-data-jp) (unos 2.900 kanji, a partir de [animCJK](https://github.com/parsimonhi/animCJK) y [Make Me A Hanzi](https://github.com/skishore/makemeahanzi); licencias Arphic y LGPL) y chinos de [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data) (licencia Arphic). Se descargan de jsDelivr la primera vez que se usa cada carácter y luego quedan guardados para usarlos sin conexión. Los kana (hiragana y katakana) no tienen datos de trazos: se practican en el lienzo libre.
 - **[Lucide](https://lucide.dev)** (ISC) para los iconos de la interfaz.
+- **[Fluent Emoji](https://github.com/microsoft/fluentui-emoji)** de Microsoft (MIT) para el icono de la racha.
 - **[emojibase](https://emojibase.dev)** (MIT) para los nombres de los emojis en español.
 
 Los textos completos de las licencias están en la carpeta `licenses/`.
