@@ -112,6 +112,15 @@ export async function clearManyProgress(uid, cardIds) {
 // Copia completa de los datos locales (para Ajustes → Copia de seguridad)
 export function dumpLocal() { return clone(db); }
 export async function restoreLocal(data) { localStorage.setItem(KEY, JSON.stringify(data)); }
+export async function bumpLog(uid, day, delta) {
+  if (!Array.isArray(db.log)) db.log = [];
+  const r = db.log.find(x => x && x.day === day);
+  const count = Math.max(0, (r?.count || 0) + delta);
+  db.log = db.log.filter(x => x && x.day !== day);
+  if (count > 0) db.log.push({ day, count });
+  persist();
+  return count;
+}
 export async function saveLog(uid, day, count) {
   if (!Array.isArray(db.log)) db.log = [];
   db.log = db.log.filter(r => r && r.day !== day);

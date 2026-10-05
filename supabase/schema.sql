@@ -244,3 +244,15 @@ create policy "mis tipos" on public.note_types
 drop policy if exists "mis respuestas" on public.review_events;
 create policy "mis respuestas" on public.review_events
   for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Contador diario de repasos: suma (o resta, al deshacer) de forma atómica en el servidor, para que
+-- dos dispositivos que estudian el mismo día no se pisen el contador. Se ejecuta con los permisos del
+-- usuario (security invoker), así que la política «mi registro» sigue aplicándose.
+create or replace function public.bump_review_log(p_day date, p_delta int)
+returns int language sql security invoker set search_path = public as $$
+  insert into public.review_log as l (user_id, day, count)
+  values (auth.uid(), p_day, greatest(p_delta, 0))
+  on conflict (user_id, day) do update set count = greatest(0, l.count + p_delta)
+  returning count;
+$$;
+grant execute on function public.bump_review_log(date, int) to authenticated;

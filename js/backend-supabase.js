@@ -100,6 +100,17 @@ export async function clearManyProgress(uid, cardIds) {
 }
 export function dumpLocal() { return null; }
 export async function restoreLocal() { throw new Error('Solo disponible en modo local'); }
+// Suma delta (+1 al responder, −1 al deshacer) al contador del día en el servidor y devuelve el total.
+// Si la función SQL aún no está creada (schema.sql sin ejecutar), escribe como antes sin bajar nunca
+// lo que haya: al sumar toma el máximo, para no borrar repasos de otro dispositivo.
+export async function bumpLog(uid, day, delta, localCount) {
+  const { data, error } = await sb.rpc('bump_review_log', { p_day: day, p_delta: delta });
+  if (!error) return data;
+  if (error.code !== 'PGRST202' && error.code !== '42883') throw error;
+  if (delta > 0) { await mergeLog(uid, [{ day, count: localCount }]); return null; }
+  await saveLog(uid, day, localCount);
+  return null;
+}
 export async function saveLog(uid, day, count) {
   if (count > 0) check(await sb.from('review_log').upsert({ user_id: uid, day, count }));
   else check(await sb.from('review_log').delete().eq('user_id', uid).eq('day', day));

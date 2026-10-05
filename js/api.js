@@ -21,6 +21,7 @@ export const clearManyProgress = impl.clearManyProgress;
 export const dumpLocal = impl.dumpLocal;
 export const restoreLocal = impl.restoreLocal;
 export const saveLog = impl.saveLog;
+export const bumpLog = impl.bumpLog;
 export const createDeck = impl.createDeck;
 export const updateDeck = impl.updateDeck;
 export const deleteDeck = impl.deleteDeck;

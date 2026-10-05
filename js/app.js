@@ -722,7 +722,8 @@ function grade(g) {
   S.progress.set(id, next);
   S.log[day] = (S.log[day] || 0) + 1;
   api.saveProgress(S.uid, id, next).catch(fail);
-  api.saveLog(S.uid, day, S.log[day]).catch(() => {});
+  // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
+  api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
   renderStudy();
 }
 function undo() {
@@ -732,7 +733,7 @@ function undo() {
   if (u.prev) { S.progress.set(u.id, u.prev); api.saveProgress(S.uid, u.id, u.prev).catch(fail); }
   else { S.progress.delete(u.id); api.clearProgress(S.uid, u.id).catch(fail); }
   S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
-  api.saveLog(S.uid, u.day, S.log[u.day]).catch(() => {});
+  api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
   Object.assign(ses, { queue: u.queue, done: u.done, tally: u.tally, revealed: true, undo: null, st: null });
   renderStudy();
