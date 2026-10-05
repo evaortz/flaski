@@ -304,10 +304,16 @@ function renderHome() {
   }).join('');
   const h = new Date().getHours();
   const hello = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+  const H = S.prefs.home;
   const st = streaks(S.log);
   const hm = heatmap(S.log);
   const mt = maturity(cardList(), S.progress);
-  const upcoming = [...S.progress.values()].filter(p => p.due < startOfDay() + 14 * DAY).length;
+  const fcDays = H.forecastDays || 14;
+  const upcoming = [...S.progress.values()].filter(p => p.due < startOfDay() + fcDays * DAY).length;
+  // Meta diaria (Ajustes → Estudio diario): respuestas de hoy frente a la meta
+  const doneToday = S.log[dateKey(Date.now())] || 0;
+  const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${H.goal}" aria-valuenow="${Math.min(doneToday, H.goal)}"><span style="width:${Math.min(100, Math.round((doneToday / H.goal) * 100))}%"></span></div></div>` : '';
   main.innerHTML = `
     <h1>${hello}${S.name ? ', ' + esc(S.name) : ''}</h1>
     <section class="hero" aria-label="Hoy">
@@ -316,8 +322,9 @@ function renderHome() {
            <button class="primary big" data-start="all">Empezar a estudiar</button>`
         : `<div class="hero-num">0</div><p class="muted">Estás al día. Vuelve mañana o aprende alguna nueva.</p>
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
+      ${goal}
     </section>
-    <section class="chart-card" aria-labelledby="h-act">
+    ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
       <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} repasos en el último año</span></div>
       <div class="streaks">
         <span><b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
@@ -325,23 +332,23 @@ function renderHome() {
         <span><b>${hm.active}</b> ${hm.active === 1 ? 'día' : 'días'} estudiando</span>
       </div>
       ${hm.html}
-    </section>
-    <section class="chart-card" aria-labelledby="h-fc">
-      <div class="chart-h"><h2 id="h-fc">Próximos 14 días</h2><span>${upcoming} ${upcoming === 1 ? 'repaso' : 'repasos'}</span></div>
+    </section>` : ''}
+    ${H.forecast ? `<section class="chart-card" aria-labelledby="h-fc">
+      <div class="chart-h"><h2 id="h-fc">Próximos ${fcDays} días</h2><span>${upcoming} ${upcoming === 1 ? 'repaso' : 'repasos'}</span></div>
       <div class="fc-wrap" id="fcWrap"></div>
-    </section>
-    <section class="chart-card" aria-labelledby="h-mt">
+    </section>` : ''}
+    ${H.maturity ? `<section class="chart-card" aria-labelledby="h-mt">
       <div class="chart-h"><h2 id="h-mt">Tus tarjetas</h2><span>${mt.pct} % consolidadas</span></div>
       ${mt.html}
-    </section>
-    <div class="section-h"><h2>Tus mazos</h2></div>
-    <ul class="list">${decks}</ul>`;
+    </section>` : ''}
+    ${H.decks ? `<div class="section-h"><h2>Tus mazos</h2></div>
+    <ul class="list">${decks}</ul>` : ''}`;
   drawForecast();
   scrollChartsToEnd(main);
 }
 function drawForecast() {
   const el = $('#fcWrap');
-  if (el) el.innerHTML = forecast(S.progress, Math.max(240, Math.floor(el.clientWidth)));
+  if (el) el.innerHTML = forecast(S.progress, Math.max(240, Math.floor(el.clientWidth)), S.prefs.home.forecastDays || 14);
 }
 let resizeT;
 window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') drawForecast(); if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
@@ -1009,23 +1016,38 @@ function setPref(path, v) {
   for (const k of ks.slice(0, -1)) o = o[k];
   o[ks.at(-1)] = v;
 }
-let prefsTimer;
+let prefsTimer, savedTimer;
+// Aviso flotante «Guardando… / Guardado»: se ve aunque se haya bajado por la página
+function savedBadge(state) {
+  const s = $('#setSaved'); if (!s) return;
+  clearTimeout(savedTimer);
+  s.hidden = state === 'hide';
+  s.innerHTML = state === 'saving' ? 'Guardando…' : `${icon('check', { size: 14 })} Guardado`;
+  if (state === 'done') savedTimer = setTimeout(() => { s.hidden = true; }, 1600);
+}
 function savePrefsSoon() {
   clearTimeout(prefsTimer);
+  savedBadge('saving');
   prefsTimer = setTimeout(() => {
-    api.saveSettings(S.uid, S.newPerDay, S.prefs).then(() => {
-      const s = $('#setSaved'); if (s) { s.hidden = false; clearTimeout(s._t); s._t = setTimeout(() => { s.hidden = true; }, 1600); }
-    }).catch(fail);
+    api.saveSettings(S.uid, S.newPerDay, S.prefs).then(() => savedBadge('done')).catch(e => { savedBadge('hide'); fail(e); });
   }, 350);
 }
 // Controles reutilizables (todos guardan solos al cambiar)
 const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
-const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" data-pref="${path}" ${cur ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label>`;
+const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" role="switch" data-pref="${path}" ${cur ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label>`;
 const numIn = (path, { min = 0, max = 9999, step = 1, unit = '', cur = getPref(path), id = '' } = {}) =>
   `<span class="num"><input type="number" ${id ? `id="${id}"` : ''} data-pref="${path}" data-num min="${min}" max="${max}" step="${step}" inputmode="decimal" value="${cur}">${unit ? `<span>${unit}</span>` : ''}</span>`;
-const setRow = (label, hint, control, cls = '') => `<div class="set-row${cls}"><div class="set-l"><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</div><div class="set-c">${control}</div></div>`;
+// Fila: título + frase de ayuda a la izquierda, control a la derecha (debajo si no cabe).
+// El título da nombre accesible al control y la ayuda lo describe.
+let rowSeq = 0;
+const setRow = (label, hint, control, { id = '', off = false } = {}) => {
+  const n = ++rowSeq;
+  const ctl = control.replace(/<(input|div class="seg"|div class="swatches")/, m => `${m} aria-labelledby="sl-${n}" aria-describedby="sh-${n}"`);
+  return `<div class="set-row${off ? ' is-off' : ''}"${id ? ` id="${id}"` : ''}><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
+};
 const setSec = (ic, title, body, id = '') => `<section class="set-sec"${id ? ` id="${id}"` : ''}><h2>${icon(ic, { size: 18 })} ${title}</h2><div class="set-body">${body}</div></section>`;
+const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Inicio'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
 
 // Simulación: intervalos de una tarjeta que aciertas siempre con «Bien»
 function algoPreview(A) {
@@ -1034,50 +1056,53 @@ function algoPreview(A) {
   const f = d => d < 1 ? 'hoy' : d < 31 ? `${d} d` : d < 365 ? `${Math.round(d / 30)} mes` : `${(d / 365).toFixed(1).replace('.', ',')} años`;
   return out.map(f).join(' → ');
 }
+// Orden: primero lo que más se cambia (apariencia, estudio diario); al final lo avanzado (ritmo) y los datos
 function renderSettings() {
   const P = S.prefs, A = algoFor(P, null);
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
-  const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" style="--sw:var(--c-${a.id})" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
-  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><span class="saved" id="setSaved" hidden>${icon('check', { size: 14 })} Guardado</span></div>
-    <nav class="set-toc" aria-label="Secciones de ajustes">${[['s-study', 'Estudio'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-algo', 'Ritmo'], ['s-look', 'Apariencia'], ['s-home', 'Inicio'], ['s-data', 'Datos']].map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
+  const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
+  rowSeq = 0;
+  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1></div>
+    <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
+    <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
+    ${setSec('palette', 'Apariencia', `
+      ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
+      ${setRow('Color de acento', 'Botones principales, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
+      ${setRow('Tamaño del texto', 'Tamaño de las tarjetas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
+      ${setRow('Letra de las tarjetas', 'Tipo de letra de las tarjetas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}">${f.label}</span>`])))}
+      ${setRow('Alineación', 'Cómo se coloca el texto dentro de la tarjeta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
+      ${setRow('Densidad', 'Compacta reduce márgenes y la altura de las filas.', seg('look.density', [['comfy', 'Cómoda'], ['compact', 'Compacta']]))}
+      <div class="look-pv" aria-label="Vista previa de una tarjeta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
+        <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
     ${setSec('gauge', 'Estudio diario', `
       ${setRow('Tarjetas nuevas al día', 'Entre 10 y 20 va bien. Cada mazo puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
       ${setRow('Meta diaria', 'Respuestas al día. Aparece como barra de progreso en Inicio. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
-      ${setRow('Orden de las nuevas', '', seg('study.newOrder', [['order', 'Como en el mazo'], ['random', 'Al azar']]))}
+      ${setRow('Orden de las nuevas', 'En qué orden salen las tarjetas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en el mazo'], ['random', 'Al azar']]))}
       ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}`, 's-study')}
     ${setSec('layers', 'Durante la sesión', `
       ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
-      ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón.', sw('study.showIntervals'))}
+      ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la tarjeta.', sw('study.showIntervals'))}
       ${setRow('Resaltar la nota sugerida', 'En tarjetas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
       ${setRow('Una nueva por nota', 'Si una nota genera varias tarjetas (p. ej. ida y vuelta), solo sale una nueva por sesión.', sw('study.burySiblings'))}
-      ${setRow('Ayuda de atajos de teclado', '', sw('study.shortcuts'))}`, 's-session')}
+      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la tarjeta qué teclas puedes usar.', sw('study.shortcuts'))}`, 's-session')}
     ${setSec('volume-2', 'Voz', `
       ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la tarjeta.', sw('study.autoplay'))}
-      ${setRow('Velocidad de la voz', '', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}" aria-label="Velocidad"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
+      ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
+    ${setSec('house', 'Inicio', `
+      ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
+      ${setRow('Previsión', 'Gráfico con los repasos de los próximos días.', sw('home.forecast'))}
+      ${setRow('Días de previsión', 'Cuántos días abarca el gráfico de previsión.', seg('home.forecastDays', [[7, '7'], [14, '14'], [30, '30']]), { id: 'row-fcdays', off: !P.home.forecast })}
+      ${setRow('Estado de las tarjetas', 'Barra con nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
+      ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
-      <p class="muted small">Decide cada cuánto vuelven las tarjetas. Cada mazo puede usar otro ritmo en sus opciones.</p>
-      <div class="presets" role="radiogroup">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
+      <p class="muted small set-intro">Decide cada cuánto vuelven las tarjetas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada mazo puede usar otro ritmo en sus opciones.</p>
+      <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
       <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una tarjeta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
       <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
         <div class="algo-grid">${ALGO_FIELDS.map(x => `<label class="af"><span>${x.label}</span>${numIn('algo.custom.' + x.k, { min: x.min, max: x.max, step: x.step, unit: x.unit, cur: P.algo.preset === 'custom' ? P.algo.custom[x.k] : A[x.k] }).replace('<input', P.algo.preset === 'custom' ? '<input' : '<input disabled')}</label>`).join('')}</div>
         <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
       </details>`, 's-algo')}
-    ${setSec('palette', 'Apariencia', `
-      ${setRow('Tema', '', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
-      ${setRow('Color de acento', 'Botones principales, enlaces y gráficos.', `<div class="swatches">${accents}</div>`)}
-      ${setRow('Letra de las tarjetas', '', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}">${f.label}</span>`])))}
-      ${setRow('Tamaño del texto', 'De las tarjetas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
-      ${setRow('Alineación', '', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
-      ${setRow('Densidad', 'Compacta reduce márgenes y filas.', seg('look.density', [['comfy', 'Cómoda'], ['compact', 'Compacta']]))}
-      <div class="look-pv"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba · 漢字[かんじ]</span></div></div></div>
-        <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola · kanji</span></div></div></div></article></div>`, 's-look')}
-    ${setSec('house', 'Inicio', `
-      ${setRow('Calendario de actividad', '', sw('home.activity'))}
-      ${setRow('Previsión', '', sw('home.forecast'))}
-      ${setRow('Días de previsión', '', seg('home.forecastDays', [[7, '7'], [14, '14'], [30, '30']]))}
-      ${setRow('Estado de las tarjetas', '', sw('home.maturity'))}
-      ${setRow('Lista de mazos', '', sw('home.decks'))}`, 's-home')}
     ${setSec('database', 'Datos', `
       ${setRow('Copia de seguridad', 'Descarga todos tus mazos, tarjetas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
       ${setRow('Restaurar copia', api.mode === 'local' ? 'Sustituye todo lo de este navegador por la copia.' : 'Añade los mazos de la copia a tu cuenta (el progreso empieza de cero).', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
@@ -1089,6 +1114,7 @@ function prefChanged(path) {
   if (path.startsWith('look.')) applyLook(S.prefs.look);
   if (path === 'study.rate') { setBaseRate(S.prefs.study.rate); const o = $('#rateOut'); if (o) o.textContent = Math.round(S.prefs.study.rate * 100) + ' %'; }
   if (path.startsWith('algo.')) { const pv = $('#algoPv'); if (pv) pv.textContent = algoPreview(algoFor(S.prefs, null)); }
+  if (path === 'home.forecast') $('#row-fcdays')?.classList.toggle('is-off', !S.prefs.home.forecast);
   savePrefsSoon();
 }
 function backupData() {
