@@ -1047,10 +1047,16 @@ function savedBadge(state) {
 function savePrefsSoon() {
   clearTimeout(prefsTimer);
   savedBadge('saving');
-  prefsTimer = setTimeout(() => {
-    api.saveSettings(S.uid, S.newPerDay, S.prefs).then(() => savedBadge('done')).catch(e => { savedBadge('hide'); fail(e); });
-  }, 350);
+  prefsTimer = setTimeout(savePrefsNow, 350);
 }
+function savePrefsNow() {
+  clearTimeout(prefsTimer); prefsTimer = null;
+  api.saveSettings(S.uid, S.newPerDay, S.prefs).then(() => savedBadge('done')).catch(e => { savedBadge('hide'); fail(e); });
+}
+// Si la app se cierra o pasa a segundo plano con un cambio aún sin guardar, se guarda ya
+function flushPrefs() { if (prefsTimer) savePrefsNow(); }
+addEventListener('pagehide', flushPrefs);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPrefs(); });
 // Controles reutilizables (todos guardan solos al cambiar)
 const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
