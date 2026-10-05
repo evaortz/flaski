@@ -10,12 +10,13 @@ import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmap, forecast, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId } from './cardtypes.js';
+import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId } from './cardtypes.js';
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck } from './org.js';
 import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
 import { isRetryable } from './outbox.js';
+import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -942,6 +943,7 @@ function renderDecks() {
       ${folder && !filtering ? '<button class="ghost" data-act="add-decks-here">+ Añadir mazos aquí</button>' : ''}
       <button class="ghost" data-act="new-folder">+ Carpeta</button>
       <button class="ghost" data-act="import">Importar</button>
+      <button class="ghost" data-act="paste">Pegar</button>
     </div>
     ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar un mazo encima de una carpeta.</p>' : ''}
     <div class="toolbar">
@@ -1051,11 +1053,62 @@ function showPreview(byline) {
   openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} tarjetas · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
-    ${p.source === 'archivo' && S.decks.size
+    ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
       ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Un mazo nuevo: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select>`
       : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
+    ${issuesHTML(p.issues)}
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis mazos</button></div>`);
+}
+// Problemas del formato por notas: las que se saltan (y por qué) y los avisos
+function issueList(items) {
+  return `<ul class="issues">${items.map(i => `<li><b>${i.n ? `Nota ${i.n}` : 'Mazo'}</b>${i.label && i.n ? ` <span class="muted">(${esc(i.label)})</span>` : ''}: ${esc(i.reason)}</li>`).join('')}</ul>`;
+}
+function issuesHTML(issues = []) {
+  const skipped = issues.filter(i => i.skipped), warns = issues.filter(i => !i.skipped);
+  return `${skipped.length ? `<details class="issues-box" open><summary>${skipped.length === 1 ? 'Se salta 1 nota' : `Se saltan ${skipped.length} notas`}</summary>${issueList(skipped)}</details>` : ''}
+    ${warns.length ? `<details class="issues-box"><summary>${plural(warns.length, 'aviso', 'avisos')}</summary>${issueList(warns)}</details>` : ''}`;
+}
+// Archivo o texto pegado ya leído → vista previa. parsed: { kind: 'json', data } o { kind: 'csv', text }
+function previewImport(parsed, { source, baseName = 'Mazo importado' }) {
+  if (parsed.kind === 'csv') {
+    const { cards, skipped } = cardsFromCSV(parsed.text);
+    S.preview = { name: baseName.slice(0, 80), description: '', cards, skipped, source };
+    return showPreview('desde CSV');
+  }
+  if (isNotesDeck(parsed.data)) {
+    const d = notesToDeck(parsed.data);
+    S.preview = { ...d, source };
+    if (!d.cards.length) {
+      return openSheet(`<h2>No se ha podido crear ninguna tarjeta</h2><p class="muted">Ninguna nota es válida. Esto es lo que falla en cada una:</p>
+        ${issueList(d.issues.length ? d.issues : [{ n: 0, reason: 'la lista de notas está vacía' }])}
+        <div class="btnrow"><span class="spacer"></span>${source === 'pegado' ? '<button class="ghost" data-act="paste">Volver a pegar</button>' : ''}<button class="primary" data-act="close-sheet">Cerrar</button></div>`);
+    }
+    return showPreview(`${plural(d.notes, 'nota', 'notas')} · formato por notas`);
+  }
+  S.preview = { ...parseDeckFile(parsed.data), source };
+  showPreview('desde archivo Flaski');
+}
+
+/* ---------------- Pegar e instrucciones para IA ---------------- */
+function pasteSheet() {
+  openSheet(`<h2>Pegar un mazo</h2>
+    <p class="muted small">Pega el mazo que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
+    <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto del mazo" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
+    <p class="error" id="pasteError" role="alert" hidden></p>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="paste-preview">Ver vista previa</button></div>
+    <div class="ai-help">${icon('lightbulb', { size: 18 })}<div>
+      <p><b>¿Quieres que una IA te haga el mazo?</b> Copia estas instrucciones, pégalas en la IA junto con lo que quieres estudiar y pega aquí lo que te responda.</p>
+      ${AI_GUIDE_BTNS()}</div></div>`);
+  loadAiGuide();
+}
+const AI_GUIDE_BTNS = () => `<span class="btnrow"><button type="button" class="ghost small-btn" data-act="copy-ai-guide">${icon('copy', { size: 16 })} Copiar instrucciones</button><button type="button" class="ghost small-btn" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button></span>`;
+async function loadAiGuide() {
+  if (!S.aiGuide) { try { const r = await fetch('FORMATO-IA.md', { cache: 'no-cache' }); if (r.ok) S.aiGuide = await r.text(); } catch {} }
+  return S.aiGuide;
+}
+async function copyText(text, done) {
+  try { await navigator.clipboard.writeText(text); toast(done); return true; } catch { return false; }
 }
 async function addPreview(btn) {
   const p = S.preview;
@@ -1063,16 +1116,24 @@ async function addPreview(btn) {
   btn.disabled = true; btn.textContent = 'Añadiendo…';
   try {
     const typeMap = await adoptTypes(p.types);
+    // Etiquetas por nombre (formato por notas): se crean las que falten y se reutilizan las que ya tengas
+    let cards = p.cards;
+    if (p.tagNames?.length) {
+      const ids = new Map();
+      for (const name of p.tagNames) { const t = await addTag(name); if (t) ids.set(name.toLocaleLowerCase(), t.id); }
+      cards = cards.map(c => ({ ...c, tags: (c.tagNames || []).map(n => ids.get(n.toLocaleLowerCase())).filter(Boolean) }));
+    }
+    if (p.source === 'pegado') S.pasteText = '';
     const dest = $('#destDeck')?.value;
     if (dest) {
-      const created = await api.importCards(S.uid, dest, p.cards, typeMap);
+      const created = await api.importCards(S.uid, dest, cards, typeMap);
       for (const c of created) S.cards.set(c.id, c);
       toast(`${created.length} tarjetas añadidas`);
       return go('deck', { deckId: dest, cardQuery: '' });
     }
-    const { deck, cards } = await api.importDeck(S.uid, { ...p, typeMap });
+    const { deck, cards: made } = await api.importDeck(S.uid, { ...p, cards, typeMap });
     S.decks.set(deck.id, { tags: [], ...deck });
-    for (const c of cards) S.cards.set(c.id, c);
+    for (const c of made) S.cards.set(c.id, c);
     toast(`«${deck.name}» añadido`);
     go('deck', { deckId: deck.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis mazos'; fail(e); }
@@ -1189,6 +1250,7 @@ function algoPreview(A) {
 }
 // Orden: primero lo que más se cambia (apariencia, estudio diario); al final lo avanzado (ritmo) y los datos
 function renderSettings() {
+  loadAiGuide();   // para que «Copiar instrucciones» copie al instante (Safari lo exige)
   const P = S.prefs, A = algoFor(P, null);
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
@@ -1235,6 +1297,7 @@ function renderSettings() {
         <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
       </details>`, 's-algo')}
     ${setSec('database', 'Datos', `
+      ${setRow('Mazos hechos con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen un mazo. Lo que te respondan se pega en «Mis mazos» → «Pegar».', AI_GUIDE_BTNS())}
       ${setRow('Copia de seguridad', 'Descarga todos tus mazos, tarjetas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
       ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade los mazos que falten.' : 'Añade los mazos que no tengas, con su progreso. Los que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
       ${setRow('Reiniciar el progreso', 'Todas las tarjetas vuelven a ser nuevas. Los mazos no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
@@ -1764,17 +1827,6 @@ function drawPreview() {
     </div>
     ${!isActive(tpl) ? `<p class="hint pv-miss">Esta tarjeta no se creará hasta que rellenes ${esc(missingFor(type, tpl, e.fields))}.</p>` : ''}`;
 }
-function missingFor(type, tpl, fields) {
-  const name = id => type.fields.find(f => f.id === id)?.name || id;
-  const empty = id => !String(fields[id] || '').trim();
-  if (tpl.mode === 'cloze') return `«${name(tpl.front[0])}» con algún {{hueco}}`;
-  const need = [];
-  if (!['listen', 'order'].includes(tpl.mode) && tpl.front.every(empty)) need.push(name(tpl.front[0]));
-  if (tpl.answer && empty(tpl.answer)) need.push(name(tpl.answer));
-  if (!tpl.answer && tpl.back.every(empty)) need.push(name(tpl.back[0]));
-  if (tpl.mode === 'order' && !need.length) return `«${name(tpl.answer)}» con al menos dos piezas`;
-  return need.map(n => `«${n}»`).join(' y ') || 'los campos';
-}
 function confirmSheet(text, act, label) {
   openSheet(`<h2>${text}</h2><p class="muted">No se puede deshacer.</p>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="danger solid primary" data-act="${act}">${label}</button></div>`);
@@ -2192,15 +2244,10 @@ async function importFile(file) {
   try {
     const text = await file.text();
     const baseName = file.name.replace(/\.(flaski\.json|kartlar\.json|json|csv|tsv|txt)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Mazo importado';
-    const isJson = /\.json$/i.test(file.name) || /^\s*[{[]/.test(text.replace(/^\uFEFF/, ''));
-    if (isJson) {
-      S.preview = { ...parseDeckFile(JSON.parse(text)), source: 'archivo' };
-    } else {
-      const { cards, skipped } = cardsFromCSV(text);
-      S.preview = { name: baseName.slice(0, 80), description: '', cards, skipped, source: 'archivo' };
-    }
-    showPreview(isJson ? 'desde archivo Flaski' : 'desde CSV');
-  } catch (e) { toast(e instanceof SyntaxError ? 'El archivo no es un mazo válido' : (e.message || 'No se pudo leer el archivo')); }
+    // .csv y .tsv siempre como CSV; lo demás puede ser JSON (también entre ```json, como lo dan las IAs)
+    const parsed = /\.(csv|tsv)$/i.test(file.name) ? { kind: 'csv', text } : parsePasted(text);
+    previewImport(parsed, { source: 'archivo', baseName });
+  } catch (e) { toast(e.message || 'No se pudo leer el archivo'); }
 }
 function download(text, filename, type) {
   const blob = new Blob([text], { type });
@@ -2452,6 +2499,25 @@ document.addEventListener('click', async e => {
     case 'new-card': return cardForm(null);
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
+    case 'paste': return pasteSheet();
+    case 'paste-preview': {
+      S.pasteText = $('#pasteText').value;
+      try { previewImport(parsePasted(S.pasteText), { source: 'pegado', baseName: 'Mazo pegado' }); }
+      catch (err) { const el = $('#pasteError'); el.textContent = err.message || 'No se ha podido leer lo pegado.'; el.hidden = false; }
+      return;
+    }
+    case 'copy-ai-guide': {
+      // Se copia sin esperar a nada si ya está cargado: Safari solo deja copiar justo tras el toque
+      const text = S.aiGuide || await loadAiGuide();
+      if (!text) return toast('No se han podido cargar las instrucciones. Prueba con «Descargar».');
+      if (!await copyText(text, 'Instrucciones copiadas: pégalas en tu IA')) toast('No se ha podido copiar. Prueba con «Descargar».');
+      return;
+    }
+    case 'download-ai-guide': {
+      const text = await loadAiGuide();
+      if (!text) return toast('No se han podido cargar las instrucciones. Revisa la conexión.');
+      return download(text, 'FORMATO-IA.md', 'text/markdown;charset=utf-8');
+    }
     case 'export-deck': return exportDeck('json');
     case 'export-csv': return exportDeck('csv');
     case 'refresh-explore': S.pub = null; S.builtin = null; return renderExplore();

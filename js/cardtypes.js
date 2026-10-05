@@ -144,6 +144,19 @@ export function activeTemplates(type, fields) {
   });
 }
 
+// Qué le falta a una nota para crear la tarjeta de esta plantilla («Respuesta», «Texto con huecos» con algún {{hueco}}…)
+export function missingFor(type, tpl, fields) {
+  const name = id => type.fields.find(f => f.id === id)?.name || id;
+  const empty = id => !String(fields[id] || '').trim();
+  if (tpl.mode === 'cloze') return `«${name(tpl.front[0])}» con algún {{hueco}}`;
+  const need = [];
+  if (!['listen', 'order'].includes(tpl.mode) && tpl.front.every(empty)) need.push(name(tpl.front[0]));
+  if (tpl.answer && empty(tpl.answer)) need.push(name(tpl.answer));
+  if (!tpl.answer && tpl.back.every(empty)) need.push(name(tpl.back[0]));
+  if (tpl.mode === 'order' && !need.length) return `«${name(tpl.answer)}» con al menos dos piezas`;
+  return need.map(n => `«${n}»`).join(' y ') || 'los campos';
+}
+
 // Texto resumen de una tarjeta (para listas, búsqueda, CSV y vistas previas)
 export function summarize(type, tpl, fields) {
   const val = id => String(fields[id] ?? '').trim();

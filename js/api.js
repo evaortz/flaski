@@ -79,6 +79,7 @@ export async function importCards(uid, deckId, cards, typeMap = new Map()) {
       template: c.template || 't1',
       fields: c.fields && typeof c.fields === 'object' && !Array.isArray(c.fields) ? c.fields : {},
       hint: String(c.hint || '').slice(0, 500),
+      tags: Array.isArray(c.tags) ? c.tags : [],   // ids de etiquetas de esta cuenta
     };
   });
   return rows.length ? createCards(rows) : [];
