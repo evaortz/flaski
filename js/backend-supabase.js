@@ -1,15 +1,56 @@
 // Backend en la nube: guarda todo en Supabase (cuentas, mazos, progreso).
 // Expone exactamente las mismas funciones que backend-local.js.
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// La librería va incluida en la app (js/vendor) para que arranque sin conexión.
+import { createClient } from './vendor/supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { toRow } from './rows.js';
+import { createOutbox } from './outbox.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
-function check({ data, error }) {
-  if (error) throw error;
+function check({ data, error, status }) {
+  if (error) { if (error.status == null) error.status = status; throw error; }
   return data;
 }
+
+/* ---------------- Sin conexión ---------------- */
+// Lo que se hace al estudiar (respuestas, progreso, registro diario, ajustes) pasa por una cola que se
+// guarda en el navegador: sin red no se pierde y se envía en cuanto vuelve. Cada cuenta tiene la suya.
+const send = {
+  saveProgress: (uid, cardId, s) => sb.from('progress').upsert(toRow(uid, cardId, s)).then(check),
+  clearProgress: (uid, cardId) => sb.from('progress').delete().eq('user_id', uid).eq('card_id', cardId).then(check),
+  addEvent: ev => sb.from('review_events').upsert(ev, { onConflict: 'id', ignoreDuplicates: true }).then(check),
+  deleteEvent: id => sb.from('review_events').delete().eq('id', id).then(check),
+  bumpLog: (uid, day, delta, localCount) => sendBump(uid, day, delta, localCount),
+  saveSettings: (uid, new_per_day, prefs) => {
+    const row = { user_id: uid, new_per_day };
+    if (prefs) row.prefs = prefs;
+    return sb.from('settings').upsert(row).then(check);
+  },
+};
+let box = null;
+export const offline = {
+  // Empieza a usar la cola de esta cuenta; onChange(n) avisa de cuántos cambios quedan por enviar
+  start(uid, onChange) {
+    // Sin sesión válida (caducada y aún sin red para renovarla) no se envía: Supabase aceptaría
+    // algunos borrados sin hacer nada. Se reintenta más tarde.
+    const run = async (op, args) => {
+      const { data } = await sb.auth.getSession();
+      if (data?.session?.user?.id !== uid) throw Object.assign(new Error('JWT: sin sesión'), { status: 401 });
+      return send[op](...args);
+    };
+    box = createOutbox({ key: 'flaski-outbox:' + uid, run, onChange });
+    onChange(box.size);
+    return box.flush();
+  },
+  stop() { box = null; },
+  flush() { return box ? box.flush() : Promise.resolve(true); },
+  get pending() { return box ? box.size : 0; },
+  // Cambios aún sin enviar, para aplicarlos encima de lo que se cargue (servidor o copia)
+  pendingOps() { return box ? box.items : []; },
+  clear() { box?.clear(); },
+};
+const queued = op => (...args) => (box ? box.push(op, ...args) : send[op](...args));
 
 // Supabase devuelve como máximo 1000 filas por consulta: pedimos por páginas.
 async function fetchAll(build) {
@@ -59,20 +100,23 @@ export const auth = {
 };
 
 /* ---------------- Carga inicial ---------------- */
-export async function loadAll(uid) {
+// retry: false para fallar en el acto si no hay red (la app tiene entonces una copia con la que abrir);
+// si no, la librería reintenta las lecturas varias veces antes de rendirse.
+export async function loadAll(uid, { retry = true } = {}) {
   const since = new Date(Date.now() - 372 * 864e5).toISOString().slice(0, 10);
   const yearAgo = new Date(Date.now() - 400 * 864e5).toISOString();
+  const from = t => { const q = sb.from(t); return { select: (...a) => q.select(...a).retry(retry) }; };
   const [profile, settings, decks, cards, progress, log, folders, tags, types, events] = await Promise.all([
-    sb.from('profiles').select('id, display_name').eq('id', uid).maybeSingle().then(check),
-    sb.from('settings').select('new_per_day, prefs').eq('user_id', uid).maybeSingle().then(check),
-    fetchAll(() => sb.from('decks').select('*').eq('owner', uid).order('created_at')),
-    fetchAll(() => sb.from('cards').select('*').eq('owner', uid).order('position')),
-    fetchAll(() => sb.from('progress').select('*').eq('user_id', uid)),
-    fetchAll(() => sb.from('review_log').select('day, count').eq('user_id', uid).gte('day', since)),
-    fetchAll(() => sb.from('folders').select('*').eq('owner', uid).order('position')),
-    fetchAll(() => sb.from('tags').select('*').eq('owner', uid).order('name')),
-    fetchAll(() => sb.from('note_types').select('*').eq('owner', uid).order('created_at')),
-    fetchAll(() => sb.from('review_events').select('id, card_id, deck_id, ts, grade, state, ivl, last_ivl, ease, ms').eq('user_id', uid).gte('ts', yearAgo).order('ts')),
+    from('profiles').select('id, display_name').eq('id', uid).maybeSingle().then(check),
+    from('settings').select('new_per_day, prefs').eq('user_id', uid).maybeSingle().then(check),
+    fetchAll(() => from('decks').select('*').eq('owner', uid).order('created_at')),
+    fetchAll(() => from('cards').select('*').eq('owner', uid).order('position')),
+    fetchAll(() => from('progress').select('*').eq('user_id', uid)),
+    fetchAll(() => from('review_log').select('day, count').eq('user_id', uid).gte('day', since)),
+    fetchAll(() => from('folders').select('*').eq('owner', uid).order('position')),
+    fetchAll(() => from('tags').select('*').eq('owner', uid).order('name')),
+    fetchAll(() => from('note_types').select('*').eq('owner', uid).order('created_at')),
+    fetchAll(() => from('review_events').select('id, card_id, deck_id, ts, grade, state, ivl, last_ivl, ease, ms').eq('user_id', uid).gte('ts', yearAgo).order('ts')),
   ]);
   return { profile, settings, decks, cards, progress, log, folders, tags, types, events };
 }
@@ -81,19 +125,11 @@ export async function loadAll(uid) {
 export async function saveProfile(uid, display_name) {
   check(await sb.from('profiles').update({ display_name }).eq('id', uid));
 }
-export async function saveSettings(uid, new_per_day, prefs) {
-  const row = { user_id: uid, new_per_day };
-  if (prefs) row.prefs = prefs;
-  check(await sb.from('settings').upsert(row));
-}
+export const saveSettings = queued('saveSettings');
 
 /* ---------------- Progreso ---------------- */
-export async function saveProgress(uid, cardId, s) {
-  check(await sb.from('progress').upsert(toRow(uid, cardId, s)));
-}
-export async function clearProgress(uid, cardId) {
-  check(await sb.from('progress').delete().eq('user_id', uid).eq('card_id', cardId));
-}
+export const saveProgress = queued('saveProgress');
+export const clearProgress = queued('clearProgress');
 export async function clearManyProgress(uid, cardIds) {
   if (!cardIds) { check(await sb.from('progress').delete().eq('user_id', uid)); return; }
   for (let i = 0; i < cardIds.length; i += 200) check(await sb.from('progress').delete().eq('user_id', uid).in('card_id', cardIds.slice(i, i + 200)));
@@ -103,7 +139,8 @@ export async function restoreLocal() { throw new Error('Solo disponible en modo 
 // Suma delta (+1 al responder, −1 al deshacer) al contador del día en el servidor y devuelve el total.
 // Si la función SQL aún no está creada (schema.sql sin ejecutar), escribe como antes sin bajar nunca
 // lo que haya: al sumar toma el máximo, para no borrar repasos de otro dispositivo.
-export async function bumpLog(uid, day, delta, localCount) {
+export const bumpLog = queued('bumpLog');
+async function sendBump(uid, day, delta, localCount) {
   const { data, error } = await sb.rpc('bump_review_log', { p_day: day, p_delta: delta });
   if (!error) return data;
   if (error.code !== 'PGRST202' && error.code !== '42883') throw error;
@@ -200,9 +237,7 @@ export async function deleteType(id) {
 }
 
 /* ---------------- Historial de respuestas ---------------- */
-export async function addEvent(ev) {
-  check(await sb.from('review_events').insert(ev));
-}
+export const addEvent = queued('addEvent');
 // Restaurar copias: en bloque. Las respuestas que ya existan (mismo id) se dejan como están.
 export async function saveProgressMany(rows) {
   for (const part of chunks(rows, 500)) check(await sb.from('progress').upsert(part));
@@ -222,6 +257,4 @@ export async function mergeLog(uid, rows) {
   for (const part of chunks(out, 500)) check(await sb.from('review_log').upsert(part));
   return out;
 }
-export async function deleteEvent(id) {
-  check(await sb.from('review_events').delete().eq('id', id));
-}
+export const deleteEvent = queued('deleteEvent');

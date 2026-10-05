@@ -91,6 +91,8 @@ Manda el enlace a tus amigos y que se creen su cuenta. Para empezar, en **Explor
 
 En el ordenador puedes usar el teclado: **Espacio** para mostrar la respuesta y **1-4** para valorar.
 
+**Sin conexión:** con la app instalada en el móvil se puede estudiar sin internet (en el metro o en el avión). Lo que hagas se guarda en el móvil y se envía solo al volver la conexión; arriba se ve un aviso «Sin conexión · N cambios por enviar». Para abrir la app sin internet tienes que haberla abierto al menos una vez con conexión en ese dispositivo. Sin conexión solo se puede estudiar y cambiar ajustes: crear o editar mazos y tarjetas necesita internet. Al cerrar sesión se borra la copia guardada en el dispositivo.
+
 ---
 
 ## Cómo está hecha (para mejorarla)
@@ -106,6 +108,8 @@ js/api.js               Elige backend (nube o local) según config.js
 js/backend-supabase.js  Guardar en Supabase (cuentas, nube)
 js/backend-local.js     Guardar en el navegador (modo local)
 js/rows.js              Conversión de fechas compartida por los dos
+js/outbox.js            Cola de cambios pendientes de enviar (sin conexión)
+js/snapshot.js          Copia de tus datos en el navegador para abrir sin conexión
 js/srs.js               Algoritmo de repaso espaciado (independiente)
 js/org.js               Carpetas, etiquetas, orden y filtros (independiente)
 js/charts.js            Gráficos del inicio
@@ -188,8 +192,6 @@ El audio usa las voces del dispositivo: en iPhone y Android vienen casi todos lo
 ### Ideas para siguientes versiones
 
 - Imágenes en las tarjetas (Supabase Storage).
-- Repasar sin conexión y sincronizar al volver la cobertura.
-- Importar desde Anki o desde una hoja de cálculo (CSV).
 - Grupos privados de amigos en lugar de compartir con toda la comunidad.
 
 ---
@@ -201,6 +203,7 @@ Para un grupo de amigos sobra: 500 MB de base de datos (cientos de miles de tarj
 ## Créditos
 
 - **[Hanzi Writer](https://hanziwriter.org)**, de David Chanin (licencia MIT), para corregir y animar trazos. Va incluido en `js/vendor/`.
+- **[supabase-js](https://github.com/supabase/supabase-js)** (MIT), para hablar con Supabase. Va incluido en `js/vendor/supabase.js`, empaquetado en un solo archivo para que la app abra sin conexión; cómo regenerarlo está al principio de ese archivo.
 - **Datos de trazos**: japoneses de [hanzi-writer-data-jp](https://github.com/chanind/hanzi-writer-data-jp) (unos 2.900 kanji, a partir de [animCJK](https://github.com/parsimonhi/animCJK) y [Make Me A Hanzi](https://github.com/skishore/makemeahanzi); licencias Arphic y LGPL) y chinos de [hanzi-writer-data](https://github.com/chanind/hanzi-writer-data) (licencia Arphic). Se descargan de jsDelivr la primera vez que se usa cada carácter y luego quedan guardados para usarlos sin conexión. Los kana (hiragana y katakana) no tienen datos de trazos: se practican en el lienzo libre.
 - **[Lucide](https://lucide.dev)** (ISC) para los iconos de la interfaz.
 - **[Fluent Emoji](https://github.com/microsoft/fluentui-emoji)** de Microsoft (MIT) para el icono de la racha.

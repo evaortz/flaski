@@ -45,6 +45,7 @@ export const deleteEvent = impl.deleteEvent;
 export const saveProgressMany = impl.saveProgressMany;
 export const addEvents = impl.addEvents;
 export const mergeLog = impl.mergeLog;
+export const offline = impl.offline || null;   // cola de cambios pendientes (solo en la nube)
 
 export function newId() {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID();

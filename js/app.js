@@ -14,6 +14,8 @@ import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck } from './org.js';
+import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
+import { isRetryable } from './outbox.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -40,6 +42,8 @@ const S = {
   authMode: 'signin', recovery: false, loading: true,
   pendingShare: null,          // id de mazo compartido por enlace
   lastField: null,
+  fromCache: false,            // datos cargados de la copia del navegador (se abrió sin conexión)
+  pending: 0,                  // cambios esperando a enviarse
 };
 
 /* ===================== utilidades ===================== */
@@ -274,31 +278,131 @@ async function onSignedIn(session) {
   S.email = session.user.email || '';
   S.loading = true;
   render();
+  if (api.offline) {
+    if (!session.offline) rememberUser(session.user);
+    // Primero se envía lo que quedó pendiente, para que lo que se cargue ya lo incluya
+    // (sin esperar más de 4 s: si tarda, se carga igual y lo pendiente se aplica encima)
+    const first = api.offline.start(S.uid, n => { S.pending = n; netState(); });
+    if (navigator.onLine && !session.offline) await Promise.race([first, new Promise(r => setTimeout(r, 4000))]);
+    first.then(afterFlush);
+  }
   try {
-    const d = await api.loadAll(S.uid);
-    S.name = d.profile?.display_name || '';
-    S.newPerDay = d.settings?.new_per_day ?? 15;
-    S.prefs = loadPrefs(d.settings?.prefs);
-    applyLook(S.prefs.look); setBaseRate(S.prefs.study.rate);
-    S.events = (d.events || []).map(e => ({ ...e, t: new Date(e.ts).getTime() }));
-    S.decks = new Map(d.decks.map(x => [x.id, { tags: [], ...x }]));
-    S.folders = new Map((d.folders || []).map(x => [x.id, x]));
-    S.tags = new Map((d.tags || []).map(x => [x.id, x]));
-    S.types = new Map((d.types || []).map(x => [x.id, x]));
-    S.cards = new Map(d.cards.map(x => [x.id, x]));
-    S.progress = new Map(d.progress.map(r => [r.card_id, api.fromRow(r)]));
-    S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
+    // Con copia guardada, si no hay red se abre con ella en el acto en vez de esperar a los reintentos
+    const snap = api.offline ? await loadSnapshot(S.uid) : null;
+    let d;
+    try {
+      if (session.offline) throw new TypeError('Failed to fetch');
+      d = await api.loadAll(S.uid, { retry: !snap });
+      S.fromCache = false;
+    } catch (e) {
+      if (!snap || !isOffline(e)) throw e;
+      d = snap; S.fromCache = true;
+    }
+    applyData(withPending(d));
     S.loading = false;
+    netState();
+    if (!S.fromCache) saveSnap();
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
-    if (S.cards.size === 0 && S.view === 'home') S.view = 'home';
     render();
   } catch (e) {
     S.loading = false;
     main.innerHTML = `<div class="panel"><h2>No se pudieron cargar tus datos</h2><p>${esc(errMsg(e))}</p><button class="primary" data-act="reload">Reintentar</button></div>`;
   }
 }
+function applyData(d) {
+  S.name = d.profile?.display_name || '';
+  S.newPerDay = d.settings?.new_per_day ?? 15;
+  S.prefs = loadPrefs(d.settings?.prefs);
+  applyLook(S.prefs.look); setBaseRate(S.prefs.study.rate);
+  S.events = (d.events || []).map(e => ({ ...e, t: new Date(e.ts).getTime() }));
+  S.decks = new Map(d.decks.map(x => [x.id, { tags: [], ...x }]));
+  S.folders = new Map((d.folders || []).map(x => [x.id, x]));
+  S.tags = new Map((d.tags || []).map(x => [x.id, x]));
+  S.types = new Map((d.types || []).map(x => [x.id, x]));
+  S.cards = new Map(d.cards.map(x => [x.id, x]));
+  S.progress = new Map(d.progress.map(r => [r.card_id, api.fromRow(r)]));
+  S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
+}
+
+/* ===================== sin conexión ===================== */
+const isOffline = e => !navigator.onLine || isRetryable(e);
+// Aplica encima de los datos cargados los cambios que aún esperan en la cola: ni el servidor ni la
+// copia del navegador (que se guarda con retraso) los tienen por fuerza, y la cola nunca se pierde.
+function withPending(d) {
+  const ops = api.offline?.pendingOps() || [];
+  if (!ops.length) return d;
+  const prog = new Map(d.progress.map(r => [r.card_id, r]));
+  const evs = new Map((d.events || []).map(e => [e.id, e]));
+  const log = new Map(d.log.map(r => [r.day, r.count]));
+  let settings = d.settings;
+  for (const { op, args } of ops) {
+    if (op === 'saveProgress') prog.set(args[1], toRow(args[0], args[1], args[2]));
+    else if (op === 'clearProgress') prog.delete(args[1]);
+    else if (op === 'addEvent') evs.set(args[0].id, args[0]);
+    else if (op === 'deleteEvent') evs.delete(args[0]);
+    // bumpLog(uid, día, +1, total local de ese momento): el total ya incluye la respuesta
+    else if (op === 'bumpLog' && args[2] > 0) log.set(args[1], Math.max(log.get(args[1]) || 0, args[3] || 0));
+    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ?? settings?.prefs };
+  }
+  return {
+    ...d, settings, progress: [...prog.values()],
+    events: [...evs.values()].sort((a, b) => String(a.ts).localeCompare(String(b.ts))),
+    log: [...log].map(([day, count]) => ({ day, count })),
+  };
+}
+// Copia de lo que hay en pantalla (incluidos los cambios aún sin enviar), para abrir sin conexión
+function snapshotData() {
+  return {
+    profile: { display_name: S.name }, settings: { new_per_day: S.newPerDay, prefs: S.prefs },
+    decks: [...S.decks.values()], cards: [...S.cards.values()], folders: [...S.folders.values()],
+    tags: [...S.tags.values()], types: [...S.types.values()],
+    progress: [...S.progress].map(([id, p]) => toRow(S.uid, id, p)),
+    log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
+    events: S.events.map(({ t, ...e }) => e),
+  };
+}
+let snapTimer;
+function saveSnap() {
+  clearTimeout(snapTimer); snapTimer = null;
+  if (api.offline && S.uid && !S.loading) saveSnapshot(S.uid, snapshotData());
+}
+function saveSnapSoon() { if (api.offline) { clearTimeout(snapTimer); snapTimer = setTimeout(saveSnap, 3000); } }
+// Aviso en la cabecera: sin conexión y/o cambios por enviar
+function netState() {
+  const el = $('#net');
+  if (!el) return;
+  const off = !navigator.onLine || S.fromCache;
+  const n = S.pending;
+  el.hidden = !S.uid || (!off && !n);
+  el.innerHTML = off
+    ? `${icon('wifi-off', { size: 14 })}<span>Sin conexión${n ? ` · ${plural(n, 'cambio', 'cambios')} por enviar` : ''}</span>`
+    : `${icon('refresh-cw', { size: 14 })}<span>${plural(n, 'cambio', 'cambios')} por enviar</span>`;
+  el.title = off ? 'Puedes seguir estudiando: lo que hagas se guarda aquí y se envía al volver la conexión.' : 'Se enviarán en cuanto el servidor responda.';
+}
+// Con todo enviado y conexión de nuevo, si la app se abrió con la copia, se cargan los datos frescos
+async function afterFlush(ok) {
+  if (!ok || !S.fromCache || !navigator.onLine || !S.uid || S.view === 'study' || S.edit?.open) return;
+  try {
+    // Sin una sesión válida, Supabase devolvería listas vacías: mejor seguir con la copia
+    const s = await api.auth.session();
+    if (s?.user?.id !== S.uid) return;
+    const d = await api.loadAll(S.uid);
+    applyData(withPending(d)); S.fromCache = false; netState(); saveSnap(); render();
+  } catch {}
+}
+function retrySync() { if (api.offline && S.uid) api.offline.flush().then(afterFlush); }
+addEventListener('online', () => { netState(); retrySync(); });
+addEventListener('offline', netState);
+setInterval(() => { if (S.pending || S.fromCache) retrySync(); }, 30e3);
+addEventListener('pagehide', saveSnap);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveSnap(); else retrySync(); });
+
 function onSignedOut() {
-  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin' });
+  // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre
+  api.offline?.stop();
+  clearTimeout(snapTimer);
+  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0 });
+  netState();
   render();
 }
 
@@ -343,7 +447,7 @@ function renderHome() {
       ${goal}
     </section>
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
-      <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} repasos en el último año</span></div>
+      <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} ${hm.total === 1 ? 'repaso' : 'repasos'} en el último año</span></div>
       <div class="streaks">
         <span class="streak-cur">${icon('fire', { size: 18, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
         <span><b>${st.best}</b> mejor racha</span>
@@ -724,6 +828,7 @@ function grade(g) {
   api.saveProgress(S.uid, id, next).catch(fail);
   // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
   api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
+  saveSnapSoon();
   renderStudy();
 }
 function undo() {
@@ -736,6 +841,7 @@ function undo() {
   api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
   Object.assign(ses, { queue: u.queue, done: u.done, tally: u.tally, revealed: true, undo: null, st: null });
+  saveSnapSoon();
   renderStudy();
 }
 
@@ -2403,7 +2509,13 @@ document.addEventListener('click', async e => {
       S.uid = null;
       return onSignedIn(await api.auth.session());
     }
-    case 'signout': try { await api.auth.signOut(); } catch (err) { fail(err); } return;
+    case 'signout': {
+      const uid = S.uid;
+      try { await api.auth.signOut(); } catch (err) { return fail(err); }
+      // La copia para abrir sin conexión no se queda en el dispositivo al cerrar sesión
+      deleteSnapshot(uid); forgetUser();
+      return;
+    }
   }
 });
 
@@ -2552,12 +2664,19 @@ document.addEventListener('keydown', e => {
   }
   api.auth.onChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') { S.recovery = true; render(); if (session) onSignedIn(session); return; }
-    if (session) onSignedIn(session);
-    else if (event === 'SIGNED_OUT' || S.uid) onSignedOut();
+    if (session) return onSignedIn(session);
+    // Sin conexión la sesión puede no poder renovarse: eso no es cerrar sesión
+    if (event !== 'SIGNED_OUT' && (S.fromCache || !navigator.onLine)) return;
+    if (event === 'SIGNED_OUT' || S.uid) onSignedOut();
     else render();
   });
-  try {
-    const session = await api.auth.session();
-    if (session) await onSignedIn(session); else render();
-  } catch (e) { render(); fail(e); }
+  let session = null, netErr = false;
+  try { session = await api.auth.session(); }
+  catch (e) { if (!isOffline(e)) { render(); return fail(e); } netErr = true; }
+  // Sin conexión: se entra con la última cuenta usada aquí, si tiene copia guardada
+  if (!session && (netErr || !navigator.onLine)) {
+    const u = lastUser();
+    if (u && await loadSnapshot(u.id)) session = { user: u, offline: true };
+  }
+  if (session) await onSignedIn(session); else render();
 })();
