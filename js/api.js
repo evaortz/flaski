@@ -41,6 +41,9 @@ export const updateType = impl.updateType;
 export const deleteType = impl.deleteType;
 export const addEvent = impl.addEvent;
 export const deleteEvent = impl.deleteEvent;
+export const saveProgressMany = impl.saveProgressMany;
+export const addEvents = impl.addEvents;
+export const mergeLog = impl.mergeLog;
 
 export function newId() {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID();

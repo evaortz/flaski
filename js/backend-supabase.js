@@ -192,6 +192,25 @@ export async function deleteType(id) {
 export async function addEvent(ev) {
   check(await sb.from('review_events').insert(ev));
 }
+// Restaurar copias: en bloque. Las respuestas que ya existan (mismo id) se dejan como están.
+export async function saveProgressMany(rows) {
+  for (const part of chunks(rows, 500)) check(await sb.from('progress').upsert(part));
+}
+export async function addEvents(rows) {
+  for (const part of chunks(rows, 500)) check(await sb.from('review_events').upsert(part, { onConflict: 'id', ignoreDuplicates: true }));
+}
+// Registro diario: fusiona tomando el máximo de cada día; nunca baja un contador ya guardado
+export async function mergeLog(uid, rows) {
+  const want = new Map();
+  for (const r of rows || []) if (r?.day && r.count > 0) want.set(r.day, Math.max(want.get(r.day) || 0, r.count));
+  const out = [];
+  for (const days of chunks([...want.keys()], 200)) {
+    const have = new Map(check(await sb.from('review_log').select('day, count').eq('user_id', uid).in('day', days)).map(r => [r.day, r.count]));
+    for (const day of days) if (want.get(day) > (have.get(day) || 0)) out.push({ user_id: uid, day, count: want.get(day) });
+  }
+  for (const part of chunks(out, 500)) check(await sb.from('review_log').upsert(part));
+  return out;
+}
 export async function deleteEvent(id) {
   check(await sb.from('review_events').delete().eq('id', id));
 }

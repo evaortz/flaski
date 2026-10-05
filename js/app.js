@@ -1,6 +1,7 @@
 // Flaski · lógica de la interfaz
 // Estructura: estado (S) → funciones render*() que pintan cada vista → manejadores de eventos.
 import * as api from './api.js';
+import { toRow } from './rows.js';
 import { schedule, fmtWhen, startOfDay, dateKey, DAY, GRADES, ALGO_PRESETS, DEFAULT_ALGO } from './srs.js';
 import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from './prefs.js';
 import { statsView, drawStats } from './stats.js';
@@ -30,7 +31,8 @@ const S = {
   events: [],            // cada respuesta (para Estadísticas)
   prefs: loadPrefs(),    // Ajustes
   stats: { period: 30, scope: 'all', mode: '', fcDays: 30 },
-  view: 'home', deckId: null, folderId: null, session: null, extraNew: 0,
+  view: 'home', deckId: null, folderId: null, session: null,
+  extra: (() => { try { return JSON.parse(localStorage.getItem('flaski-extra') || 'null'); } catch { return null; } })(),   // «10 nuevas más» de hoy
   // Opciones de la vista «Mis mazos» (se recuerdan en este navegador)
   org: { query: '', tagIds: [], sort: 'manual', layout: 'list', archived: false },
   cardQuery: '', exploreQuery: '',
@@ -116,11 +118,20 @@ function newSeenToday(deckId = null) {
   for (const [id, p] of S.progress) if (p.firstSeen >= t0 && (!deckId || S.cards.get(id)?.deck_id === deckId)) n++;
   return n;
 }
-const newLeft = () => Math.max(0, S.newPerDay + S.extraNew - newSeenToday());
+// «10 nuevas más»: vale solo el día en que se pidió (y para la cuenta que lo pidió) y se guarda en este
+// navegador para que sobreviva a recargar. Se suma a la vez al límite global y al de cada mazo: los dos se
+// aplican juntos y el global acota el total, así que el efecto real es +10, no +20; sumarlo también al del
+// mazo evita que un mazo con su propio límite agotado ignore el botón.
+function extraNew() { const x = S.extra; return x && x.day === dateKey(Date.now()) && x.uid === S.uid ? x.n : 0; }
+function addExtraNew(n) {
+  S.extra = { uid: S.uid, day: dateKey(Date.now()), n: extraNew() + n };
+  try { localStorage.setItem('flaski-extra', JSON.stringify(S.extra)); } catch {}
+}
+const newLeft = () => Math.max(0, S.newPerDay + extraNew() - newSeenToday());
 // Límite propio del mazo (Opciones del mazo); Infinity si usa el global
 function deckNewLeft(deckId) {
   const n = S.decks.get(deckId)?.options?.newPerDay;
-  return n === null || n === undefined || n === '' ? Infinity : Math.max(0, Number(n) + S.extraNew - newSeenToday(deckId));
+  return n === null || n === undefined || n === '' ? Infinity : Math.max(0, Number(n) + extraNew() - newSeenToday(deckId));
 }
 // Repasos (no nuevas) hechos hoy y los que quedan según Ajustes
 function reviewsToday() {
@@ -131,6 +142,12 @@ function reviewsToday() {
 }
 const reviewsLeft = () => (S.prefs.study.maxReviews > 0 ? Math.max(0, S.prefs.study.maxReviews - reviewsToday()) : Infinity);
 const algo = deckId => algoFor(S.prefs, S.decks.get(deckId));
+// Aviso cuando el límite diario de repasos deja tarjetas fuera (si no, el recorte pasaría desapercibido)
+function capNote(c) {
+  const over = c.dueAll - c.due;
+  if (over <= 0) return '';
+  return `<p class="muted small">${over} ${over === 1 ? 'repaso más espera' : 'repasos más esperan'}: hoy el límite es de ${S.prefs.study.maxReviews} repasos. <button class="link" data-nav="settings">Cambiar el límite</button></p>`;
+}
 function counts(scope = 'all') {
   const ids = scopeDecks(scope);
   const now = Date.now();
@@ -144,7 +161,8 @@ function counts(scope = 'all') {
   }
   let capped = 0;
   for (const [d, n] of freshBy) capped += Math.min(n, deckNewLeft(d));
-  return { due: Math.min(due, reviewsLeft()), fresh, total, mature, newToday: Math.min(capped, newLeft()) };
+  // dueAll: todas las que tocan; due: las que caben hoy en el límite de repasos (Ajustes → Estudio diario)
+  return { due: Math.min(due, reviewsLeft()), dueAll: due, fresh, total, mature, newToday: Math.min(capped, newLeft()) };
 }
 
 /* ===================== navegación ===================== */
@@ -299,7 +317,7 @@ function renderHome() {
   const decks = sortDecks([...S.decks.values()].filter(d => !d.archived), 'due', homeStats).map(d => {
     const c = homeStats.get(d.id); const n = c.due + c.newToday;
     return `<li><button class="deck" data-start="${d.id}" ${n ? '' : 'disabled'}>${deckIcon(d)}
-      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar · ${c.newToday} nuevas · ${c.total} en total</span></span>
+      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''} · ${c.newToday} nuevas · ${c.total} en total</span></span>
       <span class="go">${n ? 'Estudiar' : c.total ? 'Al día' : 'Vacío'}</span></button></li>`;
   }).join('');
   const h = new Date().getHours();
@@ -319,8 +337,8 @@ function renderHome() {
     <section class="hero" aria-label="Hoy">
       ${avail
         ? `<div class="hero-num">${avail}</div><p class="muted">${avail === 1 ? 'tarjeta' : 'tarjetas'} para hoy · ${all.due} por repasar y ${all.newToday} ${all.newToday === 1 ? 'nueva' : 'nuevas'}</p>
-           <button class="primary big" data-start="all">Empezar a estudiar</button>`
-        : `<div class="hero-num">0</div><p class="muted">Estás al día. Vuelve mañana o aprende alguna nueva.</p>
+           <button class="primary big" data-start="all">Empezar a estudiar</button>${capNote(all)}`
+        : `<div class="hero-num">0</div><p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${goal}
     </section>
@@ -615,7 +633,7 @@ function renderStudy() {
   const bar = `<div class="studybar"><button class="link" data-act="exit">← Salir</button><span class="where">${esc(scopeName(ses.scope))}</span><span class="left">${ses.queue.length} quedan</span></div><div class="bar"><span style="width:${pct}%"></span></div>`;
   if (!ses.queue.length) {
     const t = ses.tally;
-    main.innerHTML = `${bar}<div class="done"><h2>¡Sesión terminada!</h2><p class="muted">Has repasado ${ses.done} tarjetas.</p>
+    main.innerHTML = `${bar}<div class="done"><h2>¡Sesión terminada!</h2><p class="muted">Has repasado ${ses.done} tarjetas.</p>${capNote(counts(ses.scope))}
       <div class="tally"><span class="g1">Otra vez ${t[1]}</span><span class="g2">Difícil ${t[2]}</span><span class="g3">Bien ${t[3]}</span><span class="g4">Fácil ${t[4]}</span></div>
       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="exit">Volver al inicio</button><button class="ghost" data-act="more">10 nuevas más</button></div>
       ${ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : ''}</div>`;
@@ -853,7 +871,7 @@ function renderDeck() {
   main.innerHTML = `
     ${crumbs(d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null, { linkLast: true })}
     <div class="deckhead"><div class="deck-title">${deckIcon(d, true)}<h1>${esc(d.name)}</h1></div>${d.description ? `<p class="desc">${fmt(d.description)}</p>` : ''}
-      <div class="btnrow">${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'tarjeta' : 'tarjetas'}</span><span class="chip">${c.due} por repasar</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivado</span>' : ''}${d.is_public ? '<span class="chip">Compartido</span>' : ''}</div></div>
+      <div class="btnrow">${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'tarjeta' : 'tarjetas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivado</span>' : ''}${d.is_public ? '<span class="chip">Compartido</span>' : ''}</div></div>
     <div class="btnrow">
       <button class="primary" data-start="${d.id}" ${c.due + c.newToday ? '' : 'disabled'}>Estudiar</button>
       <button class="ghost" data-act="new-card">+ Tarjeta</button>
@@ -1105,7 +1123,7 @@ function renderSettings() {
       </details>`, 's-algo')}
     ${setSec('database', 'Datos', `
       ${setRow('Copia de seguridad', 'Descarga todos tus mazos, tarjetas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
-      ${setRow('Restaurar copia', api.mode === 'local' ? 'Sustituye todo lo de este navegador por la copia.' : 'Añade los mazos de la copia a tu cuenta (el progreso empieza de cero).', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
+      ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade los mazos que falten.' : 'Añade los mazos que no tengas, con su progreso. Los que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
       ${setRow('Reiniciar el progreso', 'Todas las tarjetas vuelven a ser nuevas. Los mazos no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
       ${setRow('Ajustes por defecto', 'Vuelve a la configuración original (no toca tus datos).', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`)}`, 's-data')}`;
   markToc();
@@ -1152,31 +1170,161 @@ function prefChanged(path) {
   if (path === 'home.forecast') $('#row-fcdays')?.classList.toggle('is-off', !S.prefs.home.forecast);
   savePrefsSoon();
 }
+// Copia v2: lo mismo en los dos modos y con los identificadores originales, para que al restaurar
+// se reconozca lo que ya está. En modo local lleva además el volcado completo del navegador.
 function backupData() {
-  const decks = [...S.decks.values()].map(d => ({
-    name: d.name, description: d.description || '', icon: d.icon || '', color: d.color || '', options: d.options || {}, types: deckTypes(d.id),
+  const deckOut = d => ({
+    id: d.id, name: d.name, description: d.description || '', source: d.source || '', icon: d.icon || '', color: d.color || '',
+    options: d.options || {}, folder_id: d.folder_id || null, pinned: !!d.pinned, archived: !!d.archived, tags: d.tags || [], types: deckTypes(d.id),
     cards: cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
-      .map(c => ({ front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '' })),
-  }));
-  return { format: 'flaski-backup', version: 1, exported: new Date().toISOString(), settings: { new_per_day: S.newPerDay, prefs: S.prefs }, decks, local: api.dumpLocal() };
+      .map(c => ({ id: c.id, front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '', tags: c.tags || [], position: c.position })),
+  });
+  return {
+    format: 'flaski-backup', version: 2, exported: new Date().toISOString(), mode: api.mode,
+    settings: { new_per_day: S.newPerDay, prefs: S.prefs },
+    folders: [...S.folders.values()].map(({ id, parent_id, name, icon, color, position }) => ({ id, parent_id: parent_id || null, name, icon: icon || '', color: color || '', position })),
+    tags: [...S.tags.values()].map(({ id, name, color }) => ({ id, name, color })),
+    decks: [...S.decks.values()].map(deckOut),
+    progress: [...S.progress].map(([id, p]) => { const { user_id, ...r } = toRow(S.uid, id, p); return r; }),
+    events: S.events.map(({ t, user_id, ...e }) => e),
+    log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
+    local: api.dumpLocal(),
+  };
+}
+
+// Identificador estable para lo que no puede conservar el suyo (en la nube los ids son únicos entre
+// todas las cuentas): hash de cuenta + id original con forma de UUID. Restaurar la misma copia otra vez
+// da el mismo id, así que se reconoce y no se duplica.
+async function derivedId(id) {
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${S.uid}:${id}`))).slice(0, 16);
+  h[6] = (h[6] & 0x0f) | 0x80; h[8] = (h[8] & 0x3f) | 0x80;   // versión 8 (propia) y variante RFC 9562
+  const x = [...h].map(n => n.toString(16).padStart(2, '0')).join('');
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;
+}
+const isDuplicate = e => e?.code === '23505' || /duplicate key/i.test(e?.message || '');
+// ¿Está ya en la cuenta? Con su id original o con el derivado de una restauración anterior
+async function existingId(id, has) {
+  if (!id) return null;
+  if (has(id)) return id;
+  const d = await derivedId(id);
+  return has(d) ? d : null;
+}
+// Crea con el id original; si está ocupado por otra cuenta, con el derivado
+async function createKeepingId(create, fields, id) {
+  if (!id) return create(fields);
+  try { return await create({ ...fields, id }); } catch (e) { if (!isDuplicate(e)) throw e; }
+  return create({ ...fields, id: await derivedId(id) });
+}
+const str = (v, n) => String(v ?? '').slice(0, n);
+const obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+
+// Restaura una copia sin borrar nada: lo que ya está (mismo id) se salta; un mazo que falla se deshace
+// entero y no impide restaurar los demás. Devuelve el resumen para mostrarlo.
+async function restoreInto(data) {
+  const uid = S.uid, rep = { restored: [], skipped: [], failed: [] };
+  // Carpetas, los padres antes que los hijos
+  const folderMap = new Map();
+  let pending = (data.folders || []).filter(f => f?.id && f.name);
+  for (let pass = 0; pending.length && pass < 20; pass++) {
+    const later = [];
+    for (const f of pending) {
+      if (f.parent_id && !folderMap.has(f.parent_id) && pending.some(x => x.id === f.parent_id) && pass < 19) { later.push(f); continue; }
+      try {
+        const have = await existingId(f.id, id => S.folders.has(id));
+        if (have) { folderMap.set(f.id, have); continue; }
+        const nf = await createKeepingId(api.createFolder, { owner: uid, name: str(f.name, 80), icon: str(f.icon, 16), color: str(f.color, 16), position: Number(f.position) || Date.now() / 1000, parent_id: folderMap.get(f.parent_id) || null }, f.id);
+        S.folders.set(nf.id, nf); folderMap.set(f.id, nf.id);
+      } catch (e) { rep.failed.push([`Carpeta «${str(f.name, 80)}»`, errMsg(e)]); }
+    }
+    pending = later;
+  }
+  // Etiquetas
+  const tagMap = new Map();
+  for (const t of data.tags || []) {
+    if (!t?.id || !t.name) continue;
+    try {
+      const have = await existingId(t.id, id => S.tags.has(id));
+      if (have) { tagMap.set(t.id, have); continue; }
+      const nt = await createKeepingId(api.createTag, { owner: uid, name: str(t.name, 40), color: str(t.color || 'gray', 16) }, t.id);
+      S.tags.set(nt.id, nt); tagMap.set(t.id, nt.id);
+    } catch (e) { rep.failed.push([`Etiqueta «${str(t.name, 40)}»`, errMsg(e)]); }
+  }
+  const tagsOf = ids => (Array.isArray(ids) ? ids : []).map(id => tagMap.get(id)).filter(Boolean);
+  // Progreso e historial de cada tarjeta de la copia
+  const progressBy = new Map((data.progress || []).filter(p => p?.card_id).map(p => [p.card_id, p]));
+  const eventsBy = new Map();
+  for (const e of data.events || []) if (e?.card_id) (eventsBy.get(e.card_id) || eventsBy.set(e.card_id, []).get(e.card_id)).push(e);
+
+  for (const d of data.decks || []) {
+    const name = str(d?.name || 'Mazo', 80);
+    try {
+      if (await existingId(d.id, id => S.decks.has(id))) { rep.skipped.push(name); continue; }
+      const typeMap = await adoptTypes(d.types || []);
+      const deck = await createKeepingId(api.createDeck, {
+        owner: uid, name, description: str(d.description, 300), source: str(d.source || 'copia', 200), icon: str(d.icon, 16), color: str(d.color, 16),
+        options: obj(d.options), folder_id: folderMap.get(d.folder_id) || null, pinned: !!d.pinned, archived: !!d.archived, tags: tagsOf(d.tags),
+      }, d.id);
+      try {
+        // Si el mazo conservó su id, sus tarjetas también (salvo alguna que ya exista en la cuenta)
+        const keep = !!d.id && deck.id === d.id;
+        const idFor = async (id, taken = () => false) => (!id ? api.newId() : keep && !taken(id) ? id : derivedId(id));
+        const base = Date.now() / 1000, notes = new Map(), cardMap = new Map(), rows = [];
+        for (const [i, c] of (d.cards || []).entries()) {
+          const id = await idFor(c.id, x => S.cards.has(x));
+          if (c.id) cardMap.set(c.id, id);
+          let note = c.note_id ? notes.get(c.note_id) : null;
+          if (!note) { note = c.note_id || api.newId(); if (c.note_id) notes.set(c.note_id, note); }
+          rows.push({
+            id, deck_id: deck.id, owner: uid,
+            front: str(c.front, 2000) || '—', back: str(c.back, 2000) || '—', note: str(c.note, 2000),
+            position: Number(c.position) || base + i / 1000, note_id: note,
+            type_id: typeMap.get(c.type_id) || c.type_id || 'basic', template: c.template || 't1', fields: obj(c.fields), hint: str(c.hint, 500), tags: tagsOf(c.tags),
+          });
+        }
+        if (rows.length) await api.createCards(rows);
+        const prog = [], evs = [];
+        for (const [old, id] of cardMap) {
+          const p = progressBy.get(old);
+          if (p && p.due) prog.push({ user_id: uid, card_id: id, reps: Number(p.reps) || 0, interval: Number(p.interval) || 0, ease: Number(p.ease) || 2.5, lapses: Number(p.lapses) || 0, due: p.due, first_seen: p.first_seen || p.due, last: p.last || p.due });
+          for (const e of eventsBy.get(old) || []) {
+            if (!(e.grade >= 1 && e.grade <= 4) || !e.ts) continue;
+            evs.push({ id: await idFor(e.id), user_id: uid, card_id: id, deck_id: deck.id, ts: e.ts, grade: e.grade, state: e.state || 'review', ivl: Number(e.ivl) || 0, last_ivl: Number(e.last_ivl) || 0, ease: Number(e.ease) || 2.5, ms: Number(e.ms) || 0 });
+          }
+        }
+        if (prog.length) await api.saveProgressMany(prog);
+        if (evs.length) await api.addEvents(evs);
+      } catch (e) { await api.deleteDeck(deck.id).catch(() => {}); throw e; }   // sin mazos a medias
+      rep.restored.push(name);
+    } catch (e) { rep.failed.push([name, errMsg(e)]); }
+  }
+  // Registro diario: el máximo de cada día, para no borrar actividad más reciente que la copia
+  try { await api.mergeLog(uid, data.log || []); } catch (e) { rep.failed.push(['Registro diario', errMsg(e)]); }
+  return rep;
+}
+function restoreReport({ restored, skipped, failed }) {
+  const sec = (title, items) => items.length ? `<h3>${title}</h3><p class="muted small">${items.map(esc).join(' · ')}</p>` : '';
+  openSheet(`<h2>Copia restaurada</h2>
+    ${sec(`${restored.length} ${restored.length === 1 ? 'mazo restaurado' : 'mazos restaurados'}, con su progreso`, restored)}
+    ${sec(`${skipped.length} ${skipped.length === 1 ? 'mazo ya estaba' : 'mazos ya estaban'} en tu cuenta (no se han tocado)`, skipped)}
+    ${failed.length ? `<h3>${failed.length === 1 ? 'Un elemento no se pudo restaurar' : `${failed.length} elementos no se pudieron restaurar`}</h3><ul class="list">${failed.map(([n, m]) => `<li class="small"><b>${esc(n)}</b>: ${esc(m)}</li>`).join('')}</ul>` : ''}
+    ${!restored.length && !skipped.length && !failed.length ? '<p class="muted">La copia no tenía mazos.</p>' : ''}
+    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>`);
 }
 async function restoreBackup(file) {
   let data;
   try { data = JSON.parse((await file.text()).replace(/^﻿/, '')); } catch { return toast('El archivo no es una copia válida'); }
   if (data?.format !== 'flaski-backup') return toast('Ese archivo no es una copia de seguridad de Flaski');
   try {
+    // Copia de este mismo modo local: sustituye todo lo del navegador, como siempre
     if (api.mode === 'local' && data.local) {
       await api.restoreLocal(data.local);
       toast('Copia restaurada'); setTimeout(() => location.reload(), 600); return;
     }
     toast('Restaurando…');
-    for (const d of data.decks || []) {
-      const typeMap = await adoptTypes(d.types || []);
-      await api.importDeck(S.uid, { name: d.name, description: d.description, source: 'copia', cards: d.cards || [], typeMap });
-    }
+    const rep = await restoreInto(data);
     if (data.settings?.prefs) { S.prefs = loadPrefs(data.settings.prefs); applyLook(S.prefs.look); await api.saveSettings(S.uid, S.newPerDay, S.prefs); }
     S.uid = null; await onSignedIn(await api.auth.session());
-    toast(`${(data.decks || []).length} mazos restaurados`);
+    restoreReport(rep);
   } catch (e) { fail(e); }
 }
 
@@ -2115,7 +2263,7 @@ document.addEventListener('click', async e => {
     case 'ask-reset-prefs': return confirmSheet('¿Restablecer todos los ajustes?', 'reset-prefs', 'Restablecer');
     case 'reset-prefs': { S.prefs = loadPrefs(); applyLook(S.prefs.look); setBaseRate(1); savePrefsSoon(); closeSheet(); toast('Ajustes restablecidos'); return renderSettings(); }
     case 'exit': S.session = null; return go('home');
-    case 'more': { S.extraNew += 10; return startSession(S.session?.scope || 'all'); }
+    case 'more': { addExtraNew(10); return startSession(S.session?.scope || 'all'); }
     case 'close-sheet': return requestClose();
     case 'discard-edit': S.edit.dirty = false; return closeSheet();
     case 'keep-edit': $('#edDiscard').hidden = true; return;

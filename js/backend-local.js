@@ -246,6 +246,33 @@ export async function addEvent(ev) {
   if (db.events.length > 30000) db.events.splice(0, db.events.length - 30000);
   persist();
 }
+// Restaurar copias: en bloque. Las respuestas que ya existan (mismo id) se dejan como están.
+export async function saveProgressMany(rows) {
+  const at = new Map(db.progress.map((r, i) => [r.card_id, i]));
+  for (const r of rows) { const i = at.get(r.card_id); if (i === undefined) { at.set(r.card_id, db.progress.length); db.progress.push(r); } else db.progress[i] = r; }
+  persist();
+}
+export async function addEvents(rows) {
+  const have = new Set(db.events.map(e => e.id));
+  db.events.push(...rows.filter(e => !have.has(e.id)));
+  db.events.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+  if (db.events.length > 30000) db.events.splice(0, db.events.length - 30000);
+  persist();
+}
+// Registro diario: fusiona tomando el máximo de cada día; nunca baja un contador ya guardado
+export async function mergeLog(uid, rows) {
+  if (!Array.isArray(db.log)) db.log = [];
+  const at = new Map(db.log.map(r => [r.day, r]));
+  const out = [];
+  for (const r of rows || []) {
+    if (!r?.day || !(r.count > 0)) continue;
+    const cur = at.get(r.day);
+    if (!cur) { const n = { day: r.day, count: r.count }; db.log.push(n); at.set(r.day, n); out.push(n); }
+    else if (r.count > cur.count) { cur.count = r.count; out.push(cur); }
+  }
+  persist();
+  return out;
+}
 export async function deleteEvent(id) {
   db.events = db.events.filter(e => e.id !== id);
   persist();
