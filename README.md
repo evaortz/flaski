@@ -122,6 +122,7 @@ manifest.webmanifest    Nombre e icono al instalarla
 icons/                  Iconos
 decks/                  Mazos incluidos + index.json con la lista
 supabase/schema.sql     Tablas y reglas de seguridad
+tests/                  Pruebas automáticas (no forman parte de la app)
 ```
 
 **Cosas que conviene saber:**
@@ -130,6 +131,7 @@ supabase/schema.sql     Tablas y reglas de seguridad
 - **Para añadir un mazo incluido:** crea un archivo en `decks/` con el formato de abajo y añádelo a `decks/index.json`.
 - **Para cambiar el algoritmo de repaso:** todo está en `schedule()` dentro de `js/srs.js`.
 - **Para probarla en tu ordenador** antes de subirla, mira la sección «Probarla en tu ordenador» de arriba.
+- **Pruebas automáticas:** antes de subir cambios, ejecuta `npm install` (solo la primera vez) y `npm test` dentro de `tests/`. Hay pruebas de la lógica (`tests/unit`, con Node) y de la app entera en un navegador, en móvil y escritorio (`tests/e2e`, con Playwright). Siempre usan el modo local, así que nunca tocan tu base de datos de Supabase. La primera vez, Playwright puede pedir `npx playwright install chromium`.
 
 ### Importar desde CSV
 
