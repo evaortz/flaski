@@ -95,7 +95,9 @@ alter table public.cards add column if not exists hint     text not null default
 alter table public.cards add column if not exists tags     uuid[] not null default '{}';
 create index if not exists cards_note_idx on public.cards (note_id);
 -- Copia de los tipos personalizados que usa un mazo (para poder compartirlo tal cual)
-alter table public.decks add column if not exists types jsonb not null default '[]'::jsonb;
+alter table public.decks add column if not exists types   jsonb not null default '[]'::jsonb;
+-- Opciones de estudio por mazo (newPerDay override, preset de algoritmo)
+alter table public.decks add column if not exists options jsonb not null default '{}'::jsonb;
 
 -- ---------- Tipos de tarjeta personalizados ----------
 create table if not exists public.note_types (
@@ -138,21 +140,40 @@ create table if not exists public.settings (
   user_id     uuid primary key default auth.uid() references auth.users on delete cascade,
   new_per_day int not null default 15 check (new_per_day between 0 and 500)
 );
+-- Preferencias del usuario (columna añadida con la pantalla de Ajustes)
+alter table public.settings add column if not exists prefs jsonb not null default '{}'::jsonb;
+
+-- ---------- Historial de respuestas (para estadísticas) ----------
+create table if not exists public.review_events (
+  id       uuid primary key default gen_random_uuid(),
+  user_id  uuid not null default auth.uid() references auth.users on delete cascade,
+  card_id  uuid references public.cards on delete set null,
+  deck_id  uuid references public.decks on delete set null,
+  ts       timestamptz not null default now(),
+  grade    int  not null check (grade between 1 and 4),
+  state    text not null default 'new' check (state in ('new','learning','review','relearning')),
+  ivl      real not null default 0,
+  last_ivl real not null default 0,
+  ease     real not null default 2.5,
+  ms       int  not null default 0
+);
+create index if not exists review_events_user_ts_idx on public.review_events (user_id, ts);
 
 -- =====================================================================
 -- Seguridad (Row Level Security): cada persona solo ve y cambia lo suyo.
 -- Los mazos marcados como públicos (y sus tarjetas) los puede LEER
 -- cualquier usuario registrado, pero no modificarlos.
 -- =====================================================================
-alter table public.profiles   enable row level security;
-alter table public.decks      enable row level security;
-alter table public.cards      enable row level security;
-alter table public.progress   enable row level security;
-alter table public.review_log enable row level security;
-alter table public.settings   enable row level security;
-alter table public.folders    enable row level security;
-alter table public.tags       enable row level security;
-alter table public.note_types enable row level security;
+alter table public.profiles      enable row level security;
+alter table public.decks         enable row level security;
+alter table public.cards         enable row level security;
+alter table public.progress      enable row level security;
+alter table public.review_log    enable row level security;
+alter table public.settings      enable row level security;
+alter table public.folders       enable row level security;
+alter table public.tags          enable row level security;
+alter table public.note_types    enable row level security;
+alter table public.review_events enable row level security;
 
 drop policy if exists "perfiles visibles" on public.profiles;
 create policy "perfiles visibles" on public.profiles
@@ -219,3 +240,7 @@ create policy "mis etiquetas" on public.tags
 drop policy if exists "mis tipos" on public.note_types;
 create policy "mis tipos" on public.note_types
   for all to authenticated using (owner = auth.uid()) with check (owner = auth.uid());
+
+drop policy if exists "mis respuestas" on public.review_events;
+create policy "mis respuestas" on public.review_events
+  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

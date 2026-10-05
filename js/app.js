@@ -1021,7 +1021,7 @@ function savePrefsSoon() {
 // Controles reutilizables (todos guardan solos al cambiar)
 const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
-const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" data-pref="${path}" ${cur ? 'checked' : ''}><span aria-hidden="true"></span></label>`;
+const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" data-pref="${path}" ${cur ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label>`;
 const numIn = (path, { min = 0, max = 9999, step = 1, unit = '', cur = getPref(path), id = '' } = {}) =>
   `<span class="num"><input type="number" ${id ? `id="${id}"` : ''} data-pref="${path}" data-num min="${min}" max="${max}" step="${step}" inputmode="decimal" value="${cur}">${unit ? `<span>${unit}</span>` : ''}</span>`;
 const setRow = (label, hint, control, cls = '') => `<div class="set-row${cls}"><div class="set-l"><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</div><div class="set-c">${control}</div></div>`;
