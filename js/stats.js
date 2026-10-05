@@ -195,7 +195,7 @@ function xLabel(x, y, label, width) {
   return `<text class="ax" x="${ax}" y="${y}" text-anchor="${anchor}">${escA(label)}</text>`;
 }
 // labelEvery(i, n, every): qué barras llevan etiqueta (por defecto, contando desde la última)
-function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.format(v), highlightLast = false, labelEvery = (i, n, every) => (n - 1 - i) % every === 0 }) {
+function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.format(v), highlight = () => false, labelEvery = (i, n, every) => (n - 1 - i) % every === 0 }) {
   const n = rows.length;
   const totals = rows.map(r => r.v.reduce((a, b) => a + b, 0));
   const rawMax = Math.max(0, ...totals);
@@ -216,7 +216,7 @@ function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.form
     r.v.forEach((v, k) => {
       if (!v) return;
       const h = Math.max(1.5, (v / max) * PLOT);
-      bars += `<rect class="st-bar ${series[k].cls}${highlightLast && i === n - 1 ? ' bar-strong' : ''}" x="${cx - bw / 2}" y="${y - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 4)}"></rect>`;
+      bars += `<rect class="st-bar ${series[k].cls}${highlight(i, n) ? ' bar-strong' : ''}" x="${cx - bw / 2}" y="${y - h}" width="${bw}" height="${h}" rx="${Math.min(4, bw / 3, h / 2)}"></rect>`;
       y -= h + (series.length > 1 ? 1 : 0);   // separación de 1px entre segmentos apilados
     });
     bars += `<rect class="hit" x="${cx - slot / 2}" y="${TOP - 6}" width="${slot}" height="${PLOT + 6}" tabindex="0" data-tip-v="${escA(tipV(r, totals[i]))}" data-tip-l="${escA(r.tip)}"></rect>`;
@@ -259,7 +259,7 @@ export function drawStats(root, D) {
       tipV: (r, tot) => tot ? `${plural(tot, 'respuesta', 'respuestas')} · ${r.v.map((v, i) => v ? `${GRADES[i].label} ${v}` : '').filter(Boolean).join(', ')}` : 'Sin respuestas',
     }),
     time: w => barChart(w, D.B.list.map(b => ({ v: [Math.round(b.ms / 60e3 * 10) / 10], label: b.label, tip: b.tip, ms: b.ms })), {
-      series: [{ cls: 's-acc' }], yFmt: v => `${Math.round(v)}′`,
+      series: [{ cls: 's-acc' }], yFmt: v => `${Math.round(v)}′`, highlight: (i, n) => i === n - 1,
       tipV: r => r.ms ? fmtDuration(r.ms) : 'Sin estudio',
     }),
     acc: w => lineChart(w, D.B.list.map(b => ({ y: b.n ? pct(b.ok, b.n) : null, n: b.n, ok: b.ok, label: b.label, tip: b.tip })), {
@@ -271,7 +271,7 @@ export function drawStats(root, D) {
     }),
     forecast: w => {
       const rows = D.fc.map((n, i) => { const t = startOfDay(today + i * DAY + DAY / 2); return { v: [n], label: i === 0 ? 'hoy' : dayLabel(t), tip: i === 0 ? 'Hoy (incluye atrasadas)' : dayLabel(t) }; });
-      return barChart(w, rows, { series: [{ cls: 's-acc' }], tipV: (r, t) => plural(t, 'tarjeta', 'tarjetas') });
+      return barChart(w, rows, { series: [{ cls: 's-acc' }], highlight: i => i === 0, tipV: (r, t) => plural(t, 'tarjeta', 'tarjetas') });
     },
     intervals: w => {
       const B = [['Aprendiendo', 0, 1], ['1 d', 1, 2], ['2 d', 2, 3], ['3–6 d', 3, 7], ['1–2 sem', 7, 14], ['2–3 sem', 14, 21], ['3 sem–1 mes', 21, 31], ['1–3 meses', 31, 91], ['3–6 meses', 91, 182], ['+6 meses', 182, Infinity]];

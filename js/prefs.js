@@ -34,7 +34,7 @@ export const ACCENTS = [
 ];
 export const FONTS = [
   { id: 'system', label: 'Sistema' }, { id: 'serif', label: 'Serif' },
-  { id: 'rounded', label: 'Redondeada' }, { id: 'mono', label: 'Monoespaciada' },
+  { id: 'rounded', label: 'Redondeada' }, { id: 'mono', label: 'Monoespaciada', short: 'Mono' },
 ];
 export const CARD_SIZES = [{ id: 's', label: 'S' }, { id: 'm', label: 'M' }, { id: 'l', label: 'L' }, { id: 'xl', label: 'XL' }];
 

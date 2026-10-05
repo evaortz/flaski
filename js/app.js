@@ -327,7 +327,7 @@ function renderHome() {
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
       <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} repasos en el último año</span></div>
       <div class="streaks">
-        <span><b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
+        <span class="streak-cur">🔥 <b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
         <span><b>${st.best}</b> mejor racha</span>
         <span><b>${hm.active}</b> ${hm.active === 1 ? 'día' : 'días'} estudiando</span>
       </div>
@@ -1069,7 +1069,7 @@ function renderSettings() {
       ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
       ${setRow('Color de acento', 'Botones principales, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
       ${setRow('Tamaño del texto', 'Tamaño de las tarjetas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
-      ${setRow('Letra de las tarjetas', 'Tipo de letra de las tarjetas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}">${f.label}</span>`])))}
+      ${setRow('Letra de las tarjetas', 'Tipo de letra de las tarjetas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])))}
       ${setRow('Alineación', 'Cómo se coloca el texto dentro de la tarjeta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
       ${setRow('Densidad', 'Compacta reduce márgenes y la altura de las filas.', seg('look.density', [['comfy', 'Cómoda'], ['compact', 'Compacta']]))}
       <div class="look-pv" aria-label="Vista previa de una tarjeta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
@@ -1108,7 +1108,21 @@ function renderSettings() {
       ${setRow('Restaurar copia', api.mode === 'local' ? 'Sustituye todo lo de este navegador por la copia.' : 'Añade los mazos de la copia a tu cuenta (el progreso empieza de cero).', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
       ${setRow('Reiniciar el progreso', 'Todas las tarjetas vuelven a ser nuevas. Los mazos no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
       ${setRow('Ajustes por defecto', 'Vuelve a la configuración original (no toca tus datos).', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`)}`, 's-data')}`;
+  markToc();
 }
+// Pestañas de Ajustes: marca la sección visible bajo la barra fija
+function markToc() {
+  const links = document.querySelectorAll('.set-toc a');
+  if (!links.length) return;
+  const top = ($('.set-toc')?.getBoundingClientRect().bottom || 0) + 8;
+  const atEnd = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
+  let cur = SET_SECTIONS[0][0];
+  for (const [id] of SET_SECTIONS) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= top) cur = id; }
+  if (atEnd) cur = SET_SECTIONS.at(-1)[0];
+  links.forEach(a => a.setAttribute('aria-current', String(a.dataset.toc === cur)));
+}
+let tocRaf = 0;
+window.addEventListener('scroll', () => { if (S.view === 'settings' && !tocRaf) tocRaf = requestAnimationFrame(() => { tocRaf = 0; markToc(); }); }, { passive: true });
 // Aplica un cambio de ajustes y repinta lo necesario
 function prefChanged(path) {
   if (path.startsWith('look.')) applyLook(S.prefs.look);
