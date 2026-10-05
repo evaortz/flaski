@@ -38,6 +38,7 @@
   --font:ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, Arial, sans-serif;
   --mono:ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r:6px;
+  --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23787774' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --nav-h:60px;
   color-scheme:light;
 }
@@ -62,6 +63,7 @@
   --gh0:#2A2A2A; --gh1:#0E4429; --gh2:#006D32; --gh3:#26A641; --gh4:#39D353;
   --m0:#94A3B8; --m1:#F59E0B; --m2:#3B82F6; --m3:#22C55E;
   --fc:#2F8FE8; --fc-today:#7AB8F2;
+  --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239B9B9B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
@@ -84,6 +86,7 @@
   --gh0:#2A2A2A; --gh1:#0E4429; --gh2:#006D32; --gh3:#26A641; --gh4:#39D353;
   --m0:#94A3B8; --m1:#F59E0B; --m2:#3B82F6; --m3:#22C55E;
   --fc:#2F8FE8; --fc-today:#7AB8F2;
+  --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239B9B9B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:dark;
 }
 
@@ -265,7 +268,18 @@ form{display:flex;flex-direction:column;gap:6px}
 label{font-size:13px;font-weight:500;color:var(--muted)}
 form label{margin-top:10px}
 input:not([type=checkbox]),select,textarea{background:var(--soft);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;width:100%;min-height:40px;resize:vertical;font-size:16px}
-input:not([type=checkbox]):focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent);background:var(--bg)}
+input:not([type=checkbox]):focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent);background-color:var(--bg)}
+/* <select>: el nativo de siempre (en el móvil abre el selector del sistema), solo cambia el botón:
+   sin la apariencia del sistema y con flecha propia. 16px de letra a propósito: evita el zoom de iOS al enfocarlo */
+select{-webkit-appearance:none;appearance:none;background-image:var(--select-arrow);background-repeat:no-repeat;background-position:right 10px center;background-size:16px 16px;
+  padding-right:34px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+select:hover:not(:focus):not(:disabled){border-color:var(--line-strong)}
+select:disabled{cursor:default;opacity:.6}
+select::-ms-expand{display:none}
+/* Densidad compacta (filas de listas y filtros): solo altura, relleno y letra. Con pantalla táctil
+   se mantienen los 16px para que iOS no haga zoom */
+.taglist select,.tfields select,.st-selects select{min-height:36px;padding-top:5px;padding-bottom:5px;padding-left:10px}
+@media (hover:hover) and (pointer:fine){.taglist select,.tfields select,.st-selects select{font-size:14px}}
 .check{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-weight:400;color:var(--fg);font-size:15px}
 .check input{width:18px;height:18px;flex:none;margin:3px 0 0;accent-color:var(--accent)}
 .chars{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
@@ -361,7 +375,7 @@ input.ipick-own{width:72px;min-height:38px;padding:4px 8px;font-size:15px}
 .taglist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
 .taglist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .taglist li > .tag{max-width:90px;overflow:hidden;text-overflow:ellipsis}
-.taglist input,.taglist select{min-height:36px;padding:4px 8px;font-size:14px}
+.taglist input{min-height:36px;padding:4px 8px;font-size:14px}
 @media (max-width:440px){.taglist li{grid-template-columns:minmax(0,1fr) auto;}.taglist li > .tag{display:none}}
 .newtag-row{flex-direction:row;flex-wrap:wrap;gap:6px}
 .newtag-row input{flex:1 1 160px;min-width:0}
@@ -499,7 +513,7 @@ details.more[open] summary{margin-bottom:4px}
 .tfields{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .tfields li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto auto;gap:6px;align-items:center}
 @media (max-width:480px){.tfields li{grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-bottom:1px solid var(--line);padding-bottom:8px}}
-.tfields input,.tfields select{min-height:38px;padding:6px 8px;font-size:15px}
+.tfields input{min-height:38px;padding:6px 8px;font-size:15px}
 .tf-auto{display:flex;align-items:center;gap:4px;font-size:13px;margin:0;font-weight:400;color:var(--muted)}
 .tf-auto input{width:16px;height:16px;margin:0}
 .tf-btns{display:flex;gap:2px}
@@ -558,8 +572,10 @@ ruby rt{font-size:.5em;font-weight:400;color:var(--muted)}
 .ed-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
 .ed-title > span{font-weight:600;font-size:16px}
 .ed-deck{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;color:var(--muted);font-size:13px;max-width:100%}
-.ed-deck select{border:0;background:transparent;padding:0 18px 0 0;min-height:22px;font-size:13px;color:var(--muted);width:auto;max-width:100%;text-overflow:ellipsis;cursor:pointer}
-.ed-deck select:focus{box-shadow:none;background:transparent;color:var(--fg)}
+.ed-deck select{field-sizing:content;border:0;background-color:transparent;background-position:right 0 center;background-size:14px 14px;padding:0 18px 0 0;min-height:22px;font-size:13px;color:var(--muted);width:auto;max-width:100%}
+.ed-deck select:hover{color:var(--fg)}
+.ed-deck select:focus{box-shadow:none;background-color:transparent;color:var(--fg)}
+.ed-deck select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ed-deck .icon{font-size:14px;width:auto}.ed-deck .dot{width:8px;height:8px}
 .ed-save{min-height:36px;padding:6px 14px}
 @media (max-width:899px){.ed-save{display:none}}
@@ -738,7 +754,6 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);b
 .st-filters .seg::-webkit-scrollbar{display:none}
 .st-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .st-selects .sel{display:flex;flex-direction:column;gap:3px;margin:0;min-width:0}
-.st-selects select{min-height:38px;padding:6px 10px;font-size:14px}
 @media (min-width:700px){.st-filters{flex-direction:row;flex-wrap:wrap;align-items:flex-end;justify-content:space-between}.st-selects{grid-template-columns:repeat(2,minmax(160px,220px))}}
 /* Estado vacío */
 .st-empty{background:var(--soft);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
