@@ -1000,7 +1000,7 @@ function renderStats() {
     modeOf: c => cardModel(c).tpl.mode, modes: MODES,
     scopeOptions: statsScopeOptions, scopeName,
     deckName: id => S.decks.get(id)?.name || 'Mazo', deckLabel: id => (S.decks.get(id) ? deckIcon(S.decks.get(id)) : ''),
-    cardFront: c => fmt(c.front),
+    cardFront: c => fmt(c.front), icon,
   };
   const { html, data } = statsView(ctx, f);
   statsData = data;

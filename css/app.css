@@ -714,84 +714,72 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);b
 .row-link{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--fg);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;font:inherit}
 .row-link:hover{color:var(--accent)}
 .row-link .chev{margin-left:auto;color:var(--faint)}
-/* Stats filters */
-.st-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}
-.st-selects{display:flex;gap:8px;flex-wrap:wrap}
-.st-selects select{padding:6px 10px;font-size:13.5px;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg);color:var(--fg);cursor:pointer}
-.seg-sm.st-periods{border-radius:8px}
-.st-empty{text-align:center;padding:60px 0;color:var(--muted)}
-/* KPI cards */
-.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px}
-.kpi{background:var(--soft);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px}
-.kpi-v{font-size:28px;font-weight:700;color:var(--fg);line-height:1}
-.kpi-l{font-size:12.5px;color:var(--muted)}
-.kpi-sub{font-size:12px;color:var(--faint)}
-/* Stats chart sections */
-.st-head{font-size:13px;font-weight:600;color:var(--muted);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.05em}
-.st-card{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;overflow:hidden}
-.st-chart{width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+/* ── Estadísticas ───────────────────────────────────── */
+.st-head{display:flex;flex-direction:column;gap:2px}
+.st-filters{display:flex;flex-direction:column;gap:10px}
+.st-filters .seg{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%;align-self:flex-start}
+.st-filters .seg::-webkit-scrollbar{display:none}
+.st-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.st-selects .sel{display:flex;flex-direction:column;gap:3px;margin:0;min-width:0}
+.st-selects select{min-height:38px;padding:6px 10px;font-size:14px}
+@media (min-width:700px){.st-filters{flex-direction:row;flex-wrap:wrap;align-items:flex-end;justify-content:space-between}.st-selects{grid-template-columns:repeat(2,minmax(160px,220px))}}
+/* Estado vacío */
+.st-empty{background:var(--soft);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.st-empty h2{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600}
+.st-empty h2 .lu{color:var(--muted)}
+.st-empty p{font-size:14px;color:var(--muted)}
+.st-empty .btnrow{margin-top:4px}
+.st-none{font-size:14px;color:var(--muted);padding:6px 0}
+/* Cifras clave */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:600px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{background:var(--soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi b{font-size:24px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;letter-spacing:-.01em;overflow-wrap:anywhere}
+.kpi b small{font-size:14px;font-weight:500;color:var(--muted)}
+.kpi span{font-size:13px;color:var(--muted)}
+/* Tarjetas de gráfico */
+.st-card{overflow:hidden}
+.st-card > .seg{align-self:flex-start}
+.st-chart{width:100%;min-height:130px}
 .st-svg{display:block}
-/* Legend swatches */
-.st-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.sw{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
-.sw::before{content:'';display:inline-block;width:11px;height:11px;border-radius:3px;background:currentColor}
-/* Grade colors */
-.s-g1,.sw.s-g1{color:var(--s-g1,#EF4444)}
-.s-g2,.sw.s-g2{color:var(--s-g2,#F97316)}
-.s-g3,.sw.s-g3{color:var(--s-g3,#22C55E)}
-.s-g4,.sw.s-g4{color:var(--s-g4,#3B82F6)}
-.s-acc,.sw.s-acc{color:var(--accent)}
-/* Bar chart */
-.bar{fill:var(--accent);cursor:default}
-.bar.s-g1{fill:var(--s-g1,#EF4444)}
-.bar.s-g2{fill:var(--s-g2,#F97316)}
-.bar.s-g3{fill:var(--s-g3,#22C55E)}
-.bar.s-g4{fill:var(--s-g4,#3B82F6)}
-.bar.bar-strong{fill:var(--accent);opacity:.85}
-.bar.s-forecast{fill:var(--accent);opacity:.35}
-.grid{stroke:var(--line);stroke-width:1}
-.baseline{stroke:var(--line-strong);stroke-width:1}
-.ln{stroke:var(--accent);stroke-width:2;fill:none}
+.st-bar{cursor:default}
+.st-bar.s-g1{fill:var(--s-g1)}.st-bar.s-g2{fill:var(--s-g2)}.st-bar.s-g3{fill:var(--s-g3)}.st-bar.s-g4{fill:var(--s-g4)}
+.st-bar.s-acc{fill:var(--accent)}
+.st-svg .grid{stroke:var(--line);stroke-width:1}
+.ln{stroke:var(--accent);stroke-width:2;fill:none;stroke-linejoin:round}
 .ln-dot{fill:var(--accent)}
-/* Stacked bar labels */
-.bstack{display:flex;flex-direction:column;gap:2px}
-.bs-seg{display:flex;align-items:center;height:20px;gap:6px}
-.bs-lab{width:80px;font-size:12px;color:var(--muted);text-align:right;flex:none}
-.bs-bar{flex:1;background:var(--accent);border-radius:3px;height:14px;transition:width .5s;min-width:2px}
-.bs-num{font-size:12px;color:var(--muted);min-width:28px}
-.bs-empty{color:var(--faint);font-size:13px}
-/* Horizontal bar chart */
-.hbars{display:flex;flex-direction:column;gap:6px}
-.hb-row{display:flex;align-items:center;gap:8px}
-.hb-lab{font-size:12.5px;color:var(--muted);width:90px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hb-track{flex:1;background:var(--soft);border-radius:4px;height:12px;overflow:hidden}
-.hb-bar{background:var(--accent);height:100%;border-radius:4px;transition:width .5s}
-.hb-num{font-size:12px;color:var(--muted);min-width:30px;text-align:right}
-/* Hardest cards */
-.hard-list{display:flex;flex-direction:column;gap:6px}
-.hard-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
-.hard-item:last-child{border-bottom:none}
-.hard-rank{font-size:12px;font-weight:700;color:var(--faint);width:20px;flex:none;text-align:center}
-.hard-q{flex:1;font-size:14px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hard-meta{font-size:12px;color:var(--muted);flex:none}
-/* Dark mode grade palette */
-:root{
-  --s-g1:#EF4444;
-  --s-g2:#F97316;
-  --s-g3:#22C55E;
-  --s-g4:#3B82F6;
-}
-[data-theme="dark"]:root,.prefers-dark [data-theme="system"]{
-  --s-g1:#F87171;
-  --s-g2:#FB923C;
-  --s-g3:#4ADE80;
-  --s-g4:#60A5FA;
-}
-@media(prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --s-g1:#F87171;--s-g2:#FB923C;--s-g3:#4ADE80;--s-g4:#60A5FA;
-  }
-}
+/* Leyendas y colores de los botones de respuesta */
+.st-legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.st-legend li{display:flex;align-items:center;gap:6px}
+.st-legend .sw{width:10px;height:10px;border-radius:3px;background:currentColor;flex:none}
+.s-g1{color:var(--s-g1)}.s-g2{color:var(--s-g2)}.s-g3{color:var(--s-g3)}.s-g4{color:var(--s-g4)}.s-acc{color:var(--accent)}
+/* Botones según la tarjeta: barras 100 % apiladas */
+.bstack{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bstack li{display:grid;grid-template-columns:92px minmax(0,1fr) 44px;align-items:center;gap:10px;font-size:13.5px}
+.bs-lab{color:var(--muted)}
+.bs-bar{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden}
+.bs-seg{height:100%;min-width:3px;background:currentColor;outline:none;transition:filter .15s}
+.bs-seg.is-hot,.bs-seg:focus-visible{filter:brightness(.85)}
+.bs-seg.bs-empty{background:var(--soft)}
+.bs-num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* Por mazo: barras horizontales */
+.hbars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.hbars li{display:grid;grid-template-columns:minmax(0,40%) minmax(0,1fr) 48px;align-items:center;gap:10px;font-size:13.5px}
+.hb-lab{display:flex;align-items:center;gap:6px;min-width:0}
+.hb-lab > span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-track{display:block;height:12px;background:var(--soft);border-radius:4px;overflow:hidden}
+.hb-bar{display:block;height:100%;background:var(--accent);border-radius:4px;outline:none}
+.hb-bar.is-hot,.hb-bar:focus-visible{filter:brightness(.85)}
+.hb-num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+/* Las que más se te resisten */
+.hard-list .row{grid-template-columns:minmax(0,1fr);gap:2px}
+.hard-list .row .b{grid-row:2;font-size:14px}
+.hard-meta{grid-row:3;display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.hard-meta .chip{font-size:12px}
+/* Colores de los botones de respuesta (claro / oscuro) */
+:root{--s-g1:#EF4444;--s-g2:#F97316;--s-g3:#22C55E;--s-g4:#3B82F6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--s-g1:#F87171;--s-g2:#FB923C;--s-g3:#4ADE80;--s-g4:#60A5FA}}
+:root[data-theme="dark"]{--s-g1:#F87171;--s-g2:#FB923C;--s-g3:#4ADE80;--s-g4:#60A5FA}
 /* Color de acento (Ajustes → Apariencia). :root[...] gana a la paleta base clara y oscura */
 :root[data-accent="blue"]{--accent:#3B82F6}
 :root[data-accent="purple"]{--accent:#8B5CF6}
@@ -824,10 +812,8 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);b
 .dense .chart-card{padding:10px 12px 12px;gap:8px}
 .dense .card{padding:14px;min-height:240px}
 .dense .kpi{padding:10px}
-.dense .kpi-v{font-size:22px}
+.dense .kpi b{font-size:21px}
 .dense .st-card{padding:10px}
-/* SVG tooltip via title element – keep pointer-events on rects */
-.bar-tip{cursor:default}
 /* Opts details (deck form + settings advanced) */
 .opts summary{cursor:pointer;font-size:13.5px;color:var(--accent);padding:8px 0;user-select:none}
 .opts summary:hover{opacity:.8}

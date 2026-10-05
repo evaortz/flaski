@@ -52,9 +52,10 @@ export function computeStats(ctx, f) {
   const deckSet = ctx.deckSet;
   const allScope = f.scope === 'all' && !f.mode;
   const cardOk = c => c && deckSet.has(c.deck_id) && (!f.mode || ctx.modeOf(c) === f.mode);
-  const evOk = e => { const c = ctx.cards.get(e.card_id); return c ? cardOk(c) : allScope; };
+  const evOk = e => { if (!(e.grade >= 1 && e.grade <= 4) || !Number.isFinite(e.t)) return false; const c = ctx.cards.get(e.card_id); return c ? cardOk(c) : allScope; };
   const scoped = ctx.events.filter(evOk);
-  const first = scoped.length ? startOfDay(scoped[0].t) : today;
+  // No se da por hecho que vengan ordenados por fecha
+  const first = scoped.length ? startOfDay(scoped.reduce((m, e) => Math.min(m, e.t), Infinity)) : today;
   const start = f.period ? today - (f.period - 1) * DAY : Math.min(first, today - 6 * DAY);
   const evs = scoped.filter(e => e.t >= start);
 
@@ -97,7 +98,7 @@ export function computeStats(ctx, f) {
   const fc = new Array(f.fcDays).fill(0);
   for (const p of prog.values()) { const i = p.due <= now ? 0 : Math.round((startOfDay(p.due) - today) / DAY); if (i >= 0 && i < fc.length) fc[i]++; }
 
-  return { fc, f, B, evs, ms, ok, activeDays: activeDays.size, periodDays, byState, hours, byDeck, cards, prog, log, hard, start };
+  return { fc, f, B, evs, scopedN: scoped.length, ms, ok, activeDays: activeDays.size, periodDays, byState, hours, byDeck, cards, prog, log, hard, start };
 }
 
 /* ---------------- HTML de la página (lo que no depende del ancho) ---------------- */
@@ -125,7 +126,20 @@ export function statsView(ctx, f) {
       ${kpi(`${D.activeDays}<small>/${D.periodDays}</small>`, 'días estudiando')}
     </div>`;
 
-  const empty = !n ? `<p class="st-empty">Aún no hay respuestas con estos filtros. Las estadísticas detalladas (botones, tiempo, horas…) cuentan desde que actualizaste Flaski; el calendario incluye todo tu historial.</p>` : '';
+  // Estados vacíos: sin tarjetas, sin respuestas en el periodo o sin ninguna respuesta con estos filtros
+  const filtered = f.scope !== 'all' || !!f.mode;
+  const emptyBox = (ic, title, text, btns = '') => `<div class="st-empty" role="status"><h2>${ctx.icon(ic, { size: 18 })} ${title}</h2><p>${text}</p>${btns ? `<div class="btnrow">${btns}</div>` : ''}</div>`;
+  const noCards = !D.cards.length;
+  const empty = noCards
+    ? (filtered ? emptyBox('chart-column', 'No hay tarjetas con estos filtros', 'Prueba con otro mazo o tipo de tarjeta.')
+      : emptyBox('chart-column', 'Todavía no hay nada que medir', 'Cuando tengas mazos y estudies, aquí verás tu progreso: respuestas, aciertos, tiempo y previsión.', '<button class="primary" data-nav="explore">Ver mazos para empezar</button>'))
+    : n ? ''
+    : D.scopedN ? emptyBox('chart-column', 'Sin respuestas en este periodo', 'Elige un periodo más largo para ver tu actividad anterior.', '<button class="ghost" data-stp="0">Ver todo el historial</button>')
+    : emptyBox('chart-column', 'Aún no hay respuestas', D.prog.size
+      ? 'Las estadísticas detalladas (botones, tiempo, horas…) cuentan desde que actualizaste Flaski; el calendario incluye todo tu historial. Estudia un poco y aparecerán aquí.'
+      : 'Estudia algunas tarjetas y aquí aparecerán tus respuestas, aciertos y tiempo.', `<button class="primary" data-start="${escA(f.scope)}">Estudiar ahora</button>`);
+  const none = text => `<p class="st-none">${text}</p>`;
+  const noProg = !D.prog.size;
 
   // Botones por tipo de tarjeta: barras 100 % apiladas
   const stRows = [['new', 'Nuevas'], ['learning', 'Aprendiendo'], ['review', 'Repaso']].map(([k, label]) => {
@@ -137,7 +151,7 @@ export function statsView(ctx, f) {
   // Por mazo (solo si se miran varios)
   const deckRows = [...D.byDeck.entries()].filter(([id]) => ctx.decks.has(id)).sort((a, b) => b[1].n - a[1].n).slice(0, 8);
   const maxDeck = Math.max(1, ...deckRows.map(([, x]) => x.n));
-  const deckHTML = deckRows.map(([id, x]) => `<li><span class="hb-lab">${ctx.deckLabel(id)}</span>
+  const deckHTML = deckRows.map(([id, x]) => `<li><span class="hb-lab">${ctx.deckLabel(id)}<span>${escA(ctx.deckName(id))}</span></span>
       <span class="hb-track"><span class="hb-bar" style="width:${Math.max(2, (x.n / maxDeck) * 100)}%" tabindex="0" data-tip-v="${plural(x.n, 'respuesta', 'respuestas')} · ${pct(x.ok, x.n)} % aciertos" data-tip-l="${escA(ctx.deckName(id))} · ${fmtDuration(x.ms)}"></span></span>
       <span class="hb-num">${nf.format(x.n)}</span></li>`).join('');
 
@@ -146,36 +160,49 @@ export function statsView(ctx, f) {
   const hardHTML = D.hard.length ? `<ul class="list hard-list">${D.hard.map(({ c, p, lapses, miss }) => `<li><button class="row" data-card="${c.id}">
       <span class="f">${ctx.cardFront(c)}</span><span class="hard-meta">${lapses ? `<span class="chip">${plural(lapses, 'olvido', 'olvidos')}</span>` : ''}${miss ? `<span class="chip">${plural(miss, 'fallo', 'fallos')} en el periodo</span>` : ''}${p ? `<span class="chip">facilidad ${nf.format(Math.round(p.ease * 100))} %</span>` : ''}</span>
       <span class="b">${ctx.deckLabel(c.deck_id)} ${escA(ctx.deckName(c.deck_id))}</span></button></li>`).join('')}</ul>`
-    : '<p class="muted small">Ninguna tarjeta se te resiste. 🎉</p>';
+    : none('Ninguna tarjeta se te resiste. 🎉');
 
   const fcOpts = [7, 30, 90].map(d => `<button type="button" class="seg-b" data-stfc="${d}" aria-pressed="${d === f.fcDays}">${d} d</button>`).join('');
 
-  const html = `<div class="st-head"><h1>Estadísticas</h1><p class="muted">${escA(ctx.scopeName(f.scope))}${f.mode ? ' · ' + escA(ctx.modes.find(m => m.id === f.mode)?.label || '') : ''}</p></div>
-    ${filters}${kpis}${empty}
+  const periodCards = n ? `
     ${card('rev', 'Respuestas ' + per, plural(n, 'respuesta', 'respuestas'), `${legend(GRADE_SERIES)}<div class="st-chart" data-chart="reviews"></div>`)}
     ${card('time', 'Tiempo de estudio ' + per, fmtDuration(D.ms), '<div class="st-chart" data-chart="time"></div>')}
-    ${card('acc', 'Aciertos ' + per, n ? pct(D.ok, n) + ' % de media' : '', '<div class="st-chart" data-chart="acc"></div>')}
+    ${card('acc', 'Aciertos ' + per, pct(D.ok, n) + ' % de media', '<div class="st-chart" data-chart="acc"></div>')}
     ${card('btn', 'Botones según la tarjeta', '% a la derecha: aciertos', `${legend(GRADE_SERIES)}<ul class="bstack">${stRows}</ul>`)}
     ${card('hour', 'Hora del día', 'cuándo estudias', '<div class="st-chart" data-chart="hours"></div>')}
-    ${deckRows.length > 1 ? card('deck', 'Por mazo', 'respuestas en el periodo', `<ul class="hbars">${deckHTML}</ul>`) : ''}
-    ${card('cal', 'Calendario', `${nf.format(hm.total)} repasos en el último año`, hm.html)}
-    ${card('fc', 'Previsión', plural(D.fc.reduce((a, b) => a + b, 0), 'repaso', 'repasos'), `<div class="seg seg-sm" role="group" aria-label="Días de previsión">${fcOpts}</div><div class="st-chart" data-chart="forecast"></div>`)}
-    ${card('ivl', 'Intervalos actuales', 'cada cuánto vuelven tus tarjetas', '<div class="st-chart" data-chart="intervals"></div>')}
-    ${card('ease', 'Facilidad', 'más baja = más difícil para ti', '<div class="st-chart" data-chart="ease"></div>')}
+    ${deckRows.length > 1 ? card('deck', 'Por mazo', 'respuestas en el periodo', `<ul class="hbars">${deckHTML}</ul>`) : ''}` : '';
+  const html = `<div class="st-head"><h1>Estadísticas</h1><p class="muted">${escA(ctx.scopeName(f.scope))}${f.mode ? ' · ' + escA(ctx.modes.find(m => m.id === f.mode)?.label || '') : ''}</p></div>
+    ${ctx.decks.size ? filters : ''}${noCards && !filtered ? '' : kpis}${empty}
+    ${periodCards}
+    ${noCards ? '' : `
+    ${card('cal', 'Calendario', `${nf.format(hm.total)} repasos en el último año`, hm.total ? hm.html : none('Aún no hay días de estudio en el último año.'))}
+    ${card('fc', 'Previsión', plural(D.fc.reduce((a, b) => a + b, 0), 'repaso', 'repasos'), noProg ? none('Cuando estudies tarjetas, aquí verás cuántas tocan cada día.') : `<div class="seg seg-sm" role="group" aria-label="Días de previsión">${fcOpts}</div><div class="st-chart" data-chart="forecast"></div>`)}
+    ${card('ivl', 'Intervalos actuales', 'cada cuánto vuelven tus tarjetas', noProg ? none('Aún no has estudiado ninguna tarjeta con estos filtros.') : '<div class="st-chart" data-chart="intervals"></div>')}
+    ${card('ease', 'Facilidad', 'más baja = más difícil para ti', noProg ? none('Aún no has estudiado ninguna tarjeta con estos filtros.') : '<div class="st-chart" data-chart="ease"></div>')}
     ${card('mt', 'Estado de las tarjetas', `${mt.pct} % consolidadas`, mt.html)}
-    ${card('hard', 'Las que más se te resisten', '', hardHTML)}`;
+    ${card('hard', 'Las que más se te resisten', '', hardHTML)}`}`;
   return { html, data: D };
 }
 
 /* ---------------- gráfico de barras genérico (apiladas o simples) ---------------- */
-function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.format(v), highlightLast = false }) {
-  const PADL = 30, PADR = 4, TOP = 10, BASE = height - 22, PLOT = BASE - TOP;
+// Ancho aproximado de un texto del eje (10 px), para reservar sitio y no cortarlo
+const textW = s => String(s).length * 6;
+const padLeft = labels => Math.max(24, 10 + Math.max(...labels.map(textW)));
+// Etiqueta del eje X: centrada bajo la barra, salvo en los bordes, donde se ancla para no salirse
+function xLabel(x, y, label, width) {
+  const half = textW(label) / 2;
+  const [anchor, ax] = x - half < 0 ? ['start', 1] : x + half > width ? ['end', width - 1] : ['middle', x];
+  return `<text class="ax" x="${ax}" y="${y}" text-anchor="${anchor}">${escA(label)}</text>`;
+}
+// labelEvery(i, n, every): qué barras llevan etiqueta (por defecto, contando desde la última)
+function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.format(v), highlightLast = false, labelEvery = (i, n, every) => (n - 1 - i) % every === 0 }) {
   const n = rows.length;
-  const slot = (width - PADL - PADR) / Math.max(1, n);
-  const bw = Math.max(2, Math.min(26, slot * (slot > 8 ? 0.68 : 0.82)));
   const totals = rows.map(r => r.v.reduce((a, b) => a + b, 0));
   const rawMax = Math.max(0, ...totals);
   const max = niceMax(rawMax);
+  const PADL = padLeft([yFmt(max), yFmt(max / 2), yFmt(0)]), PADR = 4, TOP = 10, BASE = height - 22, PLOT = BASE - TOP;
+  const slot = (width - PADL - PADR) / Math.max(1, n);
+  const bw = Math.max(2, Math.min(26, slot * (slot > 8 ? 0.68 : 0.82)));
   let grid = '', bars = '', labels = '';
   for (const frac of [0, 0.5, 1]) {
     const y = BASE - frac * PLOT;
@@ -189,11 +216,11 @@ function barChart(width, rows, { series, height = 150, tipV, yFmt = v => nf.form
     r.v.forEach((v, k) => {
       if (!v) return;
       const h = Math.max(1.5, (v / max) * PLOT);
-      bars += `<rect class="bar ${series[k].cls}${highlightLast && i === n - 1 ? ' bar-strong' : ''}" x="${cx - bw / 2}" y="${y - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 4)}"></rect>`;
+      bars += `<rect class="st-bar ${series[k].cls}${highlightLast && i === n - 1 ? ' bar-strong' : ''}" x="${cx - bw / 2}" y="${y - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 4)}"></rect>`;
       y -= h + (series.length > 1 ? 1 : 0);   // separación de 1px entre segmentos apilados
     });
     bars += `<rect class="hit" x="${cx - slot / 2}" y="${TOP - 6}" width="${slot}" height="${PLOT + 6}" tabindex="0" data-tip-v="${escA(tipV(r, totals[i]))}" data-tip-l="${escA(r.tip)}"></rect>`;
-    if ((n - 1 - i) % every === 0) labels += `<text class="ax" x="${cx}" y="${BASE + 15}" text-anchor="middle">${escA(r.label)}</text>`;
+    if (r.label && labelEvery(i, n, every)) labels += xLabel(cx, BASE + 15, r.label, width);
   });
   return `<svg class="st-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${grid}${bars}${labels}</svg>`;
 }
@@ -206,7 +233,7 @@ function niceMax(v) {
 
 /* ---------------- línea (porcentaje) ---------------- */
 function lineChart(width, rows, { height = 150, tipV }) {
-  const PADL = 30, PADR = 8, TOP = 10, BASE = height - 22, PLOT = BASE - TOP;
+  const PADL = padLeft(['100 %']), PADR = 8, TOP = 10, BASE = height - 22, PLOT = BASE - TOP;
   const n = rows.length, slot = (width - PADL - PADR) / Math.max(1, n);
   const X = i => PADL + slot * i + slot / 2, Y = v => BASE - (v / 100) * PLOT;
   let grid = '';
@@ -218,7 +245,7 @@ function lineChart(width, rows, { height = 150, tipV }) {
     if (r.y === null) pen = false;
     else { path += `${pen ? 'L' : 'M'}${X(i).toFixed(1)},${Y(r.y).toFixed(1)}`; pen = true; if (slot >= 6) dots += `<circle class="ln-dot" cx="${X(i)}" cy="${Y(r.y)}" r="2.5"></circle>`; }
     hits += `<rect class="hit" x="${X(i) - slot / 2}" y="${TOP - 6}" width="${slot}" height="${PLOT + 6}" tabindex="0" data-tip-v="${escA(tipV(r))}" data-tip-l="${escA(r.tip)}"></rect>`;
-    if ((n - 1 - i) % every === 0) labels += `<text class="ax" x="${X(i)}" y="${BASE + 15}" text-anchor="middle">${escA(r.label)}</text>`;
+    if ((n - 1 - i) % every === 0) labels += xLabel(X(i), BASE + 15, r.label, width);
   });
   return `<svg class="st-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${grid}<path class="ln" d="${path}"></path>${dots}${hits}${labels}</svg>`;
 }
@@ -238,8 +265,8 @@ export function drawStats(root, D) {
     acc: w => lineChart(w, D.B.list.map(b => ({ y: b.n ? pct(b.ok, b.n) : null, n: b.n, ok: b.ok, label: b.label, tip: b.tip })), {
       tipV: r => r.n ? `${pct(r.ok, r.n)} % · ${r.ok} de ${r.n}` : 'Sin respuestas',
     }),
-    hours: w => barChart(w, D.hours.map((h, i) => ({ v: [h.n], label: i % 3 === 0 ? `${i}h` : '', tip: `De ${i}:00 a ${i}:59`, ...h })), {
-      series: [{ cls: 's-acc' }], height: 130,
+    hours: w => barChart(w, D.hours.map((h, i) => ({ v: [h.n], label: `${i}h`, tip: `De ${i}:00 a ${i}:59`, ...h })), {
+      series: [{ cls: 's-acc' }], height: 130, labelEvery: (i, n, every) => i % (every <= 3 ? 3 : 6) === 0,
       tipV: r => r.n ? `${plural(r.n, 'respuesta', 'respuestas')} · ${pct(r.ok, r.n)} % aciertos` : 'Nada a esta hora',
     }),
     forecast: w => {
@@ -263,6 +290,8 @@ export function drawStats(root, D) {
   };
   for (const el of root.querySelectorAll('[data-chart]')) {
     const fn = charts[el.dataset.chart];
-    if (fn) el.innerHTML = fn(Math.max(260, Math.floor(el.clientWidth)));
+    if (!fn) continue;
+    el.innerHTML = fn(Math.max(260, Math.floor(el.clientWidth)));
+    el.firstElementChild?.setAttribute('aria-label', el.closest('section')?.querySelector('h2')?.textContent || '');
   }
 }
