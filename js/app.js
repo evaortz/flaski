@@ -1061,7 +1061,7 @@ function renderSettings() {
   const P = S.prefs, A = algoFor(P, null);
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
-  rowSeq = 0;
+  rowSeq = 0; tocLock = null;
   main.innerHTML = `<div class="set-head"><h1>Ajustes</h1></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
     <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
@@ -1110,19 +1110,40 @@ function renderSettings() {
       ${setRow('Ajustes por defecto', 'Vuelve a la configuración original (no toca tus datos).', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`)}`, 's-data')}`;
   markToc();
 }
-// Pestañas de Ajustes: marca la sección visible bajo la barra fija
+// Pestañas de Ajustes: marca la sección visible bajo la barra fija.
+// Al pulsar una pestaña se queda marcada (aunque la sección no pueda subir del todo, como las últimas)
+// hasta que la persona desplace la página por su cuenta.
+let tocLock = null;
 function markToc() {
-  const links = document.querySelectorAll('.set-toc a');
-  if (!links.length) return;
-  const top = ($('.set-toc')?.getBoundingClientRect().bottom || 0) + 8;
-  const atEnd = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
-  let cur = SET_SECTIONS[0][0];
-  for (const [id] of SET_SECTIONS) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= top) cur = id; }
-  if (atEnd) cur = SET_SECTIONS.at(-1)[0];
-  links.forEach(a => a.setAttribute('aria-current', String(a.dataset.toc === cur)));
+  const strip = $('.set-toc'), links = document.querySelectorAll('.set-toc a');
+  if (!strip || !links.length) return;
+  let cur = tocLock;
+  if (!cur) {
+    const top = strip.getBoundingClientRect().bottom + 24;
+    const atEnd = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
+    cur = SET_SECTIONS[0][0];
+    for (const [id] of SET_SECTIONS) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= top) cur = id; }
+    if (atEnd) cur = SET_SECTIONS.at(-1)[0];
+  }
+  let act = null;
+  links.forEach(a => { const on = a.dataset.toc === cur; a.setAttribute('aria-current', String(on)); if (on) act = a; });
+  // En el móvil la tira se desplaza en horizontal: la pestaña activa siempre a la vista
+  if (act && strip.scrollWidth > strip.clientWidth) {
+    const l = act.offsetLeft - 16, r = act.offsetLeft + act.offsetWidth + 16 - strip.clientWidth;
+    if (strip.scrollLeft > l) strip.scrollLeft = l; else if (strip.scrollLeft < r) strip.scrollLeft = r;
+  }
 }
 let tocRaf = 0;
 window.addEventListener('scroll', () => { if (S.view === 'settings' && !tocRaf) tocRaf = requestAnimationFrame(() => { tocRaf = 0; markToc(); }); }, { passive: true });
+for (const ev of ['wheel', 'touchstart', 'keydown']) addEventListener(ev, e => { if (tocLock && !e.target.closest?.('.set-toc')) tocLock = null; }, { passive: true });
+document.addEventListener('click', e => {
+  const a = e.target.closest?.('.set-toc a');
+  const sec = a && document.getElementById(a.dataset.toc);
+  if (!sec) return;
+  e.preventDefault();   // sin «#seccion» en la dirección ni en el historial
+  tocLock = a.dataset.toc; markToc();
+  sec.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+});
 // Aplica un cambio de ajustes y repinta lo necesario
 function prefChanged(path) {
   if (path.startsWith('look.')) applyLook(S.prefs.look);

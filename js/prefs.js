@@ -28,8 +28,10 @@ export const DEFAULT_PREFS = {
 };
 
 export const ACCENTS = [
-  { id: 'blue', label: 'Azul' }, { id: 'purple', label: 'Morado' }, { id: 'pink', label: 'Rosa' },
-  { id: 'red', label: 'Rojo' }, { id: 'orange', label: 'Naranja' }, { id: 'green', label: 'Verde' },
+  { id: 'blue', label: 'Azul' }, { id: 'indigo', label: 'Índigo' }, { id: 'purple', label: 'Morado' },
+  { id: 'pink', label: 'Rosa' }, { id: 'rose', label: 'Frambuesa' }, { id: 'red', label: 'Rojo' },
+  { id: 'orange', label: 'Naranja' }, { id: 'amber', label: 'Ámbar' }, { id: 'lime', label: 'Lima' },
+  { id: 'green', label: 'Verde' }, { id: 'teal', label: 'Turquesa' }, { id: 'cyan', label: 'Cian' },
   { id: 'brown', label: 'Marrón' }, { id: 'gray', label: 'Grafito' },
 ];
 export const FONTS = [
