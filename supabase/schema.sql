@@ -174,6 +174,8 @@ create table if not exists public.pages (
   updated_at timestamptz not null default now()
 );
 create index if not exists pages_owner_idx on public.pages (owner);
+-- Etiquetas de los apuntes (versión 6): las mismas que las de los mazos
+alter table public.pages add column if not exists tags uuid[] not null default '{}';
 -- Tarjetas vinculadas a un bloque de unos apuntes
 alter table public.cards add column if not exists page_id  uuid references public.pages on delete set null;
 alter table public.cards add column if not exists block_id text;

@@ -13,11 +13,11 @@ import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang } from './cardtypes.js';
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
-import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck } from './org.js';
+import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck, descendants } from './org.js';
 import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
-import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS } from './pages.js';
+import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -47,6 +47,8 @@ const S = {
   pages: new Map(),            // id → página de apuntes
   pagesMissing: false,         // la tabla de apuntes aún no existe en Supabase
   pageId: null, pageQuery: '', focusBlock: null,
+  noteFolder: null,                              // carpeta abierta en «Apuntes»
+  noteOrg: { tagIds: [], sort: 'recent' },       // filtros y orden de la lista de apuntes
   fromCache: false,            // datos cargados de la copia del navegador (se abrió sin conexión)
   pending: 0,                  // cambios esperando a enviarse
 };
@@ -347,6 +349,7 @@ function applyData(d) {
   S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
   S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
   S.pagesMissing = !!d.pagesMissing;
+  S.pageTagsMissing = !!d.pageTagsMissing;
 }
 
 /* ===================== sin conexión ===================== */
@@ -918,8 +921,9 @@ function renderDecks() {
   const folderRows = folders.map(f => {
     const fc = counts('folder:' + f.id);
     const inside = decksInFolder(S.decks, S.folders, f.id).filter(d => !d.archived).length;
+    const sub = descendants(S.folders, f.id), np = [...S.pages.values()].filter(p => sub.has(p.folder_id)).length;
     return `<li><button class="deck folder" data-folder="${f.id}">${folderIcon(f)}
-      <span class="info"><span class="dname">${esc(f.name)}</span><span class="meta">${plural(inside, 'mazo', 'mazos')} · ${fc.due + fc.newToday} pendientes</span></span>
+      <span class="info"><span class="dname">${esc(f.name)}</span><span class="meta">${plural(inside, 'mazo', 'mazos')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span></span>
       <span class="go">›</span></button></li>`;
   }).join('');
 
@@ -1001,6 +1005,14 @@ function statusChip(id) {
   const now = Date.now();
   return p.due <= now ? '<span class="chip">Toca hoy</span>' : `<span class="chip">En ${fmtWhen(p.due, now)}</span>`;
 }
+// En un mazo: los apuntes de los que salen sus tarjetas (o que lo tienen como mazo)
+function deckNotesHTML(deckId) {
+  const ids = new Set(cardList().filter(c => c.deck_id === deckId && c.page_id).map(c => c.page_id));
+  const pages = [...S.pages.values()].filter(p => p.deck_id === deckId || ids.has(p.id));
+  if (!pages.length) return '';
+  return `<div class="deck-notes">${icon('file-text', { size: 16 })}<span class="muted small">Apuntes:</span>
+    ${pages.map(p => `<button class="chip chip-link" data-page="${p.id}">${p.icon ? esc(p.icon) + ' ' : ''}${esc(pageTitle(p))}</button>`).join('')}</div>`;
+}
 function renderDeck() {
   const d = S.decks.get(S.deckId);
   if (!d) return go('decks');
@@ -1022,6 +1034,7 @@ function renderDeck() {
       <button class="ghost" data-act="edit-deck">Editar</button>
       <button class="ghost" data-stats="${d.id}">${icon('chart-column', { size: 16 })} Estadísticas</button>
     </div>
+    ${deckNotesHTML(d.id)}
     <div class="toolbar"><input id="cardSearch" type="search" placeholder="Buscar en este mazo" aria-label="Buscar tarjetas" value="${esc(S.cardQuery)}"></div>
     <p class="muted small" id="cardCount">${rows.length === all.length ? `${all.length} ${all.length === 1 ? 'tarjeta' : 'tarjetas'}` : `${rows.length} de ${all.length} tarjetas`}</p>
     <ul class="list" id="cardRows">${rows.map(c => {
@@ -1180,13 +1193,27 @@ function pageCards(pageId) {
   return m;
 }
 const shortDate = iso => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
-const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.icon || '', deck_id: p.deck_id || null, folder_id: p.folder_id || null, blocks: p.blocks });
+// Fila para guardar. Las etiquetas solo si la base de datos ya tiene esa columna (si no, se perdería el guardado)
+const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.icon || '', deck_id: p.deck_id || null, folder_id: p.folder_id || null, blocks: p.blocks,
+  ...(S.pageTagsMissing ? {} : { tags: p.tags || [] }) });
 const pageTimers = new Map();
 // Guarda una página poco después del último cambio (se escribe mucho seguido)
 function savePageSoon(p, wait = 700) {
   p.updated_at = new Date().toISOString();
+  savedState('saving');
   clearTimeout(pageTimers.get(p.id));
-  pageTimers.set(p.id, setTimeout(() => { pageTimers.delete(p.id); api.savePage(pageRow(p)).catch(fail); saveSnapSoon(); }, wait));
+  pageTimers.set(p.id, setTimeout(() => {
+    pageTimers.delete(p.id);
+    api.savePage(pageRow(p)).then(() => savedState('saved')).catch(e => { savedState('error'); fail(e); });
+    saveSnapSoon();
+  }, wait));
+}
+// «Guardando…» / «Guardado» junto al título del apunte
+function savedState(state) {
+  const el = $('#pgSaved');
+  if (!el) return;
+  el.dataset.state = state;
+  el.textContent = state === 'saving' ? 'Guardando…' : state === 'error' ? 'No se ha guardado' : 'Guardado';
 }
 function flushPages() {
   for (const [id, t] of pageTimers) { clearTimeout(t); pageTimers.delete(id); const p = S.pages.get(id); if (p) api.savePage(pageRow(p)).catch(() => {}); }
@@ -1194,21 +1221,64 @@ function flushPages() {
 addEventListener('pagehide', flushPages);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPages(); });
 
+// Ruta de los apuntes: Apuntes / Idiomas / Turco (/ título del apunte, si se está dentro de uno)
+function noteCrumbs(folderId, current = null) {
+  const path = folderId && S.folders.has(folderId) ? folderPath(S.folders, folderId) : [];
+  const btn = (id, label) => `<button class="crumb" data-nfolder="${id}">${label}</button>`;
+  const parts = [btn('', 'Apuntes'), ...path.map((f, i) => (i === path.length - 1 && !current
+    ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
+    : btn(f.id, `${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}`)))];
+  if (current) parts.push(`<span class="crumb crumb-cur">${esc(current)}</span>`);
+  return `<nav class="crumbs" aria-label="Ruta">${parts.join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
+}
+const pageFolder = p => (p.folder_id && S.folders.has(p.folder_id) ? p.folder_id : null);
+const NOTE_SORTS = [['recent', 'Editados recientemente'], ['name', 'Nombre'], ['created', 'Creados recientemente']];
 function renderNotes() {
-  const q = norm(S.pageQuery.trim());
-  const list = [...S.pages.values()].filter(p => !q || norm(pageSearchText(p)).includes(q))
-    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-  const row = p => {
-    const n = cardList().filter(c => c.page_id === p.id).length, d = S.decks.get(p.deck_id);
-    return `<li><button class="deck" data-page="${p.id}"><span class="icon">${p.icon ? esc(p.icon) : icon('notebook-text', { size: 20 })}</span>
-      <span class="info"><span class="dname">${esc(pageTitle(p))}</span><span class="meta">${n ? plural(n, 'tarjeta', 'tarjetas') : 'Sin tarjetas'}${d ? ` · ${esc(d.name)}` : ''} · ${shortDate(p.updated_at)}</span></span></button></li>`;
-  };
-  main.innerHTML = `<div class="section-h"><h1>Apuntes</h1></div>
+  if (S.noteFolder && !S.folders.has(S.noteFolder)) S.noteFolder = null;
+  const folder = S.noteFolder ? S.folders.get(S.noteFolder) : null;
+  const o = S.noteOrg, q = norm(S.pageQuery.trim());
+  const filtering = !!(q || o.tagIds.length);
+  const here = folder?.id || null;
+  const pages = [...S.pages.values()]
+    .filter(p => (filtering ? (!q || norm(pageSearchText(p)).includes(q)) && o.tagIds.every(t => (p.tags || []).includes(t)) : pageFolder(p) === here))
+    .sort(o.sort === 'name' ? (a, b) => pageTitle(a).localeCompare(pageTitle(b), 'es')
+      : o.sort === 'created' ? (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      : (a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  const folders = filtering ? [] : [...S.folders.values()].filter(f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null) === here)
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const folderRows = folders.map(f => {
+    const inside = descendants(S.folders, f.id);
+    const np = [...S.pages.values()].filter(p => inside.has(pageFolder(p))).length;
+    const nd = [...S.decks.values()].filter(d => !d.archived && inside.has(d.folder_id)).length;
+    return `<li><button class="deck folder" data-nfolder="${f.id}">${folderIcon(f)}
+      <span class="info"><span class="dname">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes'}${nd ? ` · ${plural(nd, 'mazo', 'mazos')}` : ''}</span></span>
+      <span class="go">›</span></button></li>`;
+  }).join('');
+  const pageRows = pages.map(p => {
+    const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards), snip = pageSnippet(p);
+    const where = filtering && pageFolder(p) ? `${folderPath(S.folders, p.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '';
+    return `<li><button class="deck note-row" data-page="${p.id}"><span class="icon">${p.icon ? esc(p.icon) : icon('file-text', { size: 20 })}</span>
+      <span class="info"><span class="dname">${esc(pageTitle(p))}</span>
+        ${snip ? `<span class="snip">${esc(snip)}</span>` : ''}
+        <span class="meta">${(p.tags || []).length ? `<span class="tags">${tagChips(p.tags)}</span>` : ''}${where}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'tarjeta', 'tarjetas')}</span> · ` : ''}Editado ${shortDate(p.updated_at)}</span></span></button></li>`;
+  }).join('');
+  const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
+    `<button class="fchip" data-ntag="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}"><span class="tdot" style="background:var(--tag-${t.color || 'gray'}-bg);border-color:var(--tag-${t.color || 'gray'})"></span>${esc(t.name)}</button>`).join('');
+  const title = filtering ? 'Resultados' : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Apuntes';
+  const empty = filtering ? '<p class="muted">Ningún apunte coincide con la búsqueda o las etiquetas.</p>'
+    : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
+    : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
+       <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
+       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>`;
+  main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
+    <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    <div class="btnrow"><button class="primary" data-act="new-page">+ Apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>
-    ${S.pages.size ? `<div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}"></div>` : ''}
-    ${list.length ? `<ul class="list">${list.map(row).join('')}</ul>`
-      : `<div class="empty"><p class="muted">${q ? 'Ningún apunte coincide con la búsqueda.' : 'Escribe aquí tus apuntes y crea tarjetas a partir de ellos: selecciona un trozo y pulsa «Crear tarjeta». Cada tarjeta queda unida a esa parte, y al estudiarla puedes volver a ella.'}</p></div>`}`;
+    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button></div>
+    <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
+      <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
+    ${folderRows ? `<ul class="list">${folderRows}</ul>` : ''}
+    ${pageRows ? `<ul class="list notes-list">${pageRows}</ul>` : folderRows ? '' : `<div class="empty notes-empty">${empty}</div>`}`;
 }
 
 const BLOCK_PH = 'Escribe algo… («# » título, «- » lista)';
@@ -1258,18 +1328,29 @@ function renderPage() {
   if (!p.blocks.length) p.blocks.push(newBlock());
   const cards = pageCards(p.id);
   const total = [...cards.values()].reduce((s, l) => s + l.length, 0);
-  main.innerHTML = `<div class="pg-top"><button class="link" data-nav="notes">← Apuntes</button><span class="spacer"></span>
+  const prop = (ic, label, value, forId = '') => `<div class="prop"><${forId ? `label for="${forId}"` : 'span'} class="prop-k">${icon(ic, { size: 16 })} ${label}</${forId ? 'label' : 'span'}><div class="prop-v">${value}</div></div>`;
+  main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
+      <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
       ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}
-      <button type="button" class="iconbtn pg-help" data-act="notes-help" aria-label="Chuleta: todo lo que puedes hacer en los apuntes" title="Chuleta">${icon('circle-help', { size: 18 })}</button></div>
-    <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
-    <div class="pg-meta"><label class="ed-deck" title="Mazo donde van las tarjetas que crees aquí">${icon('layers', { size: 14 })}<select id="pgDeck" aria-label="Mazo para las tarjetas"><option value="">Mazo para las tarjetas…</option>${deckOptions(p.deck_id)}</select></label>
-      <span class="muted small">${total ? plural(total, 'tarjeta vinculada', 'tarjetas vinculadas') : 'Selecciona un trozo de texto para crear una tarjeta'}</span></div>
+      <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
+      <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
+    <div class="pg-head">
+      ${p.icon ? `<button type="button" class="pg-icon" data-act="page-icon" aria-label="Cambiar el icono">${esc(p.icon)}</button>`
+        : `<button type="button" class="pg-addicon" data-act="page-icon">${icon('smile-plus', { size: 16 })} Añadir icono</button>`}
+      <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
+    </div>
+    <div class="pg-props">
+      ${prop('layers', 'Mazo', `<select id="pgDeck" class="prop-select" aria-label="Mazo donde van las tarjetas de este apunte"><option value="">Sin mazo</option>${deckOptions(p.deck_id)}</select>`)}
+      ${prop('folder', 'Carpeta', folderSelect('pgFolder', pageFolder(p) || '', null, 'Sin carpeta').replace('<select ', '<select class="prop-select" aria-label="Carpeta" '))}
+      ${prop('tag', 'Etiquetas', `${tagChips(p.tags || [])}<button type="button" class="link prop-add" data-act="page-tags">${(p.tags || []).length ? 'Editar' : 'Añadir'}</button>`)}
+      ${total ? '' : prop('notebook-text', 'Tarjetas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una</span>')}
+    </div>
     ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
-    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">+ Añadir un bloque</button><button type="button" class="pg-add" data-act="add-table">+ Tabla</button></div>
-    <div class="btnrow pg-foot"><span class="spacer"></span><button class="ghost danger small-btn" data-act="ask-delete-page">${icon('trash-2', { size: 15 })} Eliminar apunte</button></div>
-    <div id="selBar" class="selbar" role="toolbar" aria-label="Con lo seleccionado" hidden><span class="small">Con lo seleccionado:</span>
-      <button type="button" class="primary small-btn" data-act="sel-card">Crear tarjeta</button><button type="button" class="ghost small-btn" data-act="sel-cloze">Hueco</button></div>`;
+    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">${icon('plus', { size: 15 })} Bloque</button><button type="button" class="pg-add" data-act="add-table">${icon('plus', { size: 15 })} Tabla</button></div>
+    <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
+      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} Crear tarjeta</button>
+      <button type="button" class="ghost small-btn" data-act="sel-cloze">${icon('puzzle', { size: 15 })} Convertir en hueco</button></div>`;
   if (S.focusBlock) {
     const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
     if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
@@ -1415,7 +1496,9 @@ document.addEventListener('paste', e => {
 function newPage({ title = '', blocks = null } = {}) {
   if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
   const deckId = S.view === 'deck' ? S.deckId : null;
-  const p = { id: api.newId(), owner: S.uid, title, icon: '', deck_id: deckId, folder_id: null, blocks: blocks?.length ? blocks : [newBlock()] };
+  // Se crea en la carpeta que estás viendo (en «Apuntes» o en «Mis mazos»)
+  const folderId = S.view === 'notes' ? S.noteFolder : S.view === 'deck' ? S.decks.get(S.deckId)?.folder_id || null : null;
+  const p = { id: api.newId(), owner: S.uid, title, icon: '', deck_id: deckId, folder_id: folderId, tags: [], blocks: blocks?.length ? blocks : [newBlock()] };
   S.pages.set(p.id, p);
   savePageSoon(p, 0);
   go('page', { pageId: p.id });
@@ -1449,18 +1532,18 @@ function cardFromSelection(kind) {
   S.pageSel = null;
   cardForm(null, { deckId, prefill, source: { page_id: p.id, block_id: b.id } });
 }
-// Chuleta de los apuntes: todo lo que se puede escribir y hacer, con ejemplos
+// Formato y atajos de los apuntes: todo lo que se puede escribir y hacer, con ejemplos
 function notesHelpSheet() {
   const row = (code, what) => `<tr><td><code>${esc(code)}</code></td><td>${what}</td></tr>`;
   const key = (k, what) => `<tr><td><kbd>${k}</kbd></td><td>${what}</td></tr>`;
   const table = (rows, head = ['Escribe', 'Para']) => `<table class="help-tbl"><thead><tr><th>${head[0]}</th><th>${head[1]}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
-  openSheet(`<h2>Chuleta de los apuntes</h2>
+  openSheet(`<h2>Formato y atajos</h2>
     <p class="muted small">Toca cualquier parte para escribir en ella; al salir se ve con formato. Se guarda solo.</p>
     <h3 class="sub-h">Bloques (al principio de una línea)</h3>
     ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('| A | B |', 'Tabla (abajo cómo)')])}
     <h3 class="sub-h">Formato dentro del texto</h3>
     ${table([row('**negrita**', '<b>negrita</b>'), row('*cursiva*', '<i>cursiva</i>'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
-    <h3 class="sub-h">Tablas (Markdown, como en Obsidian)</h3>
+    <h3 class="sub-h">Tablas</h3>
     <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
 | :------- | :----: | ------: |
 | Locativo |  -de   |    evde |</pre>
@@ -1794,7 +1877,8 @@ async function restoreInto(data) {
       const have = await existingId(pg.id, id => S.pages.has(id));
       if (have) { pageMap.set(pg.id, have); rep.pages.skipped++; continue; }
       const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: ['p', 'h1', 'h2', 'li', 'table'].includes(b.type) ? b.type : 'p', text: str(b.text, 20000) }));
-      const np = await createKeepingId(api.createPage, { owner: uid, title: str(pg.title, 120), icon: str(pg.icon, 16), deck_id: null, folder_id: folderMap.get(pg.folder_id) || null, blocks }, pg.id);
+      const np = await createKeepingId(api.createPage, { owner: uid, title: str(pg.title, 120), icon: str(pg.icon, 16), deck_id: null, folder_id: folderMap.get(pg.folder_id) || null, blocks,
+        ...(S.pageTagsMissing ? {} : { tags: tagsOf(pg.tags) }) }, pg.id);
       S.pages.set(np.id, { ...np, blocks: np.blocks || blocks });
       pageMap.set(pg.id, np.id);
       if (pg.deck_id) pageDeck.set(np.id, pg.deck_id);
@@ -1990,16 +2074,17 @@ function deckForm(d) {
     </form>`);
 }
 function folderForm(f) {
-  const parentDefault = f ? f.parent_id : S.folderId;
+  const parentDefault = f ? f.parent_id : S.view === 'notes' ? S.noteFolder : S.folderId;
   openSheet(`<h2>${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
     <form data-form="folder" data-id="${f ? f.id : ''}">
       <label for="fo-name">Nombre</label><input id="fo-name" maxlength="80" required value="${esc(f?.name || '')}">
       <label>Icono</label>${iconPicker(f?.icon)}
       <label>Color de la carpeta</label>${colorPicker(f?.color)}
-      <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna (en «Mis mazos»)')}
+      <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna (en la raíz)')}
+      ${f ? '' : '<p class="hint">Las carpetas son comunes a mazos y apuntes: un tema puede tener los dos.</p>'}
       <div class="btnrow" style="margin-top:14px">${f ? '<button type="button" class="ghost danger" data-act="ask-delete-folder">Eliminar carpeta</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
-      ${f ? '<p class="hint">Al eliminarla, sus mazos y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
+      ${f ? '<p class="hint">Al eliminarla, sus mazos, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
     </form>`);
 }
 function tagsSheet() {
@@ -2373,7 +2458,7 @@ async function saveFolderForm(form) {
     const f = id ? await api.updateFolder(id, fields) : await api.createFolder({ ...fields, owner: S.uid });
     S.folders.set(f.id, f);
     toast(id ? 'Carpeta guardada' : 'Carpeta creada');
-    go('decks', { folderId: f.id });
+    if (S.view === 'notes') go('notes', { noteFolder: f.id }); else go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
 }
 async function addTag(name, color = 'gray') {
@@ -2438,6 +2523,7 @@ async function deleteFolder(id) {
   // Primero subimos su contenido un nivel, para no perder nada
   for (const d of [...S.decks.values()].filter(d => d.folder_id === id)) S.decks.set(d.id, { tags: [], ...await api.updateDeck(d.id, { folder_id: parent }) });
   for (const sub of [...S.folders.values()].filter(x => x.parent_id === id)) S.folders.set(sub.id, await api.updateFolder(sub.id, { parent_id: parent }));
+  for (const p of [...S.pages.values()].filter(x => x.folder_id === id)) { p.folder_id = parent; savePageSoon(p, 0); }
   await api.deleteFolder(id);
   S.folders.delete(id);
 }
@@ -2869,6 +2955,12 @@ document.addEventListener('click', async e => {
   if (ds.setType) return setEditorType(ds.setType);
   if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
   if (ds.page) return go('page', { pageId: ds.page });
+  if (ds.nfolder !== undefined) { S.pageQuery = ''; S.noteOrg.tagIds = []; return go('notes', { noteFolder: ds.nfolder || null }); }
+  if (ds.ntag) {
+    const t = ds.ntag, list = S.noteOrg.tagIds;
+    S.noteOrg.tagIds = list.includes(t) ? list.filter(x => x !== t) : [...list, t];
+    return renderNotes();
+  }
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
@@ -2922,7 +3014,9 @@ document.addEventListener('click', async e => {
         S.decks.set(d.id, { ...d, tags });
         if (api.mode === 'cloud') await api.updateDeck(d.id, { tags });
       }
+      for (const p of S.pages.values()) if ((p.tags || []).includes(id)) { p.tags = p.tags.filter(x => x !== id); savePageSoon(p, 0); }
       S.org.tagIds = S.org.tagIds.filter(x => x !== id);
+      S.noteOrg.tagIds = S.noteOrg.tagIds.filter(x => x !== id);
       return tagsSheet();
     } catch (err) { return fail(err); }
   }
@@ -3031,8 +3125,10 @@ document.addEventListener('click', async e => {
     case 'ask-delete-folder': return confirmSheet('¿Eliminar esta carpeta?', 'delete-folder', 'Eliminar carpeta');
     case 'delete-folder': {
       b.disabled = true;
-      const parent = S.folders.get(S.folderId)?.parent_id || null;
-      try { await deleteFolder(S.folderId); toast('Carpeta eliminada'); return go('decks', { folderId: parent && S.folders.has(parent) ? parent : null }); }
+      const inNotes = S.view === 'notes', fid = inNotes ? S.noteFolder : S.folderId;
+      const parent = S.folders.get(fid)?.parent_id || null;
+      const up = parent && S.folders.has(parent) ? parent : null;
+      try { await deleteFolder(fid); toast('Carpeta eliminada'); return inNotes ? go('notes', { noteFolder: up }) : go('decks', { folderId: up }); }
       catch (err) { b.disabled = false; return fail(err); }
     }
     case 'manage-tags': return tagsSheet();
@@ -3066,6 +3162,36 @@ document.addEventListener('click', async e => {
       return go('notes');
     }
     case 'back-study': return go('study');
+    case 'clear-nfilters': S.pageQuery = ''; S.noteOrg.tagIds = []; return renderNotes();
+    case 'edit-nfolder': return folderForm(S.folders.get(S.noteFolder));
+    case 'page-tags': {
+      if (S.pageTagsMissing) return openSheet('<h2>Etiquetas en los apuntes</h2><p>Para usar etiquetas en los apuntes, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor de Supabase y recarga la app.</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>');
+      return openSheet(`<h2>Etiquetas del apunte</h2><p class="muted small">Las mismas que usas en los mazos: sirven para filtrar en «Apuntes».</p>
+        ${tagPicker(curPage()?.tags || [])}
+        <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="save-page-tags">Guardar</button></div>`);
+    }
+    case 'save-page-tags': {
+      const p = curPage();
+      p.tags = [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value);
+      savePageSoon(p); closeSheet(); return renderPage();
+    }
+    case 'page-icon': return openSheet(`<h2>Icono del apunte</h2>${iconPicker(curPage()?.icon)}
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="save-page-icon">Guardar</button></div>`);
+    case 'save-page-icon': { const p = curPage(); p.icon = readIcon(); savePageSoon(p); closeSheet(); return renderPage(); }
+    case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
+      <ul class="list linklist">
+        <li><button class="row-link" data-act="page-md">${icon('download', { size: 20 })}<span><b>Descargar como Markdown</b><small>Para guardarlo o abrirlo en otra aplicación</small></span></button></li>
+        <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
+        <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus tarjetas no se borran: solo dejan de estar unidas a él</small></span></button></li>
+      </ul>
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
+    case 'page-md': {
+      const p = curPage();
+      const slug = pageTitle(p).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'apunte';
+      closeSheet();
+      return download(pageToMarkdown(p), slug + '.md', 'text/markdown;charset=utf-8');
+    }
+    case 'page-copy-md': { const ok = await copyText(pageToMarkdown(curPage()), 'Apunte copiado'); if (!ok) toast('No se ha podido copiar'); return closeSheet(); }
     case 'notes-help': return notesHelpSheet();
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
@@ -3231,7 +3357,11 @@ document.addEventListener('input', e => {
     autoGrow(t);
     return;
   }
-  if (e.target.id === 'pgTitle') { const p = curPage(); if (p) { p.title = e.target.value; savePageSoon(p); } return; }
+  if (e.target.id === 'pgTitle') {
+    const p = curPage();
+    if (p) { p.title = e.target.value; savePageSoon(p); const cur = document.querySelector('.pg-top .crumbs .crumb-cur:last-child'); if (cur) cur.textContent = pageTitle(p); }
+    return;
+  }
   if (e.target.id === 'pageSearch') {
     S.pageQuery = e.target.value;
     const pos = e.target.selectionStart;
@@ -3283,6 +3413,11 @@ document.addEventListener('change', e => {
   }
   if (e.target.name === 'f-tag' && S.edit?.open) S.edit.dirty = true;
   if (e.target.id === 'pgDeck') { const p = curPage(); if (p) { p.deck_id = e.target.value || null; savePageSoon(p); } }
+  if (e.target.id === 'pgFolder') {
+    const p = curPage();
+    if (p) { p.folder_id = e.target.value || null; savePageSoon(p); $('.pg-top .crumbs').outerHTML = noteCrumbs(pageFolder(p), pageTitle(p)); }
+  }
+  if (e.target.id === 'noteSort') { S.noteOrg.sort = e.target.value; renderNotes(); }
   if (e.target.id === 'deckSort') { S.org.sort = e.target.value; saveOrgPrefs(); renderDecks(); }
   if (e.target.id === 'c-deck') {
     const d = S.decks.get(e.target.value);

@@ -120,10 +120,15 @@ export async function loadAll(uid, { retry = true } = {}) {
     fetchAll(() => from('review_events').select('id, card_id, deck_id, ts, grade, state, ivl, last_ivl, ease, ms').eq('user_id', uid).gte('ts', yearAgo).order('ts')),
   ]);
   // Apuntes: si la tabla aún no existe (schema.sql sin ejecutar), la app funciona igual y lo avisa
-  let pages = [], pagesMissing = false;
+  let pages = [], pagesMissing = false, pageTagsMissing = false;
   try { pages = await fetchAll(() => from('pages').select('*').eq('owner', uid).order('updated_at', { ascending: false })); }
   catch (e) { if (['42P01', 'PGRST205', 'PGRST200'].includes(e.code) || /pages/.test(e.message || '')) pagesMissing = true; else throw e; }
-  return { profile, settings, decks, cards, progress, log, folders, tags, types, events, pages, pagesMissing };
+  // ¿Tiene ya la columna de etiquetas? (schema.sql de la versión 6). Si no, se guardan sin etiquetas.
+  if (!pagesMissing) {
+    const { error } = await sb.from('pages').select('tags').limit(1).retry(retry);
+    if (error && (error.code === '42703' || /tags/.test(error.message || ''))) pageTagsMissing = true;
+  }
+  return { profile, settings, decks, cards, progress, log, folders, tags, types, events, pages, pagesMissing, pageTagsMissing };
 }
 
 /* ---------------- Perfil y ajustes ---------------- */

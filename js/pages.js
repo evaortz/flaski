@@ -5,7 +5,7 @@
 
 export const BLOCK_TYPES = ['p', 'h1', 'h2', 'li', 'table'];
 
-/* ---------------- Tablas (Markdown, como en Obsidian) ----------------
+/* ---------------- Tablas (Markdown) ----------------
    | Caso | Sufijo |
    | :--- | :---: |
    | Locativo | -de |
@@ -126,6 +126,28 @@ export function pageTitle(page) {
   if (t) return t;
   const first = (page?.blocks || []).find(b => b.text.trim());
   return first ? first.text.replace(/[*_{}[\]|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : 'Sin título';
+}
+
+// La página en Markdown (para descargarla o llevarla a otra app)
+export function pageToMarkdown(page) {
+  const t = String(page?.title || '').trim();
+  let md = t ? `# ${t}` : '', prev = t ? 'h1' : null;
+  for (const b of page?.blocks || []) {
+    if (!b.text.trim()) continue;
+    // Cada título con su nivel: al pegarlo de nuevo, el primer «# » vuelve a ser el título del apunte
+    const line = b.type === 'h1' ? `# ${b.text}` : b.type === 'h2' ? `## ${b.text}` : b.type === 'li' ? `- ${b.text}` : b.text;
+    // Los puntos de una lista van seguidos; el resto, separados por una línea en blanco
+    md += !md ? line : (prev === 'li' && b.type === 'li' ? '\n' : '\n\n') + line;
+    prev = b.type;
+  }
+  return md + '\n';
+}
+
+// Primer texto de la página que no es título (para la vista previa en la lista)
+export function pageSnippet(page, n = 110) {
+  const b = (page?.blocks || []).find(x => x.text.trim() && (x.type === 'p' || x.type === 'li'));
+  const s = b ? b.text.replace(/\*\*?|\{\{|\}\}|::[^}]*|\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() : '';
+  return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 }
 
 // Texto para buscar en una página

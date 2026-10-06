@@ -52,7 +52,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await expect(block(page, 3)).toHaveClass('nb nb-p');
 });
 
-test('tablas en Markdown: se escriben como en Obsidian y se ven como tabla', async ({ page }) => {
+test('tablas en Markdown: se escriben como texto y se ven como tabla', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Tabla');
   await page.locator('[data-act="add-table"]').click();
@@ -144,14 +144,94 @@ test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
   await expect(page.locator('.pg-status')).toContainText('1 te cuesta');
 });
 
-test('la chuleta de los apuntes', async ({ page }) => {
+test('la guía de formato y atajos de los apuntes', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Apuntes');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('[data-act="notes-help"]').click();
-  await expect(page.getByRole('heading', { name: 'Chuleta de los apuntes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Formato y atajos' })).toBeVisible();
   await expect(page.locator('#sheetBody')).toContainText('Mayús + Enter');
   await expect(page.locator('#sheetBody .help-pre')).toContainText('| :------- | :----: |');
+});
+
+async function pastePage(page, text) {
+  await page.locator('[data-act="paste-page"]').first().click();
+  await page.locator('#pagePaste').fill(text);
+  await page.locator('[data-act="paste-page-ok"]').click();
+}
+
+test('carpetas: compartidas con los mazos, crear apuntes dentro y moverlos', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Apuntes');
+  await pastePage(page, '# Primer apunte\n\nTexto.');
+  await nav(page, 'Apuntes');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('#fo-name').fill('Turco');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Turco' })).toBeVisible();      // ya dentro de la carpeta
+  await pastePage(page, '# Casos\n\nEl locativo.');                                        // se crea dentro
+  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Apuntes\s*\/\s*Turco\s*\/\s*Casos/);
+  await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
+  await expect(page.locator('.notes-list li')).toHaveCount(1);                             // en la raíz, solo el primero
+  await expect(page.locator('#main .folder')).toContainText('1 apunte');
+
+  // Mover el primero a la carpeta desde sus propiedades
+  await page.getByRole('button', { name: /Primer apunte/ }).click();
+  await page.locator('#pgFolder').selectOption({ label: 'Turco' });
+  await expect(page.locator('.pg-top .crumbs')).toContainText('Turco');
+  await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
+  await expect(page.locator('#main .folder')).toContainText('2 apuntes');
+  // La carpeta también aparece en «Mis mazos»
+  await nav(page, 'Mis mazos');
+  await expect(page.locator('#main .folder')).toContainText('2 apuntes');
+});
+
+test('etiquetas, buscar y ordenar los apuntes', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Apuntes');
+  await pastePage(page, '# Beta\n\nVerbos irregulares.');
+  await page.locator('[data-act="page-tags"]').click();
+  await page.locator('#f-newtag').fill('examen');
+  await page.locator('[data-act="add-tag-inline"]').click();
+  await page.locator('[data-act="save-page-tags"]').click();
+  await expect(page.locator('.pg-props')).toContainText('examen');
+  await nav(page, 'Apuntes');
+  await pastePage(page, '# Alfa\n\nSustantivos.');
+  await nav(page, 'Apuntes');
+
+  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa', 'Beta']);        // editados recientemente
+  await page.locator('#noteSort').selectOption('name');
+  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa', 'Beta']);
+  await expect(page.locator('.notes-list li').first()).toContainText('Sustantivos.');   // vista previa del texto
+  await page.locator('[data-ntag]', { hasText: 'examen' }).click();
+  await expect(page.locator('.notes-list .dname')).toHaveText(['Beta']);
+  await page.locator('[data-act="clear-nfilters"]').click();
+  await page.locator('#pageSearch').fill('sustantivos');
+  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa']);
+});
+
+test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await nav(page, 'Apuntes');
+  await pastePage(page, '# Revolución\n\n## Fechas\n\n- 1789\n- 1793');
+  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await page.locator('[data-act="page-icon"]').click();
+  await page.locator('[data-act="toggle-emoji"]').first().click();
+  await page.locator('#emojiPanel [data-emoji]').first().click();
+  await page.locator('[data-act="save-page-icon"]').click();
+  await expect(page.locator('.pg-icon')).toBeVisible();
+
+  await page.locator('[data-act="page-menu"]').click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act="page-md"]').click()]);
+  expect(dl.suggestedFilename()).toBe('revolucion.md');
+  const { readFile } = await import('node:fs/promises');
+  expect(await readFile(await dl.path(), 'utf8')).toBe('# Revolución\n\n## Fechas\n\n- 1789\n- 1793\n');
+
+  await nav(page, 'Mis mazos');
+  await page.getByRole('button', { name: /Historia/ }).first().click();
+  await page.locator('.deck-notes [data-page]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue('Revolución');
 });
 
 test('pegar unos apuntes enteros', async ({ page }) => {
