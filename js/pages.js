@@ -89,6 +89,37 @@ export function clozeFrom(text, selected, at = -1) {
   return text.slice(0, i) + '{{' + sel + '}}' + text.slice(i + sel.length);
 }
 
+/* ---------------- Cómo llevas cada parte ---------------- */
+
+// Estado de un grupo de tarjetas (las de un bloque o un apartado), a partir de su progreso
+// (null = sin estudiar). Por prioridad:
+//   'weak' te cuesta (fallada hace poco o muchas veces) · 'due' toca repasar · 'new' sin estudiar · 'ok' al día
+export const STATUS = [
+  { id: 'ok', label: 'Al día' }, { id: 'due', label: 'Toca repasar' },
+  { id: 'weak', label: 'Te cuesta' }, { id: 'new', label: 'Sin estudiar' },
+];
+export function cardsStatus(states, now = Date.now()) {
+  if (!states.length) return null;
+  const seen = states.filter(Boolean);
+  // Aún en aprendizaje (fallada, o «Difícil» siendo nueva) o fallada muchas veces: te cuesta
+  if (seen.some(s => s.interval === 0 || (s.lapses >= 3 && s.interval < 21))) return 'weak';
+  if (seen.some(s => s.due <= now)) return 'due';
+  if (seen.length < states.length) return 'new';
+  return 'ok';
+}
+
+// Bloques de un apartado: el título y lo que hay debajo hasta el siguiente título de su nivel o superior.
+// Un bloque que no es título es un apartado de un solo bloque.
+const level = t => (t === 'h1' ? 1 : t === 'h2' ? 2 : 9);
+export function sectionIds(blocks, id) {
+  const i = blocks.findIndex(b => b.id === id);
+  if (i < 0) return [];
+  const L = level(blocks[i].type), out = [id];
+  if (L === 9) return out;
+  for (let j = i + 1; j < blocks.length && level(blocks[j].type) > L; j++) out.push(blocks[j].id);
+  return out;
+}
+
 // Título que se muestra: el escrito o, si no hay, el principio del primer bloque
 export function pageTitle(page) {
   const t = String(page?.title || '').trim();

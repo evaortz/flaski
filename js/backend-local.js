@@ -263,6 +263,10 @@ export async function savePage(page) {
   persist();
   return clone(row);
 }
+export async function createPage(fields) {
+  if ((db.pages || []).some(p => p.id === fields.id)) throw Object.assign(new Error('duplicate key'), { code: '23505' });
+  return savePage({ id: uuid(), ...fields });
+}
 export async function deletePage(id) {
   db.pages = (db.pages || []).filter(p => p.id !== id);
   for (const c of db.cards) if (c.page_id === id) { c.page_id = null; c.block_id = null; }

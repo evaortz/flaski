@@ -30,6 +30,7 @@ export const updateCard = impl.updateCard;
 export const deleteCard = impl.deleteCard;
 export const retypeCards = impl.retypeCards;
 export const savePage = impl.savePage;
+export const createPage = impl.createPage;
 export const deletePage = impl.deletePage;
 export const publicDecks = impl.publicDecks;
 export const getPublicDeck = impl.getPublicDeck;

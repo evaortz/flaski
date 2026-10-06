@@ -17,7 +17,7 @@ import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDec
 import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
-import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE } from './pages.js';
+import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -109,7 +109,24 @@ function scopeDecks(scope = 'all') {
   if (scope.startsWith('tag:')) { const t = scope.slice(4); return new Set(active.filter(d => (d.tags || []).includes(t)).map(d => d.id)); }
   return new Set([scope]);
 }
+// Qué tarjetas entran en un ámbito. Además de los de mazos: 'page:<id>' (las de unos apuntes) y
+// 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él).
+function scopeTest(scope = 'all') {
+  if (scope.startsWith('page:')) {
+    const [, pid, bid] = scope.split(':');
+    const p = S.pages.get(pid), live = scopeDecks('all');
+    const blocks = bid && p ? new Set(sectionIds(p.blocks, bid)) : null;
+    return c => c.page_id === pid && (!blocks || blocks.has(c.block_id)) && live.has(c.deck_id);
+  }
+  const ids = scopeDecks(scope);
+  return c => ids.has(c.deck_id);
+}
 function scopeName(scope = 'all') {
+  if (scope.startsWith('page:')) {
+    const [, pid, bid] = scope.split(':'), p = S.pages.get(pid);
+    const b = bid && p?.blocks.find(x => x.id === bid);
+    return p ? `${pageTitle(p)}${b ? ` › ${plain(b.text).slice(0, 40)}` : ''}` : 'Apuntes';
+  }
   if (scope === 'all') return 'Todos los mazos';
   if (scope.startsWith('folder:')) return S.folders.get(scope.slice(7))?.name || 'Carpeta';
   if (scope.startsWith('tag:')) return '#' + (S.tags.get(scope.slice(4))?.name || 'etiqueta');
@@ -158,12 +175,12 @@ function capNote(c) {
   return `<p class="muted small">${over} ${over === 1 ? 'repaso más espera' : 'repasos más esperan'}: hoy el límite es de ${S.prefs.study.maxReviews} repasos. <button class="link" data-nav="settings">Cambiar el límite</button></p>`;
 }
 function counts(scope = 'all') {
-  const ids = scopeDecks(scope);
+  const inScope = scopeTest(scope);
   const now = Date.now();
   let due = 0, fresh = 0, total = 0, mature = 0;
   const freshBy = new Map();
   for (const c of S.cards.values()) {
-    if (!ids.has(c.deck_id)) continue;
+    if (!inScope(c)) continue;
     total++;
     const p = S.progress.get(c.id);
     if (!p) { fresh++; freshBy.set(c.deck_id, (freshBy.get(c.deck_id) || 0) + 1); } else { if (p.due <= now) due++; if (p.interval >= 21) mature++; }
@@ -688,8 +705,8 @@ function revealIds(tpl) {
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 // Cola de estudio según Ajustes: límites de nuevas (global y por mazo), de repasos, orden y mezcla
 function buildSession(scope) {
-  const P = S.prefs.study, ids = scopeDecks(scope), now = Date.now();
-  const pool = cardList().filter(c => ids.has(c.deck_id));
+  const P = S.prefs.study, inScope = scopeTest(scope), now = Date.now();
+  const pool = cardList().filter(inScope);
   const due = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
     .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due).map(c => c.id).slice(0, reviewsLeft());
   let fresh = pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position);
@@ -755,7 +772,7 @@ function renderStudy() {
     const t = ses.tally;
     main.innerHTML = `${bar}<div class="done"><h2>¡Sesión terminada!</h2><p class="muted">Has repasado ${ses.done} tarjetas.</p>${capNote(counts(ses.scope))}
       <div class="tally"><span class="g1">Otra vez ${t[1]}</span><span class="g2">Difícil ${t[2]}</span><span class="g3">Bien ${t[3]}</span><span class="g4">Fácil ${t[4]}</span></div>
-      <div class="btnrow" style="justify-content:center"><button class="primary" data-act="exit">Volver al inicio</button><button class="ghost" data-act="more">10 nuevas más</button></div>
+      <div class="btnrow" style="justify-content:center"><button class="primary" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost" data-act="more">10 nuevas más</button></div>
       ${ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : ''}</div>`;
     return;
   }
@@ -1203,11 +1220,37 @@ function tableHTML(text) {
   return `<div class="nb-tablewrap"><table class="nb-tbl"><thead><tr>${t.head.map((c, i) => td('th', c, i)).join('')}</tr></thead>
     <tbody>${t.rows.map(r => `<tr>${r.map((c, i) => td('td', c, i)).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
+// Cómo llevas un grupo de tarjetas: 'ok' | 'due' | 'weak' | 'new' (null si no hay)
+const statusOf = cards => cardsStatus(cards.map(c => S.progress.get(c.id) || null));
+const statusLabel = st => STATUS.find(s => s.id === st)?.label || '';
+// Tarjetas que tocan ahora en un ámbito (repasos + nuevas que caben hoy)
+const pendingIn = scope => { const c = counts(scope); return c.due + c.newToday; };
 function blockHTML(b, cards = []) {
-  const n = cards.length;
+  const n = cards.length, st = statusOf(cards);
   const body = !b.text.trim() ? `<span class="nb-ph">${BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text) : fmt(b.text);
-  return `<div class="nb nb-${b.type}" data-block="${b.id}"><div class="nb-text" data-edit-block="${b.id}">${body}</div>
-    ${n ? `<button type="button" class="nb-cards" data-block-cards="${b.id}" title="${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte">${n}</button>` : ''}</div>`;
+  // En los títulos: estudiar el apartado entero (el título y lo que cuelga de él)
+  let sec = '';
+  const p = curPage();
+  if (p && (b.type === 'h1' || b.type === 'h2')) {
+    const ids = new Set(sectionIds(p.blocks, b.id));
+    const secCards = cardList().filter(c => c.page_id === p.id && ids.has(c.block_id));
+    if (secCards.length) {
+      const pend = pendingIn(`page:${p.id}:${b.id}`), sst = statusOf(secCards);
+      sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'tarjeta', 'tarjetas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
+    }
+  }
+  return `<div class="nb nb-${b.type}" data-block="${b.id}"><div class="nb-text" data-edit-block="${b.id}">${body}</div>${sec}
+    ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
+}
+// Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
+function pageStatusHTML(p, cards) {
+  const byStatus = new Map();
+  for (const list of cards.values()) { const st = statusOf(list); if (st) byStatus.set(st, (byStatus.get(st) || 0) + 1); }
+  if (!byStatus.size) return '';
+  const pend = pendingIn(`page:${p.id}`);
+  const chips = STATUS.filter(s => byStatus.has(s.id)).map(s => `<span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${byStatus.get(s.id)} ${s.label.toLowerCase()}</span>`).join('');
+  return `<div class="pg-status" aria-label="Cómo llevas este apunte, por partes">${chips}<span class="spacer"></span>
+    ${pend ? `<button class="primary small-btn" data-start="page:${p.id}">Estudiar este apunte · ${pend}</button>` : '<span class="muted small">Todo al día</span>'}</div>`;
 }
 function renderPage() {
   const p = S.pages.get(S.pageId);
@@ -1216,10 +1259,12 @@ function renderPage() {
   const cards = pageCards(p.id);
   const total = [...cards.values()].reduce((s, l) => s + l.length, 0);
   main.innerHTML = `<div class="pg-top"><button class="link" data-nav="notes">← Apuntes</button><span class="spacer"></span>
-      ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}</div>
+      ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}
+      <button type="button" class="iconbtn pg-help" data-act="notes-help" aria-label="Chuleta: todo lo que puedes hacer en los apuntes" title="Chuleta">${icon('circle-help', { size: 18 })}</button></div>
     <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
     <div class="pg-meta"><label class="ed-deck" title="Mazo donde van las tarjetas que crees aquí">${icon('layers', { size: 14 })}<select id="pgDeck" aria-label="Mazo para las tarjetas"><option value="">Mazo para las tarjetas…</option>${deckOptions(p.deck_id)}</select></label>
       <span class="muted small">${total ? plural(total, 'tarjeta vinculada', 'tarjetas vinculadas') : 'Selecciona un trozo de texto para crear una tarjeta'}</span></div>
+    ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
     <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">+ Añadir un bloque</button><button type="button" class="pg-add" data-act="add-table">+ Tabla</button></div>
     <div class="btnrow pg-foot"><span class="spacer"></span><button class="ghost danger small-btn" data-act="ask-delete-page">${icon('trash-2', { size: 15 })} Eliminar apunte</button></div>
@@ -1403,6 +1448,45 @@ function cardFromSelection(kind) {
   getSelection()?.removeAllRanges();
   S.pageSel = null;
   cardForm(null, { deckId, prefill, source: { page_id: p.id, block_id: b.id } });
+}
+// Chuleta de los apuntes: todo lo que se puede escribir y hacer, con ejemplos
+function notesHelpSheet() {
+  const row = (code, what) => `<tr><td><code>${esc(code)}</code></td><td>${what}</td></tr>`;
+  const key = (k, what) => `<tr><td><kbd>${k}</kbd></td><td>${what}</td></tr>`;
+  const table = (rows, head = ['Escribe', 'Para']) => `<table class="help-tbl"><thead><tr><th>${head[0]}</th><th>${head[1]}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  openSheet(`<h2>Chuleta de los apuntes</h2>
+    <p class="muted small">Toca cualquier parte para escribir en ella; al salir se ve con formato. Se guarda solo.</p>
+    <h3 class="sub-h">Bloques (al principio de una línea)</h3>
+    ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('| A | B |', 'Tabla (abajo cómo)')])}
+    <h3 class="sub-h">Formato dentro del texto</h3>
+    ${table([row('**negrita**', '<b>negrita</b>'), row('*cursiva*', '<i>cursiva</i>'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
+    <h3 class="sub-h">Tablas (Markdown, como en Obsidian)</h3>
+    <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
+| :------- | :----: | ------: |
+| Locativo |  -de   |    evde |</pre>
+    <p class="hint">La segunda línea separa la cabecera: <code>:---</code> alinea a la izquierda, <code>:---:</code> al centro y <code>---:</code> a la derecha. Para poner una barra dentro de una celda: <code>\\|</code>. El botón «+ Tabla» crea una para rellenar.</p>
+    <h3 class="sub-h">Teclas</h3>
+    ${table([
+      key('Enter', 'Bloque nuevo (en una tabla, fila nueva; en un punto vacío, termina la lista)'),
+      key('Mayús + Enter', 'Salto de línea dentro del mismo bloque'),
+      key('Retroceso', 'Al principio de un bloque: lo junta con el anterior (en un título o lista, lo vuelve párrafo)'),
+      key('↑ ↓', 'Al principio o al final de un bloque: pasa al anterior o al siguiente'),
+      key('Esc', 'Deja de editar'),
+      key('Ctrl + Enter', 'En una tabla: sale de ella y crea un bloque debajo'),
+    ], ['Tecla', 'Hace'])}
+    <h3 class="sub-h">Tarjetas desde los apuntes</h3>
+    <ul class="help-list">
+      <li>Selecciona un trozo de texto y pulsa <b>Crear tarjeta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: <code>Ev{{de}}yim</code>).</li>
+      <li>La tarjeta queda unida a esa parte. Al estudiarla, <b>Ver en los apuntes</b> te trae aquí.</li>
+      <li>Arriba eliges el <b>mazo</b> donde van las tarjetas de este apunte.</li>
+      <li>El número a la derecha de cada parte es cuántas tarjetas salen de ella; tócalo para verlas.</li>
+    </ul>
+    <h3 class="sub-h">Cómo llevas cada parte</h3>
+    <ul class="help-list help-st">${STATUS.map(s => `<li><span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${s.label}</span> ${{ ok: 'las has repasado y no toca todavía', due: 'toca repasar alguna', weak: 'has fallado alguna hace poco o muchas veces', new: 'hay alguna que aún no has estudiado' }[s.id]}</li>`).join('')}</ul>
+    <p class="hint">En cada título, <b>Estudiar</b> repasa solo ese apartado (el título y lo que hay debajo). Arriba, <b>Estudiar este apunte</b> los repasa todos.</p>
+    <h3 class="sub-h">Pegar</h3>
+    <p class="hint">Si pegas varias líneas, se convierten en bloques: títulos, listas, tablas y párrafos. En «Apuntes» → <b>Pegar apuntes</b> puedes traer unos apuntes enteros de Word, Notion o Google Docs.</p>
+    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>`);
 }
 function blockCardsSheet(blockId) {
   const list = cardList().filter(c => c.page_id === S.pageId && c.block_id === blockId);
@@ -1626,7 +1710,7 @@ function backupData() {
     id: d.id, name: d.name, description: d.description || '', source: d.source || '', icon: d.icon || '', color: d.color || '',
     options: d.options || {}, folder_id: d.folder_id || null, pinned: !!d.pinned, archived: !!d.archived, tags: d.tags || [], types: deckTypes(d.id),
     cards: cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
-      .map(c => ({ id: c.id, front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '', tags: c.tags || [], position: c.position })),
+      .map(c => ({ id: c.id, front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '', tags: c.tags || [], position: c.position, page_id: c.page_id || null, block_id: c.block_id || null })),
   });
   return {
     format: 'flaski-backup', version: 2, exported: new Date().toISOString(), mode: api.mode,
@@ -1634,6 +1718,7 @@ function backupData() {
     folders: [...S.folders.values()].map(({ id, parent_id, name, icon, color, position }) => ({ id, parent_id: parent_id || null, name, icon: icon || '', color: color || '', position })),
     tags: [...S.tags.values()].map(({ id, name, color }) => ({ id, name, color })),
     decks: [...S.decks.values()].map(deckOut),
+    pages: [...S.pages.values()].map(p => { const { owner, ...r } = pageRow(p); return { ...r, updated_at: p.updated_at || null }; }),
     progress: [...S.progress].map(([id, p]) => { const { user_id, ...r } = toRow(S.uid, id, p); return r; }),
     events: S.events.map(({ t, user_id, ...e }) => e),
     log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
@@ -1699,6 +1784,24 @@ async function restoreInto(data) {
     } catch (e) { rep.failed.push([`Etiqueta «${str(t.name, 40)}»`, errMsg(e)]); }
   }
   const tagsOf = ids => (Array.isArray(ids) ? ids : []).map(id => tagMap.get(id)).filter(Boolean);
+  // Apuntes: antes que los mazos, para que las tarjetas se vuelvan a vincular a ellos. El mazo de cada
+  // apunte se pone al final, cuando ya se sabe qué id tiene cada mazo en esta cuenta.
+  const pageMap = new Map(), pageDeck = new Map();
+  rep.pages = { restored: 0, skipped: 0 };
+  for (const pg of data.pages || []) {
+    if (!pg?.id || !Array.isArray(pg.blocks)) continue;
+    try {
+      const have = await existingId(pg.id, id => S.pages.has(id));
+      if (have) { pageMap.set(pg.id, have); rep.pages.skipped++; continue; }
+      const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: ['p', 'h1', 'h2', 'li', 'table'].includes(b.type) ? b.type : 'p', text: str(b.text, 20000) }));
+      const np = await createKeepingId(api.createPage, { owner: uid, title: str(pg.title, 120), icon: str(pg.icon, 16), deck_id: null, folder_id: folderMap.get(pg.folder_id) || null, blocks }, pg.id);
+      S.pages.set(np.id, { ...np, blocks: np.blocks || blocks });
+      pageMap.set(pg.id, np.id);
+      if (pg.deck_id) pageDeck.set(np.id, pg.deck_id);
+      rep.pages.restored++;
+    } catch (e) { rep.failed.push([`Apunte «${str(pg.title || 'sin título', 120)}»`, errMsg(e)]); }
+  }
+  const deckMap = new Map();
   // Progreso e historial de cada tarjeta de la copia
   const progressBy = new Map((data.progress || []).filter(p => p?.card_id).map(p => [p.card_id, p]));
   const eventsBy = new Map();
@@ -1707,12 +1810,14 @@ async function restoreInto(data) {
   for (const d of data.decks || []) {
     const name = str(d?.name || 'Mazo', 80);
     try {
-      if (await existingId(d.id, id => S.decks.has(id))) { rep.skipped.push(name); continue; }
+      const haveDeck = await existingId(d.id, id => S.decks.has(id));
+      if (haveDeck) { deckMap.set(d.id, haveDeck); rep.skipped.push(name); continue; }
       const typeMap = await adoptTypes(d.types || []);
       const deck = await createKeepingId(api.createDeck, {
         owner: uid, name, description: str(d.description, 300), source: str(d.source || 'copia', 200), icon: str(d.icon, 16), color: str(d.color, 16),
         options: obj(d.options), folder_id: folderMap.get(d.folder_id) || null, pinned: !!d.pinned, archived: !!d.archived, tags: tagsOf(d.tags),
       }, d.id);
+      if (d.id) deckMap.set(d.id, deck.id);
       try {
         // Si el mazo conservó su id, sus tarjetas también (salvo alguna que ya exista en la cuenta)
         const keep = !!d.id && deck.id === d.id;
@@ -1728,6 +1833,7 @@ async function restoreInto(data) {
             front: str(c.front, 2000) || '—', back: str(c.back, 2000) || '—', note: str(c.note, 2000),
             position: Number(c.position) || base + i / 1000, note_id: note,
             type_id: typeMap.get(c.type_id) || c.type_id || 'basic', template: c.template || 't1', fields: obj(c.fields), hint: str(c.hint, 500), tags: tagsOf(c.tags),
+            ...(pageMap.has(c.page_id) ? { page_id: pageMap.get(c.page_id), block_id: str(c.block_id, 40) || null } : {}),
           });
         }
         if (rows.length) await api.createCards(rows);
@@ -1746,13 +1852,20 @@ async function restoreInto(data) {
       rep.restored.push(name);
     } catch (e) { rep.failed.push([name, errMsg(e)]); }
   }
+  // El mazo de cada apunte restaurado
+  for (const [pid, oldDeck] of pageDeck) {
+    const p = S.pages.get(pid), deckId = deckMap.get(oldDeck);
+    if (p && deckId) { p.deck_id = deckId; api.savePage(pageRow(p)).catch(() => {}); }
+  }
   // Registro diario: el máximo de cada día, para no borrar actividad más reciente que la copia
   try { await api.mergeLog(uid, data.log || []); } catch (e) { rep.failed.push(['Registro diario', errMsg(e)]); }
   return rep;
 }
-function restoreReport({ restored, skipped, failed }) {
+function restoreReport({ restored, skipped, failed, pages }) {
   const sec = (title, items) => items.length ? `<h3>${title}</h3><p class="muted small">${items.map(esc).join(' · ')}</p>` : '';
-  openSheet(`<h2>Copia restaurada</h2>
+  const pg = pages && (pages.restored || pages.skipped)
+    ? `<p class="muted small">Apuntes: ${pages.restored ? plural(pages.restored, 'restaurado', 'restaurados') : ''}${pages.restored && pages.skipped ? ' · ' : ''}${pages.skipped ? `${pages.skipped} ya ${pages.skipped === 1 ? 'estaba' : 'estaban'}` : ''}</p>` : '';
+  openSheet(`<h2>Copia restaurada</h2>${pg}
     ${sec(`${restored.length} ${restored.length === 1 ? 'mazo restaurado' : 'mazos restaurados'}, con su progreso`, restored)}
     ${sec(`${skipped.length} ${skipped.length === 1 ? 'mazo ya estaba' : 'mazos ya estaban'} en tu cuenta (no se han tocado)`, skipped)}
     ${failed.length ? `<h3>${failed.length === 1 ? 'Un elemento no se pudo restaurar' : `${failed.length} elementos no se pudieron restaurar`}</h3><ul class="list">${failed.map(([n, m]) => `<li class="small"><b>${esc(n)}</b>: ${esc(m)}</li>`).join('')}</ul>` : ''}
@@ -2756,6 +2869,7 @@ document.addEventListener('click', async e => {
   if (ds.setType) return setEditorType(ds.setType);
   if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
   if (ds.page) return go('page', { pageId: ds.page });
+  if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
   if (ds.hideType) {
@@ -2875,7 +2989,12 @@ document.addEventListener('click', async e => {
     }
     case 'ask-reset-prefs': return confirmSheet('¿Restablecer todos los ajustes?', 'reset-prefs', 'Restablecer');
     case 'reset-prefs': { S.prefs = loadPrefs(); applyLook(S.prefs.look); setBaseRate(1); savePrefsSoon(); closeSheet(); toast('Ajustes restablecidos'); return renderSettings(); }
-    case 'exit': S.session = null; return go('home');
+    case 'exit': {
+      // Al salir de una sesión empezada en unos apuntes se vuelve a ellos
+      const pid = S.session?.scope?.startsWith('page:') ? S.session.scope.split(':')[1] : null;
+      S.session = null;
+      return pid && S.pages.has(pid) ? go('page', { pageId: pid }) : go('home');
+    }
     case 'more': { addExtraNew(10); return startSession(S.session?.scope || 'all'); }
     case 'close-sheet': return requestClose();
     case 'discard-edit': S.edit.dirty = false; return closeSheet();
@@ -2947,6 +3066,7 @@ document.addEventListener('click', async e => {
       return go('notes');
     }
     case 'back-study': return go('study');
+    case 'notes-help': return notesHelpSheet();
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
     case 'pick-type': return openTypePicker(true);

@@ -90,3 +90,31 @@ test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir
   await nav(page, 'Perfil');
   await expect(page.locator('#main')).toContainText('1 tarjeta en 1 mazo · 1 empezadas');
 });
+
+test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Con apuntes');
+  await nav(page, 'Apuntes');
+  await page.locator('[data-act="paste-page"]').click();
+  await page.locator('#pagePaste').fill('# Mis apuntes\n\nEl agua es su.');
+  await page.locator('[data-act="paste-page-ok"]').click();
+  await page.locator('#pgDeck').selectOption({ label: 'Con apuntes' });
+  await page.locator('#pgBlocks .nb-text').first().click();
+  await page.locator('[data-block-input]').evaluate(t => { const k = t.value.indexOf('su'); t.setSelectionRange(k, k + 2); document.dispatchEvent(new Event('selectionchange')); });
+  await page.locator('[data-act="sel-card"]').click();
+  await page.locator('#fld-q').fill('¿Agua en turco?');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('.nb-cards')).toHaveText('1');
+
+  const { local, ...cloudLike } = await downloadBackup(page);
+  expect(cloudLike.pages).toHaveLength(1);
+  await wipeLocal(page);
+  await restore(page, cloudLike);
+  await expect(page.locator('#sheetBody')).toContainText('Apuntes: 1 restaurado');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Entendido' }).click();
+
+  await nav(page, 'Apuntes');
+  await page.getByRole('button', { name: /Mis apuntes/ }).click();
+  await expect(page.locator('.nb-cards')).toHaveText('1');                // la tarjeta sigue unida a su parte
+  await expect(page.locator('#pgDeck')).toHaveValue(/.+/);                // y el apunte, a su mazo
+});

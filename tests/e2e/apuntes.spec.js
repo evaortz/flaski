@@ -104,6 +104,56 @@ test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes
   await expect(page.locator('[data-grade="3"]')).toBeVisible();
 });
 
+// Crea una tarjeta (básica) desde el texto de un bloque, seleccionando «palabra»
+async function cardFrom(page, i, palabra, pregunta) {
+  await block(page, i).locator('.nb-text').click();
+  await page.locator('[data-block-input]').evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, palabra);
+  await page.locator('[data-act="sel-card"]').click();
+  await page.locator('#fld-q').fill(pregunta);
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+}
+
+test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await nav(page, 'Apuntes');
+  await page.locator('[data-act="paste-page"]').click();
+  await page.locator('#pagePaste').fill('# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.');
+  await page.locator('[data-act="paste-page-ok"]').click();
+  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await cardFrom(page, 1, '1789', '¿Año de la Bastilla?');
+  await cardFrom(page, 3, 'Robespierre', '¿Quién lideró el Terror?');
+
+  await expect(block(page, 1).locator('.nb-cards')).toHaveClass(/st-new/);
+  await expect(page.locator('.pg-status')).toContainText('2 sin estudiar');
+  await expect(page.locator('.pg-status [data-start]')).toHaveText('Estudiar este apunte · 2');
+  const fechas = block(page, 0);                                  // «## Fechas» (el título del apunte se quitó al pegar)
+  await expect(fechas.locator('.nb-sec')).toHaveText('Estudiar 1');
+
+  // Estudiar solo el apartado «Fechas» y fallarla
+  await fechas.locator('.nb-sec').click();
+  await expect(page.locator('.studybar .where')).toContainText('Fechas');
+  await expect(page.locator('.studybar .left')).toHaveText('1 quedan');
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('[data-grade="1"]').click();
+  await page.locator('.studybar [data-act="exit"]').click();      // vuelve a los apuntes
+  await expect(page.locator('#pgTitle')).toHaveValue('Revolución');
+  await expect(block(page, 1).locator('.nb-cards')).toHaveClass(/st-weak/);
+  await expect(block(page, 3).locator('.nb-cards')).toHaveClass(/st-new/);
+  await expect(page.locator('.pg-status')).toContainText('1 te cuesta');
+});
+
+test('la chuleta de los apuntes', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Apuntes');
+  await page.locator('[data-act="new-page"]').click();
+  await page.locator('[data-act="notes-help"]').click();
+  await expect(page.getByRole('heading', { name: 'Chuleta de los apuntes' })).toBeVisible();
+  await expect(page.locator('#sheetBody')).toContainText('Mayús + Enter');
+  await expect(page.locator('#sheetBody .help-pre')).toContainText('| :------- | :----: |');
+});
+
 test('pegar unos apuntes enteros', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Apuntes');

@@ -271,6 +271,10 @@ export const deleteEvent = queued('deleteEvent');
 /* ---------------- Apuntes ---------------- */
 // Se guarda la página entera por la cola: escribir apuntes sin conexión no pierde nada
 export const savePage = queued('savePage');
+// Crear sin pasar por la cola (al restaurar copias hay que saber al momento si el id ya existe)
+export async function createPage(fields) {
+  return check(await sb.from('pages').insert(fields).select().single());
+}
 export async function deletePage(id) {
   check(await sb.from('pages').delete().eq('id', id));
 }

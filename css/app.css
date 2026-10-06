@@ -938,7 +938,20 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .nb-tbl th,.nb-tbl td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
 .nb-tbl th{background:var(--soft);font-weight:600}
 .nb-raw{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;white-space:pre-wrap;color:var(--muted)}
-.nb-cards{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 7px;border:0;border-radius:99px;background:var(--tag-blue-bg);color:var(--tag-blue);font-size:12px;font-weight:600}
+.nb-cards{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 7px;border:0;border-radius:99px;background:var(--tag-gray-bg);color:var(--tag-gray);font-size:12px;font-weight:600}
+/* Cómo llevas cada parte: verde al día, naranja toca repasar, rojo te cuesta, gris sin estudiar */
+.st-ok{--st:var(--tag-green);--st-bg:var(--tag-green-bg)}
+.st-due{--st:var(--tag-orange);--st-bg:var(--tag-orange-bg)}
+.st-weak{--st:var(--tag-red);--st-bg:var(--tag-red-bg)}
+.st-new{--st:var(--tag-gray);--st-bg:var(--tag-gray-bg)}
+.nb-cards[class*="st-"]{background:var(--st-bg);color:var(--st)}
+.nb:has(.nb-sec){padding-right:150px}
+.nb-sec{position:absolute;right:34px;top:50%;transform:translateY(-50%);height:26px;padding:0 10px;border:0;border-radius:99px;background:var(--st-bg,var(--soft));color:var(--st,var(--muted));font-size:12.5px;font-weight:600;white-space:nowrap}
+.nb-sec:disabled{opacity:.75;cursor:default}
+.nb-sec:not(:disabled):hover{filter:brightness(.96)}
+.pg-status{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;margin-top:8px;border-radius:var(--r);background:var(--soft)}
+.st-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--fg);padding:2px 6px}
+.st-chip i{width:8px;height:8px;border-radius:50%;background:var(--st)}
 .nb.flash{background:var(--tag-yellow-bg,var(--soft))}
 .pg-adds{display:flex;gap:4px;margin-top:4px}
 .pg-add{border:0;background:transparent;color:var(--faint);padding:6px 6px;font-size:15px;text-align:left;border-radius:6px}
@@ -946,4 +959,14 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .pg-foot{margin-top:24px}
 .selbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(15,15,15,.14);white-space:nowrap}
 .selbar[hidden]{display:none}
-.prop-link{font-size:14px;align-self:center}
+.prop-link{font-size:14px;align-self:center}/* Chuleta de los apuntes */
+.help-tbl{flex:none;width:100%;border-collapse:collapse;font-size:14px}
+.help-tbl th,.help-tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.help-tbl th{font-size:12.5px;color:var(--muted);font-weight:600}
+.help-tbl td:first-child{white-space:nowrap;width:1%}
+.help-tbl code,.help-list code,.hint code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;background:var(--soft);border-radius:4px;padding:1px 5px}
+.help-tbl kbd{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--bg)}
+.help-pre{flex:none;margin:0;padding:10px 12px;background:var(--soft);border-radius:var(--r);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;overflow-x:auto}
+.help-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.help-st{list-style:none;padding-left:0}
+.pg-help{margin-left:4px}
