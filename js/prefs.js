@@ -14,7 +14,9 @@ export const DEFAULT_PREFS = {
     autoplay: true,         // leer en voz alta los campos con audio automático
     rate: 1,                // velocidad de la voz
     shortcuts: true,        // mostrar la ayuda de atajos de teclado
+    nativeLang: 'es-ES',    // tu idioma: el de las traducciones en los mazos de idiomas
   },
+  types: { hidden: [] },    // tipos de tarjeta que no quieres ver en el editor
   algo: { preset: 'standard', custom: { ...DEFAULT_ALGO } },
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'

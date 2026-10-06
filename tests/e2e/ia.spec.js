@@ -41,14 +41,16 @@ test('los ejemplos de FORMATO-IA.md se importan enteros, tal como los daría una
   }
 });
 
-test('las etiquetas y los tipos en otro idioma se crean al importar', async ({ page }) => {
+test('las etiquetas se crean y el mazo queda con su idioma al importar', async ({ page }) => {
   const { examples } = await docExamples();
   const ja = examples.find(e => /"lang": "ja-JP"/.test(e.json));
   await openApp(page);
   await paste(page, ja.json);
   await page.getByRole('button', { name: 'Añadir a mis mazos' }).click();
   await expect(page.locator('#cardRows')).toContainText('lugares');
-  await expect(page.locator('#cardRows')).toContainText('Ordenar frase · Japonés');
+  await expect(page.locator('#cardRows')).toContainText('Ordenar frase');
+  await expect(page.locator('.deckhead')).toContainText('Japonés');                 // el idioma es del mazo
+  await expect(page.locator('#cardRows')).not.toContainText('· Japonés');          // sin copias de tipos por idioma
 });
 
 test('pegar con errores: dice qué notas se saltan y por qué, e importa el resto', async ({ page }) => {
@@ -99,7 +101,7 @@ test('un archivo flaski-deck se sigue importando igual', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Mis mazos');
   await page.locator('#importFile').setInputFiles(new URL('../../decks/japones-demo.json', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
-  await expect(page.locator('#sheetBody')).toContainText('43 tarjetas · desde archivo Flaski');
+  await expect(page.locator('#sheetBody')).toContainText('43 tarjetas · Japonés · desde archivo Flaski');
 });
 
 test('las instrucciones para IA se descargan desde la app', async ({ page }) => {

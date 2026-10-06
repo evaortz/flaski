@@ -27,7 +27,7 @@ Flaski es una app de flashcards con repaso espaciado. Tu tarea: convertir lo que
 Este ejemplo crea 4 tarjetas.
 
 - **name** (obligatorio) y **description** (opcional): título y descripción del mazo.
-- **lang** (opcional): idioma que se estudia, para el audio de los tipos `vocab`, `listen` y `order`. Valores: `tr-TR` turco, `en-GB` / `en-US` inglés, `fr-FR` francés, `de-DE` alemán, `it-IT` italiano, `pt-PT` / `pt-BR` portugués, `nl-NL` neerlandés, `el-GR` griego, `ru-RU` ruso, `ar-SA` árabe, `ja-JP` japonés, `zh-CN` chino, `ko-KR` coreano, `ca-ES` catalán, `eu-ES` euskera, `gl-ES` gallego, `es-ES` español. Si lo omites, esos tipos suenan en turco.
+- **lang**: si el mazo es para aprender un idioma, cuál. Activa el audio y la corrección propia del idioma, y es obligatorio para `vocab`, `listen` y `order`. Omítelo en mazos que no son de idiomas (historia, medicina…). Valores: `tr-TR` turco, `en-GB` / `en-US` inglés, `fr-FR` francés, `de-DE` alemán, `it-IT` italiano, `pt-PT` / `pt-BR` portugués, `nl-NL` neerlandés, `el-GR` griego, `ru-RU` ruso, `ar-SA` árabe, `ja-JP` japonés, `zh-CN` chino, `ko-KR` coreano, `ca-ES` catalán, `eu-ES` euskera, `gl-ES` gallego, `es-ES` español.
 - **notes**: la lista de notas. Cada nota se escribe **una sola vez**; la app crea sus tarjetas (algunos tipos crean dos).
   - **type**: uno de los tipos de la tabla. Si falta, es `basic`.
   - **fields**: los campos del tipo, con sus claves exactas (`q`, `a`, `w`…). Todos los valores son texto.
@@ -35,6 +35,8 @@ Este ejemplo crea 4 tarjetas.
   - **tags** (opcional): etiquetas, por ejemplo `["verbos", "examen"]`.
 
 ## Tipos
+
+Los de cualquier tema (`basic`, `reverse`, `typing`, `cloze`, `choice`, `handwrite`) sirven para todo; `vocab`, `listen` y `order` son para mazos de idiomas (con `lang`); `de-noun` es solo para alemán y `kanji` solo para japonés.
 
 | type | Para qué | Campos (* = obligatorio) | Tarjetas |
 |---|---|---|---|

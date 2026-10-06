@@ -3,6 +3,7 @@
   "version": 2,
   "name": "Japonés · Demo de Flaski",
   "description": "Un recorrido por todo lo que sabe hacer Flaski: kanji a mano trazo a trazo, furigana, partículas con huecos, ordenar frases, dictado, hiragana dibujado y opción múltiple.",
+  "lang": "ja-JP",
   "types": [
     {
       "id": "jp-vocab",

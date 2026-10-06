@@ -28,6 +28,7 @@ export const deleteDeck = impl.deleteDeck;
 export const createCards = impl.createCards;
 export const updateCard = impl.updateCard;
 export const deleteCard = impl.deleteCard;
+export const retypeCards = impl.retypeCards;
 export const publicDecks = impl.publicDecks;
 export const getPublicDeck = impl.getPublicDeck;
 export const resetLocal = impl.resetLocal || null;
@@ -59,8 +60,11 @@ export function newId() {
 // Las tarjetas pueden traer tipo y campos; los ids de nota se renuevan para que
 // las tarjetas hermanas sigan juntas en la copia. typeMap traduce ids de tipos
 // personalizados del origen a los tipos creados para este usuario.
-export async function importDeck(uid, { name, description = '', source = '', cards, typeMap = new Map() }) {
-  const deck = await createDeck({ owner: uid, name: name.slice(0, 80), description: description.slice(0, 300), source });
+// lang: idioma que se estudia en el mazo (si se sabe; si no, la app lo deduce después)
+export async function importDeck(uid, { name, description = '', source = '', lang, cards, typeMap = new Map() }) {
+  const fields = { owner: uid, name: name.slice(0, 80), description: description.slice(0, 300), source };
+  if (typeof lang === 'string') fields.options = { lang };
+  const deck = await createDeck(fields);
   return { deck, cards: await importCards(uid, deck.id, cards, typeMap) };
 }
 // Añade tarjetas (de un archivo o de otro mazo) a un mazo existente

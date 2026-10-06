@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BUILTIN_TYPES, checkTyped, activeTemplates, orderTokens, orderJoin, stripRuby, readRuby, splitQuick, summarize, choiceOptions, missingFor } from '../../js/cardtypes.js';
+import { BUILTIN_TYPES, checkTyped, activeTemplates, orderTokens, orderJoin, stripRuby, readRuby, splitQuick, summarize, choiceOptions, missingFor, resolveType, typeFit, STUDY } from '../../js/cardtypes.js';
 
 test('checkTyped: ignora mayúsculas, espacios y puntuación final; acepta varias respuestas', () => {
   assert.equal(checkTyped('  Yaptım. ', 'yaptım').ok, true);
@@ -40,6 +40,30 @@ test('sustantivo alemán: der/die/das fijos y solo con un artículo válido', ()
   assert.equal(activeTemplates(t, { g: 'das', w: 'Haus', t: 'casa' }).length, 2);
   assert.equal(activeTemplates(t, { g: 'el', w: 'Haus', t: 'casa' }).length, 1);   // sin artículo válido: solo la de escribir
   assert.equal(missingFor(t, tpl, { g: 'el', w: 'Haus' }), '«Artículo»: der, die o das');
+});
+
+test('los idiomas de los campos se resuelven con el idioma del mazo', () => {
+  const vocab = BUILTIN_TYPES.find(t => t.id === 'vocab');
+  const de = resolveType(vocab, { study: 'de-DE', native: 'es-ES' });
+  assert.equal(de.fields.find(f => f.id === 'w').lang, 'de-DE');
+  assert.equal(de.fields.find(f => f.id === 't').lang, 'es-ES');
+  const sinIdioma = resolveType(vocab, { study: '' });
+  assert.ok(sinIdioma.fields.every(f => !f.lang && !f.autoplay));        // mazo que no es de idiomas: sin audio
+  assert.equal(vocab.fields[0].lang, STUDY);                             // el original no cambia
+});
+
+test('qué tipos encajan en cada mazo', () => {
+  const fit = (id, study) => typeFit(BUILTIN_TYPES.find(t => t.id === id), study);
+  assert.equal(fit('basic', ''), 'general');
+  assert.equal(fit('vocab', ''), false);
+  assert.equal(fit('vocab', 'tr-TR'), 'lang');
+  assert.equal(fit('de-noun', 'de-DE'), 'own');
+  assert.equal(fit('de-noun', 'ja-JP'), false);
+  assert.equal(fit('kanji', 'ja-JP'), 'own');
+  // Tipos tuyos: por sus campos
+  assert.equal(typeFit({ fields: [{ lang: 'ja-JP' }, { lang: 'es-ES' }], templates: [] }, 'ja-JP'), 'own');
+  assert.equal(typeFit({ fields: [{ lang: STUDY }], templates: [] }, 'fr-FR'), 'lang');
+  assert.equal(typeFit({ fields: [{ lang: '' }], templates: [] }, ''), 'general');
 });
 
 test('furigana: separa el kanji de la lectura', () => {

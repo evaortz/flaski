@@ -3,6 +3,7 @@
   "version": 1,
   "name": "Turco · Mutaciones consonánticas",
   "description": "p→b, ç→c, t→d, k→ğ y la regla Fıstıkçı Şahap (d→t).",
+  "lang": "tr-TR",
   "cards": [
     {
       "front": "*kitap* + acusativo",

@@ -173,6 +173,10 @@ export async function createCards(rows) {
 export async function updateCard(id, fields) {
   return check(await sb.from('cards').update(fields).eq('id', id).select().single());
 }
+// Pasa todas tus tarjetas de un tipo a otro (al retirar las copias de tipos por idioma)
+export async function retypeCards(oldTypeId, newTypeId) {
+  check(await sb.from('cards').update({ type_id: newTypeId }).eq('type_id', oldTypeId));
+}
 export async function deleteCard(id) {
   check(await sb.from('cards').delete().eq('id', id));
 }
@@ -196,7 +200,7 @@ export async function publicDecks() {
   }));
 }
 export async function getPublicDeck(id) {
-  const deck = check(await sb.from('decks').select('id, name, description, owner, is_public, types').eq('id', id).maybeSingle());
+  const deck = check(await sb.from('decks').select('id, name, description, owner, is_public, types, options').eq('id', id).maybeSingle());
   if (!deck) return null;
   const cards = await fetchAll(() => sb.from('cards').select('front, back, note, position, note_id, type_id, template, fields, hint').eq('deck_id', id).order('position'));
   const prof = check(await sb.from('profiles').select('display_name').eq('id', deck.owner).maybeSingle());

@@ -3,6 +3,7 @@
   "version": 1,
   "name": "Turco · Armonía vocálica",
   "description": "Las 8 vocales y cómo eligen los sufijos su vocal: 2 vías, 4 vías, sufijos encadenados y excepciones.",
+  "lang": "tr-TR",
   "cards": [
     {
       "front": "Vocales de **detrás** (gruesas)",

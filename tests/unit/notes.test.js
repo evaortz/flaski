@@ -61,19 +61,25 @@ test('avisos que no impiden importar: campo desconocido y tarjetas a medias', ()
   assert.match(warned(d2)[0].reason, /«extra» no existe en «basic».*q, a, n/);
 });
 
-test('lang: los tipos con audio en turco pasan al idioma del mazo', () => {
+test('lang: es el idioma del mazo y los tipos se usan tal cual, sin copias por idioma', () => {
   const d = notesToDeck({ lang: 'ja-JP', notes: [{ type: 'vocab', fields: { w: '水', t: 'agua' } }, { type: 'basic', fields: { q: 'a', a: 'b' } }] });
-  assert.deepEqual(d.types.map(t => t.id), ['vocab:ja-JP']);
-  const t = d.types[0];
-  assert.equal(t.name, 'Vocabulario · Japonés');
-  assert.equal(t.fields.find(f => f.id === 'w').lang, 'ja-JP');
-  assert.equal(t.fields.find(f => f.id === 't').lang, 'es-ES');   // la traducción sigue en español
-  assert.equal(d.cards[0].type_id, 'vocab:ja-JP');
-  assert.equal(d.cards[2].type_id, 'basic');
+  assert.equal(d.lang, 'ja-JP');
+  assert.deepEqual(d.types, []);
+  assert.deepEqual(d.cards.map(c => c.type_id), ['vocab', 'vocab', 'basic']);
+  assert.deepEqual(d.issues, []);
 });
 
-test('lang: sin idioma se avisa, e idiomas desconocidos se ignoran', () => {
-  assert.match(warned(notesToDeck({ notes: [{ type: 'listen', fields: { x: 'merhaba' } }] }))[0].reason, /turco/);
+test('lang: tipos de idiomas sin idioma, o de otro idioma, se avisan', () => {
+  const sin = notesToDeck({ notes: [{ type: 'vocab', fields: { w: 'su', t: 'agua' } }, { type: 'listen', fields: { x: 'merhaba' } }] });
+  assert.equal(sin.cards.length, 2);
+  assert.match(skipped(sin)[0].reason, /dictado necesita/);
+  assert.match(warned(sin)[0].reason, /no tendrán audio/);
+  const otro = notesToDeck({ lang: 'ja-JP', notes: [{ type: 'de-noun', fields: { g: 'das', w: 'Haus', t: 'casa' } }] });
+  assert.equal(otro.cards.length, 2);
+  assert.match(warned(otro)[0].reason, /«de-noun» es para mazos de alemán, no de japonés/);
+});
+
+test('lang: idiomas desconocidos se ignoran', () => {
   const d = notesToDeck({ lang: 'klingon', notes: [{ fields: { q: 'a', a: 'b' } }] });
   assert.equal(d.lang, '');
   assert.match(warned(d)[0].reason, /klingon/);

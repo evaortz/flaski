@@ -31,92 +31,128 @@ export const LANGS = [
   { id: 'ca-ES', label: 'Catalán' }, { id: 'eu-ES', label: 'Euskera' }, { id: 'gl-ES', label: 'Gallego' },
 ];
 
+// Idioma de un campo: un código fijo («ja-JP»), '' (sin audio) o uno de estos dos, que dependen del mazo:
+export const STUDY = '@study';     // el idioma que se estudia en el mazo (sin idioma: sin audio)
+export const NATIVE = '@native';   // tu idioma (Ajustes); solo en mazos de idiomas
+export const LANG_ROLES = [{ id: STUDY, label: 'Idioma del mazo' }, { id: NATIVE, label: 'Tu idioma' }];
+
 const F = (id, name, extra = {}) => ({ id, name, lang: '', autoplay: false, help: '', ...extra });
 
+// scope: para qué mazos tiene sentido el tipo · 'general' (todos) · 'lang' (mazos de idiomas)
+//        · ['de'] / ['ja', 'zh'] (mazos de esos idiomas)
 export const BUILTIN_TYPES = [
   {
-    id: 'basic', builtin: true, name: 'Básica', icon: '', lucide: 'layers',
+    id: 'basic', builtin: true, scope: 'general', name: 'Básica', icon: '', lucide: 'layers',
     description: 'Pregunta y respuesta.',
     fields: [F('q', 'Pregunta'), F('a', 'Respuesta'), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Pregunta → Respuesta', mode: 'flip', front: ['q'], back: ['a', 'n'] }],
   },
   {
-    id: 'reverse', builtin: true, name: 'Doble sentido', icon: '', lucide: 'repeat-2',
+    id: 'reverse', builtin: true, scope: 'general', name: 'Doble sentido', icon: '', lucide: 'repeat-2',
     description: 'Crea dos tarjetas: de A a B y de B a A.',
-    fields: [F('a', 'Anverso'), F('b', 'Reverso'), F('n', 'Nota')],
+    fields: [F('a', 'Anverso', { lang: STUDY }), F('b', 'Reverso', { lang: NATIVE }), F('n', 'Nota')],
     templates: [
       { id: 't1', name: 'Anverso → Reverso', mode: 'flip', front: ['a'], back: ['b', 'n'] },
       { id: 't2', name: 'Reverso → Anverso', mode: 'flip', front: ['b'], back: ['a', 'n'] },
     ],
   },
   {
-    id: 'typing', builtin: true, name: 'Escribir la respuesta', icon: '', lucide: 'keyboard',
+    id: 'typing', builtin: true, scope: 'general', name: 'Escribir la respuesta', icon: '', lucide: 'keyboard',
     description: 'Escribes la respuesta y se corrige letra a letra.',
-    fields: [F('q', 'Pregunta'), F('a', 'Respuesta'), F('n', 'Nota')],
+    fields: [F('q', 'Pregunta'), F('a', 'Respuesta', { lang: STUDY }), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Escribir', mode: 'type', front: ['q'], back: ['n'], answer: 'a' }],
   },
   {
-    id: 'cloze', builtin: true, name: 'Huecos', icon: '', lucide: 'puzzle',
+    id: 'cloze', builtin: true, scope: 'general', name: 'Huecos', icon: '', lucide: 'puzzle',
     description: 'Oculta partes del texto. Marca cada hueco con {{ }}.',
-    fields: [F('x', 'Texto con huecos', { help: 'Ejemplo: Ev{{de}}yim. Para dar una pista: {{de::lugar}}' }), F('e', 'Extra')],
+    fields: [F('x', 'Texto con huecos', { lang: STUDY, help: 'Ejemplo: Ev{{de}}yim. Para dar una pista: {{de::lugar}}' }), F('e', 'Extra')],
     templates: [{ id: 't1', name: 'Huecos', mode: 'cloze', front: ['x'], back: ['e'] }],
   },
   {
-    id: 'choice', builtin: true, name: 'Opción múltiple', icon: '', lucide: 'list-checks',
+    id: 'choice', builtin: true, scope: 'general', name: 'Opción múltiple', icon: '', lucide: 'list-checks',
     description: 'Eliges la respuesta correcta entre cuatro.',
     fields: [F('q', 'Pregunta'), F('a', 'Respuesta correcta'),
       F('w', 'Respuestas incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan respuestas de otras tarjetas del mazo.' }), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Elegir', mode: 'choice', front: ['q'], back: ['n'], answer: 'a', wrong: 'w' }],
   },
   {
-    id: 'vocab', builtin: true, name: 'Vocabulario', icon: '', lucide: 'languages',
+    id: 'handwrite', builtin: true, scope: 'general', name: 'Escribir a mano', icon: '', lucide: 'pencil',
+    description: 'Dibujas la respuesta con el dedo: fórmulas, kanji, alfabeto árabe, coreano, griego, ruso…',
+    fields: [F('q', 'Pregunta'), F('a', 'Lo que hay que escribir', { lang: STUDY }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Escribir a mano', mode: 'draw', front: ['q'], back: ['n'], answer: 'a', guide: false }],
+  },
+  {
+    id: 'vocab', builtin: true, scope: 'lang', name: 'Vocabulario', icon: '', lucide: 'languages',
     description: 'Palabra, traducción, pronunciación y ejemplo. Crea dos tarjetas: reconocer y recordar escribiendo.',
-    fields: [F('w', 'Palabra', { lang: 'tr-TR', autoplay: true }), F('t', 'Traducción', { lang: 'es-ES' }),
-      F('p', 'Pronunciación'), F('e', 'Ejemplo', { lang: 'tr-TR' }), F('n', 'Notas')],
+    fields: [F('w', 'Palabra', { lang: STUDY, autoplay: true }), F('t', 'Traducción', { lang: NATIVE }),
+      F('p', 'Pronunciación'), F('e', 'Ejemplo', { lang: STUDY }), F('n', 'Notas')],
     templates: [
       { id: 't1', name: 'Reconocer (palabra → traducción)', mode: 'flip', front: ['w'], back: ['t', 'p', 'e', 'n'] },
       { id: 't2', name: 'Recordar (traducción → escribir palabra)', mode: 'type', front: ['t'], back: ['p', 'e', 'n'], answer: 'w' },
     ],
   },
   {
-    id: 'kanji', builtin: true, name: 'Kanji', icon: '', lucide: 'brush',
-    description: 'Reconocer el kanji y escribirlo a mano trazo a trazo, con el orden correcto.',
-    fields: [F('k', 'Kanji', { lang: 'ja-JP' }), F('m', 'Significado', { lang: 'es-ES' }), F('on', 'Lectura on (カタカナ)', { lang: 'ja-JP' }),
-      F('kun', 'Lectura kun (ひらがな)', { lang: 'ja-JP' }), F('e', 'Ejemplo', { lang: 'ja-JP', help: 'Puedes añadir furigana así: 水[みず]を 飲[の]む' })],
-    templates: [
-      { id: 't1', name: 'Reconocer (kanji → significado)', mode: 'flip', front: ['k'], back: ['m', 'on', 'kun', 'e'] },
-      { id: 't2', name: 'Escribir (significado → kanji a mano)', mode: 'draw', front: ['m', 'kun', 'on'], back: ['e'], answer: 'k', guide: false },
-    ],
+    id: 'listen', builtin: true, scope: 'lang', name: 'Dictado', icon: '', lucide: 'headphones',
+    description: 'Escuchas una palabra o frase y la escribes.',
+    fields: [F('x', 'Texto que se escucha', { lang: STUDY }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Dictado', mode: 'listen', front: [], back: ['t', 'n'], answer: 'x' }],
   },
   {
-    id: 'de-noun', builtin: true, name: 'Sustantivo alemán', icon: '', lucide: 'languages',
+    id: 'order', builtin: true, scope: 'lang', name: 'Ordenar frase', icon: '', lucide: 'blocks',
+    description: 'Colocas las palabras en el orden correcto. Ideal para practicar el orden de la frase.',
+    fields: [F('f', 'Frase correcta', { lang: STUDY, help: 'Se separa por espacios. Para elegir tú las piezas, sepáralas con « / »: Ben / eve / gidiyorum' }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Ordenar', mode: 'order', front: ['t'], back: ['n'], answer: 'f' }],
+  },
+  {
+    id: 'de-noun', builtin: true, scope: ['de'], name: 'Sustantivo alemán', icon: '', lucide: 'languages',
     description: 'Artículo, palabra y plural. Crea dos tarjetas: elegir der, die o das, y escribir la palabra (con su mayúscula).',
     fields: [F('g', 'Artículo', { help: 'der, die o das' }), F('w', 'Palabra', { lang: 'de-DE', autoplay: true, help: 'Sin artículo y con mayúscula: Haus' }),
-      F('pl', 'Plural', { lang: 'de-DE', help: 'Ej.: die Häuser' }), F('t', 'Traducción', { lang: 'es-ES' }), F('n', 'Notas')],
+      F('pl', 'Plural', { lang: 'de-DE', help: 'Ej.: die Häuser' }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Notas')],
     templates: [
       { id: 't1', name: 'Género (palabra → der, die o das)', mode: 'choice', front: ['w'], back: ['t', 'pl', 'n'], answer: 'g', choices: ['der', 'die', 'das'] },
       { id: 't2', name: 'Escribir (traducción → palabra)', mode: 'type', front: ['t'], back: ['g', 'pl', 'n'], answer: 'w' },
     ],
   },
   {
-    id: 'handwrite', builtin: true, name: 'Escribir a mano', icon: '', lucide: 'pencil',
-    description: 'Dibujas la respuesta con el dedo: kanji, hanzi, alfabeto árabe, coreano, griego, ruso…',
-    fields: [F('q', 'Pregunta'), F('a', 'Lo que hay que escribir'), F('n', 'Nota')],
-    templates: [{ id: 't1', name: 'Escribir a mano', mode: 'draw', front: ['q'], back: ['n'], answer: 'a', guide: false }],
-  },
-  {
-    id: 'listen', builtin: true, name: 'Dictado', icon: '', lucide: 'headphones',
-    description: 'Escuchas una palabra o frase y la escribes. Cambia el idioma del audio en «Gestionar tipos».',
-    fields: [F('x', 'Texto que se escucha', { lang: 'tr-TR' }), F('t', 'Traducción'), F('n', 'Nota')],
-    templates: [{ id: 't1', name: 'Dictado', mode: 'listen', front: [], back: ['t', 'n'], answer: 'x' }],
-  },
-  {
-    id: 'order', builtin: true, name: 'Ordenar frase', icon: '', lucide: 'blocks',
-    description: 'Colocas las palabras en el orden correcto. Ideal para practicar el orden de la frase.',
-    fields: [F('f', 'Frase correcta', { lang: 'tr-TR', help: 'Se separa por espacios. Para elegir tú las piezas, sepáralas con « / »: Ben / eve / gidiyorum' }), F('t', 'Traducción'), F('n', 'Nota')],
-    templates: [{ id: 't1', name: 'Ordenar', mode: 'order', front: ['t'], back: ['n'], answer: 'f' }],
+    id: 'kanji', builtin: true, scope: ['ja'], name: 'Kanji', icon: '', lucide: 'brush',
+    description: 'Reconocer el kanji y escribirlo a mano trazo a trazo, con el orden correcto.',
+    fields: [F('k', 'Kanji', { lang: 'ja-JP' }), F('m', 'Significado', { lang: NATIVE }), F('on', 'Lectura on (カタカナ)', { lang: 'ja-JP' }),
+      F('kun', 'Lectura kun (ひらがな)', { lang: 'ja-JP' }), F('e', 'Ejemplo', { lang: 'ja-JP', help: 'Puedes añadir furigana así: 水[みず]を 飲[の]む' })],
+    templates: [
+      { id: 't1', name: 'Reconocer (kanji → significado)', mode: 'flip', front: ['k'], back: ['m', 'on', 'kun', 'e'] },
+      { id: 't2', name: 'Escribir (significado → kanji a mano)', mode: 'draw', front: ['m', 'kun', 'on'], back: ['e'], answer: 'k', guide: false },
+    ],
   },
 ];
+
+/* ---------------- Idioma del mazo ---------------- */
+
+export const baseLang = lang => String(lang || '').split('-')[0].toLowerCase();
+
+// El tipo con los idiomas de sus campos ya resueltos para un mazo: «Idioma del mazo» → su idioma,
+// «Tu idioma» → el tuyo (solo si el mazo es de un idioma; si no, sin audio).
+export function resolveType(type, { study = '', native = 'es-ES' } = {}) {
+  if (!type || !type.fields.some(f => f.lang === STUDY || f.lang === NATIVE)) return type;
+  const r = l => (l === STUDY ? study : l === NATIVE ? (study ? native : '') : l);
+  return { ...type, fields: type.fields.map(f => { const lang = r(f.lang); return { ...f, lang, autoplay: !!lang && !!f.autoplay }; }) };
+}
+
+// Para qué mazos sirve un tipo. Los tuyos: según sus campos (con un idioma fijo, para ese idioma).
+export function typeScope(type) {
+  if (type.scope) return type.scope;
+  const fixed = [...new Set(type.fields.map(f => f.lang).filter(l => l && l !== STUDY && l !== NATIVE && baseLang(l) !== 'es').map(baseLang))];
+  if (fixed.length) return fixed;
+  return type.fields.some(f => f.lang === STUDY) ? 'lang' : 'general';
+}
+// ¿Encaja el tipo en un mazo con este idioma de estudio ('' = no es de idiomas)?
+//   'own' (hecho para ese idioma) · 'lang' (para cualquier idioma) · 'general' · false (no encaja)
+export function typeFit(type, study = '') {
+  const s = typeScope(type);
+  if (s === 'general') return 'general';
+  if (!study) return false;
+  if (s === 'lang') return 'lang';
+  return s.includes(baseLang(study)) ? 'own' : false;
+}
 
 /* ---------------- Utilidades ---------------- */
 
@@ -208,7 +244,6 @@ export function splitQuick(line, sep) {
 const CASE_MATTERS = ['de'];
 // Cómo se escriben sin teclado del idioma: valen como «casi» (Difícil), no como fallo
 const TRANSLIT = { de: [['ß', 'ss'], ['ä', 'ae'], ['ö', 'oe'], ['ü', 'ue']] };
-const baseLang = lang => String(lang || '').split('-')[0].toLowerCase();
 
 const normAnswer = (s, keepCase = false) => {
   const t = strip(s).replace(/\s+/g, ' ').replace(/[.!¡?¿,;:]+$/g, '');

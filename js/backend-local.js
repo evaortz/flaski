@@ -166,6 +166,10 @@ export async function updateCard(id, fields) {
   persist();
   return clone(c);
 }
+export async function retypeCards(oldTypeId, newTypeId) {
+  for (const c of db.cards) if (c.type_id === oldTypeId) c.type_id = newTypeId;
+  persist();
+}
 export async function deleteCard(id) {
   db.cards = db.cards.filter(c => c.id !== id);
   db.progress = db.progress.filter(r => r.card_id !== id);

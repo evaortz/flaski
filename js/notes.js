@@ -7,11 +7,9 @@
 //     "notes": [ { "type": "vocab", "fields": { "w": "…", "t": "…" }, "hint": "…", "tags": ["…"] } ] }
 //
 // También vale un array de notas suelto. Las notas con errores se saltan y se explica por qué.
-import { BUILTIN_TYPES, LANGS, activeTemplates, summarize, missingFor } from './cardtypes.js';
+import { BUILTIN_TYPES, LANGS, activeTemplates, summarize, missingFor, typeFit, typeScope } from './cardtypes.js';
 
 const TYPE_IDS = BUILTIN_TYPES.map(t => t.id);
-// Idioma de los campos «del idioma que se estudia» en los tipos incluidos (Vocabulario, Dictado, Ordenar)
-const STUDY_LANG = 'tr-TR';
 
 export const isNotesDeck = d => Array.isArray(d) || (!!d && typeof d === 'object' && (d.format === 'flaski-notes' || (Array.isArray(d.notes) && !Array.isArray(d.cards))));
 
@@ -81,20 +79,7 @@ function jsonError(json, e) {
 /* ---------------- Notas → tarjetas ---------------- */
 
 const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
-
-// Los tipos incluidos con campos en turco, en el idioma del mazo: «Vocabulario · Japonés»
-function localized(base, lang, used) {
-  if (!lang || lang === STUDY_LANG || !base.fields.some(f => f.lang === STUDY_LANG)) return base;
-  const id = `${base.id}:${lang}`;
-  if (!used.has(id)) {
-    const copy = JSON.parse(JSON.stringify(base));
-    used.set(id, {
-      id, name: `${base.name} · ${langLabel(lang)}`, icon: '', description: base.description,
-      fields: copy.fields.map(f => (f.lang === STUDY_LANG ? { ...f, lang } : f)), templates: copy.templates,
-    });
-  }
-  return used.get(id);
-}
+const langName = base => (LANGS.find(l => l.id.split('-')[0] === base)?.label || base).toLowerCase();
 
 // Un valor de campo: texto. Las listas se unen como espera cada campo: las respuestas incorrectas de
 // opción múltiple con «; » y el resto con « / » (respuestas alternativas, piezas de ordenar).
@@ -120,10 +105,10 @@ export function notesToDeck(data) {
   }
   if (lang) lang = LANGS.find(l => l.id.toLowerCase() === lang.toLowerCase()).id;
 
-  const used = new Map();
   const cards = [];
   const tagNames = new Map();     // en minúsculas → como se escribió la primera vez
   let notes = 0, needsLang = false;
+  const misfit = new Set();
 
   list.forEach((raw, i) => {
     const n = i + 1;
@@ -134,8 +119,14 @@ export function notesToDeck(data) {
     const base = BUILTIN_TYPES.find(t => t.id === typeId);
     if (!base) return note(n, label, `el tipo «${raw.type}» no existe (tipos: ${TYPE_IDS.join(', ')})`, true);
     if (!src) return note(n, label, 'falta "fields" con los campos de la nota', true);
-    const type = localized(base, lang, used);
-    if (!lang && type.fields.some(f => f.lang === STUDY_LANG)) needsLang = true;
+    const type = base;
+    // Tipos de idiomas en un mazo sin idioma: sin audio (y el dictado, sin nada que escuchar)
+    if (!typeFit(type, lang)) {
+      if (!lang && typeScope(type) === 'lang') {
+        if (type.templates.some(t => t.mode === 'listen')) return note(n, label, `el dictado necesita que el mazo tenga idioma ("lang")`, true);
+        needsLang = true;
+      } else misfit.add(base.id);
+    }
 
     const known = new Map(type.fields.map(f => [f.id, f]));
     const wrongIds = new Set(type.templates.map(t => t.wrong).filter(Boolean));
@@ -164,11 +155,15 @@ export function notesToDeck(data) {
       });
     }
   });
-  if (needsLang) note(0, 'lang', 'sin "lang", el audio de Vocabulario, Dictado y Ordenar frase sale en turco', false);
+  if (needsLang) note(0, 'lang', 'sin "lang", el mazo no es de idiomas y Vocabulario u Ordenar frase no tendrán audio', false);
+  for (const id of misfit) {
+    const t = BUILTIN_TYPES.find(x => x.id === id);
+    note(0, 'lang', `«${id}» es para mazos de ${typeScope(t).map(langName).join(' o ')}${lang ? `, no de ${langLabel(lang).toLowerCase()}` : ''}`, false);
+  }
 
   return {
     name: String(meta.name || 'Mazo importado').trim().slice(0, 80) || 'Mazo importado',
     description: String(meta.description || '').trim().slice(0, 300),
-    lang, cards, notes, types: [...used.values()], tagNames: [...tagNames.values()], issues,
+    lang, cards, notes, types: [], tagNames: [...tagNames.values()], issues,
   };
 }

@@ -66,7 +66,8 @@ test('tarjeta de escribir la respuesta: corrige y sugiere la nota', async ({ pag
   await openApp(page);
   await createDeck(page, 'Escribir');
   await page.locator('#main [data-act="new-card"]').click();
-  await page.locator('.tchip-big', { hasText: 'Escribir la respuesta' }).click();
+  await page.locator('[data-act="pick-type"]').click();
+  await page.locator('[data-pick-type="typing"]').click();
   const inputs = page.locator('.ef-input');
   await inputs.nth(0).fill('hice (yapmak)');
   await inputs.nth(1).fill('yaptım');

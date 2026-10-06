@@ -10,7 +10,7 @@ import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmap, forecast, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId } from './cardtypes.js';
+import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang } from './cardtypes.js';
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck } from './org.js';
@@ -302,6 +302,7 @@ async function onSignedIn(session) {
     applyData(withPending(d));
     S.loading = false;
     netState();
+    migrateDeckLangs();
     if (!S.fromCache) saveSnap();
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     render();
@@ -388,7 +389,7 @@ async function afterFlush(ok) {
     const s = await api.auth.session();
     if (s?.user?.id !== S.uid) return;
     const d = await api.loadAll(S.uid);
-    applyData(withPending(d)); S.fromCache = false; netState(); saveSnap(); render();
+    applyData(withPending(d)); migrateDeckLangs(); S.fromCache = false; netState(); saveSnap(); render();
   } catch {}
 }
 function retrySync() { if (api.offline && S.uid) api.offline.flush().then(afterFlush); }
@@ -482,10 +483,15 @@ window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTi
 function typeIcon(t, size = 18) { return t?.icon ? esc(t.icon) : icon(t?.lucide || 'layers', { size }); }
 const allTypes = () => [...BUILTIN_TYPES, ...[...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))];
 const getType = id => BUILTIN_TYPES.find(t => t.id === id) || S.types.get(id) || null;
+// Idioma que se estudia en un mazo ('' = no es de idiomas) y el tipo con sus idiomas resueltos para él
+const deckLang = id => S.decks.get(id)?.options?.lang || '';
+const nativeLang = () => S.prefs.study.nativeLang || 'es-ES';
+const typeIn = (type, deckId) => resolveType(type, { study: deckLang(deckId), native: nativeLang() });
+const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
 // Tipo, plantilla y campos de una tarjeta (las antiguas, sin campos, se leen como «Básica»)
 function cardModel(c) {
   const hasFields = c.fields && typeof c.fields === 'object' && Object.keys(c.fields).length;
-  const type = (hasFields && getType(c.type_id)) || BUILTIN_TYPES[0];
+  const type = typeIn((hasFields && getType(c.type_id)) || BUILTIN_TYPES[0], c.deck_id);
   const fields = hasFields && getType(c.type_id) ? c.fields : legacyFields(c);
   const tpl = type.templates.find(t => t.id === c.template) || type.templates[0];
   return { type, tpl, fields };
@@ -980,7 +986,7 @@ function renderDeck() {
   main.innerHTML = `
     ${crumbs(d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null, { linkLast: true })}
     <div class="deckhead"><div class="deck-title">${deckIcon(d, true)}<h1>${esc(d.name)}</h1></div>${d.description ? `<p class="desc">${fmt(d.description)}</p>` : ''}
-      <div class="btnrow">${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'tarjeta' : 'tarjetas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivado</span>' : ''}${d.is_public ? '<span class="chip">Compartido</span>' : ''}</div></div>
+      <div class="btnrow">${deckLang(d.id) ? `<span class="chip">${icon('languages', { size: 13 })} ${esc(langLabel(deckLang(d.id)))}</span>` : ''}${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'tarjeta' : 'tarjetas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivado</span>' : ''}${d.is_public ? '<span class="chip">Compartido</span>' : ''}</div></div>
     <div class="btnrow">
       <button class="primary" data-start="${d.id}" ${c.due + c.newToday ? '' : 'disabled'}>Estudiar</button>
       <button class="ghost" data-act="new-card">+ Tarjeta</button>
@@ -1034,7 +1040,7 @@ async function openPublicPreview(id) {
   try {
     const d = await api.getPublicDeck(id);
     if (!d) { openSheet('<h2>Mazo no disponible</h2><p class="muted">Puede que su autor haya dejado de compartirlo.</p><button class="primary" data-act="close-sheet">Cerrar</button>'); return; }
-    S.preview = { name: d.name, description: d.description, cards: d.cards, types: d.types || [], source: 'compartido:' + d.id };
+    S.preview = { name: d.name, description: d.description, cards: d.cards, types: d.types || [], source: 'compartido:' + d.id, lang: d.options?.lang };
     showPreview(`de ${esc(d.author)}`);
   } catch (e) { closeSheet(); fail(e); }
 }
@@ -1050,7 +1056,7 @@ async function openBuiltinPreview(file) {
 function showPreview(byline) {
   const p = S.preview;
   const sample = p.cards.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
-  openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} tarjetas · ${byline}</p>
+  openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} tarjetas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
@@ -1131,9 +1137,10 @@ async function addPreview(btn) {
       toast(`${created.length} tarjetas añadidas`);
       return go('deck', { deckId: dest, cardQuery: '' });
     }
-    const { deck, cards: made } = await api.importDeck(S.uid, { ...p, cards, typeMap });
+    const { deck, cards: made } = await api.importDeck(S.uid, { ...p, lang: p.lang || undefined, cards, typeMap });
     S.decks.set(deck.id, { tags: [], ...deck });
     for (const c of made) S.cards.set(c.id, c);
+    migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
     toast(`«${deck.name}» añadido`);
     go('deck', { deckId: deck.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis mazos'; fail(e); }
@@ -1272,7 +1279,8 @@ function renderSettings() {
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
       ${setRow('Meta diaria', 'Respuestas al día. Aparece como barra de progreso en Inicio. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
       ${setRow('Orden de las nuevas', 'En qué orden salen las tarjetas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en el mazo'], ['random', 'Al azar']]))}
-      ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}`, 's-study')}
+      ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
+      ${setRow('Tu idioma', 'En los mazos de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
     ${setSec('layers', 'Durante la sesión', `
       ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
       ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la tarjeta.', sw('study.showIntervals'))}
@@ -1563,12 +1571,27 @@ function tagPicker(selected = []) {
     <span class="newtag"><input id="f-newtag" maxlength="40" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta"><button type="button" class="ghost small-btn" data-act="add-tag-inline">Añadir</button></span></div>`;
 }
 
+// «¿Qué vas a estudiar?»: un idioma (cuál) u otra cosa. Para un mazo nuevo, lo que más usas.
+function studyPicker(d) {
+  const counts = new Map();
+  for (const x of S.decks.values()) { const l = x.options?.lang || ''; counts.set(l, (counts.get(l) || 0) + 1); }
+  const common = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  const lang = d ? (d.options?.lang || '') : common;
+  const commonLang = [...counts].filter(([l]) => l).sort((a, b) => b[1] - a[1])[0]?.[0] || 'en-GB';
+  const sel = lang || commonLang;
+  return `<label>¿Qué vas a estudiar?</label>
+      <div class="seg" role="group" aria-label="Qué vas a estudiar"><button type="button" data-kind="lang" aria-pressed="${!!lang}">Un idioma</button><button type="button" data-kind="other" aria-pressed="${!lang}">Otra cosa</button></div>
+      <div id="d-lang-row" ${lang ? '' : 'hidden'}><label for="d-lang">Idioma</label>
+        <select id="d-lang">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === sel ? 'selected' : ''}>${l.label}</option>`).join('')}</select>
+        <p class="hint">Se usa para el audio, para corregir lo que escribes y para proponerte los tipos de tarjeta que encajan.</p></div>`;
+}
 function deckForm(d) {
   const folderDefault = d ? d.folder_id : (S.view === 'decks' ? S.folderId : null);
   openSheet(`<h2>${d ? 'Editar mazo' : 'Nuevo mazo'}</h2>
     <form data-form="deck" data-id="${d ? d.id : ''}">
       <label for="d-name">Nombre</label><input id="d-name" maxlength="80" required value="${esc(d?.name || '')}">
       <label for="d-desc">Descripción (opcional)</label><textarea id="d-desc" rows="2" maxlength="300">${esc(d?.description || '')}</textarea>
+      ${studyPicker(d)}
       <label>Icono</label>${iconPicker(d?.icon)}
       <label>Color</label>${colorPicker(d?.color)}
       <label for="d-folder">Carpeta</label>${folderSelect('d-folder', folderDefault || '')}
@@ -1615,20 +1638,90 @@ function tagsSheet() {
       <select id="nt-color" aria-label="Color">${colorOpts('blue')}</select><button class="ghost" type="submit">Añadir</button></form>
     <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="save-tags">Hecho</button></div>`);
 }
-function typeOptions(selected) {
+// Desplegable de tipos («Crear varias»): los que encajan con el mazo primero, el resto aparte
+function typeOptions(selected, deckId) {
+  const study = deckLang(deckId);
   const own = [...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const opt = t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.icon ? t.icon + ' ' : '')}${esc(t.name)}</option>`;
-  return `<optgroup label="Incluidos">${BUILTIN_TYPES.map(opt).join('')}</optgroup>${own.length ? `<optgroup label="Tus tipos">${own.map(opt).join('')}</optgroup>` : ''}`;
+  const fits = BUILTIN_TYPES.filter(t => typeFit(t, study) && (!typeHidden(t) || t.id === selected));
+  const rest = BUILTIN_TYPES.filter(t => !fits.includes(t));
+  const group = (label, list) => (list.length ? `<optgroup label="${label}">${list.map(opt).join('')}</optgroup>` : '');
+  return group(study ? `Para ${langLabel(study).toLowerCase()}` : 'Para este mazo', fits) + group('Tus tipos', own) + group('Otros', rest);
 }
 function deckOptions(selected) {
   return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(d.name)}${d.archived ? ' (archivado)' : ''}</option>`).join('');
 }
-function lastTypeFor(deckId) {
-  try { return JSON.parse(localStorage.getItem('flaski-last-type') || '{}')[deckId] || null; } catch { return null; }
+// Tipos usados hace poco en cada mazo (los más recientes primero), para tenerlos a un toque
+function recentTypes(deckId) {
+  try { const v = JSON.parse(localStorage.getItem('flaski-last-type') || '{}')[deckId]; return Array.isArray(v) ? v : v ? [v] : []; } catch { return []; }
 }
+const lastTypeFor = deckId => recentTypes(deckId)[0] || null;
 function rememberType(deckId, typeId) {
-  try { const m = JSON.parse(localStorage.getItem('flaski-last-type') || '{}'); m[deckId] = typeId; localStorage.setItem('flaski-last-type', JSON.stringify(m)); } catch {}
+  try {
+    const m = JSON.parse(localStorage.getItem('flaski-last-type') || '{}');
+    m[deckId] = [typeId, ...recentTypes(deckId).filter(x => x !== typeId)].slice(0, 6);
+    localStorage.setItem('flaski-last-type', JSON.stringify(m));
+  } catch {}
 }
+const typeHidden = t => S.prefs.types.hidden.includes(t.id);
+// Tipos que se proponen en un mazo cuando aún no has usado ninguno
+function suggestedTypes(deckId) {
+  const study = deckLang(deckId);
+  if (!study) return ['basic', 'cloze', 'choice', 'typing'];
+  const own = BUILTIN_TYPES.filter(t => typeFit(t, study) === 'own').map(t => t.id);
+  return [...own, 'vocab', 'reverse', 'cloze', 'listen'];
+}
+// El tipo con el que empieza una tarjeta nueva: el último que usaste ahí, o el primero que encaje
+function defaultTypeFor(deckId) {
+  const fits = t => t && (typeFit(t, deckLang(deckId)) || !BUILTIN_TYPES.includes(t));
+  return [lastTypeFor(deckId), ...suggestedTypes(deckId)].map(getType).find(fits) || BUILTIN_TYPES[0];
+}
+// Barra del editor: el tipo actual (abre el selector) y los que más usas en este mazo
+function typeBar(sel, deckId) {
+  const cur = getType(sel) || BUILTIN_TYPES[0];
+  const quick = [...new Set([...recentTypes(deckId), ...suggestedTypes(deckId)])].filter(id => id !== cur.id)
+    .map(getType).filter(t => t && !typeHidden(t) && (typeFit(t, deckLang(deckId)) || !t.builtin)).slice(0, 3);
+  return `<button type="button" class="ed-typesel" data-act="pick-type" aria-haspopup="dialog" title="Cambiar el tipo de tarjeta">
+      <span class="tci">${typeIcon(cur, 18)}</span><span class="ed-typename">${esc(cur.name)}</span>${icon('chevron-down', { size: 16 })}</button>
+    ${quick.length ? `<span class="ed-quick" aria-label="Tipos que usas en este mazo">${quick.map(t => `<button type="button" class="tq" data-set-type="${t.id}" title="${esc(t.description || '')}">${typeIcon(t, 16)}<span>${esc(t.name)}</span></button>`).join('')}</span>` : ''}`;
+}
+// Selector de tipos (dentro del editor): agrupados según el idioma del mazo, con buscador
+function drawTypePicker() {
+  const box = $('#typePicker');
+  if (!box || !S.edit) return;
+  const deckId = edDeck(), study = deckLang(deckId);
+  const { q = '', all = false } = S.edit.pick || {};
+  const nq = norm(q.trim());
+  const match = t => !nq || norm(`${t.name} ${t.description || ''}`).includes(nq);
+  const shown = t => (nq || all || !typeHidden(t)) && (nq || all || typeFit(t, study) || !t.builtin);
+  const builtins = BUILTIN_TYPES.filter(match), own = [...S.types.values()].filter(match).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const groups = [
+    study && [`Para ${langLabel(study).toLowerCase()}`, builtins.filter(t => typeFit(t, study) === 'own')],
+    study && ['Para idiomas', builtins.filter(t => typeFit(t, study) === 'lang')],
+    ['Para cualquier tema', builtins.filter(t => typeFit(t, study) === 'general')],
+    ['Tus tipos', own],
+  ].filter(Boolean).map(([h, list]) => [h, list.filter(shown)]);
+  const listed = new Set(groups.flatMap(g => g[1]).map(t => t.id));
+  if (all || nq) groups.push(['Otros', [...builtins, ...own].filter(t => !listed.has(t.id))]);
+  const item = t => {
+    const n = t.templates.length;
+    return `<li><button type="button" class="tp-item" data-pick-type="${t.id}" aria-pressed="${t.id === S.edit.typeId}">
+      <span class="tci">${typeIcon(t, 22)}</span><span class="tp-txt"><b>${esc(t.name)}</b><small>${esc(t.description || '')}${n > 1 && !/(dos|\d) tarjetas/i.test(t.description || '') ? ` · Crea ${n} tarjetas` : ''}</small></span></button></li>`;
+  };
+  const body = groups.filter(g => g[1].length).map(([h, list]) => `<h3 class="tp-h">${esc(h)}</h3><ul class="tp-list">${list.map(item).join('')}</ul>`).join('');
+  box.querySelector('.tp-body').innerHTML = body || '<p class="muted">Ningún tipo coincide con la búsqueda.</p>';
+  box.querySelector('.tp-note').textContent = study ? `Mazo de ${langLabel(study).toLowerCase()}: se muestran los tipos que encajan.` : 'Este mazo no es de idiomas: se muestran los tipos generales.';
+  box.querySelector('[data-act="types-all"]').textContent = all ? 'Ver solo los de este mazo' : 'Ver todos los tipos';
+}
+function openTypePicker(open = true) {
+  if (!S.edit) return;
+  S.edit.pick = open ? { q: '', all: false } : null;
+  $('#typePicker').hidden = !open;
+  document.querySelector('form.ed')?.classList.toggle('picking', open);
+  if (open) { $('#typeSearch').value = ''; drawTypePicker(); if (matchMedia('(hover:hover)').matches) $('#typeSearch').focus(); }
+}
+// Mazo elegido en el editor de tarjetas
+const edDeck = () => $('#c-deck')?.value || S.edit?.deckId || null;
 /* ===================== editor de tarjetas ===================== */
 // Qué papel tiene cada campo en las tarjetas que se generan (para orientarte mientras escribes)
 function fieldRoles(type, id) {
@@ -1667,22 +1760,18 @@ function fieldInputs(type, values) {
     </div>`;
   }).join('');
 }
-function typeChips(selected) {
-  const chip = t => `<button type="button" class="tchip-big" role="radio" aria-checked="${t.id === selected}" data-set-type="${t.id}" title="${esc(t.description || '')}">
-      <span class="tci">${typeIcon(t, 24)}</span><span>${esc(t.name)}</span></button>`;
-  const own = [...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  return `${[...BUILTIN_TYPES, ...own].map(chip).join('')}
-    <button type="button" class="tchip-big tchip-add" data-act="manage-types"><span class="tci">${icon('plus', { size: 22 })}</span><span>Tipos…</span></button>`;
-}
-const TOOLBAR = () => `<div class="ed-tools" role="toolbar" aria-label="Formato">
+// Barra de formato; las letras especiales y la furigana, según el idioma del mazo
+const TOOLBAR = deckId => {
+  const study = deckLang(deckId), chars = study ? charsFor(study) : [];
+  return `<div class="ed-tools" role="toolbar" aria-label="Formato">
   <button type="button" data-fmt="bold" title="Negrita (Ctrl+B)" aria-label="Negrita"><b>B</b></button>
   <button type="button" data-fmt="italic" title="Cursiva (Ctrl+I)" aria-label="Cursiva"><i>I</i></button>
   <button type="button" data-fmt="cloze" title="Convertir en hueco {{ }}" aria-label="Hueco">{{&thinsp;}}</button>
-  <button type="button" data-fmt="ruby" title="Añadir furigana al kanji seleccionado" aria-label="Furigana" lang="ja">振</button>
+  ${['ja', 'zh'].includes(baseLang(study)) ? '<button type="button" data-fmt="ruby" title="Añadir furigana al kanji seleccionado" aria-label="Furigana" lang="ja">振</button>' : ''}
   <button type="button" data-fmt="slash" title="Separar piezas con /" aria-label="Separador de piezas">/</button>
-  <span class="ed-sep" aria-hidden="true"></span>
-  ${CHARS.map(ch => `<button type="button" data-char="${ch}" aria-label="Insertar ${ch}">${ch}</button>`).join('')}
+  ${chars.length ? `<span class="ed-sep" aria-hidden="true"></span>${chars.map(ch => `<button type="button" data-char="${ch}" aria-label="Insertar ${ch}">${ch}</button>`).join('')}` : ''}
 </div>`;
+};
 
 function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
@@ -1696,10 +1785,10 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
     model = { type: getType(prefill.typeId) || BUILTIN_TYPES[0], fields: { ...prefill.fields } };
     model.tpl = model.type.templates[0];
   } else {
-    const t = getType(lastTypeFor(deckId)) || BUILTIN_TYPES[0];
+    const t = defaultTypeFor(deckId);
     model = { type: t, tpl: t.templates[0], fields: {} };
   }
-  S.edit = { open: true, dirty: false, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
+  S.edit = { open: true, dirty: false, deckId, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
     fields: { ...model.fields }, pv: model.tpl.id, pvSide: 'front', hint: prefill?.hint ?? c?.hint ?? '', tags: prefill?.tags ?? c?.tags ?? [] };
   const p = c && S.progress.get(c.id);
   const deck = S.decks.get(deckId);
@@ -1715,10 +1804,10 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
     <div class="ed-body">
       <section class="ed-main">
         <input type="hidden" id="c-type" value="${model.type.id}">
-        <div class="ed-types" role="radiogroup" aria-label="Tipo de tarjeta">${typeChips(model.type.id)}</div>
+        <div class="ed-typebar" id="typeBar">${typeBar(model.type.id, deckId)}</div>
         <p class="ed-typedesc" id="typeDesc">${esc(model.type.description || '')}</p>
-        <div id="fieldsBox" class="ed-fields">${fieldInputs(model.type, model.fields)}</div>
-        ${TOOLBAR()}
+        <div id="fieldsBox" class="ed-fields">${fieldInputs(typeIn(model.type, deckId), model.fields)}</div>
+        <div id="toolsBox">${TOOLBAR(deckId)}</div>
         <div class="ed-props">
           <div class="prop"><span class="prop-k">${icon('lightbulb', { size: 16 })} Pista</span><input id="c-hint" class="prop-v" maxlength="500" value="${esc(S.edit.hint)}" placeholder="Vacío · se puede ver antes de responder"></div>
           <div class="prop prop-tags"><span class="prop-k">${icon('tag', { size: 16 })} Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
@@ -1732,6 +1821,13 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
         <p class="ed-kbd">Toca la tarjeta para darle la vuelta · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda</p>
       </aside>
     </div>
+    <div class="ed-picker" id="typePicker" role="dialog" aria-label="Elegir tipo de tarjeta" hidden>
+      <div class="tp-top"><button type="button" class="iconbtn" data-act="close-picker" aria-label="Volver">${icon('x', { size: 18 })}</button>
+        <input id="typeSearch" type="search" placeholder="Buscar tipo de tarjeta" aria-label="Buscar tipo de tarjeta" autocomplete="off"></div>
+      <p class="hint tp-note"></p>
+      <div class="tp-body"></div>
+      <div class="btnrow tp-foot"><button type="button" class="link" data-act="types-all"></button><span class="spacer"></span><button type="button" class="ghost small-btn" data-act="manage-types">Gestionar tipos…</button></div>
+    </div>
     <footer class="ed-foot">
       ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Eliminar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
@@ -1743,8 +1839,6 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
   </form>`, { full: true });
   document.querySelectorAll('.ef-input').forEach(autoGrow);
   drawPreview();
-  const chip = document.querySelector('.tchip-big[aria-checked="true"]');
-  if (chip) { const row = chip.parentElement; row.scrollLeft = chip.getBoundingClientRect().left - row.getBoundingClientRect().left - 12; }
   if (matchMedia('(hover:hover)').matches) setTimeout(() => document.querySelector('.ef-input')?.focus(), 40);
 }
 function autoGrow(t) { t.style.height = 'auto'; t.style.height = Math.min(320, t.scrollHeight + 2) + 'px'; }
@@ -1760,11 +1854,18 @@ function setEditorType(id) {
     if (v) { used.add(f.name.toLowerCase()); return [f.id, v]; }
     return [f.id, vals[i] || ''];
   }));
-  S.edit.typeId = nt.id; S.edit.dirty = true;
+  if (nt.id !== old.id) S.edit.dirty = true;
+  S.edit.typeId = nt.id;
   $('#c-type').value = nt.id;
-  document.querySelectorAll('[data-set-type]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.setType === nt.id)));
-  $('#fieldsBox').innerHTML = fieldInputs(nt, S.edit.fields);
-  $('#typeDesc').textContent = nt.description || '';
+  redrawEditorFields();
+}
+// Tipo, campos y barras del editor según el tipo y el mazo elegidos (el idioma del mazo cambia los campos)
+function redrawEditorFields() {
+  const deckId = edDeck(), t = getType(S.edit.typeId) || BUILTIN_TYPES[0];
+  $('#typeBar').innerHTML = typeBar(t.id, deckId);
+  $('#fieldsBox').innerHTML = fieldInputs(typeIn(t, deckId), S.edit.fields);
+  $('#toolsBox').innerHTML = TOOLBAR(deckId);
+  $('#typeDesc').textContent = t.description || '';
   document.querySelectorAll('.ef-input').forEach(autoGrow);
   drawPreview();
 }
@@ -1803,7 +1904,7 @@ function readEditor() {
 function drawPreview() {
   const e = S.edit, box = $('#pvBody');
   if (!e || !box) return;
-  const type = getType(e.typeId) || BUILTIN_TYPES[0];
+  const type = typeIn(getType(e.typeId) || BUILTIN_TYPES[0], edDeck());
   const active = activeTemplates(type, e.fields);
   const tpls = type.templates;
   if (!tpls.some(t => t.id === e.pv)) e.pv = (active[0] || tpls[0]).id;
@@ -1861,7 +1962,9 @@ async function saveDeckForm(form) {
     pinned: $('#d-pinned').checked, is_public: $('#d-public').checked,
   };
   const nv = $('#d-new').value.trim();
-  fields.options = { ...(S.decks.get(id)?.options || {}), newPerDay: nv === '' ? null : Math.max(0, Math.min(500, Math.round(Number(nv) || 0))), preset: $('#d-preset').value };
+  const isLang = document.querySelector('[data-kind="lang"]')?.getAttribute('aria-pressed') === 'true';
+  fields.options = { ...(S.decks.get(id)?.options || {}), newPerDay: nv === '' ? null : Math.max(0, Math.min(500, Math.round(Number(nv) || 0))), preset: $('#d-preset').value,
+    lang: isLang ? $('#d-lang').value : '' };
   if (id && fields.is_public) fields.types = deckTypes(id);
   if ($('#d-archived')) fields.archived = $('#d-archived').checked;
   if (!fields.name) return toast('Ponle un nombre al mazo');
@@ -2001,12 +2104,12 @@ async function saveCardForm(form, more) {
 /* ---------- Creación rápida: pegar una lista ---------- */
 function quickSheet() {
   const deckId = S.deckId;
-  const t = getType(lastTypeFor(deckId)) || BUILTIN_TYPES[0];
+  const t = defaultTypeFor(deckId);
   openSheet(`<h2>Crear varias tarjetas</h2>
     <p class="muted small">Pega una lista con una tarjeta por línea. Cada columna rellena un campo, en orden.</p>
     <form data-form="quick" class="cardform">
       <div class="two">
-        <div><label for="q-type">Tipo de tarjeta</label><select id="q-type">${typeOptions(t.id)}</select></div>
+        <div><label for="q-type">Tipo de tarjeta</label><select id="q-type">${typeOptions(t.id, deckId)}</select></div>
         <div><label for="q-sep">Separador</label><select id="q-sep">
           <option value="auto">Detectar solo</option><option value="\t">Tabulador (copiado de Excel)</option><option value=" - ">Guion ( - )</option>
           <option value=";">Punto y coma (;)</option><option value=",">Coma (,)</option><option value=" = ">Igual ( = )</option><option value="|">Barra (|)</option></select></div>
@@ -2068,12 +2171,14 @@ async function saveQuick(form) {
 /* ---------- Tipos de tarjeta: gestor y editor ---------- */
 function typeUsage(id) { return cardList().filter(c => c.type_id === id).length; }
 function typesSheet() {
-  const row = (t, own) => `<li class="typerow"><span class="icon">${typeIcon(t, 20)}</span>
-    <span class="info"><span class="dname">${esc(t.name)}</span><span class="meta">${esc(t.description || `${t.fields.length} campos · ${t.templates.length} ${t.templates.length === 1 ? 'tarjeta' : 'tarjetas'} por nota`)}</span></span>
+  const scopeText = t => { const s = typeScope(t); return s === 'general' ? 'Cualquier tema' : s === 'lang' ? 'Idiomas' : s.map(b => LANGS.find(l => l.id.split('-')[0] === b)?.label || b).join(', '); };
+  const row = (t, own) => `<li class="typerow${typeHidden(t) ? ' is-hidden' : ''}"><span class="icon">${typeIcon(t, 20)}</span>
+    <span class="info"><span class="dname">${esc(t.name)}</span><span class="meta">${esc(scopeText(t))} · ${esc(t.description || `${t.fields.length} campos · ${t.templates.length} ${t.templates.length === 1 ? 'tarjeta' : 'tarjetas'} por nota`)}</span></span>
+    <button class="ghost small-btn" data-hide-type="${t.id}" aria-pressed="${typeHidden(t)}" title="${typeHidden(t) ? 'Volver a mostrarlo en el editor' : 'No mostrarlo en el editor'}">${typeHidden(t) ? 'Mostrar' : 'Ocultar'}</button>
     ${own ? `<button class="ghost small-btn" data-edit-type="${t.id}">Editar</button>` : `<button class="ghost small-btn" data-copy-type="${t.id}">Personalizar</button>`}</li>`;
   const own = [...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   openSheet(`<h2>Tipos de tarjeta</h2>
-    <p class="muted small">Un tipo define qué campos rellenas y qué tarjetas se crean con ellos. Personaliza uno incluido o crea el tuyo desde cero.</p>
+    <p class="muted small">Un tipo define qué campos rellenas y qué tarjetas se crean con ellos. Personaliza uno incluido o crea el tuyo desde cero. Los que ocultes no saldrán en el editor (siguen en «Ver todos los tipos»).</p>
     ${own.length ? `<h3 class="sub-h">Tus tipos</h3><ul class="typelist">${own.map(t => row(t, true)).join('')}</ul>` : ''}
     <h3 class="sub-h">Incluidos</h3><ul class="typelist">${BUILTIN_TYPES.map(t => row(t, false)).join('')}</ul>
     <div class="btnrow"><button class="primary" data-act="new-type">+ Tipo nuevo</button><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
@@ -2102,10 +2207,12 @@ function drawTypeEditor() {
       <label for="ty-desc">Descripción (opcional)</label><input id="ty-desc" maxlength="300" value="${esc(t.description || '')}">
 
       <h3 class="sub-h">1 · Campos</h3>
-      <p class="hint">Lo que rellenarás en cada nota. Si eliges un idioma, el campo tendrá botón de audio.</p>
+      <p class="hint">Lo que rellenarás en cada nota. Si eliges un idioma, el campo tendrá botón de audio. «Idioma del mazo» y «Tu idioma» se adaptan a cada mazo: el mismo tipo sirve para turco, alemán o japonés.</p>
       <ol class="tfields">${t.fields.map((f, i) => `<li data-fi="${i}">
         <input class="tf-name" value="${esc(f.name)}" maxlength="40" aria-label="Nombre del campo ${i + 1}">
-        <select class="tf-lang" aria-label="Idioma del audio">${LANGS.map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</select>
+        <select class="tf-lang" aria-label="Idioma del audio"><option value="" ${!f.lang ? 'selected' : ''}>Sin audio</option>
+          <optgroup label="Según el mazo">${LANG_ROLES.map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</optgroup>
+          <optgroup label="Siempre el mismo">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</optgroup></select>
         <label class="tf-auto" title="Reproducir solo al aparecer"><input type="checkbox" class="tf-autoplay" ${f.autoplay ? 'checked' : ''} ${f.lang ? '' : 'disabled'}>Auto</label>
         <span class="tf-btns"><button type="button" class="iconbtn" data-fmove="${i}:-1" aria-label="Subir" ${i ? '' : 'disabled'}>${icon('arrow-up', { size: 15 })}</button><button type="button" class="iconbtn" data-fmove="${i}:1" aria-label="Bajar" ${i < t.fields.length - 1 ? '' : 'disabled'}>${icon('arrow-down', { size: 15 })}</button><button type="button" class="iconbtn danger" data-fdel="${i}" aria-label="Quitar campo" ${t.fields.length > 1 ? '' : 'disabled'}>${icon('x', { size: 15 })}</button></span>
       </li>`).join('')}</ol>
@@ -2214,6 +2321,52 @@ async function adoptTypes(types = []) {
   return map;
 }
 
+/* ---------- Idioma de los mazos: migración de lo anterior ---------- */
+// Antes el idioma iba en los tipos (Vocabulario, Dictado y Ordenar frase en turco, y copias como
+// «Vocabulario · Japonés» para el resto). Ahora es del mazo. Esto se hace una vez por mazo y por copia.
+const LEGACY_LANG = { vocab: 'tr-TR', listen: 'tr-TR', order: 'tr-TR', kanji: 'ja-JP', 'de-noun': 'de-DE' };
+function guessDeckLang(d) {
+  const votes = new Map();
+  const vote = l => { if (l) votes.set(l, (votes.get(l) || 0) + 1); };
+  for (const c of cardList()) {
+    if (c.deck_id !== d.id || !c.fields || !Object.keys(c.fields).length) continue;
+    const t = getType(c.type_id);
+    if (!t) continue;
+    if (t.builtin) { vote(LEGACY_LANG[t.id]); continue; }
+    vote(t.fields.map(f => f.lang).find(l => l && !l.startsWith('@') && baseLang(l) !== 'es'));
+  }
+  if (votes.size) return [...votes].sort((a, b) => b[1] - a[1])[0][0];
+  const src = String(d.source || '');
+  if (src.includes('incluido:turco')) return 'tr-TR';
+  if (src.includes('incluido:japones')) return 'ja-JP';
+  // Por el nombre: «Turco básico», «Alemán · La casa»…
+  const name = ` ${norm(d.name).replace(/[^\p{L}]+/gu, ' ')} `;
+  return LANGS.find(l => l.id && l.id !== 'es-ES' && name.includes(` ${norm(l.label.split(' ')[0])} `))?.id || '';
+}
+// «Vocabulario · Japonés» creado al importar con el formato anterior → el tipo incluido del que salió
+function legacyCopyOf(t) {
+  const m = /^(.+) · (.+)$/.exec(t.name || '');
+  return m ? BUILTIN_TYPES.find(b => b.name === m[1] && JSON.stringify(b.templates) === JSON.stringify(t.templates)) || null : null;
+}
+// Se aplica en memoria en el acto (para pintar ya con el idioma) y se guarda después; si no se puede
+// guardar (sin red), se repite la próxima vez que se cargue.
+function migrateDeckLangs() {
+  const decks = [...S.decks.values()].filter(x => !x.options || !('lang' in x.options));
+  for (const d of decks) d.options = { ...(d.options || {}), lang: guessDeckLang(d) };
+  const copies = [...S.types.values()].map(t => [t, legacyCopyOf(t)]).filter(([, base]) => base);
+  const touched = new Set();
+  for (const [t, base] of copies) {
+    for (const c of S.cards.values()) if (c.type_id === t.id) { c.type_id = base.id; touched.add(c.deck_id); }
+    S.types.delete(t.id);
+  }
+  if (S.fromCache || (!decks.length && !copies.length)) return Promise.resolve();
+  return (async () => {
+    for (const d of decks) { try { await api.updateDeck(d.id, { options: d.options }); } catch {} }
+    for (const [t, base] of copies) { try { await api.retypeCards(t.id, base.id); await api.deleteType(t.id); } catch {} }
+    for (const id of touched) if (S.decks.get(id)?.is_public) refreshDeckTypes(id).catch(() => {});
+  })();
+}
+
 async function saveProfileForm(form) {
   const name = $('#p-name').value.trim().slice(0, 40);
   const btn = form.querySelector('[type=submit]'); btn.disabled = true;
@@ -2238,7 +2391,8 @@ function parseDeckFile(data) {
       hint: String(c.hint || ''),
     }));
   if (!cards.length) throw new Error('El archivo no tiene tarjetas');
-  return { name: String(data.name || 'Mazo importado').slice(0, 80), description: String(data.description || '').slice(0, 300), cards, types: Array.isArray(data.types) ? data.types : [] };
+  return { name: String(data.name || 'Mazo importado').slice(0, 80), description: String(data.description || '').slice(0, 300), cards, types: Array.isArray(data.types) ? data.types : [],
+    lang: typeof data.lang === 'string' && (data.lang === '' || LANGS.some(l => l.id === data.lang)) ? data.lang : undefined };
 }
 async function importFile(file) {
   try {
@@ -2265,7 +2419,7 @@ function exportDeck(kind) {
   if (kind === 'csv') return download(cardsToCSV(cards), slug + '.csv', 'text/csv;charset=utf-8');
   const full = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
     .map(c => ({ front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '' }));
-  const data = { format: 'flaski-deck', version: 2, name: d.name, description: d.description || '', types: deckTypes(d.id), cards: full };
+  const data = { format: 'flaski-deck', version: 2, name: d.name, description: d.description || '', lang: deckLang(d.id), types: deckTypes(d.id), cards: full };
   download(JSON.stringify(data, null, 2), slug + '.flaski.json', 'application/json');
 }
 
@@ -2300,7 +2454,7 @@ document.addEventListener('click', async e => {
   if (ds.open) return go('deck', { deckId: ds.open, cardQuery: '' });
   if (ds.move) return moveSheet([ds.move]);
   if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); speak(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
-  if (ds.sayInput) { const t = getType(S.edit?.typeId); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
+  if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
   if (ds.listen) { const c = S.cards.get(S.session?.queue[0]); if (c) playListen(cardModel(c), +ds.listen); return; }
   if (ds.strokes) {
@@ -2317,6 +2471,19 @@ document.addEventListener('click', async e => {
     return renderStudy();
   }
   if (ds.setType) return setEditorType(ds.setType);
+  if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
+  if (ds.hideType) {
+    const h = S.prefs.types.hidden;
+    S.prefs.types.hidden = h.includes(ds.hideType) ? h.filter(x => x !== ds.hideType) : [...h, ds.hideType];
+    savePrefsSoon();
+    const y = $('#sheetBody').scrollTop; typesSheet(); $('#sheetBody').scrollTop = y;
+    return;
+  }
+  if (ds.kind) {
+    b.parentElement.querySelectorAll('[data-kind]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('#d-lang-row').hidden = ds.kind !== 'lang';
+    return;
+  }
   if (ds.fmt) return applyFormat(ds.fmt);
   if (ds.pv) { S.edit.pv = ds.pv; S.edit.pvSide = 'front'; return drawPreview(); }
   if (ds.pvside) { S.edit.pvSide = ds.pvside; return drawPreview(); }
@@ -2466,6 +2633,9 @@ document.addEventListener('click', async e => {
     case 'manage-tags': return tagsSheet();
     case 'quick-add': return quickSheet();
     case 'manage-types': S.typeEdit = null; return typesSheet();
+    case 'pick-type': return openTypePicker(true);
+    case 'close-picker': return openTypePicker(false);
+    case 'types-all': S.edit.pick.all = !S.edit.pick.all; return drawTypePicker();
     case 'new-type': return typeEditor(blankType());
     case 'add-field': { const t = readTypeEditor(); const id = nextId('f', t.fields); t.fields.push({ id, name: `Campo ${t.fields.length + 1}`, lang: '', autoplay: false, help: '' }); return drawTypeEditor(); }
     case 'add-template': { const t = readTypeEditor(); t.templates.push({ id: nextId('t', t.templates), name: `Tarjeta ${t.templates.length + 1}`, mode: 'flip', front: [t.fields[0].id], back: t.fields.slice(1).map(f => f.id) }); return drawTypeEditor(); }
@@ -2616,6 +2786,7 @@ document.addEventListener('submit', async e => {
 });
 
 document.addEventListener('input', e => {
+  if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
   if (e.target.type === 'range' && e.target.dataset?.pref) { setPref(e.target.dataset.pref, Number(e.target.value)); return prefChanged(e.target.dataset.pref); }
   if (e.target.id === 'cardSearch') {
     S.cardQuery = e.target.value;
@@ -2664,8 +2835,7 @@ document.addEventListener('change', e => {
     const d = S.decks.get(e.target.value);
     const ic = e.target.closest('.ed-deck')?.querySelector('.icon, .dot');
     if (ic && d) ic.outerHTML = deckIcon(d);
-    if (S.edit) S.edit.dirty = true;
-    drawPreview();
+    if (S.edit) { S.edit.dirty = true; readEditor(); redrawEditorFields(); }
   }
   if (['q-type', 'q-sep'].includes(e.target.id)) drawQuick();
   if (e.target.closest?.('.typeform') && (e.target.matches('select, input[type=checkbox]'))) { readTypeEditor(); const y = $('#sheetBody').scrollTop; drawTypeEditor(); $('#sheetBody').scrollTop = y; }
@@ -2701,6 +2871,9 @@ $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
+    // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero
+    if (S.edit?.pick && e.key === 'Escape') { e.preventDefault(); return openTypePicker(false); }
+    if (S.edit?.pick && e.key === 'Enter' && e.target.id === 'typeSearch') { e.preventDefault(); document.querySelector('[data-pick-type]')?.click(); return; }
     if (e.key === 'Escape') requestClose();
     if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'i') && e.target.matches('.ef-input')) { e.preventDefault(); applyFormat(e.key === 'b' ? 'bold' : 'italic'); return; }
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const f = document.querySelector('#sheetBody form[data-form]'); if (f) { e.preventDefault(); f.requestSubmit(); } }

@@ -603,12 +603,33 @@ ruby rt{font-size:.5em;font-weight:400;color:var(--muted)}
 .ed-main{padding:18px 18px 8px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .ed-side{padding:18px;background:var(--soft);display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);min-width:0}
 @media (min-width:900px){.ed-side{border-top:0;border-left:1px solid var(--line)}}
-.ed-types{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:thin;scroll-snap-type:x proximity}
-.tchip-big{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:92px;min-height:70px;padding:8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:12px;line-height:1.2;text-align:center;color:var(--fg)}
-.tchip-big .tci{font-size:22px;line-height:1}
-.tchip-big:hover{background:var(--hover)}
-.tchip-big[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--tag-blue-bg);color:var(--tag-blue)}
-.tchip-add{border-style:dashed;color:var(--muted)}
+/* Tipo de tarjeta: el actual (abre el selector) y los que más usas en este mazo */
+.ed-typebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ed-typesel{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:6px 10px 6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-weight:600;font-size:15px;color:var(--fg)}
+.ed-typesel:hover{background:var(--hover)}
+.ed-typesel .tci,.tq .tci{display:inline-grid;place-items:center;line-height:1}
+.ed-typesel .lu:last-child{color:var(--muted)}
+.ed-quick{display:contents}
+.tq{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 10px;border:0;border-radius:99px;background:var(--soft);font-size:13px;color:var(--muted)}
+.tq:hover{background:var(--hover);color:var(--fg)}
+/* Selector de tipos: ocupa el editor mientras se elige */
+.ed.picking > .ed-body,.ed.picking > .ed-foot,.ed.picking > .ed-discard{display:none}
+.ed-picker{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px;display:flex;flex-direction:column;gap:10px}
+.ed-picker[hidden]{display:none}
+.tp-top{display:flex;gap:8px;align-items:center;position:sticky;top:-14px;background:var(--bg);padding:4px 0 6px;z-index:1}
+.tp-top input{flex:1}
+.tp-note{margin:0}
+.tp-h{font-size:13px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+.tp-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
+.tp-item{width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+.tp-item:hover{background:var(--hover)}
+.tp-item[aria-pressed="true"]{background:var(--soft);border-color:var(--line-strong,var(--line))}
+.tp-item .tci{font-size:20px;line-height:1;display:inline-grid;place-items:center;margin-top:2px}
+.tp-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tp-txt b{font-weight:600;font-size:15px}
+.tp-txt small{font-size:13px;color:var(--muted);line-height:1.35}
+.tp-foot{margin-top:6px;align-items:center}
+.typerow.is-hidden .icon,.typerow.is-hidden .info{opacity:.5}
 .ed-typedesc{font-size:13.5px;color:var(--muted);margin-top:-6px}
 .ed-fields{display:flex;flex-direction:column;gap:2px}
 .ef{position:relative;border-radius:8px;padding:8px 10px 10px;transition:background .15s}
