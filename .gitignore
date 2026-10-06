@@ -1,0 +1,3 @@
+# Resultados de Playwright si se lanza desde la raíz por error (las pruebas viven en tests/)
+test-results/
+playwright-report/
