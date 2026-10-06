@@ -564,7 +564,7 @@ function faceHTML(model, st, { preview = false } = {}) {
   let front;
   if (tpl.mode === 'cloze') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.front[0]), st.revealed)}</span>${say(tpl.front[0])}</div></div>`;
   else front = tpl.front.map((id, i) => block(id, i === 0)).join('');
-  if (tpl.hideRuby && !st.revealed) front = `<div class="ruby-hide">${front}</div>`;
+  if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
 
   // Interacción antes de destapar
   let ask = '';
@@ -2211,7 +2211,8 @@ function fieldInputs(type, values) {
     const roles = fieldRoles(type, f.id);
     const req = requiredField(type, f.id);
     const lang = f.lang ? LANGS.find(l => l.id === f.lang)?.label || f.lang : '';
-    const help = f.help || (f.lang?.startsWith('ja') ? 'Furigana: selecciona el kanji y pulsa 振 en la barra, o escribe 漢字[かんじ].' : '');
+    const cjk = /^(ja|zh)/.test(f.lang || '');
+    const help = f.help || (f.lang?.startsWith('ja') ? 'Furigana: escribe el kanji y pulsa 振 en la barra (o escribe 漢字[かんじ]).' : '');
     return `<div class="ef${req ? ' ef-req' : ''}" data-ef="${f.id}">
       <div class="ef-head">
         <label class="ef-name" for="fld-${f.id}">${esc(f.name)}${req ? '<span class="ef-dot" title="Necesario" aria-label="necesario">•</span>' : ''}</label>
@@ -2219,6 +2220,7 @@ function fieldInputs(type, values) {
         ${f.lang && ttsAvailable() ? `<button type="button" class="ef-say" data-say-input="${f.id}" aria-label="Escuchar ${esc(f.name)}" title="Escuchar">${SPEAK_ICON}</button>` : ''}
       </div>
       <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
+      ${cjk ? `<div class="ef-ruby" data-ruby-for="${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
       ${help ? `<p class="ef-help">${esc(help)}</p>` : ''}
     </div>`;
   }).join('');
@@ -2233,7 +2235,7 @@ const TOOLBAR = deckId => {
   ${['ja', 'zh'].includes(baseLang(study)) ? '<button type="button" data-fmt="ruby" title="Añadir furigana al kanji seleccionado" aria-label="Furigana" lang="ja">振</button>' : ''}
   <button type="button" data-fmt="slash" title="Separar piezas con /" aria-label="Separador de piezas">/</button>
   ${chars.length ? `<span class="ed-sep" aria-hidden="true"></span>${chars.map(ch => `<button type="button" data-char="${ch}" aria-label="Insertar ${ch}">${ch}</button>`).join('')}` : ''}
-</div>`;
+</div><div class="ruby-pop" id="rubyPop" role="dialog" aria-label="Furigana" hidden></div>`;
 };
 
 // En el editor de tarjetas: de qué apuntes sale la tarjeta
@@ -2355,17 +2357,63 @@ function applyFormat(kind) {
   if (kind === 'bold') wrap('**', '**', 'texto');
   else if (kind === 'italic') wrap('*', '*', 'texto');
   else if (kind === 'cloze') { if (!sel) return toast('Selecciona la parte que quieres ocultar'); wrap('{{', '}}'); }
-  else if (kind === 'ruby') {
-    if (!sel || !/^[㐀-鿿豈-﫿々]+$/.test(sel)) return toast('Selecciona primero el kanji (sin kana)');
-    t.value = t.value.slice(0, z) + '[]' + t.value.slice(z);
-    t.focus(); t.selectionStart = t.selectionEnd = z + 1;
-    toast('Escribe la lectura entre los corchetes');
-  } else if (kind === 'slash') {
+  else if (kind === 'ruby') return rubyPrompt(t);
+  else if (kind === 'slash') {
     t.value = t.value.slice(0, a) + ' / ' + t.value.slice(z);
     t.focus(); t.selectionStart = t.selectionEnd = a + 3;
   }
   S.edit.dirty = true;
   autoGrow(t); readEditor(); drawPreview();
+}
+/* ---------- Furigana en el editor ---------- */
+const KANJI = /[㐀-䶿一-鿿豈-﫿々〆ヶ]/;
+const hasRuby = s => new RegExp(RUBY_RE.source).test(String(s || ''));
+// Vista previa con la furigana bajo un campo (solo cuando la lleva)
+function rubyLine(t) {
+  const box = document.querySelector(`[data-ruby-for="${t.dataset.fld}"]`);
+  if (!box) return;
+  box.hidden = !hasRuby(t.value);
+  box.innerHTML = box.hidden ? '' : fmt(t.value);
+}
+// 振: pide la lectura del kanji seleccionado (o del que está justo antes del cursor), con vista previa.
+// Si ya tenía lectura, se edita o se quita.
+function rubyPrompt(t) {
+  const v = t.value;
+  let a = t.selectionStart, z = t.selectionEnd;
+  // Cursor dentro de una lectura «漢字[かん|じ]»: se edita esa
+  const open = v.lastIndexOf('[', a - 1), close = v.indexOf(']', a);
+  if (a === z && open >= 0 && close >= a && !v.slice(open, close).includes('\n') && !v.slice(open + 1, a).includes(']')) { z = open; a = open; }
+  // Sin selección: la palabra en kanji donde está el cursor (hacia atrás y hacia delante)
+  if (a === z) { while (a > 0 && KANJI.test(v[a - 1])) a--; while (z < v.length && KANJI.test(v[z])) z++; }
+  const base = v.slice(a, z);
+  if (!base || ![...base].every(c => KANJI.test(c))) return toast('Escribe o selecciona el kanji y pulsa 振');
+  const m = /^\[([^\]\n]*)\]/.exec(v.slice(z));
+  S.rubyEdit = { t, z, old: m ? m[0].length : 0 };
+  const box = $('#rubyPop');
+  box.hidden = false;
+  box.innerHTML = `<span class="rp-pv" lang="ja" aria-hidden="true"><ruby>${esc(base)}<rt id="rpRt">${esc(m?.[1] || '')}</rt></ruby></span>
+    <input id="rpIn" lang="ja" value="${esc(m?.[1] || '')}" placeholder="Lectura (hiragana)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Lectura de ${esc(base)}">
+    ${m ? '<button type="button" class="link small" data-act="ruby-del">Quitar</button>' : ''}
+    <button type="button" class="primary small-btn" data-act="ruby-ok">${m ? 'Cambiar' : 'Añadir'}</button>`;
+  $('#rpIn').focus();
+  $('#rpIn').select();
+}
+function rubyApply(remove = false) {
+  const r = S.rubyEdit;
+  if (!r || !r.t.isConnected) return rubyClose();
+  const reading = remove ? '' : ($('#rpIn')?.value || '').replace(/[[\]\n]/g, '').trim();
+  const insert = reading ? `[${reading}]` : '';
+  const v = r.t.value;
+  r.t.value = v.slice(0, r.z) + insert + v.slice(r.z + r.old);
+  rubyClose();
+  const pos = r.z + insert.length;
+  r.t.focus(); r.t.setSelectionRange(pos, pos);
+  S.edit.dirty = true; autoGrow(r.t); readEditor(); drawPreview(); rubyLine(r.t);
+}
+function rubyClose() {
+  S.rubyEdit = null;
+  const box = $('#rubyPop');
+  if (box) { box.hidden = true; box.innerHTML = ''; }
 }
 function readEditor() {
   const e = S.edit;
@@ -2906,6 +2954,9 @@ function exportDeck(kind) {
 document.addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) {
+    // Furigana oculta: tocar un kanji deja ver su lectura (solo esa, y se vuelve a ocultar con otro toque)
+    const rb = e.target.closest('.ruby-hide ruby');
+    if (rb) { rb.classList.toggle('peek'); return; }
     // Tocar un bloque de los apuntes lo pone en edición (salvo que se esté seleccionando texto)
     const eb = e.target.closest('[data-edit-block]');
     if (eb && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock);
@@ -3193,6 +3244,8 @@ document.addEventListener('click', async e => {
     }
     case 'page-copy-md': { const ok = await copyText(pageToMarkdown(curPage()), 'Apunte copiado'); if (!ok) toast('No se ha podido copiar'); return closeSheet(); }
     case 'notes-help': return notesHelpSheet();
+    case 'ruby-ok': return rubyApply();
+    case 'ruby-del': return rubyApply(true);
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
     case 'pick-type': return openTypePicker(true);
@@ -3376,7 +3429,9 @@ document.addEventListener('input', e => {
     renderDeck();
     const f = $('#cardSearch'); f.focus(); f.setSelectionRange(pos, pos);
   } else if (e.target.dataset?.fld) {
-    S.edit.dirty = true; autoGrow(e.target); readEditor(); drawPreview();
+    S.edit.dirty = true; autoGrow(e.target); readEditor(); drawPreview(); rubyLine(e.target);
+  } else if (e.target.id === 'rpIn') {
+    const rt = $('#rpRt'); if (rt) rt.textContent = e.target.value;
   } else if (e.target.id === 'c-hint') {
     S.edit.dirty = true; readEditor();
   } else if (e.target.id === 'q-text') {
@@ -3462,6 +3517,11 @@ document.addEventListener('keydown', e => {
   if (!$('#sheet').hidden) {
     // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero
     if (S.edit?.pick && e.key === 'Escape') { e.preventDefault(); return openTypePicker(false); }
+    if (e.target.id === 'rpIn' && (e.key === 'Enter' || e.key === 'Escape')) {
+      e.preventDefault();
+      if (e.key === 'Enter') return rubyApply();
+      const t = S.rubyEdit?.t; rubyClose(); t?.focus(); return;
+    }
     if (S.edit?.pick && e.key === 'Enter' && e.target.id === 'typeSearch') { e.preventDefault(); document.querySelector('[data-pick-type]')?.click(); return; }
     if (e.key === 'Escape') requestClose();
     if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'i') && e.target.matches('.ef-input')) { e.preventDefault(); applyFormat(e.key === 'b' ? 'bold' : 'italic'); return; }

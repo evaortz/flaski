@@ -546,8 +546,25 @@ details.more[open] summary{margin-bottom:4px}
 .fld-t{min-width:0}
 
 /* ===== Escribir a mano, dictado, ordenar, furigana ===== */
-ruby rt{font-size:.5em;font-weight:400;color:var(--muted)}
-.ruby-hide rt{visibility:hidden}
+/* Furigana: lectura pequeña y centrada sobre el kanji, con aire para no chocar con la línea de arriba */
+ruby{ruby-position:over;ruby-align:center;-webkit-ruby-position:before}
+ruby rt{font-size:.46em;font-weight:500;letter-spacing:.06em;line-height:1.15;color:var(--muted);font-feature-settings:"palt";user-select:none;padding-bottom:.08em}
+:is(.front,.answer,.fld-v,.nb-text,.pv-card,.preview,.ef-ruby):has(ruby){line-height:2.15}
+/* Oculta en el anverso: cada lectura es una marca discreta que se destapa al tocar el kanji */
+.ruby-hide ruby{cursor:pointer;border-radius:4px;transition:background-color .15s}
+.ruby-hide ruby:hover{background:var(--hover)}
+.ruby-hide rt{color:transparent;position:relative}
+.ruby-hide rt::after{content:'';position:absolute;left:50%;bottom:.32em;transform:translateX(-50%);width:min(100%,2.2em);height:.32em;border-radius:99px;background:var(--line-strong,var(--line));transition:opacity .2s}
+.ruby-hide ruby.peek rt{color:var(--muted)}
+.ruby-hide ruby.peek rt::after{opacity:0}
+/* Editor: vista previa bajo el campo y recuadro para escribir la lectura */
+.ef-ruby{margin-top:2px;padding:4px 10px;border-radius:8px;background:var(--soft);font-size:17px;color:var(--fg)}
+.ef-ruby[hidden]{display:none}
+.ruby-pop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);box-shadow:0 4px 16px rgba(15,15,15,.08)}
+.ruby-pop[hidden]{display:none}
+.rp-pv{font-size:30px;line-height:1.9;min-width:2.4em;text-align:center;padding:0 6px;border-radius:8px;background:var(--soft)}
+.rp-pv rt{color:var(--fg);font-size:.42em}
+#rpIn{flex:1;min-width:140px;font-size:17px}
 .draw-area{display:flex;justify-content:center;min-height:200px}
 .draw-loading{display:grid;place-items:center;min-height:200px}
 .hw-box,.canvas-wrap{position:relative;border:1px solid var(--line-strong);border-radius:10px;background:
