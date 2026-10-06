@@ -141,6 +141,7 @@ tests/                  Pruebas automáticas (no forman parte de la app)
 - **Para añadir un mazo incluido:** crea un archivo en `decks/` con el formato de abajo y añádelo a `decks/index.json`.
 - **Para cambiar el algoritmo de repaso:** todo está en `schedule()` dentro de `js/srs.js`.
 - **Para probarla en tu ordenador** antes de subirla, mira la sección «Probarla en tu ordenador» de arriba.
+- **Presentación de bienvenida** (`js/onboarding.js`): sale la primera vez, a quien entra sin mazos ni apuntes, y se puede volver a ver en Perfil. Sus capturas (`img/onboarding/`, en claro y oscuro) se sacan de la app real: si cambias la interfaz, regéneralas con `npm run capturas` dentro de `tests/`.
 - **Pruebas automáticas:** antes de subir cambios, ejecuta `npm install` (solo la primera vez) y `npm test` dentro de `tests/`. Hay pruebas de la lógica (`tests/unit`, con Node) y de la app entera en un navegador, en móvil y escritorio (`tests/e2e`, con Playwright). Siempre usan el modo local, así que nunca tocan tu base de datos de Supabase. La primera vez, Playwright puede pedir `npx playwright install chromium`.
 
 ### Importar desde CSV

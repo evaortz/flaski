@@ -17,6 +17,7 @@ export const DEFAULT_PREFS = {
     nativeLang: 'es-ES',    // tu idioma: el de las traducciones en los mazos de idiomas
   },
   types: { hidden: [] },    // tipos de tarjeta que no quieres ver en el editor
+  intro: { done: false },   // ya has visto la presentación de bienvenida
   algo: { preset: 'standard', custom: { ...DEFAULT_ALGO } },
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'

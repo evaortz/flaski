@@ -9,7 +9,11 @@ export const APP_NAME = 'Flaski';
 `;
 
 export const test = base.extend({
-  page: async ({ page }, use) => {
+  // La presentación de bienvenida sale con la app vacía: en las pruebas se da por vista,
+  // salvo en las que la prueban (test.use({ intro: true })).
+  intro: [false, { option: true }],
+  page: async ({ page, intro }, use) => {
+    if (!intro) await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); } catch {} });
     await page.route('**/js/config.js', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     // Nada de red externa (trazos de kanji, etc.)
     await page.route('https://cdn.jsdelivr.net/**', route => route.abort());

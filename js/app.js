@@ -17,6 +17,7 @@ import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDec
 import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
+import { openOnboarding } from './onboarding.js';
 import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
@@ -329,6 +330,7 @@ async function onSignedIn(session) {
     if (!S.fromCache) saveSnap();
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     render();
+    maybeIntro();
   } catch (e) {
     S.loading = false;
     main.innerHTML = `<div class="panel"><h2>No se pudieron cargar tus datos</h2><p>${esc(errMsg(e))}</p><button class="primary" data-act="reload">Reintentar</button></div>`;
@@ -350,6 +352,55 @@ function applyData(d) {
   S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
   S.pagesMissing = !!d.pagesMissing;
   S.pageTagsMissing = !!d.pageTagsMissing;
+}
+
+/* ===================== bienvenida ===================== */
+// La presentación sale una vez, a quien entra sin nada todavía. Se recuerda en la cuenta (Ajustes) y en
+// este navegador, por si se cierra antes de que se guarde.
+const INTRO_KEY = 'flaski-intro-done';
+const introDone = () => S.prefs.intro.done || (() => { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return false; } })();
+function maybeIntro() {
+  if (!introDone() && S.decks.size === 0 && S.pages.size === 0 && !S.session && !S.recovery) showIntro();
+}
+const isDark = () => {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+};
+async function showIntro() {
+  if (document.querySelector('.ob')) return;
+  let examples = S.builtin;
+  if (!examples) { try { examples = S.builtin = await (await fetch('decks/index.json', { cache: 'no-cache' })).json(); } catch { examples = []; } }
+  const counts = new Map();
+  for (const d of S.decks.values()) { const l = d.options?.lang; if (l) counts.set(l, (counts.get(l) || 0) + 1); }
+  const common = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  openOnboarding({
+    name: S.name,
+    langs: LANGS.filter(l => l.id && l.id !== nativeLang()),
+    examples,
+    defaultLang: common || (nativeLang().startsWith('en') ? 'es-ES' : 'en-GB'),
+    dark: isDark,
+    onFinish: introChosen,
+  });
+}
+async function introChosen(choice) {
+  S.prefs.intro.done = true;
+  try { localStorage.setItem(INTRO_KEY, '1'); } catch {}
+  savePrefsSoon();
+  const kind = choice?.kind;
+  if (kind === 'lang') {
+    try {
+      const d = await api.createDeck({ owner: S.uid, name: langLabel(choice.lang), options: { lang: choice.lang } });
+      S.decks.set(d.id, { tags: [], ...d });
+      go('deck', { deckId: d.id, cardQuery: '' });
+      toast('Mazo creado: añade tu primera tarjeta');
+      return cardForm(null, { deckId: d.id });
+    } catch (e) { return fail(e); }
+  }
+  if (kind === 'example') { go('explore'); return openBuiltinPreview(choice.file); }
+  if (kind === 'notes') { go('notes', { noteFolder: null }); return newPage(); }
+  if (kind === 'ia') { go('decks', { folderId: null }); return pasteSheet(); }
+  if (kind === 'explore') return go('explore');
+  go('home');
 }
 
 /* ===================== sin conexión ===================== */
@@ -1087,7 +1138,8 @@ async function openBuiltinPreview(file) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
     if (!/^[\w.-]+\.json$/.test(file)) throw new Error('Archivo no válido');
-    const d = parseDeckFile(await (await fetch('decks/' + file)).json());
+    const raw = await (await fetch('decks/' + file)).json();
+    const d = isNotesDeck(raw) ? notesToDeck(raw) : parseDeckFile(raw);   // también en formato por notas
     S.preview = { ...d, source: 'incluido:' + file };
     showPreview('incluido en la app');
   } catch (e) { closeSheet(); fail(e); }
@@ -1588,6 +1640,7 @@ function renderProfile() {
     <ul class="list linklist">
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, mazo y tipo de tarjeta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
+      <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
     </ul>
     <div class="panel"><form data-form="profile">
       <label for="p-name" style="margin-top:0">Tu nombre (lo ven quienes usan tus mazos compartidos)</label>
@@ -3244,6 +3297,7 @@ document.addEventListener('click', async e => {
     }
     case 'page-copy-md': { const ok = await copyText(pageToMarkdown(curPage()), 'Apunte copiado'); if (!ok) toast('No se ha podido copiar'); return closeSheet(); }
     case 'notes-help': return notesHelpSheet();
+    case 'intro': return showIntro();
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
     case 'sel-card': return cardFromSelection('card');

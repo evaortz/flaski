@@ -5,7 +5,8 @@
   "scripts": {
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "node --test \"unit/*.test.js\"",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "capturas": "playwright test --config capturas.config.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"
