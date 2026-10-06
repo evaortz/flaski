@@ -89,6 +89,16 @@ export const BUILTIN_TYPES = [
     ],
   },
   {
+    id: 'de-noun', builtin: true, name: 'Sustantivo alemán', icon: '', lucide: 'languages',
+    description: 'Artículo, palabra y plural. Crea dos tarjetas: elegir der, die o das, y escribir la palabra (con su mayúscula).',
+    fields: [F('g', 'Artículo', { help: 'der, die o das' }), F('w', 'Palabra', { lang: 'de-DE', autoplay: true, help: 'Sin artículo y con mayúscula: Haus' }),
+      F('pl', 'Plural', { lang: 'de-DE', help: 'Ej.: die Häuser' }), F('t', 'Traducción', { lang: 'es-ES' }), F('n', 'Notas')],
+    templates: [
+      { id: 't1', name: 'Género (palabra → der, die o das)', mode: 'choice', front: ['w'], back: ['t', 'pl', 'n'], answer: 'g', choices: ['der', 'die', 'das'] },
+      { id: 't2', name: 'Escribir (traducción → palabra)', mode: 'type', front: ['t'], back: ['g', 'pl', 'n'], answer: 'w' },
+    ],
+  },
+  {
     id: 'handwrite', builtin: true, name: 'Escribir a mano', icon: '', lucide: 'pencil',
     description: 'Dibujas la respuesta con el dedo: kanji, hanzi, alfabeto árabe, coreano, griego, ruso…',
     fields: [F('q', 'Pregunta'), F('a', 'Lo que hay que escribir'), F('n', 'Nota')],
@@ -139,6 +149,7 @@ export function activeTemplates(type, fields) {
     if (t.mode === 'order') return orderTokens(fields[t.answer]).length > 1;
     const front = t.front.some(id => strip(fields[id]));
     if (!front) return false;
+    if (t.choices && !t.choices.some(c => c.toLocaleLowerCase() === strip(fields[t.answer]).toLocaleLowerCase())) return false;
     if (NEEDS_ANSWER.includes(t.mode)) return !!strip(fields[t.answer]);
     return t.back.some(id => strip(fields[id]));
   });
@@ -154,6 +165,7 @@ export function missingFor(type, tpl, fields) {
   if (tpl.answer && empty(tpl.answer)) need.push(name(tpl.answer));
   if (!tpl.answer && tpl.back.every(empty)) need.push(name(tpl.back[0]));
   if (tpl.mode === 'order' && !need.length) return `«${name(tpl.answer)}» con al menos dos piezas`;
+  if (tpl.choices && !need.length) return `«${name(tpl.answer)}»: ${tpl.choices.slice(0, -1).join(', ')} o ${tpl.choices.at(-1)}`;
   return need.map(n => `«${n}»`).join(' y ') || 'los campos';
 }
 
@@ -192,13 +204,30 @@ export function splitQuick(line, sep) {
 
 /* ---------------- Corrección de respuestas escritas ---------------- */
 
-const normAnswer = s => strip(s).replace(/\s+/g, ' ').replace(/[.!¡?¿,;:]+$/g, '').toLocaleLowerCase();
-export function checkTyped(given, expected) {
-  // Varias respuestas válidas separadas por «/»: vale cualquiera
+// Idiomas en los que las mayúsculas forman parte de la respuesta (en alemán, los sustantivos)
+const CASE_MATTERS = ['de'];
+// Cómo se escriben sin teclado del idioma: valen como «casi» (Difícil), no como fallo
+const TRANSLIT = { de: [['ß', 'ss'], ['ä', 'ae'], ['ö', 'oe'], ['ü', 'ue']] };
+const baseLang = lang => String(lang || '').split('-')[0].toLowerCase();
+
+const normAnswer = (s, keepCase = false) => {
+  const t = strip(s).replace(/\s+/g, ' ').replace(/[.!¡?¿,;:]+$/g, '');
+  return keepCase ? t : t.toLocaleLowerCase();
+};
+const looseAnswer = (s, lang) => (TRANSLIT[baseLang(lang)] || []).reduce((t, [a, b]) => t.replaceAll(a, b), normAnswer(s));
+
+// given: lo que se ha escrito · expected: la respuesta (varias válidas separadas por «/») · lang: idioma del campo
+// → { ok, near (casi: solo mayúsculas o ß/ss, ä/ae…), why, expected, diff }
+export function checkTyped(given, expected, lang = '') {
   const options = strip(expected).split(/\s*\/\s*/).filter(Boolean);
-  const g = normAnswer(given);
-  const best = options.find(o => normAnswer(o) === g) || options[0] || '';
-  return { ok: options.some(o => normAnswer(o) === g), expected: best, diff: diffChars(g, normAnswer(best)) };
+  const cs = CASE_MATTERS.includes(baseLang(lang));
+  const g = normAnswer(given, cs);
+  const exact = options.find(o => normAnswer(o, cs) === g);
+  if (exact) return { ok: true, near: false, expected: exact, diff: diffChars(g, normAnswer(exact, cs)) };
+  const near = options.find(o => looseAnswer(o, lang) === looseAnswer(given, lang));
+  const best = near || options[0] || '';
+  const why = !near ? '' : normAnswer(near) === normAnswer(given) ? 'Revisa las mayúsculas' : 'Revisa las letras especiales';
+  return { ok: false, near: !!near, why, expected: best, diff: diffChars(g, normAnswer(best, cs)) };
 }
 // Diferencia letra a letra (LCS): [{ t: 'ok'|'miss'|'extra', c }]
 function diffChars(a, b) {
@@ -222,6 +251,11 @@ function diffChars(a, b) {
 /* ---------------- Opción múltiple ---------------- */
 
 export function choiceOptions(tpl, fields, pool) {
+  // Opciones fijas (der / die / das): siempre las mismas y en el mismo orden
+  if (tpl.choices) {
+    const v = String(fields[tpl.answer] || '').trim().toLocaleLowerCase();
+    return { correct: tpl.choices.find(c => c.toLocaleLowerCase() === v) || v, opts: [...tpl.choices] };
+  }
   const correct = String(fields[tpl.answer] || '').trim();
   let wrong = String(fields[tpl.wrong] || '').split(';').map(s => s.trim()).filter(Boolean);
   if (wrong.length < 3) {

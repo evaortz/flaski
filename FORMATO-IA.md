@@ -44,12 +44,15 @@ Este ejemplo crea 4 tarjetas.
 | `cloze` | Rellenar huecos en un texto | `x`* texto con `{{huecos}}` · `e` extra | 1 |
 | `choice` | Opción múltiple (4 opciones) | `q`* pregunta · `a`* correcta · `w` incorrectas · `n` nota | 1 |
 | `vocab` | Vocabulario: reconocer y escribir la palabra | `w`* palabra · `t`* traducción · `p` pronunciación · `e` ejemplo · `n` notas | 2 |
+| `de-noun` | Sustantivo alemán: elegir der/die/das y escribir la palabra | `g`* artículo (`der`, `die` o `das`) · `w`* palabra sin artículo, con mayúscula · `pl` plural · `t`* traducción · `n` notas | 2 |
 | `kanji` | Kanji: reconocerlo y dibujarlo trazo a trazo | `k`* kanji · `m`* significado · `on` lectura on (katakana) · `kun` lectura kun (hiragana) · `e` ejemplo | 2 |
 | `handwrite` | Dibujar la respuesta a mano (cualquier alfabeto) | `q`* pregunta · `a`* lo que hay que escribir · `n` nota | 1 |
 | `listen` | Dictado: se escucha y se escribe | `x`* texto que se escucha · `t` traducción · `n` nota | 1 |
 | `order` | Ordenar las piezas de una frase | `f`* frase correcta · `t` traducción · `n` nota | 1 |
 
 En `vocab`, la primera tarjeta pide la traducción y la segunda pide escribir la palabra: pon en `w` solo la palabra, sin artículos ni explicaciones (eso va en `n`).
+
+Para alemán usa `"lang": "de-DE"`: los sustantivos con `de-noun` y el resto con `vocab`. En las respuestas escritas en alemán cuentan las mayúsculas, así que escribe los sustantivos con mayúscula (`Haus`).
 
 ## Sintaxis especial
 
@@ -85,6 +88,24 @@ Japonés, con kanji, furigana y ordenar:
     { "type": "vocab", "fields": { "w": "学校[がっこう]", "t": "escuela", "e": "学校[がっこう]に 行[い]きます。" }, "tags": ["lugares"] },
     { "type": "order", "fields": { "f": "私は / 毎朝 / コーヒーを / 飲みます", "t": "Bebo café todas las mañanas." } },
     { "type": "choice", "fields": { "q": "¿Qué partícula marca el tema de la frase?", "a": "は", "w": "を; に; で" } }
+  ]
+}
+```
+
+Este ejemplo crea 6 tarjetas.
+
+Alemán, con sustantivos y vocabulario:
+
+```json
+{
+  "format": "flaski-notes",
+  "version": 1,
+  "name": "Alemán · La casa",
+  "lang": "de-DE",
+  "notes": [
+    { "type": "de-noun", "fields": { "g": "das", "w": "Haus", "pl": "die Häuser", "t": "la casa" } },
+    { "type": "de-noun", "fields": { "g": "die", "w": "Tür", "pl": "die Türen", "t": "la puerta" } },
+    { "type": "vocab", "fields": { "w": "wohnen", "t": "vivir (residir)", "e": "Ich wohne in Berlin." }, "tags": ["verbos"] }
   ]
 }
 ```

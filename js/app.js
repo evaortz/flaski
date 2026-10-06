@@ -550,7 +550,7 @@ function faceHTML(model, st, { preview = false } = {}) {
     } else if (st.typed) {
       const r = st.typed;
       ask = r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto: <b>${esc(r.expected)}</b></div>`
-        : `<div class="verdict bad"><div class="vrow"><span class="vl">Tu respuesta</span><span class="diff">${r.diff.filter(x => x.t !== 'miss').map(x => `<span class="d-${x.t}">${esc(x.c)}</span>`).join('') || '<i>(vacía)</i>'}</span></div>
+        : `<div class="verdict bad">${r.near ? `<div class="vnear">Casi: ${esc(r.why)}</div>` : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span class="diff">${r.diff.filter(x => x.t !== 'miss').map(x => `<span class="d-${x.t}">${esc(x.c)}</span>`).join('') || '<i>(vacía)</i>'}</span></div>
           <div class="vrow"><span class="vl">Correcta</span><span class="diff">${r.diff.filter(x => x.t !== 'extra').map(x => `<span class="d-${x.t === 'miss' ? 'need' : 'ok'}">${esc(x.c)}</span>`).join('')}</span></div></div>`;
     }
   }
@@ -758,7 +758,7 @@ function renderStudy() {
   if (ses.revealed) {
     const now = Date.now();
     const d = st.drawn;
-    const suggest = st.typed ? (st.typed.ok ? 3 : 1)
+    const suggest = st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
       : st.choice && st.choice.picked >= 0 ? (st.choice.opts[st.choice.picked] === st.choice.correct ? 3 : 1)
       : st.order?.checked ? (st.order.ok ? 3 : 1)
       : d && !d.img && !d.gaveUp ? (() => { const avg = d.mistakes / Math.max(1, d.n); return avg === 0 && !d.peeked ? 3 : avg <= 2 && !(d.peeked && avg > 0) ? 2 : 1; })()
@@ -2599,7 +2599,7 @@ document.addEventListener('submit', async e => {
     const st = S.session?.st; const c = S.cards.get(S.session?.queue[0]);
     if (!st || !c) return;
     const m = cardModel(c);
-    st.typed = checkTyped($('#typed').value, m.fields[m.tpl.answer]);
+    st.typed = checkTyped($('#typed').value, m.fields[m.tpl.answer], m.type.fields.find(f => f.id === m.tpl.answer)?.lang);
     return reveal();
   }
   if (kind === 'newtag') {

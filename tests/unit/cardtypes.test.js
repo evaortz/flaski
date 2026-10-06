@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BUILTIN_TYPES, checkTyped, activeTemplates, orderTokens, orderJoin, stripRuby, readRuby, splitQuick, summarize, choiceOptions } from '../../js/cardtypes.js';
+import { BUILTIN_TYPES, checkTyped, activeTemplates, orderTokens, orderJoin, stripRuby, readRuby, splitQuick, summarize, choiceOptions, missingFor } from '../../js/cardtypes.js';
 
 test('checkTyped: ignora mayúsculas, espacios y puntuación final; acepta varias respuestas', () => {
   assert.equal(checkTyped('  Yaptım. ', 'yaptım').ok, true);
@@ -11,6 +11,35 @@ test('checkTyped: ignora mayúsculas, espacios y puntuación final; acepta varia
 test('checkTyped marca la letra que sobra y la que falta', () => {
   const { diff } = checkTyped('yaptim', 'yaptım');
   assert.deepEqual(diff.filter(d => d.t !== 'ok').map(d => `${d.t}:${d.c}`).sort(), ['extra:i', 'miss:ı']);
+});
+
+test('alemán: las mayúsculas cuentan, pero fallarlas es «casi»', () => {
+  assert.equal(checkTyped('Haus', 'Haus', 'de-DE').ok, true);
+  const r = checkTyped('haus', 'Haus', 'de-DE');
+  assert.equal(r.ok, false);
+  assert.equal(r.near, true);
+  assert.match(r.why, /mayúsculas/);
+  assert.equal(checkTyped('haus', 'Haus', 'es-ES').ok, true);      // en otros idiomas no cuentan
+  assert.equal(checkTyped('Hund', 'Haus', 'de-DE').near, false);
+});
+
+test('alemán: ss por ß y ae/oe/ue por las diéresis valen como «casi»', () => {
+  for (const [given, expected] of [['Strasse', 'Straße'], ['Maedchen', 'Mädchen'], ['schoen', 'schön'], ['Tuer', 'Tür']]) {
+    const r = checkTyped(given, expected, 'de-DE');
+    assert.equal(r.ok, false, given);
+    assert.equal(r.near, true, given);
+    assert.match(r.why, /letras especiales/);
+  }
+  assert.equal(checkTyped('Strasse', 'Straße', 'tr-TR').near, false);   // solo en alemán
+});
+
+test('sustantivo alemán: der/die/das fijos y solo con un artículo válido', () => {
+  const t = BUILTIN_TYPES.find(x => x.id === 'de-noun');
+  const tpl = t.templates[0];
+  assert.deepEqual(choiceOptions(tpl, { g: 'Das' }, []), { correct: 'das', opts: ['der', 'die', 'das'] });
+  assert.equal(activeTemplates(t, { g: 'das', w: 'Haus', t: 'casa' }).length, 2);
+  assert.equal(activeTemplates(t, { g: 'el', w: 'Haus', t: 'casa' }).length, 1);   // sin artículo válido: solo la de escribir
+  assert.equal(missingFor(t, tpl, { g: 'el', w: 'Haus' }), '«Artículo»: der, die o das');
 });
 
 test('furigana: separa el kanji de la lectura', () => {

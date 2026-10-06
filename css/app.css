@@ -473,6 +473,7 @@ input.ipick-own{width:72px;min-height:38px;padding:4px 8px;font-size:15px}
 .verdict{border-radius:var(--r);padding:10px 12px;font-size:16px;text-align:center}
 .verdict.ok{background:var(--tag-green-bg);color:var(--tag-green)}
 .verdict.bad{background:var(--soft);display:flex;flex-direction:column;gap:6px;text-align:left}
+.vnear{font-size:14px;font-weight:600;color:var(--tag-orange)}
 .vrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .vl{font-size:12px;color:var(--muted);width:92px;flex:none}
 .diff{font-size:20px;font-weight:600;letter-spacing:.02em;font-family:var(--mono)}
