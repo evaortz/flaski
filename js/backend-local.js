@@ -11,7 +11,7 @@ const UID = 'local';
 const EMPTY = () => ({
   profile: { id: UID, display_name: '' },
   settings: { new_per_day: 15, prefs: {} },
-  decks: [], cards: [], progress: [], log: [], folders: [], tags: [], types: [], events: [],
+  decks: [], cards: [], progress: [], log: [], folders: [], tags: [], types: [], events: [], pages: [],
 });
 
 function read() {
@@ -85,6 +85,7 @@ export async function loadAll() {
     tags: [...tagsArr].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))),
     types: typesArr,
     events: eventsArr.filter(e => e && e.ts >= new Date(Date.now() - 400 * 864e5).toISOString()),
+    pages: Array.isArray(db.pages) ? db.pages : [],
   });
 }
 
@@ -249,6 +250,22 @@ export async function updateType(id, fields) {
 }
 export async function deleteType(id) {
   db.types = db.types.filter(t => t.id !== id);
+  persist();
+}
+
+/* ---------------- Apuntes ---------------- */
+// Crea o sustituye la página entera (la app genera el id)
+export async function savePage(page) {
+  if (!Array.isArray(db.pages)) db.pages = [];
+  const row = { owner: UID, title: '', icon: '', deck_id: null, folder_id: null, blocks: [], created_at: now(), ...page, updated_at: now() };
+  const i = db.pages.findIndex(p => p.id === page.id);
+  if (i >= 0) db.pages[i] = { ...db.pages[i], ...row, created_at: db.pages[i].created_at }; else db.pages.push(row);
+  persist();
+  return clone(row);
+}
+export async function deletePage(id) {
+  db.pages = (db.pages || []).filter(p => p.id !== id);
+  for (const c of db.cards) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
   persist();
 }
 

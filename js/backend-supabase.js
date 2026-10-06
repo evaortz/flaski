@@ -22,6 +22,7 @@ const send = {
   addEvent: ev => sb.from('review_events').upsert(ev, { onConflict: 'id', ignoreDuplicates: true }).then(check),
   deleteEvent: id => sb.from('review_events').delete().eq('id', id).then(check),
   bumpLog: (uid, day, delta, localCount) => sendBump(uid, day, delta, localCount),
+  savePage: page => sb.from('pages').upsert({ ...page, updated_at: new Date().toISOString() }).then(check),
   saveSettings: (uid, new_per_day, prefs) => {
     const row = { user_id: uid, new_per_day };
     if (prefs) row.prefs = prefs;
@@ -118,7 +119,11 @@ export async function loadAll(uid, { retry = true } = {}) {
     fetchAll(() => from('note_types').select('*').eq('owner', uid).order('created_at')),
     fetchAll(() => from('review_events').select('id, card_id, deck_id, ts, grade, state, ivl, last_ivl, ease, ms').eq('user_id', uid).gte('ts', yearAgo).order('ts')),
   ]);
-  return { profile, settings, decks, cards, progress, log, folders, tags, types, events };
+  // Apuntes: si la tabla aún no existe (schema.sql sin ejecutar), la app funciona igual y lo avisa
+  let pages = [], pagesMissing = false;
+  try { pages = await fetchAll(() => from('pages').select('*').eq('owner', uid).order('updated_at', { ascending: false })); }
+  catch (e) { if (['42P01', 'PGRST205', 'PGRST200'].includes(e.code) || /pages/.test(e.message || '')) pagesMissing = true; else throw e; }
+  return { profile, settings, decks, cards, progress, log, folders, tags, types, events, pages, pagesMissing };
 }
 
 /* ---------------- Perfil y ajustes ---------------- */
@@ -262,3 +267,10 @@ export async function mergeLog(uid, rows) {
   return out;
 }
 export const deleteEvent = queued('deleteEvent');
+
+/* ---------------- Apuntes ---------------- */
+// Se guarda la página entera por la cola: escribir apuntes sin conexión no pierde nada
+export const savePage = queued('savePage');
+export async function deletePage(id) {
+  check(await sb.from('pages').delete().eq('id', id));
+}

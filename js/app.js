@@ -17,6 +17,7 @@ import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDec
 import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
+import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -43,6 +44,9 @@ const S = {
   authMode: 'signin', recovery: false, loading: true,
   pendingShare: null,          // id de mazo compartido por enlace
   lastField: null,
+  pages: new Map(),            // id → página de apuntes
+  pagesMissing: false,         // la tabla de apuntes aún no existe en Supabase
+  pageId: null, pageQuery: '', focusBlock: null,
   fromCache: false,            // datos cargados de la copia del navegador (se abrió sin conexión)
   pending: 0,                  // cambios esperando a enviarse
 };
@@ -182,14 +186,14 @@ function render() {
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   for (const b of document.querySelectorAll('[data-nav]')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && S.view === 'deck') || (b.dataset.nav === 'profile' && S.view === 'settings');
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && S.view === 'deck') || (b.dataset.nav === 'profile' && S.view === 'settings') || (b.dataset.nav === 'notes' && S.view === 'page');
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus tarjetas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, profile: renderProfile, stats: renderStats, settings: renderSettings }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, stats: renderStats, settings: renderSettings }[S.view] || renderHome)();
 }
 
 /* ===================== sin configurar ===================== */
@@ -324,6 +328,8 @@ function applyData(d) {
   S.cards = new Map(d.cards.map(x => [x.id, x]));
   S.progress = new Map(d.progress.map(r => [r.card_id, api.fromRow(r)]));
   S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
+  S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
+  S.pagesMissing = !!d.pagesMissing;
 }
 
 /* ===================== sin conexión ===================== */
@@ -337,7 +343,9 @@ function withPending(d) {
   const evs = new Map((d.events || []).map(e => [e.id, e]));
   const log = new Map(d.log.map(r => [r.day, r.count]));
   let settings = d.settings;
+  const pages = new Map((d.pages || []).map(p => [p.id, p]));
   for (const { op, args } of ops) {
+    if (op === 'savePage') pages.set(args[0].id, args[0]);
     if (op === 'saveProgress') prog.set(args[1], toRow(args[0], args[1], args[2]));
     else if (op === 'clearProgress') prog.delete(args[1]);
     else if (op === 'addEvent') evs.set(args[0].id, args[0]);
@@ -347,7 +355,7 @@ function withPending(d) {
     else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ?? settings?.prefs };
   }
   return {
-    ...d, settings, progress: [...prog.values()],
+    ...d, settings, progress: [...prog.values()], pages: [...pages.values()],
     events: [...evs.values()].sort((a, b) => String(a.ts).localeCompare(String(b.ts))),
     log: [...log].map(([day, count]) => ({ day, count })),
   };
@@ -361,6 +369,7 @@ function snapshotData() {
     progress: [...S.progress].map(([id, p]) => toRow(S.uid, id, p)),
     log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
     events: S.events.map(({ t, ...e }) => e),
+    pages: [...S.pages.values()],
   };
 }
 let snapTimer;
@@ -403,7 +412,7 @@ function onSignedOut() {
   // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre
   api.offline?.stop();
   clearTimeout(snapTimer);
-  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0 });
+  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0, pages: new Map(), pageId: null });
   netState();
   render();
 }
@@ -783,7 +792,7 @@ function renderStudy() {
       <div class="front">${front}</div>${hint}${ask}
       ${answer ? `<div class="answer">${answer}</div>` : ''}
     </article>${foot}
-    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${model.tpl.mode === 'flip' || model.tpl.mode === 'cloze' ? 'Espacio: mostrar · ' : model.tpl.mode === 'choice' ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
+    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${model.tpl.mode === 'flip' || model.tpl.mode === 'cloze' ? 'Espacio: mostrar · ' : model.tpl.mode === 'choice' ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
   if (!st.played) {
     st.played = true;
     if (model.tpl.mode === 'listen') { if (S.prefs.study.autoplay) playListen(model, 1); }
@@ -1144,6 +1153,262 @@ async function addPreview(btn) {
     toast(`«${deck.name}» añadido`);
     go('deck', { deckId: deck.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis mazos'; fail(e); }
+}
+
+/* ===================== apuntes ===================== */
+// Tarjetas vinculadas a cada bloque de una página: block_id → [tarjetas]
+function pageCards(pageId) {
+  const m = new Map();
+  for (const c of S.cards.values()) if (c.page_id === pageId) { const k = c.block_id || ''; if (!m.has(k)) m.set(k, []); m.get(k).push(c); }
+  return m;
+}
+const shortDate = iso => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
+const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.icon || '', deck_id: p.deck_id || null, folder_id: p.folder_id || null, blocks: p.blocks });
+const pageTimers = new Map();
+// Guarda una página poco después del último cambio (se escribe mucho seguido)
+function savePageSoon(p, wait = 700) {
+  p.updated_at = new Date().toISOString();
+  clearTimeout(pageTimers.get(p.id));
+  pageTimers.set(p.id, setTimeout(() => { pageTimers.delete(p.id); api.savePage(pageRow(p)).catch(fail); saveSnapSoon(); }, wait));
+}
+function flushPages() {
+  for (const [id, t] of pageTimers) { clearTimeout(t); pageTimers.delete(id); const p = S.pages.get(id); if (p) api.savePage(pageRow(p)).catch(() => {}); }
+}
+addEventListener('pagehide', flushPages);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPages(); });
+
+function renderNotes() {
+  const q = norm(S.pageQuery.trim());
+  const list = [...S.pages.values()].filter(p => !q || norm(pageSearchText(p)).includes(q))
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  const row = p => {
+    const n = cardList().filter(c => c.page_id === p.id).length, d = S.decks.get(p.deck_id);
+    return `<li><button class="deck" data-page="${p.id}"><span class="icon">${p.icon ? esc(p.icon) : icon('notebook-text', { size: 20 })}</span>
+      <span class="info"><span class="dname">${esc(pageTitle(p))}</span><span class="meta">${n ? plural(n, 'tarjeta', 'tarjetas') : 'Sin tarjetas'}${d ? ` · ${esc(d.name)}` : ''} · ${shortDate(p.updated_at)}</span></span></button></li>`;
+  };
+  main.innerHTML = `<div class="section-h"><h1>Apuntes</h1></div>
+    ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
+    <div class="btnrow"><button class="primary" data-act="new-page">+ Apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>
+    ${S.pages.size ? `<div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}"></div>` : ''}
+    ${list.length ? `<ul class="list">${list.map(row).join('')}</ul>`
+      : `<div class="empty"><p class="muted">${q ? 'Ningún apunte coincide con la búsqueda.' : 'Escribe aquí tus apuntes y crea tarjetas a partir de ellos: selecciona un trozo y pulsa «Crear tarjeta». Cada tarjeta queda unida a esa parte, y al estudiarla puedes volver a ella.'}</p></div>`}`;
+}
+
+const BLOCK_PH = 'Escribe algo… («# » título, «- » lista)';
+// Una tabla en Markdown → <table>; si está a medio escribir, se ve el texto tal cual
+function tableHTML(text) {
+  const t = parseTable(text);
+  if (!t) return `<pre class="nb-raw">${esc(text)}</pre>`;
+  const td = (tag, c, i) => `<${tag}${t.align[i] ? ` style="text-align:${t.align[i]}"` : ''}>${fmt(c)}</${tag}>`;
+  return `<div class="nb-tablewrap"><table class="nb-tbl"><thead><tr>${t.head.map((c, i) => td('th', c, i)).join('')}</tr></thead>
+    <tbody>${t.rows.map(r => `<tr>${r.map((c, i) => td('td', c, i)).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function blockHTML(b, cards = []) {
+  const n = cards.length;
+  const body = !b.text.trim() ? `<span class="nb-ph">${BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text) : fmt(b.text);
+  return `<div class="nb nb-${b.type}" data-block="${b.id}"><div class="nb-text" data-edit-block="${b.id}">${body}</div>
+    ${n ? `<button type="button" class="nb-cards" data-block-cards="${b.id}" title="${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte">${n}</button>` : ''}</div>`;
+}
+function renderPage() {
+  const p = S.pages.get(S.pageId);
+  if (!p) return go('notes');
+  if (!p.blocks.length) p.blocks.push(newBlock());
+  const cards = pageCards(p.id);
+  const total = [...cards.values()].reduce((s, l) => s + l.length, 0);
+  main.innerHTML = `<div class="pg-top"><button class="link" data-nav="notes">← Apuntes</button><span class="spacer"></span>
+      ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}</div>
+    <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
+    <div class="pg-meta"><label class="ed-deck" title="Mazo donde van las tarjetas que crees aquí">${icon('layers', { size: 14 })}<select id="pgDeck" aria-label="Mazo para las tarjetas"><option value="">Mazo para las tarjetas…</option>${deckOptions(p.deck_id)}</select></label>
+      <span class="muted small">${total ? plural(total, 'tarjeta vinculada', 'tarjetas vinculadas') : 'Selecciona un trozo de texto para crear una tarjeta'}</span></div>
+    <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
+    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">+ Añadir un bloque</button><button type="button" class="pg-add" data-act="add-table">+ Tabla</button></div>
+    <div class="btnrow pg-foot"><span class="spacer"></span><button class="ghost danger small-btn" data-act="ask-delete-page">${icon('trash-2', { size: 15 })} Eliminar apunte</button></div>
+    <div id="selBar" class="selbar" role="toolbar" aria-label="Con lo seleccionado" hidden><span class="small">Con lo seleccionado:</span>
+      <button type="button" class="primary small-btn" data-act="sel-card">Crear tarjeta</button><button type="button" class="ghost small-btn" data-act="sel-cloze">Hueco</button></div>`;
+  if (S.focusBlock) {
+    const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
+    if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
+    S.focusBlock = null;
+  }
+}
+const curPage = () => S.pages.get(S.pageId);
+// Quitar del DOM el bloque que tiene el foco dispara «focusout» a mitad del cambio: mientras se
+// repinta, ese aviso se ignora (lo escrito ya se ha guardado antes).
+let repainting = false;
+function repaint(fn) { repainting = true; try { fn(); } finally { repainting = false; } }
+// Vuelve a pintar los bloques y deja editando uno (con el cursor en «caret»)
+function redrawBlocks(editId, caret) {
+  const p = curPage(), cards = pageCards(p.id);
+  repaint(() => { $('#pgBlocks').innerHTML = p.blocks.map(b => blockHTML(b, cards.get(b.id))).join(''); });
+  if (editId) editBlock(editId, caret);
+}
+// Un bloque pasa a editarse: su texto se cambia por un cuadro de texto
+function editBlock(id, caret = null) {
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  const b = curPage()?.blocks.find(x => x.id === id);
+  const el = document.querySelector(`[data-block="${id}"] .nb-text`);
+  if (!b || !el) return;
+  el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${BLOCK_PH}" aria-label="Bloque">${esc(b.text)}</textarea>`;
+  const t = document.querySelector(`[data-block-input="${id}"]`);
+  autoGrow(t); t.focus();
+  const pos = caret == null ? t.value.length : caret;
+  t.setSelectionRange(pos, pos);
+}
+// Guarda lo escrito en un bloque y lo vuelve a mostrar con formato
+function commitBlockEl(t) {
+  const p = curPage(), b = p?.blocks.find(x => x.id === t.dataset.blockInput);
+  if (!b) return;
+  // Un párrafo que en realidad es una tabla en Markdown pasa a ser tabla
+  if (b.type === 'p' && isTableText(t.value)) { b.type = 'table'; savePageSoon(p); }
+  if (b.text !== t.value) { b.text = t.value; savePageSoon(p); }
+  const wrap = t.closest('.nb');
+  if (wrap) repaint(() => { wrap.outerHTML = blockHTML(b, pageCards(p.id).get(b.id)); });
+}
+// Las tarjetas de un bloque que desaparece pasan al bloque donde se ha juntado
+function moveCards(fromBlock, toBlock) {
+  for (const c of cardList()) if (c.page_id === S.pageId && c.block_id === fromBlock) {
+    c.block_id = toBlock;
+    api.updateCard(c.id, { block_id: toBlock }).catch(() => {});
+  }
+}
+// Teclas dentro de un bloque: Enter parte, Retroceso al principio junta, flechas saltan de bloque
+function blockKey(e) {
+  const t = e.target, p = curPage();
+  const i = p.blocks.findIndex(x => x.id === t.dataset.blockInput);
+  if (i < 0) return;
+  const b = p.blocks[i], at = t.selectionStart, collapsed = at === t.selectionEnd;
+  // En una tabla, Enter es una fila nueva; Enter en una línea vacía al final (o Ctrl+Enter) sale de ella
+  if (b.type === 'table' && e.key === 'Enter' && !e.isComposing) {
+    const lineStart = t.value.lastIndexOf('\n', at - 1) + 1;
+    const emptyLast = collapsed && at === t.value.length && !t.value.slice(lineStart).trim();
+    if (!emptyLast && !e.ctrlKey && !e.metaKey) {
+      // Fila nueva con tantas celdas como la cabecera
+      const cols = parseTable(t.value)?.head.length || 0;
+      if (cols && collapsed && at === t.value.length) {
+        e.preventDefault();
+        t.value += `\n|${'  |'.repeat(cols)}`;
+        t.setSelectionRange(t.value.length - cols * 3 + 1, t.value.length - cols * 3 + 1);
+        autoGrow(t);
+      }
+      return;
+    }
+    e.preventDefault();
+    b.text = t.value.replace(/\n\s*$/, '');
+    const next = newBlock();
+    p.blocks.splice(i + 1, 0, next);
+    savePageSoon(p);
+    return redrawBlocks(next.id, 0);
+  }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    b.text = t.value;
+    if (b.type === 'li' && !b.text.trim()) { b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }   // Enter en un punto vacío: fin de la lista
+    const [cur, next] = splitBlock(b, at);
+    p.blocks.splice(i, 1, cur, next);
+    savePageSoon(p);
+    return redrawBlocks(next.id, 0);
+  }
+  if (e.key === 'Backspace' && collapsed && at === 0) {
+    if (b.type === 'table' && t.value.trim()) return;   // en una tabla con contenido, Retroceso al principio no hace nada especial
+    if (b.type !== 'p') { e.preventDefault(); b.text = t.value; b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }
+    if (i > 0) {
+      e.preventDefault();
+      b.text = t.value;
+      const { block, caret } = mergeBlocks(p.blocks[i - 1], b);
+      p.blocks.splice(i - 1, 2, block);
+      moveCards(b.id, block.id);
+      savePageSoon(p);
+      return redrawBlocks(block.id, caret);
+    }
+  }
+  if (e.key === 'ArrowUp' && collapsed && at === 0 && i > 0) { e.preventDefault(); return editBlock(p.blocks[i - 1].id); }
+  if (e.key === 'ArrowDown' && collapsed && at === t.value.length && i < p.blocks.length - 1) { e.preventDefault(); return editBlock(p.blocks[i + 1].id, 0); }
+  if (e.key === 'Escape') { e.preventDefault(); t.blur(); }
+}
+// Lo seleccionado en la página (para crear una tarjeta): { blockId, text, at }
+function readPageSelection() {
+  const a = document.activeElement;
+  if (a?.matches?.('[data-block-input]')) {
+    return a.selectionEnd > a.selectionStart ? { blockId: a.dataset.blockInput, text: a.value.slice(a.selectionStart, a.selectionEnd), at: a.selectionStart } : null;
+  }
+  const sel = getSelection(), txt = sel?.toString() || '';
+  const node = sel?.anchorNode;
+  const nb = node && (node.nodeType === 1 ? node : node.parentElement)?.closest?.('#pgBlocks .nb');
+  return txt.trim() && nb ? { blockId: nb.dataset.block, text: txt, at: -1 } : null;
+}
+document.addEventListener('selectionchange', () => {
+  if (S.view !== 'page') return;
+  S.pageSel = readPageSelection();
+  const bar = $('#selBar');
+  if (bar) bar.hidden = !S.pageSel;
+});
+// Que pulsar la barra no quite la selección ni cierre el bloque que se está editando
+document.addEventListener('pointerdown', e => { if (e.target.closest?.('#selBar')) e.preventDefault(); });
+document.addEventListener('focusout', e => { if (!repainting && e.target.matches?.('[data-block-input]') && e.target.isConnected) commitBlockEl(e.target); });
+document.addEventListener('paste', e => {
+  const t = e.target;
+  if (!t.matches?.('[data-block-input]')) return;
+  const text = e.clipboardData?.getData('text/plain') || '';
+  if (!text.includes('\n')) return;
+  // Varias líneas pegadas: se convierten en bloques (títulos, listas y párrafos)
+  const blocks = textToBlocks(text);
+  if (!blocks.length) return;
+  e.preventDefault();
+  const p = curPage(), i = p.blocks.findIndex(x => x.id === t.dataset.blockInput), b = p.blocks[i];
+  const before = t.value.slice(0, t.selectionStart), after = t.value.slice(t.selectionEnd);
+  let insert = blocks;
+  if (!before.trim() && b.type === 'p') { Object.assign(b, { type: blocks[0].type, text: blocks[0].text }); insert = blocks.slice(1); }
+  else b.text = before;
+  p.blocks.splice(i + 1, 0, ...insert);
+  const last = insert.length ? insert[insert.length - 1] : b;
+  const caret = last.text.length;
+  last.text += after;
+  savePageSoon(p);
+  redrawBlocks(last.id, caret);
+});
+function newPage({ title = '', blocks = null } = {}) {
+  if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
+  const deckId = S.view === 'deck' ? S.deckId : null;
+  const p = { id: api.newId(), owner: S.uid, title, icon: '', deck_id: deckId, folder_id: null, blocks: blocks?.length ? blocks : [newBlock()] };
+  S.pages.set(p.id, p);
+  savePageSoon(p, 0);
+  go('page', { pageId: p.id });
+  if (title || blocks?.length) return;
+  setTimeout(() => $('#pgTitle')?.focus(), 30);
+}
+function pastePageSheet() {
+  openSheet(`<h2>Pegar apuntes</h2>
+    <p class="muted small">Pega tus apuntes (de Word, Notion, Google Docs…). Las líneas con «# » serán títulos y las que empiezan por «- », listas.</p>
+    <textarea id="pagePaste" class="paste-box" rows="10" aria-label="Apuntes"></textarea>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="paste-page-ok">Crear apunte</button></div>`);
+}
+// Crear una tarjeta (o un hueco) con lo seleccionado en los apuntes, ya vinculada a su bloque
+function cardFromSelection(kind) {
+  const sel = S.pageSel, p = curPage();
+  if (!sel || !p) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  const b = p.blocks.find(x => x.id === sel.blockId);
+  if (!b) return;
+  const deckId = p.deck_id && S.decks.has(p.deck_id) ? p.deck_id : [...S.decks.values()].find(d => !d.archived)?.id;
+  const text = sel.text.trim();
+  let prefill = null;
+  if (kind === 'cloze') {
+    const x = clozeFrom(b.text, text, sel.at);
+    if (x) prefill = { typeId: 'cloze', fields: { x } };
+    else toast('No se ha podido marcar el hueco aquí: complétalo a mano');
+  }
+  if (!prefill) prefill = deckLang(deckId) ? { typeId: 'vocab', fields: { w: text } } : { typeId: 'basic', fields: { a: text } };
+  getSelection()?.removeAllRanges();
+  S.pageSel = null;
+  cardForm(null, { deckId, prefill, source: { page_id: p.id, block_id: b.id } });
+}
+function blockCardsSheet(blockId) {
+  const list = cardList().filter(c => c.page_id === S.pageId && c.block_id === blockId);
+  openSheet(`<h2>Tarjetas de esta parte</h2>
+    <ul class="list">${list.map(c => `<li><button class="row" data-card="${c.id}"><span class="f">${fmt(c.front)}</span>${statusChip(c.id)}<span class="b">${fmt(c.back)}</span></button></li>`).join('')}</ul>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
 
 /* ===================== perfil ===================== */
@@ -1773,7 +2038,15 @@ const TOOLBAR = deckId => {
 </div>`;
 };
 
-function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
+// En el editor de tarjetas: de qué apuntes sale la tarjeta
+function linkProp(link) {
+  const pg = link && S.pages.get(link.page_id);
+  if (!pg) return '';
+  const b = pg.blocks.find(x => x.id === link.block_id);
+  return `<div class="prop"><span class="prop-k">${icon('notebook-text', { size: 16 })} Apuntes</span>
+    <span class="prop-v prop-link">${esc(pageTitle(pg))}${b ? ` · <span class="muted">«${esc(plain(b.text).slice(0, 50))}${b.text.length > 50 ? '…' : ''}»</span>` : ''}</span></div>`;
+}
+function cardForm(c, { deckId: forcedDeck, prefill = null, source = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
   const deckId = c?.deck_id || forcedDeck || (S.view === 'deck' && S.deckId) || sessionDeck || [...S.decks.values()].find(d => !d.archived)?.id || [...S.decks.keys()][0];
   if (!deckId) { toast('Crea primero un mazo'); return deckForm(null); }
@@ -1788,7 +2061,7 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
     const t = defaultTypeFor(deckId);
     model = { type: t, tpl: t.templates[0], fields: {} };
   }
-  S.edit = { open: true, dirty: false, deckId, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
+  S.edit = { open: true, dirty: !!source, deckId, source, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
     fields: { ...model.fields }, pv: model.tpl.id, pvSide: 'front', hint: prefill?.hint ?? c?.hint ?? '', tags: prefill?.tags ?? c?.tags ?? [] };
   const p = c && S.progress.get(c.id);
   const deck = S.decks.get(deckId);
@@ -1811,6 +2084,7 @@ function cardForm(c, { deckId: forcedDeck, prefill = null } = {}) {
         <div class="ed-props">
           <div class="prop"><span class="prop-k">${icon('lightbulb', { size: 16 })} Pista</span><input id="c-hint" class="prop-v" maxlength="500" value="${esc(S.edit.hint)}" placeholder="Vacío · se puede ver antes de responder"></div>
           <div class="prop prop-tags"><span class="prop-k">${icon('tag', { size: 16 })} Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
+          ${linkProp(source || (c?.page_id ? { page_id: c.page_id, block_id: c.block_id } : null))}
         </div>
         ${siblings.length > 1 ? `<p class="ed-note">Esta nota genera ${siblings.length} tarjetas. Los cambios se aplican a todas.</p>` : ''}
       </section>
@@ -2055,13 +2329,16 @@ async function deleteFolder(id) {
   S.folders.delete(id);
 }
 // Guarda una nota: crea, actualiza o borra sus tarjetas según las plantillas que tengan contenido
-async function saveNote({ type, fields, deckId, hint = '', tags = [], noteId = null, siblings = [] }) {
+// source: { page_id, block_id } si la tarjeta sale de unos apuntes (las ya vinculadas lo conservan)
+async function saveNote({ type, fields, deckId, hint = '', tags = [], noteId = null, siblings = [], source = null }) {
   const active = activeTemplates(type, fields);
   if (!active.length) throw new Error(type.templates.some(t => t.mode === 'cloze') ? 'Marca al menos un hueco con {{ }}' : 'Rellena al menos el anverso y la respuesta');
   noteId = noteId || api.newId();
   const existing = siblings.map(id => S.cards.get(id)).filter(Boolean);
   const byTpl = new Map(existing.map(c => [c.template || 't1', c]));
   const base = { deck_id: deckId, type_id: type.id, fields, hint, tags, note_id: noteId };
+  const link = source || (existing[0]?.page_id ? { page_id: existing[0].page_id, block_id: existing[0].block_id } : null);
+  if (link) Object.assign(base, { page_id: link.page_id, block_id: link.block_id });
   const out = [];
   const toCreate = [];
   for (const tpl of active) {
@@ -2091,9 +2368,12 @@ async function saveCardForm(form, more) {
     const out = await saveNote({
       type, fields, deckId, hint: (e.hint || '').trim(),
       tags: [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value),
-      noteId: e.noteId, siblings: e.siblings,
+      noteId: e.noteId, siblings: e.siblings, source: e.source,
     });
     rememberType(deckId, type.id);
+    // Primera tarjeta desde unos apuntes: ese mazo queda como el de la página
+    const pg = e.source && S.pages.get(e.source.page_id);
+    if (pg && !pg.deck_id) { pg.deck_id = deckId; savePageSoon(pg); }
     if (S.session) S.session.st = null;
     toast(e.cardId ? 'Tarjeta guardada' : out.length > 1 ? `${out.length} tarjetas añadidas` : 'Tarjeta añadida');
     if (more) { S.edit.dirty = false; cardForm(null, { deckId }); if (S.view === 'deck') renderDeck(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
@@ -2427,6 +2707,9 @@ function exportDeck(kind) {
 document.addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) {
+    // Tocar un bloque de los apuntes lo pone en edición (salvo que se esté seleccionando texto)
+    const eb = e.target.closest('[data-edit-block]');
+    if (eb && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock);
     if (e.target.id === 'sheet') requestClose();
     else if (e.target.closest('.pv-card') && S.edit) { S.edit.pvSide = S.edit.pvSide === 'front' ? 'back' : 'front'; drawPreview(); }
     return;
@@ -2472,6 +2755,9 @@ document.addEventListener('click', async e => {
   }
   if (ds.setType) return setEditorType(ds.setType);
   if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
+  if (ds.page) return go('page', { pageId: ds.page });
+  if (ds.blockCards) return blockCardsSheet(ds.blockCards);
+  if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
   if (ds.hideType) {
     const h = S.prefs.types.hidden;
     S.prefs.types.hidden = h.includes(ds.hideType) ? h.filter(x => x !== ds.hideType) : [...h, ds.hideType];
@@ -2633,6 +2919,36 @@ document.addEventListener('click', async e => {
     case 'manage-tags': return tagsSheet();
     case 'quick-add': return quickSheet();
     case 'manage-types': S.typeEdit = null; return typesSheet();
+    case 'new-page': return newPage();
+    case 'paste-page': return pastePageSheet();
+    case 'paste-page-ok': {
+      const blocks = textToBlocks($('#pagePaste').value);
+      if (!blocks.length) return toast('No has pegado nada');
+      const title = blocks[0].type === 'h1' ? blocks.shift().text : '';
+      return newPage({ title, blocks });
+    }
+    case 'add-block': case 'add-table': {
+      const p = curPage();
+      const nb = ds.act === 'add-table' ? newBlock('table', TABLE_TEMPLATE) : newBlock();
+      // Si el último bloque está vacío, se aprovecha
+      const last = p.blocks[p.blocks.length - 1];
+      if (last && !last.text.trim() && last.type === 'p') Object.assign(last, { type: nb.type, text: nb.text }); else p.blocks.push(nb);
+      const target = p.blocks[p.blocks.length - 1];
+      savePageSoon(p);
+      return redrawBlocks(target.id, ds.act === 'add-table' ? 2 : 0);
+    }
+    case 'ask-delete-page': return confirmSheet('¿Eliminar estos apuntes?', 'delete-page', 'Eliminar');
+    case 'delete-page': {
+      const id = S.pageId;
+      try { await api.deletePage(id); } catch (err) { return fail(err); }
+      S.pages.delete(id);
+      for (const c of S.cards.values()) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
+      toast('Apunte eliminado. Sus tarjetas se conservan.');
+      return go('notes');
+    }
+    case 'back-study': return go('study');
+    case 'sel-card': return cardFromSelection('card');
+    case 'sel-cloze': return cardFromSelection('cloze');
     case 'pick-type': return openTypePicker(true);
     case 'close-picker': return openTypePicker(false);
     case 'types-all': S.edit.pick.all = !S.edit.pick.all; return drawTypePicker();
@@ -2787,6 +3103,22 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
+  if (e.target.matches?.('[data-block-input]')) {
+    const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
+    // «# », «## », «- » al principio de un párrafo lo convierten en título o lista
+    const sc = b && b.type === 'p' && shortcut(t.value);
+    if (sc) { b.type = sc.type; t.value = sc.text; t.closest('.nb').className = `nb nb-${sc.type}`; t.setSelectionRange(0, 0); }
+    autoGrow(t);
+    return;
+  }
+  if (e.target.id === 'pgTitle') { const p = curPage(); if (p) { p.title = e.target.value; savePageSoon(p); } return; }
+  if (e.target.id === 'pageSearch') {
+    S.pageQuery = e.target.value;
+    const pos = e.target.selectionStart;
+    renderNotes();
+    const s = $('#pageSearch'); if (s) { s.focus(); s.setSelectionRange(pos, pos); }
+    return;
+  }
   if (e.target.type === 'range' && e.target.dataset?.pref) { setPref(e.target.dataset.pref, Number(e.target.value)); return prefChanged(e.target.dataset.pref); }
   if (e.target.id === 'cardSearch') {
     S.cardQuery = e.target.value;
@@ -2830,6 +3162,7 @@ document.addEventListener('change', e => {
     setPref(path, v); return prefChanged(path);
   }
   if (e.target.name === 'f-tag' && S.edit?.open) S.edit.dirty = true;
+  if (e.target.id === 'pgDeck') { const p = curPage(); if (p) { p.deck_id = e.target.value || null; savePageSoon(p); } }
   if (e.target.id === 'deckSort') { S.org.sort = e.target.value; saveOrgPrefs(); renderDecks(); }
   if (e.target.id === 'c-deck') {
     const d = S.decks.get(e.target.value);
@@ -2869,6 +3202,7 @@ $('#backupFile').addEventListener('change', e => { const f = e.target.files?.[0]
 $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = ''; });
 
 document.addEventListener('keydown', e => {
+  if (e.target.matches?.('[data-block-input]')) return blockKey(e);
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
     // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero

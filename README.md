@@ -85,6 +85,7 @@ Manda el enlace a tus amigos y que se creen su cuenta. Para empezar, en **Explor
 
 - **Estudiar:** muestra lo que toca hoy. Pulsa «Mostrar respuesta» y valora: *Otra vez*, *Difícil*, *Bien* o *Fácil*. Cada botón indica cuándo volverá a salir esa tarjeta.
 - **Mis mazos:** crea mazos y tarjetas, edítalos, importa archivos o pega directamente lo que te dé una IA o una hoja de cálculo (botón **Pegar**).
+- **Apuntes:** páginas por bloques (títulos con «# », listas con «- » y tablas en Markdown como en Obsidian). Selecciona un trozo y pulsa «Crear tarjeta» o «Hueco»: la tarjeta queda unida a esa parte, y al estudiarla «Ver en los apuntes» te lleva a ella. Con cuentas, hay que haber ejecutado el `supabase/schema.sql` actual (añade la tabla `pages`).
 - **Idioma del mazo:** al crear un mazo eliges si es de un idioma (y cuál) u otra cosa. El idioma se usa para el audio, para corregir lo que escribes (en alemán cuentan las mayúsculas) y para que el editor te proponga solo los tipos de tarjeta que encajan. Tu idioma (el de las traducciones) está en Ajustes → Estudio.
 - **Mazos hechos con IA:** en **Pegar** (o en Ajustes → Datos) copia o descarga las instrucciones de [`FORMATO-IA.md`](FORMATO-IA.md), pégalas en ChatGPT, Gemini o Claude junto con lo que quieres estudiar y pega en Flaski lo que te responda. Antes de añadirlo ves cuántas tarjetas salen y qué notas se saltan y por qué.
 - **Compartir un mazo:** abre el mazo → **Compartir**. Puedes hacerlo público (aparece en Explorar y te da un enlace directo) o descargarlo como archivo.
@@ -124,6 +125,7 @@ js/vendor/              Librerías de terceros incluidas
 licenses/               Licencias de terceros
 js/csv.js               Leer y escribir CSV (independiente)
 js/notes.js             Formato «por notas» para IAs y leer lo pegado (independiente)
+js/pages.js             Apuntes: bloques, atajos, tablas Markdown (independiente)
 FORMATO-IA.md           Instrucciones del formato para pegar en una IA (y skill de Claude)
 sw.js                   Hace que la app abra sin conexión
 manifest.webmanifest    Nombre e icono al instalarla

@@ -31,6 +31,8 @@ export function createOutbox({ key, run, storage = globalThis.localStorage, retr
       return q.filter(x => !((x.op === 'saveProgress' || x.op === 'clearProgress') && x.args[1] === args[1]));
     }
     if (op === 'saveSettings') return q.filter(x => x.op !== 'saveSettings');
+    // savePage(página entera): solo cuenta la última versión de cada página
+    if (op === 'savePage') return q.filter(x => !(x.op === 'savePage' && x.args[0]?.id === args[0]?.id));
     return q;
   }
 

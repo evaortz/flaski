@@ -159,6 +159,26 @@ create table if not exists public.review_events (
 );
 create index if not exists review_events_user_ts_idx on public.review_events (user_id, ts);
 
+-- ---------- Apuntes (versión 5) ----------
+-- Cada página es una lista de bloques [{ id, type: 'p'|'h1'|'h2'|'li', text }]. El id de cada bloque
+-- no cambia al editar, para que las tarjetas puedan apuntar a «esa parte» de la página.
+create table if not exists public.pages (
+  id         uuid primary key default gen_random_uuid(),
+  owner      uuid not null default auth.uid() references auth.users on delete cascade,
+  title      text not null default '' check (char_length(title) <= 120),
+  icon       text not null default '' check (char_length(icon) <= 16),
+  deck_id    uuid references public.decks on delete set null,   -- mazo donde van sus tarjetas
+  folder_id  uuid references public.folders on delete set null,
+  blocks     jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists pages_owner_idx on public.pages (owner);
+-- Tarjetas vinculadas a un bloque de unos apuntes
+alter table public.cards add column if not exists page_id  uuid references public.pages on delete set null;
+alter table public.cards add column if not exists block_id text;
+create index if not exists cards_page_idx on public.cards (page_id);
+
 -- =====================================================================
 -- Seguridad (Row Level Security): cada persona solo ve y cambia lo suyo.
 -- Los mazos marcados como públicos (y sus tarjetas) los puede LEER
@@ -174,6 +194,11 @@ alter table public.folders       enable row level security;
 alter table public.tags          enable row level security;
 alter table public.note_types    enable row level security;
 alter table public.review_events enable row level security;
+alter table public.pages         enable row level security;
+
+drop policy if exists "mis apuntes" on public.pages;
+create policy "mis apuntes" on public.pages
+  for all to authenticated using (owner = auth.uid()) with check (owner = auth.uid());
 
 drop policy if exists "perfiles visibles" on public.profiles;
 create policy "perfiles visibles" on public.profiles
