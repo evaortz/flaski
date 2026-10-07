@@ -283,3 +283,23 @@ returns int language sql security invoker set search_path = public as $$
   returning count;
 $$;
 grant execute on function public.bump_review_log(date, int) to authenticated;
+
+-- ---------- Imágenes (versión 7) ----------
+-- Almacén privado: cada cuenta guarda sus imágenes en su carpeta (<id de usuario>/<id de imagen>)
+-- y solo ella puede verlas. Máximo 8 MB por imagen (la app ya las reduce a unos 200 KB).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('media', 'media', false, 8388608, array['image/webp', 'image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "mis imágenes: ver" on storage.objects;
+create policy "mis imágenes: ver" on storage.objects
+  for select to authenticated using (bucket_id = 'media' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "mis imágenes: subir" on storage.objects;
+create policy "mis imágenes: subir" on storage.objects
+  for insert to authenticated with check (bucket_id = 'media' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "mis imágenes: cambiar" on storage.objects;
+create policy "mis imágenes: cambiar" on storage.objects
+  for update to authenticated using (bucket_id = 'media' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "mis imágenes: borrar" on storage.objects;
+create policy "mis imágenes: borrar" on storage.objects
+  for delete to authenticated using (bucket_id = 'media' and (storage.foldername(name))[1] = auth.uid()::text);

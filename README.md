@@ -126,16 +126,19 @@ licenses/               Licencias de terceros
 js/csv.js               Leer y escribir CSV (independiente)
 js/notes.js             Formato «por notas» para IAs y leer lo pegado (independiente)
 js/pages.js             Apuntes: bloques, atajos, tablas Markdown (independiente)
+js/media.js             Imágenes: en el navegador (IndexedDB) y en Supabase Storage
 FORMATO-IA.md           Instrucciones del formato para pegar en una IA (y skill de Claude)
 sw.js                   Hace que la app abra sin conexión
 manifest.webmanifest    Nombre e icono al instalarla
 icons/                  Iconos
 decks/                  Mazos incluidos + index.json con la lista
-supabase/schema.sql     Tablas y reglas de seguridad
+supabase/schema.sql     Tablas, reglas de seguridad y almacén de imágenes
 tests/                  Pruebas automáticas (no forman parte de la app)
 ```
 
 **Cosas que conviene saber:**
+
+- **Imágenes.** En los textos se escriben como `![pie](img:ID)`; los datos van aparte (IndexedDB y, con cuenta, el almacén privado `media` de Supabase, creado por `schema.sql`). Las copias de seguridad y los mazos descargados llevan las imágenes dentro.
 
 - **Al subir cambios**, abre `sw.js` y sube el número de `VERSION` (`flaski-v1` → `flaski-v2`) para que los móviles cojan la versión nueva.
 - **Para añadir un mazo incluido:** crea un archivo en `decks/` con el formato de abajo y añádelo a `decks/index.json`.

@@ -273,6 +273,23 @@ export async function mergeLog(uid, rows) {
 }
 export const deleteEvent = queued('deleteEvent');
 
+/* ---------------- Imágenes ---------------- */
+// Almacén privado «media»: cada cuenta en su carpeta (uid/id). Ver supabase/schema.sql.
+export function imageStore(uid) {
+  const bucket = () => sb.storage.from('media');
+  return {
+    async upload(id, blob) {
+      const { error } = await bucket().upload(`${uid}/${id}`, blob, { upsert: true, contentType: blob.type || 'image/webp', cacheControl: '31536000' });
+      if (error) throw error;
+    },
+    async download(id) {
+      const { data, error } = await bucket().download(`${uid}/${id}`);
+      if (error) throw error;
+      return data;
+    },
+  };
+}
+
 /* ---------------- Apuntes ---------------- */
 // Se guarda la página entera por la cola: escribir apuntes sin conexión no pierde nada
 export const savePage = queued('savePage');

@@ -25,7 +25,7 @@ export function setBaseRate(r) { baseRate = Number(r) || 1; }
 export function speak(text, lang, { rate = 0.95 } = {}) {
   if (!synth || !lang) return false;
   // Huecos {{x}} → x · furigana 漢字[かんじ] → かんじ (la lectura suena mejor) · piezas « / » → espacio
-  const clean = String(text || '').replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1')
+  const clean = String(text || '').replace(/!\[[^\]\n]*\]\(img:[\w-]+\)/g, ' ').replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1')
     .replace(/([\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF々〆ヶ]+)\[([^\]\n]+)\]/g, '$2')
     .replace(/\s*\/\s*/g, ' ').replace(/\*/g, '').trim();
   if (!clean) return false;

@@ -26,6 +26,7 @@ export async function mockCloud(page) {
     reachable: true,
     tables: { decks: [DECK], cards: [card(1, 'ev', 'casa'), card(2, 'kapı', 'puerta'), card(3, 'su', 'agua')], progress: [], review_log: [], folders: [], tags: [], note_types: [], review_events: [] },
     writes: [],   // [método, tabla, cuerpo]
+    files: new Map(),   // Storage: ruta → { body, type }
   };
   await page.route('**/js/config.js', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
   await page.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, ['sb-test-auth-token', JSON.stringify(SESSION)]);
@@ -36,6 +37,17 @@ export async function mockCloud(page) {
     const path = u.pathname.replace('/rest/v1/', '');
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (path.startsWith('/auth/v1/logout')) return route.fulfill({ status: 204, body: '' });
+    // Storage: subir y descargar archivos (las imágenes)
+    const obj = /^\/storage\/v1\/object\/(?:authenticated\/)?(.+)$/.exec(path);
+    if (obj) {
+      const key = decodeURIComponent(obj[1]);
+      if (req.method() === 'GET') {
+        const f = srv.files.get(key);
+        return f ? route.fulfill({ status: 200, contentType: f.type, body: f.body }) : json({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);
+      }
+      srv.files.set(key, { body: req.postDataBuffer(), type: req.headers()['content-type'] || '' });
+      return json({ Key: key, Id: key });
+    }
     if (path.startsWith('/auth/')) return json({ message: 'no disponible en las pruebas' }, 400);
     if (path === 'rpc/bump_review_log') {
       const { p_day, p_delta } = req.postDataJSON();

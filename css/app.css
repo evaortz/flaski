@@ -1074,3 +1074,17 @@ body.ob-open{overflow:hidden}
   .ob-phone{width:min(320px,calc((100dvh - 200px) * 390 / 760))}
   .ob-start .ob-copy{text-align:center;max-width:540px}
 }.ob:focus{outline:none}
+
+/* ---------- Imágenes ---------- */
+img.media{display:block;max-width:100%;max-height:min(46vh,420px);height:auto;margin:8px auto;border-radius:8px;object-fit:contain}
+img.media:not([src]){min-height:80px;min-width:min(240px,100%);background:var(--hover)}
+img.media.img-missing{min-height:56px;border:1px dashed var(--line-strong,var(--line));background:none}
+/* En listas y vistas previas pequeñas, una miniatura en línea */
+.row img.media,.preview img.media,.list img.media{display:inline-block;max-height:2.4em;min-height:0;min-width:0;width:auto;margin:0 4px;vertical-align:middle;border-radius:4px}
+.nb-img{margin:6px -6px;padding:4px 34px 4px 6px}
+.nb-img img.media{margin:0 auto 4px}
+.nb-img figcaption{text-align:center;font-size:14px;color:var(--muted);min-height:1.4em}
+.nb-img .nb-input{text-align:center;font-size:14px}
+.nb-del{position:absolute;top:6px;right:2px;opacity:0;transition:opacity .15s}
+.nb-img:hover .nb-del,.nb-del:focus-visible{opacity:1}
+@media (hover:none){.nb-del{opacity:.7}}

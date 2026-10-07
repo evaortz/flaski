@@ -248,3 +248,44 @@ test('pegar unos apuntes enteros', async ({ page }) => {
   await page.locator('#pageSearch').fill('nada');
   await expect(page.locator('#main .list li')).toHaveCount(0);
 });
+
+// Imagen de 2×2 píxeles
+const PNG = { name: 'mapa.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64') };
+
+test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al recargar', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Geografía');
+  // En una tarjeta: con el botón de la barra de formato, en el campo activo
+  await page.locator('#main [data-act="new-card"]').click();
+  await page.locator('#fld-q').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('[data-fmt="image"]').click();
+  await (await chooser).setFiles(PNG);
+  await expect(page.locator('#fld-q')).toHaveValue(/^!\[\]\(img:[a-z0-9]+\)$/);
+  await expect(page.locator('#pvBody img.media')).toHaveAttribute('src', /^blob:/);
+  await page.locator('#fld-a').fill('Turquía');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await expect(page.locator('#main .row img.media')).toHaveAttribute('src', /^blob:/);
+
+  // En los apuntes: un bloque de imagen con su pie
+  await newPage(page, 'Mapas');
+  const chooser2 = page.waitForEvent('filechooser');
+  await page.locator('[data-act="add-image"]').click();
+  await (await chooser2).setFiles(PNG);
+  const fig = page.locator('#pgBlocks .nb-img');
+  await expect(fig.locator('img.media')).toHaveAttribute('src', /^blob:/);
+  await fig.locator('.nb-text').click();
+  await type(page, 'Mapa de Turquía');
+  await page.keyboard.press('Escape');
+  await expect(fig.locator('figcaption')).toHaveText('Mapa de Turquía');
+
+  await page.reload();
+  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await nav(page, 'Apuntes');
+  await page.getByText('Mapas').first().click();
+  const img = page.locator('#pgBlocks .nb-img img.media');
+  await expect(img).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('#pgBlocks .nb-img figcaption')).toHaveText('Mapa de Turquía');
+});

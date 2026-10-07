@@ -1,9 +1,10 @@
 // Apuntes: una página es una lista de bloques { id, type, text }.
-//   type: 'p' (párrafo) · 'h1' · 'h2' (títulos) · 'li' (lista)
+//   type: 'p' (párrafo) · 'h1' · 'h2' (títulos) · 'li' (lista) · 'table' · 'img' (imagen: src = id, text = pie)
 // El id de un bloque no cambia al editarlo: las tarjetas vinculadas guardan (page_id, block_id).
 // Sin dependencias de la interfaz, así que se puede probar aparte.
 
-export const BLOCK_TYPES = ['p', 'h1', 'h2', 'li', 'table'];
+export const BLOCK_TYPES = ['p', 'h1', 'h2', 'li', 'table', 'img'];
+const IMG_LINE = /^!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)$/;   // una línea que es solo una imagen
 
 /* ---------------- Tablas (Markdown) ----------------
    | Caso | Sufijo |
@@ -33,6 +34,7 @@ export function blockId() {
   return 'b' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 7);
 }
 export const newBlock = (type = 'p', text = '') => ({ id: blockId(), type, text });
+export const imageBlock = (src, caption = '') => ({ id: blockId(), type: 'img', text: caption, src });
 
 // Atajos al escribir al principio de un párrafo: «# » título, «## » subtítulo, «- » o «* » lista
 export function shortcut(text) {
@@ -58,6 +60,8 @@ export function textToBlocks(text) {
     if (table && !isTableText(table.text)) table.type = 'p';   // no era una tabla: queda como párrafo
     table = null;
     if (!line.trim()) { para = null; continue; }
+    const im = IMG_LINE.exec(line.trim());
+    if (im) { out.push(imageBlock(im[2], im[1])); para = null; continue; }
     const sc = shortcut(line.trimStart());
     if (sc) { out.push(newBlock(sc.type, sc.text.trim())); para = null; continue; }
     if (para) para.text += ' ' + line.trim();
@@ -124,7 +128,7 @@ export function sectionIds(blocks, id) {
 export function pageTitle(page) {
   const t = String(page?.title || '').trim();
   if (t) return t;
-  const first = (page?.blocks || []).find(b => b.text.trim());
+  const first = (page?.blocks || []).find(b => b.type !== 'img' && b.text.trim());
   return first ? first.text.replace(/[*_{}[\]|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : 'Sin título';
 }
 
@@ -133,6 +137,10 @@ export function pageToMarkdown(page) {
   const t = String(page?.title || '').trim();
   let md = t ? `# ${t}` : '', prev = t ? 'h1' : null;
   for (const b of page?.blocks || []) {
+    if (b.type === 'img') {
+      if (b.src) { md += (md ? '\n\n' : '') + `![${b.text.replace(/[\]\n]/g, ' ')}](img:${b.src})`; prev = 'img'; }
+      continue;
+    }
     if (!b.text.trim()) continue;
     // Cada título con su nivel: al pegarlo de nuevo, el primer «# » vuelve a ser el título del apunte
     const line = b.type === 'h1' ? `# ${b.text}` : b.type === 'h2' ? `## ${b.text}` : b.type === 'li' ? `- ${b.text}` : b.text;

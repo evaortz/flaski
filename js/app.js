@@ -18,7 +18,8 @@ import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, for
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
-import { newBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
+import { addImage, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
+import { newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -58,13 +59,21 @@ const S = {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-// Formato sencillo: *cursiva*, **negrita** y saltos de línea
-// Formato sencillo: *cursiva*, **negrita**, saltos de línea y furigana 漢字[かんじ]
+// Formato sencillo: *cursiva*, **negrita**, saltos de línea, furigana 漢字[かんじ] e imágenes ![pie](img:id)
+// (las imágenes se cargan después: ver hydrate en media.js)
+const imgHTML = (id, alt = '') => `<img class="media" data-img="${id}" alt="${alt}" loading="lazy" decoding="async">`;
 function fmt(s) {
-  return esc(s).replace(RUBY_RE, '<ruby>$1<rt>$2</rt></ruby>')
+  return esc(s).replace(IMG_RE, (_, alt, id) => imgHTML(id, alt)).replace(RUBY_RE, '<ruby>$1<rt>$2</rt></ruby>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
 }
-const plain = s => String(s ?? '').replace(/\*/g, '');
+// Cada vez que se pinta algo con imágenes, se cargan (del navegador o de la nube)
+let hydrateQueued = false;
+new MutationObserver(() => {
+  if (hydrateQueued) return;
+  hydrateQueued = true;
+  queueMicrotask(() => { hydrateQueued = false; hydrate(document); });
+}).observe(document.body, { childList: true, subtree: true });
+const plain = s => stripImages(s).replace(/\*/g, '');
 const norm = s => plain(s).toLocaleLowerCase();
 const cardList = () => [...S.cards.values()];
 let toastTimer;
@@ -302,6 +311,7 @@ async function onSignedIn(session) {
   S.uid = session.user.id;
   S.email = session.user.email || '';
   S.loading = true;
+  setImageRemote(api.imageStore ? api.imageStore(S.uid) : null);
   render();
   if (api.offline) {
     if (!session.offline) rememberUser(session.user);
@@ -1213,6 +1223,7 @@ async function addPreview(btn) {
   btn.disabled = true; btn.textContent = 'Añadiendo…';
   try {
     const typeMap = await adoptTypes(p.types);
+    if (p.images) await importImages(p.images);   // las imágenes que vienen dentro del archivo
     // Etiquetas por nombre (formato por notas): se crean las que falten y se reutilizan las que ya tengas
     let cards = p.cards;
     if (p.tagNames?.length) {
@@ -1348,6 +1359,12 @@ const statusLabel = st => STATUS.find(s => s.id === st)?.label || '';
 // Tarjetas que tocan ahora en un ámbito (repasos + nuevas que caben hoy)
 const pendingIn = scope => { const c = counts(scope); return c.due + c.newToday; };
 function blockHTML(b, cards = []) {
+  // Imagen: la imagen y debajo su pie (que se edita como un bloque de texto)
+  if (b.type === 'img') {
+    return `<figure class="nb nb-img" data-block="${b.id}">${imgHTML(b.src, esc(b.text))}
+      <button type="button" class="iconbtn nb-del" data-del-block="${b.id}" aria-label="Quitar la imagen" title="Quitar la imagen">${icon('trash-2', { size: 15 })}</button>
+      <figcaption class="nb-text" data-edit-block="${b.id}">${b.text.trim() ? fmt(b.text) : '<span class="nb-ph">Pie de foto (opcional)</span>'}</figcaption></figure>`;
+  }
   const n = cards.length, st = statusOf(cards);
   const body = !b.text.trim() ? `<span class="nb-ph">${BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text) : fmt(b.text);
   // En los títulos: estudiar el apartado entero (el título y lo que cuelga de él)
@@ -1399,7 +1416,7 @@ function renderPage() {
     </div>
     ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
-    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">${icon('plus', { size: 15 })} Bloque</button><button type="button" class="pg-add" data-act="add-table">${icon('plus', { size: 15 })} Tabla</button></div>
+    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">${icon('plus', { size: 15 })} Bloque</button><button type="button" class="pg-add" data-act="add-table">${icon('plus', { size: 15 })} Tabla</button><button type="button" class="pg-add" data-act="add-image">${icon('plus', { size: 15 })} Imagen</button></div>
     <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
       <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} Crear tarjeta</button>
       <button type="button" class="ghost small-btn" data-act="sel-cloze">${icon('puzzle', { size: 15 })} Convertir en hueco</button></div>`;
@@ -1427,7 +1444,8 @@ function editBlock(id, caret = null) {
   const b = curPage()?.blocks.find(x => x.id === id);
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
   if (!b || !el) return;
-  el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${BLOCK_PH}" aria-label="Bloque">${esc(b.text)}</textarea>`;
+  const ph = b.type === 'img' ? 'Pie de foto (opcional)' : BLOCK_PH;
+  el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${ph}" aria-label="${b.type === 'img' ? 'Pie de foto' : 'Bloque'}">${esc(b.text)}</textarea>`;
   const t = document.querySelector(`[data-block-input="${id}"]`);
   autoGrow(t); t.focus();
   const pos = caret == null ? t.value.length : caret;
@@ -1488,6 +1506,14 @@ function blockKey(e) {
     return redrawBlocks(next.id, 0);
   }
   if (e.key === 'Backspace' && collapsed && at === 0) {
+    if (b.type === 'img') return;   // el pie de una imagen no se junta con nada (la imagen se quita con su botón)
+    // Detrás de una imagen: un párrafo vacío desaparece; si tiene texto, se queda como está
+    if (i > 0 && p.blocks[i - 1].type === 'img') {
+      if (t.value.trim()) return;
+      e.preventDefault();
+      p.blocks.splice(i, 1); moveCards(b.id, p.blocks[i - 1].id); savePageSoon(p);
+      return redrawBlocks(p.blocks[i - 1].id);
+    }
     if (b.type === 'table' && t.value.trim()) return;   // en una tabla con contenido, Retroceso al principio no hace nada especial
     if (b.type !== 'p') { e.preventDefault(); b.text = t.value; b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }
     if (i > 0) {
@@ -1526,6 +1552,10 @@ document.addEventListener('pointerdown', e => { if (e.target.closest?.('#selBar'
 document.addEventListener('focusout', e => { if (!repainting && e.target.matches?.('[data-block-input]') && e.target.isConnected) commitBlockEl(e.target); });
 document.addEventListener('paste', e => {
   const t = e.target;
+  // Una imagen pegada: en un campo del editor, dentro del campo; en unos apuntes, como bloque nuevo
+  const img = imageFile(e.clipboardData);
+  if (img && t.matches?.('.ef-input')) { e.preventDefault(); return imageIntoField(t, img); }
+  if (img && S.view === 'page' && !t.closest?.('.sheet')) { e.preventDefault(); return addImageBlock(img, t.dataset?.blockInput); }
   if (!t.matches?.('[data-block-input]')) return;
   const text = e.clipboardData?.getData('text/plain') || '';
   if (!text.includes('\n')) return;
@@ -1544,6 +1574,48 @@ document.addEventListener('paste', e => {
   last.text += after;
   savePageSoon(p);
   redrawBlocks(last.id, caret);
+});
+// Añade una imagen a los apuntes: detrás del bloque indicado (o al final; si el último está vacío, en su lugar)
+async function addImageBlock(file, afterId = null) {
+  const p = curPage();
+  if (!p) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  const id = await saveImage(file);
+  if (!id || curPage() !== p) return;
+  const blk = imageBlock(id);
+  const i = afterId ? p.blocks.findIndex(x => x.id === afterId) : -1;
+  const last = p.blocks[p.blocks.length - 1];
+  if (i >= 0) {
+    const b = p.blocks[i];
+    if (!b.text.trim() && b.type === 'p') p.blocks.splice(i, 1, blk); else p.blocks.splice(i + 1, 0, blk);
+  } else if (last && !last.text.trim() && last.type === 'p') p.blocks.splice(p.blocks.length - 1, 1, blk);
+  else p.blocks.push(blk);
+  // Siempre queda un párrafo detrás para seguir escribiendo
+  const j = p.blocks.indexOf(blk);
+  if (j === p.blocks.length - 1) p.blocks.push(newBlock());
+  savePageSoon(p);
+  redrawBlocks();
+}
+function removeImageBlock(id) {
+  const p = curPage(), i = p?.blocks.findIndex(x => x.id === id);
+  if (!p || i < 0) return;
+  const next = p.blocks[i + 1] || p.blocks[i - 1];
+  if (next) moveCards(id, next.id);
+  p.blocks.splice(i, 1);
+  if (!p.blocks.length) p.blocks.push(newBlock());
+  savePageSoon(p);
+  redrawBlocks();
+  toast('Imagen quitada');
+}
+// Arrastrar una imagen a los apuntes
+document.addEventListener('dragover', e => { if (S.view === 'page' && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if (S.view !== 'page') return;
+  const f = imageFile(e.dataTransfer);
+  if (!f) return;
+  e.preventDefault();
+  addImageBlock(f, e.target.closest?.('[data-block]')?.dataset.block || null);
 });
 function newPage({ title = '', blocks = null } = {}) {
   if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
@@ -1841,7 +1913,7 @@ function prefChanged(path) {
 }
 // Copia v2: lo mismo en los dos modos y con los identificadores originales, para que al restaurar
 // se reconozca lo que ya está. En modo local lleva además el volcado completo del navegador.
-function backupData() {
+async function backupData() {
   const deckOut = d => ({
     id: d.id, name: d.name, description: d.description || '', source: d.source || '', icon: d.icon || '', color: d.color || '',
     options: d.options || {}, folder_id: d.folder_id || null, pinned: !!d.pinned, archived: !!d.archived, tags: d.tags || [], types: deckTypes(d.id),
@@ -1859,6 +1931,7 @@ function backupData() {
     events: S.events.map(({ t, user_id, ...e }) => e),
     log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
     local: api.dumpLocal(),
+    images: await exportImages(imageIdsOf({ cards: cardList(), pages: [...S.pages.values()] })),
   };
 }
 
@@ -1929,7 +2002,7 @@ async function restoreInto(data) {
     try {
       const have = await existingId(pg.id, id => S.pages.has(id));
       if (have) { pageMap.set(pg.id, have); rep.pages.skipped++; continue; }
-      const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: ['p', 'h1', 'h2', 'li', 'table'].includes(b.type) ? b.type : 'p', text: str(b.text, 20000) }));
+      const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: ['p', 'h1', 'h2', 'li', 'table', 'img'].includes(b.type) ? b.type : 'p', text: str(b.text, 20000), ...(b.type === 'img' ? { src: str(b.src, 64) } : {}) }));
       const np = await createKeepingId(api.createPage, { owner: uid, title: str(pg.title, 120), icon: str(pg.icon, 16), deck_id: null, folder_id: folderMap.get(pg.folder_id) || null, blocks,
         ...(S.pageTagsMissing ? {} : { tags: tagsOf(pg.tags) }) }, pg.id);
       S.pages.set(np.id, { ...np, blocks: np.blocks || blocks });
@@ -2014,6 +2087,7 @@ async function restoreBackup(file) {
   try { data = JSON.parse((await file.text()).replace(/^﻿/, '')); } catch { return toast('El archivo no es una copia válida'); }
   if (data?.format !== 'flaski-backup') return toast('Ese archivo no es una copia de seguridad de Flaski');
   try {
+    await importImages(data.images);
     // Copia de este mismo modo local: sustituye todo lo del navegador, como siempre
     if (api.mode === 'local' && data.local) {
       await api.restoreLocal(data.local);
@@ -2287,6 +2361,7 @@ const TOOLBAR = deckId => {
   <button type="button" data-fmt="cloze" title="Convertir en hueco {{ }}" aria-label="Hueco">{{&thinsp;}}</button>
   ${['ja', 'zh'].includes(baseLang(study)) ? '<button type="button" data-fmt="ruby" title="Añadir furigana al kanji seleccionado" aria-label="Furigana" lang="ja">振</button>' : ''}
   <button type="button" data-fmt="slash" title="Separar piezas con /" aria-label="Separador de piezas">/</button>
+  <button type="button" data-fmt="image" title="Añadir una imagen al campo (también puedes pegarla)" aria-label="Añadir imagen">${icon('image', { size: 16 })}</button>
   ${chars.length ? `<span class="ed-sep" aria-hidden="true"></span>${chars.map(ch => `<button type="button" data-char="${ch}" aria-label="Insertar ${ch}">${ch}</button>`).join('')}` : ''}
 </div><div class="ruby-pop" id="rubyPop" role="dialog" aria-label="Furigana" hidden></div>`;
 };
@@ -2411,6 +2486,7 @@ function applyFormat(kind) {
   else if (kind === 'italic') wrap('*', '*', 'texto');
   else if (kind === 'cloze') { if (!sel) return toast('Selecciona la parte que quieres ocultar'); wrap('{{', '}}'); }
   else if (kind === 'ruby') return rubyPrompt(t);
+  else if (kind === 'image') return pickImage().then(f => f && imageIntoField(t, f));
   else if (kind === 'slash') {
     t.value = t.value.slice(0, a) + ' / ' + t.value.slice(z);
     t.focus(); t.selectionStart = t.selectionEnd = a + 3;
@@ -2418,6 +2494,32 @@ function applyFormat(kind) {
   S.edit.dirty = true;
   autoGrow(t); readEditor(); drawPreview();
 }
+/* ---------- Imágenes ---------- */
+// Abre el selector de archivos y devuelve la imagen elegida (o null)
+function pickImage() {
+  return new Promise(ok => {
+    const inp = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
+    inp.addEventListener('change', () => ok(inp.files?.[0] || null));
+    inp.addEventListener('cancel', () => ok(null));
+    inp.click();
+  });
+}
+// Guarda la imagen y devuelve su id (o null si no se ha podido)
+async function saveImage(file) {
+  try { return await addImage(file); } catch (e) { toast(e.message || 'No se ha podido añadir la imagen'); return null; }
+}
+// Mete una imagen en un campo del editor, donde está el cursor (en su propia línea)
+async function imageIntoField(t, file) {
+  const id = await saveImage(file);
+  if (!id || !t.isConnected) return;
+  const a = t.selectionStart, z = t.selectionEnd, before = t.value.slice(0, a), after = t.value.slice(z);
+  const tok = (before && !before.endsWith('\n') ? '\n' : '') + imgToken(id) + (after && !after.startsWith('\n') ? '\n' : '');
+  t.value = before + tok + after;
+  t.focus(); t.selectionStart = t.selectionEnd = a + tok.length;
+  S.edit.dirty = true;
+  autoGrow(t); readEditor(); drawPreview();
+}
+const imageFile = dt => [...(dt?.files || [])].find(f => /^image\//.test(f.type)) || null;
 /* ---------- Furigana en el editor ---------- */
 const KANJI = /[㐀-䶿一-鿿豈-﫿々〆ヶ]/;
 const hasRuby = s => new RegExp(RUBY_RE.source).test(String(s || ''));
@@ -2972,6 +3074,7 @@ function parseDeckFile(data) {
     }));
   if (!cards.length) throw new Error('El archivo no tiene tarjetas');
   return { name: String(data.name || 'Mazo importado').slice(0, 80), description: String(data.description || '').slice(0, 300), cards, types: Array.isArray(data.types) ? data.types : [],
+    images: data.images && typeof data.images === 'object' ? data.images : null,
     lang: typeof data.lang === 'string' && (data.lang === '' || LANGS.some(l => l.id === data.lang)) ? data.lang : undefined };
 }
 async function importFile(file) {
@@ -2991,7 +3094,7 @@ function download(text, filename, type) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-function exportDeck(kind) {
+async function exportDeck(kind) {
   const d = S.decks.get(S.deckId);
   const cards = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
     .map(c => ({ front: c.front, back: c.back, note: c.note || '' }));
@@ -3000,6 +3103,9 @@ function exportDeck(kind) {
   const full = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
     .map(c => ({ front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '' }));
   const data = { format: 'flaski-deck', version: 2, name: d.name, description: d.description || '', lang: deckLang(d.id), types: deckTypes(d.id), cards: full };
+  // Las imágenes van dentro del archivo, para que el mazo llegue completo a quien lo reciba
+  const ids = imageIdsOf({ cards: full });
+  if (ids.size) data.images = await exportImages(ids);
   download(JSON.stringify(data, null, 2), slug + '.flaski.json', 'application/json');
 }
 
@@ -3067,6 +3173,7 @@ document.addEventListener('click', async e => {
   }
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
+  if (ds.delBlock) return removeImageBlock(ds.delBlock);
   if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
   if (ds.hideType) {
     const h = S.prefs.types.hidden;
@@ -3170,7 +3277,7 @@ document.addEventListener('click', async e => {
     case 'algo-reset': { S.prefs.algo.custom = { ...DEFAULT_ALGO }; prefChanged('algo.custom'); const y = scrollY; renderSettings(); scrollTo(0, y); return; }
     case 'backup': {
       const day = dateKey();
-      download(JSON.stringify(backupData(), null, 1), `flaski-copia-${day}.json`, 'application/json');
+      download(JSON.stringify(await backupData(), null, 1), `flaski-copia-${day}.json`, 'application/json');
       return toast('Copia descargada');
     }
     case 'restore': return $('#backupFile').click();
@@ -3256,6 +3363,7 @@ document.addEventListener('click', async e => {
       savePageSoon(p);
       return redrawBlocks(target.id, ds.act === 'add-table' ? 2 : 0);
     }
+    case 'add-image': { const f = await pickImage(); return f && addImageBlock(f); }
     case 'ask-delete-page': return confirmSheet('¿Eliminar estos apuntes?', 'delete-page', 'Eliminar');
     case 'delete-page': {
       const id = S.pageId;
@@ -3418,7 +3526,7 @@ document.addEventListener('click', async e => {
       const uid = S.uid;
       try { await api.auth.signOut(); } catch (err) { return fail(err); }
       // La copia para abrir sin conexión no se queda en el dispositivo al cerrar sesión
-      deleteSnapshot(uid); forgetUser();
+      deleteSnapshot(uid); forgetUser(); setImageRemote(null);
       return;
     }
   }

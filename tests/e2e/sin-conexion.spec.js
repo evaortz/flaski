@@ -1,5 +1,5 @@
-import { test, expect, answer } from './fixtures.js';
-import { mockCloud, openCloud, sent } from './nube.js';
+import { test, expect, answer, nav } from './fixtures.js';
+import { mockCloud, openCloud, sent, UID } from './nube.js';
 
 test('estudiar sin conexión: los cambios esperan y se envían al volver la red', async ({ page, context }) => {
   const srv = await mockCloud(page);
@@ -60,4 +60,32 @@ test('cerrar sesión borra la copia sin conexión de este dispositivo', async ({
   await page.locator('#nav').getByRole('button', { name: 'Perfil' }).click();
   await page.locator('[data-act="signout"]').click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('flaski-last-user'))).toBeNull();
+});
+
+test('una imagen añadida sin conexión se sube al volver la red y se descarga en otro dispositivo', async ({ page, context }) => {
+  const PNG = { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64') };
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await context.setOffline(true);
+  srv.reachable = false;
+  await nav(page, 'Mis mazos');
+  await page.getByText('Turco en la nube').first().click();
+  await page.locator('#main .row').first().click();
+  await page.locator('#fld-q').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('[data-fmt="image"]').click();
+  await (await chooser).setFiles(PNG);
+  await expect(page.locator('#pvBody img.media')).toHaveAttribute('src', /^blob:/);
+  const id = /img:([a-z0-9]+)/.exec(await page.locator('#fld-q').inputValue())[1];
+  expect(srv.files.size).toBe(0);
+
+  srv.reachable = true;
+  await context.setOffline(false);
+  await expect.poll(() => [...srv.files.keys()]).toEqual([`media/${UID}/${id}`]);
+
+  // Otro dispositivo (sin la imagen guardada en el navegador): la descarga de la nube
+  await page.evaluate(() => new Promise(r => { const q = indexedDB.deleteDatabase('flaski-media'); q.onsuccess = q.onerror = q.onblocked = r; }));
+  await page.reload();
+  await page.evaluate(i => document.body.insertAdjacentHTML('beforeend', `<img id="probe" class="media" data-img="${i}">`), id);
+  await expect(page.locator('#probe')).toHaveAttribute('src', /^blob:/);
 });
