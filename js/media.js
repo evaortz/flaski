@@ -108,6 +108,15 @@ export async function addImage(file) {
   return id;
 }
 
+// Guarda una imagen con un id ya elegido (al importar de Anki). No sube nada hasta flushUploads().
+const EXT = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', avif: 'image/avif' };
+export const imageType = name => EXT[String(name).split('.').pop().toLowerCase()] || '';
+export async function storeImage(id, bytes, type) {
+  let blob = new Blob([bytes], { type });
+  try { blob = await compress(blob); } catch {}   // si el navegador no sabe abrirla, tal cual
+  await putRec({ id, blob, pending: !!remote });
+}
+
 const loading = new Map();
 // URL para mostrar una imagen (o null si no se encuentra)
 export function imageUrl(id) {

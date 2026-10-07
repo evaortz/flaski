@@ -18,7 +18,8 @@ import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, for
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
-import { addImage, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
+import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
+import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
 import { newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
@@ -3078,6 +3079,7 @@ function parseDeckFile(data) {
     lang: typeof data.lang === 'string' && (data.lang === '' || LANGS.some(l => l.id === data.lang)) ? data.lang : undefined };
 }
 async function importFile(file) {
+  if (/\.(apkg|colpkg)$/i.test(file.name)) return importAnki(file);
   try {
     const text = await file.text();
     const baseName = file.name.replace(/\.(flaski\.json|kartlar\.json|json|csv|tsv|txt)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Mazo importado';
@@ -3085,6 +3087,109 @@ async function importFile(file) {
     const parsed = /\.(csv|tsv)$/i.test(file.name) ? { kind: 'csv', text } : parsePasted(text);
     previewImport(parsed, { source: 'archivo', baseName });
   } catch (e) { toast(e.message || 'No se pudo leer el archivo'); }
+}
+/* ---------------- Importar de Anki ---------------- */
+async function importAnki(file) {
+  openSheet(`<h2>Importar de Anki</h2><p class="muted" role="status">Leyendo «${esc(file.name)}»…</p>`);
+  try {
+    const col = await readApkg(new Uint8Array(await file.arrayBuffer()));
+    const r = ankiToFlaski(col, { newImageId });
+    if (!r.total) throw new Error('No se ha encontrado ninguna tarjeta en el archivo.');
+    const base = file.name.replace(/\.(apkg|colpkg)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Anki';
+    S.anki = { col, r, base };
+    const withProgress = col.cards.some(c => c.type > 0);
+    const sounds = col.notes.some(n => n.fields.some(f => f.includes('[sound:')));
+    const sample = r.decks.flatMap(d => d.cards).slice(0, 5).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
+    const names = ankiDeckNames(r.decks, base);
+    openSheet(`<h2>Importar de Anki</h2>
+      <p class="muted small">${plural(r.total, 'tarjeta', 'tarjetas')} de ${plural(r.notes, 'nota', 'notas')}${r.images.size ? ` · ${plural(r.images.size, 'imagen', 'imágenes')}` : ''}</p>
+      <ul class="preview">${sample}</ul>
+      <p class="anki-dest"><b>${r.decks.length === 1 ? 'Se creará el mazo' : `Se crearán ${r.decks.length} mazos en la carpeta «${esc(names.folder)}»`}</b></p>
+      <ul class="anki-decks">${r.decks.map((d, i) => `<li><span>${esc(names.decks[i])}</span><span class="muted">${d.cards.length}</span></li>`).join('')}</ul>
+      ${withProgress ? '<label class="anki-check"><input type="checkbox" id="ankiProgress" checked> Traer también mi progreso y el historial de repasos</label>' : ''}
+      ${r.skipped ? `<p class="muted small">${r.skipped === 1 ? 'Se salta 1 nota vacía o sin tarjetas' : `Se saltan ${r.skipped} notas vacías o sin tarjetas`}.</p>` : ''}
+      ${sounds ? '<p class="muted small">Los audios de Anki no se importan: Flaski lee en voz alta los campos que tienen idioma.</p>' : ''}
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-anki">Importar</button></div>`);
+  } catch (e) {
+    console.error(e);
+    openSheet(`<h2>No se ha podido importar</h2><p>${esc(e.message || 'El archivo no es un mazo de Anki válido.')}</p>
+      <p class="muted small">En Anki: Archivo → Exportar… → «Paquete de mazos de Anki (.apkg)».</p>
+      <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
+  }
+}
+// Nombres de los mazos: la parte común de la ruta pasa a ser la carpeta
+// («Idiomas::Turco» e «Idiomas::Japonés» → carpeta «Idiomas» con los mazos «Turco» y «Japonés»)
+function ankiDeckNames(decks, base) {
+  if (decks.length === 1) return { folder: null, decks: [decks[0].name.slice(0, 80)] };
+  let common = 0;
+  while (decks.every(d => d.path.length > common + 1 && d.path[common] === decks[0].path[common])) common++;
+  return {
+    folder: common ? decks[0].path.slice(0, common).join(' › ') : base,
+    decks: decks.map(d => (d.path.slice(common).join(' › ') || d.name).slice(0, 80)),
+  };
+}
+async function addAnki(btn) {
+  const a = S.anki;
+  if (!a || !btn) return;
+  const { col, r, base } = a;
+  const progress = !!$('#ankiProgress')?.checked;
+  const step = t => { btn.textContent = t; };
+  btn.disabled = true;
+  try {
+    // Imágenes, con el id que ya llevan los textos
+    let i = 0;
+    for (const [name, id] of r.images) {
+      step(`Imágenes ${++i}/${r.images.size}…`);
+      try { await storeImage(id, await col.media.get(name)(), imageType(name)); } catch {}
+    }
+    flushUploads();
+    step('Creando los mazos…');
+    const typeMap = await adoptTypes(r.types);
+    const tagIds = new Map();
+    for (const n of new Set(r.decks.flatMap(d => d.cards.flatMap(c => c.tagNames)))) { const t = await addTag(n); if (t) tagIds.set(n, t.id); }
+    const names = ankiDeckNames(r.decks, base);
+    let folder = null;
+    if (names.folder) {
+      folder = await api.createFolder({ owner: S.uid, name: names.folder.slice(0, 80), icon: '', color: '', position: Date.now() / 1000, parent_id: S.view === 'decks' ? S.folderId || null : null });
+      S.folders.set(folder.id, folder);
+    }
+    const ankiCard = new Map(col.cards.map(c => [c.id, c]));
+    const byAnki = new Map();   // id de la tarjeta en Anki → [id en Flaski, mazo]
+    let firstDeck = null;
+    for (const [k, d] of r.decks.entries()) {
+      step(`Mazo ${k + 1}/${r.decks.length}…`);
+      const cards = d.cards.map(c => ({ ...c, tags: c.tagNames.map(n => tagIds.get(n)).filter(Boolean) }));
+      const { deck, cards: made } = await api.importDeck(S.uid, { name: names.decks[k], description: 'Importado de Anki', source: 'anki', cards, typeMap });
+      S.decks.set(deck.id, { tags: [], ...(folder ? await api.updateDeck(deck.id, { folder_id: folder.id }) : deck) });
+      firstDeck ||= deck.id;
+      made.forEach((c, j) => { S.cards.set(c.id, c); if (d.cards[j]?.anki) byAnki.set(d.cards[j].anki, [c.id, deck.id]); });
+    }
+    if (progress && byAnki.size) {
+      step('Progreso…');
+      const { events, seen } = ankiHistory(col.revlog, [...byAnki.keys()]);
+      const now = Date.now(), rows = [];
+      for (const [aid, [id]] of byAnki) {
+        const p = ankiProgress(ankiCard.get(aid), col.crt, now, seen.get(aid));
+        if (p) { S.progress.set(id, p); rows.push(toRow(S.uid, id, p)); }
+      }
+      if (rows.length) await api.saveProgressMany(rows);
+      const evs = events.map(({ anki, ...e }) => { const [id, deckId] = byAnki.get(anki); return { ...e, id: api.newId(), user_id: S.uid, card_id: id, deck_id: deckId }; });
+      if (evs.length) {
+        await api.addEvents(evs.map(({ t, ...row }) => row));
+        S.events.push(...evs);
+        S.events.sort((x, y) => x.t - y.t);
+        const perDay = {};
+        for (const e of evs) { const k = dateKey(e.t); perDay[k] = (perDay[k] || 0) + 1; }
+        await api.mergeLog(S.uid, Object.entries(perDay).map(([day, count]) => ({ day, count })));
+        for (const [day, n] of Object.entries(perDay)) S.log[day] = Math.max(S.log[day] || 0, n);
+      }
+    }
+    S.anki = null;
+    migrateDeckLangs();
+    closeSheet();
+    toast(`${plural(r.total, 'tarjeta importada', 'tarjetas importadas')} de Anki`);
+    if (folder) go('decks', { folderId: folder.id }); else go('deck', { deckId: firstDeck, cardQuery: '' });
+  } catch (e) { btn.disabled = false; btn.textContent = 'Importar'; fail(e); }
 }
 function download(text, filename, type) {
   const blob = new Blob([text], { type });
@@ -3446,6 +3551,7 @@ document.addEventListener('click', async e => {
     case 'new-card': return cardForm(null);
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
+    case 'add-anki': return addAnki(e.target.closest('button'));
     case 'paste': return pasteSheet();
     case 'paste-preview': {
       S.pasteText = $('#pasteText').value;
