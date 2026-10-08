@@ -1340,11 +1340,11 @@ function renderNotes() {
     : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
     : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
        <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
-       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button><button class="ghost" data-act="import-pdf">Importar PDF</button></div>`;
+       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>`;
   main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
     <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button><button class="ghost" data-act="import-pdf" title="Convertir un PDF en apuntes">${icon('file-text', { size: 16 })} PDF</button></div>
+    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button></div>
     <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
       <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
@@ -1751,6 +1751,8 @@ function newPage({ title = '', blocks = null } = {}) {
 }
 // Un PDF → un apunte: títulos, párrafos y listas; las páginas escaneadas, como imágenes
 async function importPdf(file) {
+  const target = curPage();
+  if (!target) return;
   openSheet(`<h2>Importar PDF</h2><p class="muted" role="status" id="pdfStatus">Abriendo «${esc(file.name)}»…</p>`);
   const status = t => { const el = $('#pdfStatus'); if (el) el.textContent = t; };
   try {
@@ -1766,9 +1768,18 @@ async function importPdf(file) {
     const blocks = raw.filter(b => b.type !== 'img' || b.src);
     if (!blocks.length) throw new Error('No se ha encontrado nada que convertir en este PDF.');
     flushUploads();
-    newPage({ title: r.title || title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim(), blocks });
+    const open = document.querySelector('[data-block-input]');
+    if (open) commitBlockEl(open);
+    const empty = !target.blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr');
+    if (empty) target.blocks = blocks;
+    // Añadido a un apunte que ya tiene contenido: el título del PDF encabeza lo añadido
+    else target.blocks.push(...((title || r.title) ? [newBlock('h1', title || r.title)] : []), ...blocks);
+    if (!String(target.title || '').trim()) target.title = title || r.title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim();
+    savePageSoon(target, 0);
+    closeSheet();
+    if (S.view === 'page' && S.pageId === target.id) { renderPage(); if (!empty) document.querySelector(`[data-block="${blocks[0].id}"]`)?.scrollIntoView({ block: 'start' }); }
     toast(scanned === r.pages.length ? 'El PDF está escaneado: sus páginas se han guardado como imágenes'
-      : `Apunte creado a partir de ${plural(r.pages.length, 'página', 'páginas')}${r.truncated ? ` (de ${r.total}: solo se importan las ${r.pages.length} primeras)` : ''}`);
+      : `${empty ? 'Apunte creado' : 'Añadido al apunte'} a partir de ${plural(r.pages.length, 'página', 'páginas')}${r.truncated ? ` (de ${r.total}: solo se importan las ${r.pages.length} primeras)` : ''}`);
   } catch (e) {
     console.error(e);
     const msg = e?.name === 'PasswordException' ? 'El PDF está protegido con contraseña. Quítasela y vuelve a intentarlo.'
@@ -3631,9 +3642,7 @@ document.addEventListener('click', async e => {
     case 'manage-types': S.typeEdit = null; return typesSheet();
     case 'new-page': return newPage();
     case 'paste-page': return pastePageSheet();
-    case 'import-pdf':
-      if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
-      return $('#pdfFile').click();
+    case 'import-pdf': closeSheet(); return $('#pdfFile').click();
     case 'paste-page-ok': {
       const blocks = textToBlocks($('#pagePaste').value);
       if (!blocks.length) return toast('No has pegado nada');
@@ -3683,6 +3692,7 @@ document.addEventListener('click', async e => {
     case 'save-page-icon': { const p = curPage(); p.icon = readIcon(); savePageSoon(p); closeSheet(); return renderPage(); }
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
+        <li><button class="row-link" data-act="import-pdf">${icon('file-text', { size: 20 })}<span><b>Importar PDF</b><small>${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'Su contenido se añade al final de este apunte' : 'Lo convierte en este apunte: títulos, párrafos, listas y tablas'}</small></span></button></li>
         <li><button class="row-link" data-act="page-md">${icon('download', { size: 20 })}<span><b>Descargar como Markdown</b><small>Para guardarlo o abrirlo en otra aplicación</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
         <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus tarjetas no se borran: solo dejan de estar unidas a él</small></span></button></li>

@@ -10,11 +10,10 @@ const page = items => ({ width: W, height: H, items });
 test('líneas: junta los trozos de una línea y lee primero la columna izquierda', () => {
   const lines = pageLines(page([it('Hola', 50, 700), it('mundo', 50 + 4 * 5.5 + 3, 700), it('Segunda', 50, 686)]));
   assert.deepEqual(lines.map(l => l.text), ['Hola mundo', 'Segunda']);
-  const cols = pageLines(page([
-    it('Izquierda uno', 50, 700), it('Derecha uno', 320, 700), it('Izquierda dos', 50, 686), it('Derecha dos', 320, 686),
-    it('Izquierda tres', 50, 672), it('Derecha tres', 320, 672),
-  ]));
-  assert.deepEqual(cols.map(l => l.text), ['Izquierda uno', 'Izquierda dos', 'Izquierda tres', 'Derecha uno', 'Derecha dos', 'Derecha tres']);
+  // Cada columna llena su mitad de la página (40 letras ≈ 220 puntos)
+  const L = n => `Izquierda ${n} con texto de una columna larga`.padEnd(40, '.'), R = n => `Derecha ${n} con texto de otra columna larga`.padEnd(40, '.');
+  const cols = pageLines(page([1, 2, 3].flatMap((n, i) => [it(L(n), 50, 700 - i * 14), it(R(n), 320, 700 - i * 14)])));
+  assert.deepEqual(cols.map(l => l.text.split(' ').slice(0, 2).join(' ')), ['Izquierda 1', 'Izquierda 2', 'Izquierda 3', 'Derecha 1', 'Derecha 2', 'Derecha 3']);
 });
 
 test('PDF → bloques: títulos por tamaño o negrita, párrafos unidos, listas, guiones y sin números de página', () => {
@@ -58,4 +57,34 @@ test('títulos de los metadatos', () => {
   assert.equal(cleanTitle('Microsoft Word - Tema 1.docx'), 'Tema 1');
   assert.equal(cleanTitle('untitled'), '');
   assert.equal(cleanTitle(undefined), '');
+});
+
+test('tablas: columnas alineadas → tabla en Markdown, con celdas de varias líneas', () => {
+  // Caso | Sufijo | Ejemplo, a la izquierda de cada columna; «Dativo» tiene un ejemplo en dos líneas
+  const row = (y, a, b, c) => [it(a, 50, y), it(b, 200, y), it(c, 330, y)].filter(x => x.str);
+  const p = page([
+    it('Los casos', 50, 780, 16),
+    ...row(740, 'Caso', 'Sufijo', 'Ejemplo'),
+    ...row(724, 'Locativo', '-de / -da', 'evde'),
+    ...row(708, 'Dativo', '-e / -a', 'eve (a casa),'),
+    it('okula', 330, 695),
+    ...row(679, 'Ablativo', '-den / -dan', 'evden'),
+    it('Después de la tabla sigue el texto normal.', 50, 640),
+  ]);
+  const { blocks } = pdfToBlocks([p]);
+  assert.deepEqual(blocks.map(b => b.type), ['h2', 'table', 'p']);
+  blocks.shift();
+  assert.equal(blocks[0].text, [
+    '| Caso | Sufijo | Ejemplo |', '| --- | --- | --- |',
+    '| Locativo | -de / -da | evde |', '| Dativo | -e / -a | eve (a casa), okula |', '| Ablativo | -den / -dan | evden |',
+  ].join('\n'));
+});
+
+test('tablas: una lista con tabulador o un párrafo no son tablas', () => {
+  const p = page([
+    it('•', 60, 700), it('primera cosa', 90, 700),
+    it('•', 60, 686), it('segunda cosa', 90, 686),
+    it('Un párrafo normal con palabras', 50, 650), it('seguidas.', 50 + 30 * 5.5 + 3, 650),
+  ]);
+  assert.deepEqual(pdfToBlocks([p]).blocks.map(b => [b.type, b.text]), [['li', 'primera cosa'], ['li', 'segunda cosa'], ['p', 'Un párrafo normal con palabras seguidas.']]);
 });

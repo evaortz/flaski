@@ -1,5 +1,5 @@
 // Crea un PDF de prueba de verdad (Helvetica y Helvetica-Bold, con tildes): un título grande, un apartado,
-// un párrafo partido en varias líneas, una lista y un número de página; y una segunda página sin texto
+// un párrafo partido en varias líneas, una lista, una tabla y un número de página; y una segunda página sin texto
 // (solo un dibujo), como si estuviera escaneada.
 export function makePdf() {
   const text = (font, size, x, y, s) => `BT /${font} ${size} Tf ${x} ${y} Td (${s.replace(/[()\\]/g, '\\$&').replace(/•/g, '\x95')}) Tj ET`;   // en WinAnsi, «•» es el byte 0x95
@@ -11,6 +11,9 @@ export function makePdf() {
     text('F2', 11, 50, 672, 'Ejemplos'),
     text('F1', 11, 60, 652, '• evde: en casa'),
     text('F1', 11, 60, 638, '• okulda: en la escuela'),
+    text('F2', 11, 50, 600, 'Caso'), text('F2', 11, 200, 600, 'Sufijo'), text('F2', 11, 330, 600, 'Ejemplo'),
+    text('F1', 11, 50, 584, 'Locativo'), text('F1', 11, 200, 584, '-de / -da'), text('F1', 11, 330, 584, 'evde'),
+    text('F1', 11, 50, 568, 'Ablativo'), text('F1', 11, 200, 568, '-den / -dan'), text('F1', 11, 330, 568, 'evden'),
     text('F1', 9, 290, 30, '1'),
   ].join('\n');
   const page2 = '0.2 0.4 0.8 rg 100 300 400 300 re f';

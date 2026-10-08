@@ -345,19 +345,33 @@ test('más tipos de bloque: atajos, menú /, casillas, destacado, código y sepa
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(8);
 });
 
-test('importar un PDF: se convierte en un apunte con títulos, párrafos, listas y las páginas escaneadas como imagen', async ({ page }) => {
+test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, tablas y páginas escaneadas como imagen', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Apuntes');
+  await page.locator('[data-act="new-page"]').first().click();
+  await page.locator('[data-act="page-menu"]').click();
   const chooser = page.waitForEvent('filechooser');
-  await page.locator('#main [data-act="import-pdf"]').first().click();
+  await page.locator('#sheetBody [data-act="import-pdf"]').click();
   await (await chooser).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
-  await expect(page.locator('#pgTitle')).toHaveValue('casos');
+  await expect(page.locator('#pgTitle')).toHaveValue('Los casos del turco');
   const blocks = page.locator('#pgBlocks .nb');
   await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(1);
-  expect(await blocks.evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['h2', 'p', 'h3', 'li', 'li', 'img']);
+  expect(await blocks.evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['h2', 'p', 'h3', 'li', 'li', 'table', 'img']);
   await expect(blocks.nth(0)).toHaveText('El locativo');
-  await expect(blocks.nth(4)).toHaveText('okulda: en la escuela');
   await expect(blocks.nth(1)).toHaveText('El locativo indica dónde está algo. Se forma con el sufijo -de o -da según la armonía vocálica.');
+  await expect(blocks.nth(4)).toHaveText('okulda: en la escuela');
+  await expect(page.locator('#pgBlocks table th')).toHaveText(['Caso', 'Sufijo', 'Ejemplo']);
+  await expect(page.locator('#pgBlocks table tbody tr')).toHaveCount(2);
   await expect(page.locator('#pgBlocks .nb-img img.media')).toHaveAttribute('src', /^blob:/);
   await expect(page.locator('#pgBlocks .nb-img figcaption')).toHaveText('Página 2');
+
+  // Otra vez en el mismo apunte: se añade al final
+  await page.locator('[data-act="page-menu"]').click();
+  await expect(page.locator('#sheetBody')).toContainText('se añade al final');
+  const chooser2 = page.waitForEvent('filechooser');
+  await page.locator('#sheetBody [data-act="import-pdf"]').click();
+  await (await chooser2).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
+  await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(2);
+  await expect(blocks).toHaveCount(15);   // lo añadido va encabezado por el título del PDF
+  await expect(blocks.nth(7)).toHaveText('Los casos del turco');
 });

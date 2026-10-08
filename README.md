@@ -141,7 +141,7 @@ tests/                  Pruebas automáticas (no forman parte de la app)
 
 **Cosas que conviene saber:**
 
-- **Apuntes desde un PDF.** «Apuntes → PDF» convierte un PDF en un apunte: adivina títulos (por tamaño o negrita), párrafos y listas, quita cabeceras, pies y números de página, y guarda como imagen las páginas escaneadas. Las imágenes y tablas que haya dentro del texto no se traen.
+- **Apuntes desde un PDF.** En el menú ⋯ de un apunte, «Importar PDF» lo rellena (o añade al final): adivina títulos (por tamaño o negrita), párrafos, listas y tablas (texto alineado en columnas), quita cabeceras, pies y números de página, y guarda como imagen las páginas escaneadas. Las imágenes que haya dentro de las páginas con texto no se traen.
 
 - **Amigos** (solo con cuenta). Cada persona tiene un código y un enlace de invitación (Perfil → Amigos); la amistad la aceptan los dos. De un amigo solo se ve un resumen calculado en Supabase (racha, repasos de hoy y de la semana, idiomas), nunca sus mazos ni apuntes, y cada uno puede dejar de compartirlo. Las tablas y funciones están en `schema.sql` (versión 8).
 
