@@ -5,7 +5,8 @@
 //   templates: [{ id, name, mode, front:[ids], back:[ids], answer, wrong }]
 //              ← cada plantilla genera UNA tarjeta a partir de los campos
 // Modos: flip (dar la vuelta) · type (escribir la respuesta) · choice (opción múltiple) · cloze (huecos)
-//        draw (escribir a mano) · listen (dictado) · order (ordenar las piezas)
+//        draw (escribir a mano) · listen (dictado) · order (ordenar las piezas) · match (emparejar)
+//        · occlusion (tapar partes de una imagen: una tarjeta por recuadro)
 //
 // Una NOTA es un conjunto de valores de campos; al guardarla se crea una tarjeta por
 // plantilla (por ejemplo, «Doble sentido» crea dos). Las tarjetas hermanas comparten note_id.
@@ -18,8 +19,12 @@ export const MODES = [
   { id: 'draw', label: 'Escribir a mano', help: 'Dibujas la respuesta con el dedo. Con kanji y caracteres chinos se corrige trazo a trazo; con otros alfabetos comparas tu dibujo con la solución.' },
   { id: 'listen', label: 'Dictado', help: 'Escuchas la respuesta y la escribes. El campo necesita un idioma de audio.' },
   { id: 'order', label: 'Ordenar', help: 'Colocas las piezas en orden. Se separan por espacios; si escribes « / » entre piezas (útil en japonés o chino), se usan esas.' },
+  { id: 'match', label: 'Emparejar', help: 'Unes cada elemento con su pareja. Una pareja por línea: «ev = casa».' },
+  { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una tarjeta.' },
 ];
-export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order'];
+export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match'];
+// Máximo de recuadros en «Tapar partes de una imagen» (cada uno, una tarjeta)
+export const MAX_MASKS = 30;
 
 export const LANGS = [
   { id: '', label: 'Sin audio' },
@@ -80,6 +85,26 @@ export const BUILTIN_TYPES = [
     description: 'Dibujas la respuesta con el dedo: fórmulas, kanji, alfabeto árabe, coreano, griego, ruso…',
     fields: [F('q', 'Pregunta'), F('a', 'Lo que hay que escribir', { lang: STUDY }), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Escribir a mano', mode: 'draw', front: ['q'], back: ['n'], answer: 'a', guide: false }],
+  },
+  {
+    id: 'truefalse', builtin: true, scope: 'general', name: 'Verdadero o falso', icon: '', lucide: 'circle-help',
+    description: 'Una afirmación: decides si es verdadera o falsa.',
+    fields: [F('s', 'Afirmación'), F('v', '¿Verdadera o falsa?', { help: 'Escribe V o F (o «verdadero» / «falso»)' }), F('n', 'Explicación')],
+    templates: [{ id: 't1', name: 'Verdadero o falso', mode: 'choice', front: ['s'], back: ['n'], answer: 'v', choices: ['Verdadero', 'Falso'],
+      aliases: { v: 'Verdadero', f: 'Falso', verdadera: 'Verdadero', falsa: 'Falso', true: 'Verdadero', false: 'Falso', sí: 'Verdadero', si: 'Verdadero', no: 'Falso' } }],
+  },
+  {
+    id: 'match', builtin: true, scope: 'general', name: 'Emparejar', icon: '', lucide: 'link',
+    description: 'Unes cada elemento con su pareja: palabras y traducciones, casos y sufijos…',
+    fields: [F('t', 'Instrucción (opcional)', { help: 'Ej.: Une cada palabra con su traducción' }),
+      F('p', 'Parejas', { lang: STUDY, help: 'Una por línea: ev = casa. También vale con tabulador, « | » o « - ».' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Emparejar', mode: 'match', front: ['t'], back: ['n'], answer: 'p' }],
+  },
+  {
+    id: 'occlusion', builtin: true, scope: 'general', name: 'Tapar partes de una imagen', icon: '', lucide: 'image',
+    description: 'Tapas partes de un mapa, un esquema o un diagrama. Cada recuadro es una tarjeta.',
+    fields: [F('img', 'Imagen'), F('m', 'Recuadros'), F('h', 'Pregunta (opcional)', { help: 'Ej.: ¿Qué río es?' }), F('n', 'Notas')],
+    templates: Array.from({ length: 30 }, (_, k) => ({ id: 't' + (k + 1), name: `Recuadro ${k + 1}`, mode: 'occlusion', front: ['h'], back: ['n'], answer: 'm', image: 'img', mask: k })),
   },
   {
     id: 'vocab', builtin: true, scope: 'lang', name: 'Vocabulario', icon: '', lucide: 'languages',
@@ -174,6 +199,37 @@ export function orderTokens(text) {
 export function orderJoin(tokens, original) {
   return String(original || '').includes('/') && tokens.some(x => CJK_RE.test(x) || /[\u3040-\u30FF]/.test(x)) ? tokens.join('') : tokens.join(' ');
 }
+/* ---------------- Emparejar ---------------- */
+// «ev = casa» por línea → [{ a: 'ev', b: 'casa' }]
+export function parsePairs(text) {
+  return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    for (const sep of ['\t', ' = ', '=', ' | ', ' → ', '→', ' – ', ' - ', ' : ', ';']) {
+      const i = l.indexOf(sep);
+      if (i > 0 && i < l.length - sep.length) return { a: l.slice(0, i).trim(), b: l.slice(i + sep.length).trim() };
+    }
+    return null;
+  }).filter(p => p && p.a && p.b);
+}
+
+/* ---------------- Tapar partes de una imagen ---------------- */
+// Recuadros en porcentaje de la imagen, uno por línea: «x y ancho alto» → [{ x, y, w, h }]
+export function parseMasks(text) {
+  return String(text || '').split('\n').map(l => l.trim().split(/[\s,;]+/).map(Number)).filter(v => v.length >= 4 && v.slice(0, 4).every(Number.isFinite))
+    .map(([x, y, w, h]) => ({ x: clamp(x), y: clamp(y), w: clamp(w), h: clamp(h) })).filter(m => m.w > 0.5 && m.h > 0.5).slice(0, MAX_MASKS);
+}
+const clamp = v => Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
+export const masksToText = masks => masks.map(m => [m.x, m.y, m.w, m.h].map(clamp).join(' ')).join('\n');
+const IMG_TOKEN = /!\[[^\]\n]*\]\(img:([\w-]{4,64})\)/;
+export const imageIdIn = text => IMG_TOKEN.exec(String(text || ''))?.[1] || null;
+
+/* ---------------- Opciones fijas (der/die/das, Verdadero/Falso) ---------------- */
+// La opción que corresponde a lo escrito («v» → «Verdadero»), o '' si no es ninguna
+export function canonChoice(tpl, value) {
+  const v = strip(value).toLocaleLowerCase();
+  if (!v || !tpl.choices) return '';
+  return tpl.choices.find(c => c.toLocaleLowerCase() === v) || tpl.aliases?.[v] || '';
+}
+
 export const CLOZE_RE = /\{\{(.+?)(?:::(.+?))?\}\}/g;
 export const hasCloze = s => /\{\{.+?\}\}/.test(String(s || ''));
 
@@ -183,9 +239,11 @@ export function activeTemplates(type, fields) {
     if (t.mode === 'cloze') return hasCloze(fields[t.front[0]]);
     if (t.mode === 'listen') return !!strip(fields[t.answer]);
     if (t.mode === 'order') return orderTokens(fields[t.answer]).length > 1;
+    if (t.mode === 'match') return parsePairs(fields[t.answer]).length >= 2;
+    if (t.mode === 'occlusion') return !!imageIdIn(fields[t.image]) && parseMasks(fields[t.answer]).length > t.mask;
     const front = t.front.some(id => strip(fields[id]));
     if (!front) return false;
-    if (t.choices && !t.choices.some(c => c.toLocaleLowerCase() === strip(fields[t.answer]).toLocaleLowerCase())) return false;
+    if (t.choices && !canonChoice(t, fields[t.answer])) return false;
     if (NEEDS_ANSWER.includes(t.mode)) return !!strip(fields[t.answer]);
     return t.back.some(id => strip(fields[id]));
   });
@@ -196,12 +254,14 @@ export function missingFor(type, tpl, fields) {
   const name = id => type.fields.find(f => f.id === id)?.name || id;
   const empty = id => !String(fields[id] || '').trim();
   if (tpl.mode === 'cloze') return `«${name(tpl.front[0])}» con algún {{hueco}}`;
+  if (tpl.mode === 'match') return `«${name(tpl.answer)}»: al menos dos parejas, una por línea (ev = casa)`;
+  if (tpl.mode === 'occlusion') return imageIdIn(fields[tpl.image]) ? `al menos ${tpl.mask + 1} ${tpl.mask ? 'recuadros' : 'recuadro'} sobre la imagen` : 'una imagen';
   const need = [];
   if (!['listen', 'order'].includes(tpl.mode) && tpl.front.every(empty)) need.push(name(tpl.front[0]));
   if (tpl.answer && empty(tpl.answer)) need.push(name(tpl.answer));
   if (!tpl.answer && tpl.back.every(empty)) need.push(name(tpl.back[0]));
   if (tpl.mode === 'order' && !need.length) return `«${name(tpl.answer)}» con al menos dos piezas`;
-  if (tpl.choices && !need.length) return `«${name(tpl.answer)}»: ${tpl.choices.slice(0, -1).join(', ')} o ${tpl.choices.at(-1)}`;
+  if (tpl.choices && !need.length) return `«${name(tpl.answer)}»: ${tpl.choices.slice(0, -1).join(', ')} o ${tpl.choices.at(-1)}${tpl.aliases ? ` (o ${tpl.choices.map(c => c[0]).join(' / ')})` : ''}`;
   return need.map(n => `«${n}»`).join(' y ') || 'los campos';
 }
 
@@ -216,6 +276,18 @@ export function summarize(type, tpl, fields) {
       back: text.replace(CLOZE_RE, '$1'),
       note: join(tpl.back),
     };
+  }
+  if (tpl.mode === 'match') {
+    const pairs = parsePairs(val(tpl.answer));
+    return { front: join(tpl.front) || 'Emparejar', back: pairs.map(p => `${p.a} = ${p.b}`).join('\n'), note: join(tpl.back) };
+  }
+  if (tpl.mode === 'occlusion') {
+    const id = imageIdIn(val(tpl.image));
+    return { front: `${id ? `![](img:${id}) ` : ''}${join(tpl.front) || 'Imagen'} · recuadro ${tpl.mask + 1}`, back: join(tpl.back) || `Recuadro ${tpl.mask + 1}`, note: '' };
+  }
+  if (tpl.choices) {
+    const rest = tpl.back.map(val).filter(Boolean);
+    return { front: join(tpl.front), back: canonChoice(tpl, val(tpl.answer)) || val(tpl.answer), note: rest.join('\n') };
   }
   const answerFirst = tpl.answer ? [tpl.answer, ...tpl.back.filter(id => id !== tpl.answer)] : tpl.back;
   let [main, ...rest] = answerFirst.map(val).filter(Boolean);
@@ -287,10 +359,7 @@ function diffChars(a, b) {
 
 export function choiceOptions(tpl, fields, pool) {
   // Opciones fijas (der / die / das): siempre las mismas y en el mismo orden
-  if (tpl.choices) {
-    const v = String(fields[tpl.answer] || '').trim().toLocaleLowerCase();
-    return { correct: tpl.choices.find(c => c.toLocaleLowerCase() === v) || v, opts: [...tpl.choices] };
-  }
+  if (tpl.choices) return { correct: canonChoice(tpl, fields[tpl.answer]) || String(fields[tpl.answer] || '').trim(), opts: [...tpl.choices] };
   const correct = String(fields[tpl.answer] || '').trim();
   let wrong = String(fields[tpl.wrong] || '').split(';').map(s => s.trim()).filter(Boolean);
   if (wrong.length < 3) {

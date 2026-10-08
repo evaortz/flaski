@@ -10,7 +10,7 @@ import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmap, forecast, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang } from './cardtypes.js';
+import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS } from './cardtypes.js';
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck, descendants } from './org.js';
@@ -631,7 +631,9 @@ function faceHTML(model, st, { preview = false } = {}) {
 
   // Anverso
   let front;
-  if (tpl.mode === 'cloze') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.front[0]), st.revealed)}</span>${say(tpl.front[0])}</div></div>`;
+  if (tpl.mode === 'occlusion') front = occlusionHTML(val(tpl.image), val(tpl.answer), tpl.mask, st.revealed) + tpl.front.map(id => block(id, false)).join('');
+  else if (tpl.mode === 'match' && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">Une cada elemento con su pareja</span></div></div>`;
+  else if (tpl.mode === 'cloze') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.front[0]), st.revealed)}</span>${say(tpl.front[0])}</div></div>`;
   else front = tpl.front.map((id, i) => block(id, i === 0)).join('');
   if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
 
@@ -667,6 +669,21 @@ function faceHTML(model, st, { preview = false } = {}) {
     }).join('')}</div>`;
   }
 
+  if (tpl.mode === 'match') {
+    const m = st.match || matchState(val(tpl.answer));
+    if (!st.revealed) {
+      const btn = (side, p) => {
+        const key = `${side}:${p.i}`, done = m.done.includes(p.i);
+        const cls = done ? ' ok' : m.sel === key ? ' sel' : m.bad?.includes(key) ? ' bad' : '';
+        return `<button type="button" class="mchip${cls}" data-match="${key}" ${done || preview ? 'disabled' : ''} aria-pressed="${m.sel === key}">${fmt(side === 'L' ? p.a : p.b)}</button>`;
+      };
+      ask = `<div class="match" role="group" aria-label="Emparejar"><div class="match-col">${m.left.map(p => btn('L', p)).join('')}</div><div class="match-col">${m.right.map(p => btn('R', p)).join('')}</div></div>
+        ${preview ? '' : `<p class="hint match-hint">${m.wrong ? `${plural(m.wrong, 'fallo', 'fallos')} · ` : ''}Toca uno de cada lado</p>`}`;
+    } else {
+      const v = m.gaveUp ? '' : m.wrong ? `<div class="verdict bad">${plural(m.wrong, 'fallo', 'fallos')} al emparejar</div>` : `<div class="verdict ok">${icon('check', { size: 16 })} Todo emparejado sin fallos</div>`;
+      ask = `${v}<table class="match-sol">${m.pairs.map(p => `<tr><td>${fmt(p.a)}</td><td>${fmt(p.b)}</td></tr>`).join('')}</table>`;
+    }
+  }
   if (tpl.mode === 'order') {
     const o = st.order || { tokens: orderTokens(val(tpl.answer)).map((t, i) => ({ t, i })), picked: [] };
     const chip = (tok, attr) => `<button type="button" class="ochip" ${attr} ${preview || st.revealed ? 'disabled' : ''}>${esc(tok.t)}</button>`;
@@ -700,7 +717,7 @@ function faceHTML(model, st, { preview = false } = {}) {
   let answer = '';
   if (st.revealed) {
     if (tpl.mode === 'flip') answer = tpl.back.map((id, i) => block(id, i === 0)).join('');
-    else if (tpl.mode === 'cloze' || tpl.mode === 'choice') answer = tpl.back.map(id => block(id, false)).join('');
+    else if (['cloze', 'choice', 'match', 'occlusion'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
       const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
@@ -710,6 +727,34 @@ function faceHTML(model, st, { preview = false } = {}) {
     }
   }
   return { front, ask, answer };
+}
+/* ---------- Emparejar e imagen tapada ---------- */
+const shuffled = a => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+function matchState(text) {
+  const pairs = parsePairs(text).slice(0, 8).map((p, i) => ({ ...p, i }));
+  let right = shuffled(pairs);
+  for (let k = 0; k < 5 && pairs.length > 1 && right.every((p, i) => p.i === i); k++) right = shuffled(pairs);
+  return { pairs, left: shuffled(pairs), right, sel: null, done: [], wrong: 0, bad: null };
+}
+// Tocar un elemento al emparejar: el primero se marca; el segundo (del otro lado) comprueba la pareja
+function pickMatch(key) {
+  const st = S.session?.st;
+  if (!st?.match || S.session.revealed) return;
+  const m = st.match;
+  m.bad = null;
+  if (!m.sel || m.sel === key || m.sel[0] === key[0]) { m.sel = m.sel === key ? null : key; return renderStudy(); }
+  const a = +m.sel.slice(2), b = +key.slice(2);
+  if (a === b) m.done.push(a); else { m.wrong++; m.bad = [m.sel, key]; }
+  m.sel = null;
+  if (m.done.length === m.pairs.length) return reveal();
+  renderStudy();
+}
+// La imagen con sus recuadros: todos tapados; el que se pregunta, resaltado (y destapado al ver la respuesta)
+function occlusionHTML(imgText, maskText, cur, revealed, { edit = false } = {}) {
+  const id = imageIdIn(imgText);
+  if (!id) return edit ? '' : '<div class="fld fld-main"><span class="muted">Falta la imagen</span></div>';
+  const masks = parseMasks(maskText);
+  return `<div class="occ${edit ? ' occ-edit' : ''}" ${edit ? 'id="occStage"' : ''}>${imgHTML(id)}${masks.map((m, k) => `<${edit ? 'button type="button"' : 'div'} class="occ-m${k === cur ? ' cur' : ''}${k === cur && revealed ? ' open' : ''}" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%" ${edit ? `data-occ-del="${k}" title="Quitar este recuadro"` : ''}>${edit ? `<span>${k + 1}</span>` : k === cur && !revealed ? '<span>?</span>' : ''}</${edit ? 'button' : 'div'}>`).join('')}</div>`;
 }
 /* ---------- Dictado y escritura a mano ---------- */
 function playListen(model, rate = 1) {
@@ -825,6 +870,7 @@ function cardState(c) {
     st.order = { tokens: orderTokens(model.fields[model.tpl.answer]).map((t, i) => ({ t, i })), picked: [] };
     shuffleTokens(st.order);
   }
+  if (model.tpl.mode === 'match') st.match = matchState(model.fields[model.tpl.answer]);
   if (model.tpl.mode === 'choice') {
     const pool = cardList().filter(x => x.deck_id === c.deck_id && x.id !== c.id && x.type_id === c.type_id)
       .map(x => { const m = cardModel(x); return m.fields[m.tpl.answer] ?? x.back; });
@@ -865,6 +911,8 @@ function renderStudy() {
     const suggest = st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
       : st.choice && st.choice.picked >= 0 ? (st.choice.opts[st.choice.picked] === st.choice.correct ? 3 : 1)
       : st.order?.checked ? (st.order.ok ? 3 : 1)
+      : st.match && !st.match.gaveUp ? (st.match.wrong === 0 ? 3 : st.match.wrong === 1 ? 2 : 1)
+      : st.match?.gaveUp ? 1
       : d && !d.img && !d.gaveUp ? (() => { const avg = d.mistakes / Math.max(1, d.n); return avg === 0 && !d.peeked ? 3 : avg <= 2 && !(d.peeked && avg > 0) ? 2 : 1; })()
       : d?.gaveUp ? 1 : 0;
     const P = S.prefs.study, A = algo(c.deck_id);
@@ -881,7 +929,7 @@ function renderStudy() {
       <div class="front">${front}</div>${hint}${ask}
       ${answer ? `<div class="answer">${answer}</div>` : ''}
     </article>${foot}
-    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${model.tpl.mode === 'flip' || model.tpl.mode === 'cloze' ? 'Espacio: mostrar · ' : model.tpl.mode === 'choice' ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
+    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : model.tpl.mode === 'choice' ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
   if (!st.played) {
     st.played = true;
     if (model.tpl.mode === 'listen') { if (S.prefs.study.autoplay) playListen(model, 1); }
@@ -899,6 +947,7 @@ function reveal() {
     st.draw?.stop?.();
     const c = S.cards.get(ses.queue[0]);
     if (c && cardModel(c).tpl.mode === 'draw' && !st.drawn) st.drawn = { gaveUp: true };
+    if (st.match && st.match.done.length < st.match.pairs.length) st.match.gaveUp = true;
   }
   ses.revealed = true;
   renderStudy();
@@ -1620,6 +1669,7 @@ document.addEventListener('paste', e => {
   const t = e.target;
   // Una imagen pegada: en un campo del editor, dentro del campo; en unos apuntes, como bloque nuevo
   const img = imageFile(e.clipboardData);
+  if (img && document.querySelector('.ef-occ') && !t.matches?.('.ef-input')) { e.preventDefault(); return occSetImage(img); }
   if (img && t.matches?.('.ef-input')) { e.preventDefault(); return imageIntoField(t, img); }
   if (img && S.view === 'page' && !t.closest?.('.sheet')) { e.preventDefault(); return addImageBlock(img, t.dataset?.blockInput); }
   if (!t.matches?.('[data-block-input]')) return;
@@ -2480,6 +2530,8 @@ const edDeck = () => $('#c-deck')?.value || S.edit?.deckId || null;
 function fieldRoles(type, id) {
   const r = new Set();
   for (const t of type.templates) {
+    if (t.mode === 'match' && t.answer === id) { r.add('parejas'); continue; }
+    if (t.mode === 'occlusion') { if (t.front.includes(id)) r.add('anverso'); else if (t.back.includes(id)) r.add('reverso'); continue; }
     if (t.mode === 'cloze' && t.front[0] === id) r.add('huecos');
     else if (t.front.includes(id)) r.add('anverso');
     if (t.answer === id) r.add(t.mode === 'draw' ? 'a mano' : t.mode === 'listen' ? 'dictado' : t.mode === 'order' ? 'ordenar' : 'respuesta');
@@ -2488,7 +2540,7 @@ function fieldRoles(type, id) {
   return [...r];
 }
 function requiredField(type, id) {
-  return type.templates.some(t => t.front[0] === id || t.answer === id);
+  return type.templates.some(t => (t.front[0] === id && !['match', 'occlusion'].includes(t.mode)) || t.answer === id || t.image === id);
 }
 function fieldPlaceholder(f, type) {
   const roles = fieldRoles(type, f.id);
@@ -2497,7 +2549,11 @@ function fieldPlaceholder(f, type) {
   return requiredField(type, f.id) ? `Escribe ${f.name.toLowerCase()}…` : 'Opcional';
 }
 function fieldInputs(type, values) {
+  const occ = type.templates.find(t => t.mode === 'occlusion');
   return type.fields.map(f => {
+    // Imagen tapada: la imagen y sus recuadros se editan juntos, dibujando encima
+    if (occ && f.id === occ.answer) return '';
+    if (occ && f.id === occ.image) return occEditorHTML(values[occ.image], values[occ.answer]);
     const roles = fieldRoles(type, f.id);
     const req = requiredField(type, f.id);
     const lang = f.lang ? LANGS.find(l => l.id === f.lang)?.label || f.lang : '';
@@ -2733,6 +2789,77 @@ function rubyClose() {
   const box = $('#rubyPop');
   if (box) { box.hidden = true; box.innerHTML = ''; }
 }
+// Editor de «Tapar partes de una imagen»: la imagen, y encima los recuadros (se dibujan arrastrando)
+function occEditorHTML(imgText, maskText) {
+  const has = !!imageIdIn(imgText), n = parseMasks(maskText).length;
+  return `<div class="ef ef-req ef-occ" data-ef="img"><div class="ef-head"><span class="ef-name">Imagen y recuadros<span class="ef-dot" aria-label="necesario">•</span></span>
+      <span class="ef-badges">${has ? `<span class="ef-role">${plural(n, 'recuadro', 'recuadros')} · ${plural(n, 'tarjeta', 'tarjetas')}</span>` : ''}</span></div>
+    <textarea data-fld="img" hidden>${esc(imgText || '')}</textarea><textarea data-fld="m" hidden>${esc(maskText || '')}</textarea>
+    <div id="occEd">${has ? `${occlusionHTML(imgText, maskText, -1, false, { edit: true })}
+      <p class="ef-help">Arrastra sobre la imagen para tapar una parte: cada recuadro será una tarjeta. Toca un recuadro para quitarlo.</p>
+      <div class="btnrow"><button type="button" class="ghost small-btn" data-act="occ-pick">${icon('image', { size: 15 })} Cambiar imagen</button>${n ? '<button type="button" class="ghost small-btn" data-act="occ-clear">Quitar los recuadros</button>' : ''}</div>`
+      : `<button type="button" class="occ-empty" data-act="occ-pick">${icon('image', { size: 22 })}<b>Elegir imagen</b><small>Un mapa, un esquema, un diagrama… (también puedes pegarla)</small></button>`}</div></div>`;
+}
+function occFields() { return { img: document.querySelector('[data-fld="img"]'), m: document.querySelector('[data-fld="m"]') }; }
+function occRedraw() {
+  const { img, m } = occFields();
+  const box = document.querySelector('.ef-occ');
+  if (!img || !box) return;
+  box.outerHTML = occEditorHTML(img.value, m.value);
+  S.edit.dirty = true;
+  readEditor(); drawPreview();
+}
+async function occSetImage(file) {
+  const id = await saveImage(file);
+  const { img } = occFields();
+  if (!id || !img) return;
+  img.value = imgToken(id);
+  occRedraw();
+}
+function occDelete(k) {
+  const { m } = occFields();
+  if (!m) return;
+  const masks = parseMasks(m.value);
+  masks.splice(k, 1);
+  m.value = masksToText(masks);
+  occRedraw();
+}
+// Dibujar un recuadro arrastrando sobre la imagen
+let occDrag = null;
+document.addEventListener('pointerdown', e => {
+  const stage = e.target.closest?.('#occStage');
+  if (!stage || e.target.closest('.occ-m') || e.button > 0) return;
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'occ-m occ-new';
+  stage.appendChild(el);
+  occDrag = { r, x0: e.clientX, y0: e.clientY, el };
+  stage.setPointerCapture?.(e.pointerId);
+});
+const occBox = (d, x, y) => {
+  const pct = (v, a, len) => Math.min(100, Math.max(0, ((v - a) / len) * 100));
+  const xa = pct(d.x0, d.r.left, d.r.width), xb = pct(x, d.r.left, d.r.width), ya = pct(d.y0, d.r.top, d.r.height), yb = pct(y, d.r.top, d.r.height);
+  return { x: Math.min(xa, xb), y: Math.min(ya, yb), w: Math.abs(xb - xa), h: Math.abs(yb - ya) };
+};
+document.addEventListener('pointermove', e => {
+  if (!occDrag) return;
+  const b = occBox(occDrag, e.clientX, e.clientY);
+  Object.assign(occDrag.el.style, { left: b.x + '%', top: b.y + '%', width: b.w + '%', height: b.h + '%' });
+});
+document.addEventListener('pointerup', e => {
+  if (!occDrag) return;
+  const b = occBox(occDrag, e.clientX, e.clientY);
+  occDrag = null;
+  const { m } = occFields();
+  if (!m) return;
+  const masks = parseMasks(m.value);
+  if (b.w < 1.5 || b.h < 1.5) return occRedraw();   // un toque, no un recuadro
+  if (masks.length >= MAX_MASKS) { toast(`Como mucho ${MAX_MASKS} recuadros por imagen`); return occRedraw(); }
+  masks.push(b);
+  m.value = masksToText(masks);
+  occRedraw();
+});
 function readEditor() {
   const e = S.edit;
   document.querySelectorAll('[data-fld]').forEach(t => { e.fields[t.dataset.fld] = t.value; });
@@ -3067,7 +3194,7 @@ function drawTypeEditor() {
       <p class="hint">Cada una genera una tarjeta por nota. Por ejemplo, una de «turco → español» y otra de «español → turco».</p>
       <div class="ttpls">${t.templates.map((tpl, i) => `<fieldset class="ttpl" data-ti="${i}">
         <div class="two"><div><label>Nombre</label><input class="tt-name" value="${esc(tpl.name)}" maxlength="60"></div>
-          <div><label>Cómo se estudia</label><select class="tt-mode">${MODES.map(m => `<option value="${m.id}" ${m.id === tpl.mode ? 'selected' : ''}>${m.label}</option>`).join('')}</select></div></div>
+          <div><label>Cómo se estudia</label><select class="tt-mode">${MODES.filter(m => !m.builtinOnly || m.id === tpl.mode).map(m => `<option value="${m.id}" ${m.id === tpl.mode ? 'selected' : ''}>${m.label}</option>`).join('')}</select></div></div>
         <p class="hint">${esc(MODES.find(m => m.id === tpl.mode)?.help || '')}</p>
         ${tpl.mode === 'cloze'
           ? `<label>Campo con los huecos</label><select class="tt-cloze">${fieldOpts(tpl.front[0])}</select>`
@@ -3414,6 +3541,8 @@ document.addEventListener('click', async e => {
   if (ds.move) return moveSheet([ds.move]);
   if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); speak(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
   if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
+  if (ds.match) return pickMatch(ds.match);
+  if (ds.occDel !== undefined) return occDelete(+ds.occDel);
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
   if (ds.listen) { const c = S.cards.get(S.session?.queue[0]); if (c) playListen(cardModel(c), +ds.listen); return; }
   if (ds.strokes) {
@@ -3748,6 +3877,8 @@ document.addEventListener('click', async e => {
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
     case 'add-anki': return addAnki(e.target.closest('button'));
+    case 'occ-pick': { const f = await pickImage(); return f && occSetImage(f); }
+    case 'occ-clear': { const { m } = occFields(); if (m) { m.value = ''; occRedraw(); } return; }
     case 'friends-reload': S.friends = null; return renderFriends();
     case 'fr-copy-code': return copyText(S.friends?.me?.code ? formatCode(S.friends.me.code) : '', 'Código copiado');
     case 'fr-share': {
@@ -4020,7 +4151,7 @@ document.addEventListener('keydown', e => {
   }
   if (S.view !== 'study' || !S.session || e.target.matches('input,textarea,select')) return;
   const ses = S.session; const c = S.cards.get(ses.queue[0]); const mode = c ? cardModel(c).tpl.mode : 'flip';
-  if ((e.key === ' ' || e.key === 'Enter') && !ses.revealed && ses.queue.length && (mode === 'flip' || mode === 'cloze')) { e.preventDefault(); reveal(); }
+  if ((e.key === ' ' || e.key === 'Enter') && !ses.revealed && ses.queue.length && ['flip', 'cloze', 'occlusion'].includes(mode)) { e.preventDefault(); reveal(); }
   else if (!ses.revealed && mode === 'choice' && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
   else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
 });
