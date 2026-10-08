@@ -22,8 +22,10 @@ export async function readPdf(bytes, { onPage = () => {}, maxPages = 400 } = {})
     const tc = await page.getTextContent();
     // El nombre real de cada fuente (para saber si es negrita) se conoce al preparar la página
     const bold = new Map();
+    let segments = [];
     try {
-      await page.getOperatorList();
+      const ops = await page.getOperatorList();
+      segments = pathSegments(ops, pdfjs.OPS);
       for (const it of tc.items) {
         if (!it.fontName || bold.has(it.fontName)) continue;
         let name = '';
@@ -35,7 +37,7 @@ export async function readPdf(bytes, { onPage = () => {}, maxPages = 400 } = {})
       const [a, b, c, d, x, y] = it.transform;
       return { str: it.str, x, y, w: it.width || 0, h: Math.abs(it.height) || Math.hypot(c, d) || Math.hypot(a, b) || 10, bold: !!bold.get(it.fontName) };
     });
-    const out = { width: vp.width, height: vp.height, items };
+    const out = { width: vp.width, height: vp.height, items, segments };
     // Página escaneada (casi sin texto): se guarda la imagen de la página
     if (items.reduce((s, it) => s + it.str.trim().length, 0) < 20) out.image = await renderPage(page).catch(() => null);
     pages.push(out);
@@ -57,6 +59,104 @@ async function renderPage(page) {
 export function cleanTitle(t) {
   const s = String(t || '').replace(/^Microsoft (Word|PowerPoint) - /i, '').replace(/\.(docx?|pptx?|pdf|odt)$/i, '').trim();
   return !s || /^(untitled|sin título|document\d*|presentation\d*)$/i.test(s) ? '' : s.slice(0, 120);
+}
+
+/* ---------------- Líneas dibujadas (para las tablas con cuadrícula) ---------------- */
+// Lista de operaciones de dibujo de pdf.js → segmentos horizontales y verticales que se ven
+// { x1, y1, x2, y2 } (en las mismas coordenadas que el texto)
+export function pathSegments({ fnArray, argsArray }, OPS) {
+  const segs = [], stack = [];
+  let ctm = [1, 0, 0, 1, 0, 0], pending = [];
+  const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  const pt = (x, y) => [ctm[0] * x + ctm[2] * y + ctm[4], ctm[1] * x + ctm[3] * y + ctm[5]];
+  const PAINT = new Set(['stroke', 'closeStroke', 'fill', 'eoFill', 'fillStroke', 'eoFillStroke', 'closeFillStroke', 'closeEOFillStroke'].map(k => OPS[k]));
+  for (let i = 0; i < fnArray.length; i++) {
+    const fn = fnArray[i], args = argsArray[i];
+    if (fn === OPS.save) stack.push(ctm);
+    else if (fn === OPS.restore) ctm = stack.pop() || ctm;
+    else if (fn === OPS.transform) ctm = mul(ctm, args);
+    else if (fn === OPS.constructPath) {
+      const [ops, c] = args;
+      let j = 0, cur = null, start = null;
+      for (const op of ops) {
+        if (op === OPS.moveTo) { cur = start = pt(c[j], c[j + 1]); j += 2; }
+        else if (op === OPS.lineTo) { const p = pt(c[j], c[j + 1]); if (cur) pending.push([cur, p]); cur = p; j += 2; }
+        else if (op === OPS.rectangle) {
+          const [x, y, w, h] = [c[j], c[j + 1], c[j + 2], c[j + 3]], a = pt(x, y), b = pt(x + w, y), d = pt(x + w, y + h), e = pt(x, y + h);
+          pending.push([a, b], [b, d], [d, e], [e, a]); cur = start = a; j += 4;
+        }
+        else if (op === OPS.curveTo) { cur = pt(c[j + 4], c[j + 5]); j += 6; }
+        else if (op === OPS.curveTo2 || op === OPS.curveTo3) { cur = pt(c[j + 2], c[j + 3]); j += 4; }
+        else if (op === OPS.closePath) { if (cur && start) pending.push([cur, start]); cur = start; }
+      }
+    }
+    else if (PAINT.has(fn)) { segs.push(...pending); pending = []; }
+    else if (fn === OPS.endPath) pending = [];
+  }
+  return segs.map(([[x1, y1], [x2, y2]]) => ({ x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) }))
+    .filter(g => (g.y2 - g.y1 < 1 && g.x2 - g.x1 > 8) || (g.x2 - g.x1 < 1 && g.y2 - g.y1 > 8));
+}
+
+// Valores parecidos (a menos de tol) cuentan como uno
+function uniq(vals, tol = 2.5) {
+  const out = [];
+  for (const v of [...vals].sort((a, b) => a - b)) if (!out.length || v - out[out.length - 1] > tol) out.push(v);
+  return out;
+}
+const joinText = (a, b) => (!a ? b : /\p{L}-$/u.test(a) && /^\p{Ll}/u.test(b) ? a.slice(0, -1) + b : a + ' ' + b);
+// Texto de una celda: sus trozos de arriba abajo y de izquierda a derecha
+function cellText(items) {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x), lines = [];
+  for (const it of sorted) {
+    const l = lines[lines.length - 1];
+    if (l && Math.abs(l.y - it.y) <= Math.max(2, it.h * 0.5)) l.items.push(it); else lines.push({ y: it.y, items: [it] });
+  }
+  return lines.map(l => l.items.sort((a, b) => a.x - b.x).map(it => it.str.trim()).join(' ')).reduce(joinText, '').replace(/\s+/g, ' ').trim();
+}
+// Tablas con cuadrícula: líneas horizontales y verticales que se cruzan. Cada trozo de texto va a la celda
+// donde cae. → { tables: [{ top, md }], items: los trozos que no están en ninguna tabla }
+export function gridTables(page) {
+  const segs = page.segments || [];
+  if (segs.length < 4) return { tables: [], items: page.items };
+  const all = segs.map(g => ({ ...g, h: g.y2 - g.y1 < 1 }));
+  // Grupos de líneas que se tocan (cada grupo, una posible tabla)
+  const parent = all.map((_, i) => i);
+  const find = i => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const tol = 3;
+  const touch = (a, b) => {
+    if (a.h && b.h) return Math.abs(a.y1 - b.y1) < tol && a.x1 <= b.x2 + tol && b.x1 <= a.x2 + tol;
+    if (!a.h && !b.h) return Math.abs(a.x1 - b.x1) < tol && a.y1 <= b.y2 + tol && b.y1 <= a.y2 + tol;
+    const [hz, vt] = a.h ? [a, b] : [b, a];
+    return vt.x1 >= hz.x1 - tol && vt.x1 <= hz.x2 + tol && hz.y1 >= vt.y1 - tol && hz.y1 <= vt.y2 + tol;
+  };
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) if (touch(all[i], all[j])) parent[find(i)] = find(j);
+  const comps = new Map();
+  all.forEach((g, i) => { const k = find(i); if (!comps.has(k)) comps.set(k, []); comps.get(k).push(g); });
+  let items = page.items;
+  const tables = [];
+  for (const comp of comps.values()) {
+    const xs = uniq(comp.filter(g => !g.h).map(g => g.x1)), ys = uniq(comp.filter(g => g.h).map(g => g.y1)).reverse();
+    if (xs.length < 3 || ys.length < 3) continue;   // al menos 2 columnas y 2 filas
+    const [x0, x1, yTop, yBot] = [xs[0], xs[xs.length - 1], ys[0], ys[ys.length - 1]];
+    const grid = ys.slice(1).map(() => xs.slice(1).map(() => []));
+    const inside = [];
+    for (const it of items) {
+      const cx = it.x + it.w / 2, cy = it.y + it.h * 0.35;
+      if (cx < x0 - 1 || cx > x1 + 1 || cy > yTop + 1 || cy < yBot - 1) continue;
+      const c = Math.max(0, xs.findIndex((x, k) => k > 0 && cx <= x) - 1), r = Math.max(0, ys.findIndex((y, k) => k > 0 && cy >= y) - 1);
+      grid[r][c].push(it); inside.push(it);
+    }
+    items = items.filter(it => !inside.includes(it));
+    // Sin filas ni columnas vacías (en un formulario, las filas para rellenar)
+    let rows = grid.map(r => r.map(cellText)).filter(r => r.some(Boolean));
+    if (!rows.length) continue;
+    const keep = rows[0].map((_, k) => rows.some(r => r[k]));
+    rows = rows.map(r => r.filter((_, k) => keep[k]));
+    if (rows[0].length < 2 && rows.length < 2) continue;
+    const line = r => `| ${r.map(v => v.replace(/\|/g, '\\|')).join(' | ')} |`;
+    tables.push({ top: yTop, md: [line(rows[0]), `| ${rows[0].map(() => '---').join(' | ')} |`, ...rows.slice(1).map(line)].join('\n') });
+  }
+  return { tables, items };
 }
 
 /* ---------------- Trozos de texto → bloques (sin interfaz) ---------------- */
@@ -168,7 +268,16 @@ export function withTables(lines) {
 // pages: [{ width, height, items: [{ str, x, y, w, h, bold }], image? }] → { blocks, title }
 // Los bloques son { type, text } (y { type: 'img', image: n } para las páginas escaneadas, que la interfaz guarda)
 export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ type, text, ...extra }) } = {}) {
-  const perPage = pages.map(p => pageLines(p));
+  // Primero las tablas con cuadrícula; el resto del texto, en líneas. Cada tabla va donde empieza.
+  const perPage = pages.map(p => {
+    const g = gridTables(p);
+    const lines = pageLines({ ...p, items: g.items });
+    for (const t of g.tables.sort((a, b) => a.top - b.top)) {
+      const at = lines.findIndex(l => !l.table && l.y < t.top);
+      lines.splice(at < 0 ? lines.length : at, 0, { table: t.md, y: t.top, size: 0, text: '', cells: [], w: 0 });
+    }
+    return lines;
+  });
   // Cabeceras y pies: lo que se repite arriba o abajo en muchas páginas (con los números cambiados por #)
   const edgeKey = (l, p) => (l.y > p.height * 0.9 || l.y < p.height * 0.1 ? l.text.replace(/\d+/g, '#').toLowerCase() : null);
   const seen = new Map();
@@ -194,7 +303,7 @@ export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ t
   perPage.forEach((lines, pi) => {
     const page = pages[pi];
     if (page.image) { blocks.push(newBlock('img', `Página ${pi + 1}`, { image: pi })); last = null; return; }
-    const width = lines.map(l => l.w).sort((a, b) => a - b)[Math.floor(lines.length * 0.75)] || page.width;
+    const width = lines.filter(l => !l.table).map(l => l.w).sort((a, b) => a - b)[Math.floor(lines.length * 0.75)] || page.width;
     const kept = lines.filter(l => !(repeated(edgeKey(l, page)) || ((l.y > page.height * 0.9 || l.y < page.height * 0.1) && PAGE_NO.test(l.text))));
     withTables(kept).forEach(l => {
       if (l.table) { blocks.push(newBlock('table', l.table)); last = null; return; }

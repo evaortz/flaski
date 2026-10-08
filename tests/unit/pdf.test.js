@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pdfToBlocks, pageLines, cleanTitle } from '../../js/pdf.js';
+import { pdfToBlocks, pageLines, cleanTitle, pathSegments } from '../../js/pdf.js';
 
 // Una línea de texto como la da pdf.js: varios trozos seguidos en la misma altura
 const W = 595, H = 842;
@@ -87,4 +87,28 @@ test('tablas: una lista con tabulador o un párrafo no son tablas', () => {
     it('Un párrafo normal con palabras', 50, 650), it('seguidas.', 50 + 30 * 5.5 + 3, 650),
   ]);
   assert.deepEqual(pdfToBlocks([p]).blocks.map(b => [b.type, b.text]), [['li', 'primera cosa'], ['li', 'segunda cosa'], ['p', 'Un párrafo normal con palabras seguidas.']]);
+});
+
+test('tablas con cuadrícula: cada texto en su celda, cabeceras de varias líneas y sin filas vacías', () => {
+  // Rectángulo 50–350 × 500–620, columnas en 150 y 250, filas en 590, 560 y 530 (la última, vacía)
+  const hz = y => ({ x1: 50, y1: y, x2: 350, y2: y }), vt = x => ({ x1: x, y1: 500, x2: x, y2: 620 });
+  const p = { width: W, height: H, segments: [hz(620), hz(500), vt(50), vt(350), vt(150), vt(250), hz(590), hz(560), hz(530)], items: [
+    it('Título encima', 50, 700, 11),
+    it('Caso', 60, 605), it('Sufijo', 160, 605), it('Sonn- und', 260, 608, 8), it('Feiertag', 260, 598, 8),
+    it('Locativo', 60, 572), it('-de', 160, 572), it('evde', 260, 572),
+    it('Gesamt-', 60, 515), it('stunden', 60, 505),
+    it('Texto debajo.', 50, 400),
+  ] };
+  const { blocks } = pdfToBlocks([p]);
+  assert.deepEqual(blocks.map(b => b.type), ['p', 'table', 'p']);
+  assert.equal(blocks[1].text, ['| Caso | Sufijo | Sonn- und Feiertag |', '| --- | --- | --- |', '| Locativo | -de | evde |', '| Gesamtstunden |  |  |'].join('\n'));
+});
+
+test('líneas dibujadas: rectángulos y líneas con su transformación; las curvas y los trazados sin pintar no cuentan', () => {
+  const OPS = { save: 1, restore: 2, transform: 3, constructPath: 4, moveTo: 5, lineTo: 6, rectangle: 7, curveTo: 8, curveTo2: 9, curveTo3: 10, closePath: 11, stroke: 12, endPath: 13, fill: 14 };
+  const segs = pathSegments({
+    fnArray: [OPS.save, OPS.transform, OPS.constructPath, OPS.stroke, OPS.restore, OPS.constructPath, OPS.endPath, OPS.constructPath, OPS.stroke],
+    argsArray: [null, [1, 0, 0, 1, 10, 20], [[OPS.rectangle], [0, 0, 100, 50]], null, null, [[OPS.moveTo, OPS.lineTo], [0, 0, 300, 0]], null, [[OPS.moveTo, OPS.curveTo, OPS.lineTo], [0, 0, 1, 1, 2, 2, 3, 3, 3, 90]], null],
+  }, OPS);
+  assert.deepEqual(segs, [{ x1: 10, y1: 20, x2: 110, y2: 20 }, { x1: 110, y1: 20, x2: 110, y2: 70 }, { x1: 10, y1: 70, x2: 110, y2: 70 }, { x1: 10, y1: 20, x2: 10, y2: 70 }, { x1: 3, y1: 3, x2: 3, y2: 90 }]);
 });
