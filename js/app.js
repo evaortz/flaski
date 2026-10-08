@@ -18,6 +18,7 @@ import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, for
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
+import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
 import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
 import { newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
@@ -46,6 +47,8 @@ const S = {
   pub: null, builtin: null,   // cachés de Explorar
   authMode: 'signin', recovery: false, loading: true,
   pendingShare: null,          // id de mazo compartido por enlace
+  pendingFriend: '',           // código de un enlace de invitación de amistad
+  friends: null,               // amigos: { me, list, requests, cheers, … } (se cargan aparte)
   lastField: null,
   pages: new Map(),            // id → página de apuntes
   pagesMissing: false,         // la tabla de apuntes aún no existe en Supabase
@@ -216,14 +219,14 @@ function render() {
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   for (const b of document.querySelectorAll('[data-nav]')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && S.view === 'deck') || (b.dataset.nav === 'profile' && S.view === 'settings') || (b.dataset.nav === 'notes' && S.view === 'page');
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && S.view === 'deck') || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus tarjetas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, stats: renderStats, settings: renderSettings }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings }[S.view] || renderHome)();
 }
 
 /* ===================== sin configurar ===================== */
@@ -339,7 +342,9 @@ async function onSignedIn(session) {
     netState();
     migrateDeckLangs();
     if (!S.fromCache) saveSnap();
+    loadFriends(true);
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
+    if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
     maybeIntro();
   } catch (e) {
@@ -494,7 +499,7 @@ function onSignedOut() {
   // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre
   api.offline?.stop();
   clearTimeout(snapTimer);
-  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0, pages: new Map(), pageId: null });
+  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0, pages: new Map(), pageId: null, friends: null });
   netState();
   render();
 }
@@ -539,6 +544,7 @@ function renderHome() {
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${goal}
     </section>
+    ${homeFriendsHTML()}
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
       <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} ${hm.total === 1 ? 'repaso' : 'repasos'} en el último año</span></div>
       <div class="streaks">
@@ -1711,6 +1717,7 @@ function renderProfile() {
   main.innerHTML = `<h1>Perfil</h1>
     <p class="muted">${total} ${total === 1 ? 'tarjeta' : 'tarjetas'} en ${S.decks.size} ${S.decks.size === 1 ? 'mazo' : 'mazos'} · ${S.progress.size} empezadas · ${learned} consolidadas</p>
     <ul class="list linklist">
+      <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, mazo y tipo de tarjeta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
@@ -1853,7 +1860,8 @@ function renderSettings() {
       ${setRow('Previsión', 'Gráfico con los repasos de los próximos días.', sw('home.forecast'))}
       ${setRow('Días de previsión', 'Cuántos días abarca el gráfico de previsión.', seg('home.forecastDays', [[7, '7'], [14, '14'], [30, '30']]), { id: 'row-fcdays', off: !P.home.forecast })}
       ${setRow('Estado de las tarjetas', 'Barra con nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
-      ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}`, 's-home')}
+      ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}
+      ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
       <p class="muted small set-intro">Decide cada cuánto vuelven las tarjetas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada mazo puede usar otro ritmo en sus opciones.</p>
       <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
@@ -3279,6 +3287,22 @@ document.addEventListener('click', async e => {
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
+  if (ds.friendMenu) return friendMenu(ds.friendMenu);
+  if (ds.frAccept) return friendAction(() => api.social.respond(ds.frAccept, true), '¡Ya sois amigos!');
+  if (ds.frReject) return friendAction(() => api.social.respond(ds.frReject, false));
+  if (ds.frCancel) return friendAction(() => api.social.remove(ds.frCancel), 'Petición cancelada');
+  if (ds.frRemove) { closeSheet(); return friendAction(() => api.social.remove(ds.frRemove), 'Ya no sois amigos'); }
+  if (ds.frBlock) { closeSheet(); return friendAction(() => api.social.block(ds.frBlock), 'Bloqueado'); }
+  if (ds.frUnblock) return friendAction(() => api.social.unblock(ds.frUnblock), 'Desbloqueado');
+  if (ds.cheer) {
+    const p = S.friends?.list.find(x => x.id === ds.cheer);
+    e.target.closest('button').disabled = true;
+    try { await api.social.cheer(ds.cheer); } catch (err) { e.target.closest('button').disabled = false; return fail(err); }
+    markCheered(ds.cheer);
+    toast(`Le has mandado ánimos a ${p?.name || 'tu amigo'} 👏`);
+    if (S.view === 'friends') renderFriends();
+    return;
+  }
   if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
   if (ds.hideType) {
     const h = S.prefs.types.hidden;
@@ -3552,6 +3576,20 @@ document.addEventListener('click', async e => {
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
     case 'add-anki': return addAnki(e.target.closest('button'));
+    case 'friends-reload': S.friends = null; return renderFriends();
+    case 'fr-copy-code': return copyText(S.friends?.me?.code ? formatCode(S.friends.me.code) : '', 'Código copiado');
+    case 'fr-share': {
+      const url = ds.link;
+      if (navigator.share) { try { await navigator.share({ title: 'Flaski', text: 'Estudia conmigo en Flaski: así vemos nuestras rachas.', url }); return; } catch (err) { if (err?.name === 'AbortError') return; } }
+      return (await copyText(url, 'Enlace copiado')) || toast(url);
+    }
+    case 'fr-accept-invite': closeSheet(); return addFriend(ds.code);
+    case 'cheers-seen': {
+      const ids = (S.friends?.cheers || []).map(c => c.id);
+      S.friends.cheers = [];
+      friendsChanged();
+      return api.social.seen(ids).catch(() => {});
+    }
     case 'paste': return pasteSheet();
     case 'paste-preview': {
       S.pasteText = $('#pasteText').value;
@@ -3645,6 +3683,7 @@ document.addEventListener('submit', async e => {
   const kind = form.dataset.form;
   if (['signin', 'signup', 'reset', 'newpass'].includes(kind)) return submitAuth(kind, form);
   if (kind === 'deck') return saveDeckForm(form);
+  if (kind === 'add-friend') return addFriend($('#frCode').value);
   if (kind === 'folder') return saveFolderForm(form);
   if (kind === 'quick') return saveQuick(form);
   if (kind === 'type') return saveTypeEditor();
@@ -3716,7 +3755,13 @@ document.addEventListener('input', e => {
     const f = $('#exploreSearch'); f.focus(); f.setSelectionRange(pos, pos);
   }
 });
-document.addEventListener('change', e => {
+document.addEventListener('change', async e => {
+  if (e.target.id === 'frShare') {
+    const on = e.target.checked;
+    try { await api.social.setShare(on); S.friends.me.share = on; toast(on ? 'Tus amigos ven tu actividad' : 'Tu actividad ya no se comparte'); }
+    catch (err) { e.target.checked = !on; fail(err); }
+    return;
+  }
   if (e.target.id === 'st-scope' || e.target.id === 'st-mode') {
     S.stats[e.target.id === 'st-scope' ? 'scope' : 'mode'] = e.target.value;
     const y = scrollY; renderStats(); scrollTo(0, y); return;
@@ -3803,6 +3848,174 @@ document.addEventListener('keydown', e => {
   else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
 });
 
+/* ===================== amigos ===================== */
+// Se cargan aparte de lo demás (no retrasan la app) y se refrescan como mucho una vez por minuto
+const FR = () => S.friends || (S.friends = { me: null, list: [], requests: [], cheers: [], loaded: false, missing: false, error: '', at: 0 });
+async function loadFriends(force = false) {
+  if (!api.social || !S.uid || S.fromCache) return;
+  const f = FR();
+  if (!force && f.at && Date.now() - f.at < 60e3) return;
+  f.at = Date.now();
+  try {
+    const [me, list, requests, cheers] = await Promise.all([api.social.me(), api.social.summary(dateKey()), api.social.requests(), api.social.cheers()]);
+    Object.assign(f, { me, list: list || [], requests: requests || [], cheers: cheers || [], missing: false, error: '' });
+  } catch (e) {
+    if (api.social.isMissingFn(e)) f.missing = true; else f.error = errMsg(e);
+  }
+  f.loaded = true;
+  friendsChanged();
+}
+// Repinta lo que muestra amigos (la pantalla de amigos, la tarjeta de Inicio y el aviso en Perfil)
+function friendsChanged() {
+  if (S.view === 'friends') return renderFriends();
+  const el = $('#homeFriends');
+  if (el && S.view === 'home') el.outerHTML = homeFriendsHTML();
+  const badge = $('#frBadge');
+  if (badge) { const n = incoming().length; badge.textContent = n; badge.hidden = !n; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadFriends(); });
+const incoming = () => (S.friends?.requests || []).filter(r => r.dir === 'in');
+const myWeek = () => weekDays().map(k => S.log[k] || 0);
+// Ánimos ya mandados hoy (para no ofrecer otro al mismo amigo)
+function cheeredToday() {
+  try { const c = JSON.parse(localStorage.getItem('flaski-cheered') || 'null'); return c?.day === dateKey() ? new Set(c.ids) : new Set(); } catch { return new Set(); }
+}
+function markCheered(id) {
+  const ids = cheeredToday(); ids.add(id);
+  try { localStorage.setItem('flaski-cheered', JSON.stringify({ day: dateKey(), ids: [...ids] })); } catch {}
+}
+const avatar = (name, me = false) => `<span class="fr-av${me ? ' me' : ''}" aria-hidden="true">${esc(initial(name))}</span>`;
+const langNames = langs => (langs || []).map(b => LANGS.find(l => baseLang(l.id) === b)?.label.split(' (')[0] || b);
+
+// Barras de la semana (lunes a domingo); hoy, marcado
+function weekBars(week) {
+  const max = Math.max(1, ...week.map(n => Number(n) || 0)), today = (new Date().getDay() + 6) % 7;
+  return `<div class="fr-week" aria-label="Repasos de esta semana">${week.map((n, i) => `<span class="fr-day${i === today ? ' today' : ''}${n ? ' on' : ''}" title="${WEEK_LETTERS[i]}: ${plural(n || 0, 'repaso', 'repasos')}">
+    <i style="height:${n ? Math.max(12, Math.round((n / max) * 100)) : 0}%"></i><small>${WEEK_LETTERS[i]}</small></span>`).join('')}</div>`;
+}
+
+// Tarjeta de Inicio: ánimos recibidos y la clasificación de la semana
+function homeFriendsHTML() {
+  const f = S.friends;
+  if (!api.social || !f?.loaded || f.missing || !S.prefs.home.friends) return '<div id="homeFriends"></div>';
+  const cheers = f.cheers.length ? (() => {
+    const names = [...new Set(f.cheers.map(c => c.name || 'Alguien'))];
+    const who = names.length > 2 ? `${names.slice(0, 2).join(', ')} y ${names.length - 2} más` : names.join(' y ');
+    return `<div class="cheer-banner" role="status"><span class="cheer-emo" aria-hidden="true">👏</span><span><b>${esc(who)}</b> ${names.length > 1 ? 'te animan' : 'te anima'} a seguir estudiando</span><button class="ghost small-btn" data-act="cheers-seen">Gracias</button></div>`;
+  })() : '';
+  const shared = f.list.filter(x => x.shared);
+  if (!f.list.length) {
+    return `<div id="homeFriends">${cheers}<section class="chart-card fr-home-empty"><div class="chart-h"><h2>Estudia con amigos</h2></div>
+      <p class="muted small">Invita a alguien y veréis vuestras rachas y quién repasa más cada semana.</p>
+      <button class="ghost small-btn" data-nav="friends">${icon('users', { size: 16 })} Invitar a un amigo</button></section></div>`;
+  }
+  const me = { id: S.uid, name: S.name || 'Tú', week: myWeek(), streak: streaks(S.log).current, me: true, shared: true };
+  const rows = ranking(me, shared).map(p => `<li class="${p.me ? 'me' : ''}"><span class="rk-pos">${p.pos}</span>${avatar(p.name, p.me)}
+    <span class="rk-name">${p.me ? 'Tú' : esc(p.name)}</span>
+    <span class="rk-streak" title="Racha">${icon('fire', { size: 14 })}${p.streak || 0}</span>
+    <span class="rk-total"><b>${p.total}</b> <small>${p.total === 1 ? 'repaso' : 'repasos'}</small></span></li>`).join('');
+  return `<div id="homeFriends">${cheers}<section class="chart-card" aria-labelledby="h-rank">
+    <div class="chart-h"><h2 id="h-rank">Esta semana</h2><button class="link small" data-nav="friends">Amigos</button></div>
+    <ol class="rank">${rows}</ol>
+    <p class="muted small rk-foot">Se reinicia cada lunes.</p></section></div>`;
+}
+
+function renderFriends() {
+  const head = `<nav class="crumbs" aria-label="Ruta"><button class="crumb" data-nav="profile">Perfil</button><span class="sep" aria-hidden="true">/</span><span class="crumb crumb-cur">Amigos</span></nav><h1>Amigos</h1>`;
+  if (!api.social) {
+    main.innerHTML = `${head}<div class="panel"><p>Para tener amigos necesitas una cuenta.</p>
+      <p class="muted small">Ahora estás en modo local: tus datos están solo en este navegador. Conecta la app a Supabase (ver README) para crear cuentas.</p></div>`;
+    return;
+  }
+  const f = FR();
+  if (!f.loaded && S.fromCache) { main.innerHTML = `${head}<div class="panel"><p>Sin conexión. Tus amigos aparecerán cuando vuelva la red.</p></div>`; return; }
+  if (!f.loaded) { loadFriends(true); main.innerHTML = `${head}<div class="empty"><div class="spin" aria-label="Cargando"></div></div>`; return; }
+  if (f.missing) {
+    main.innerHTML = `${head}<div class="panel"><h2>Falta un paso</h2><p>Para usar amigos, ejecuta otra vez <b>supabase/schema.sql</b> en Supabase (SQL Editor → New query → Run).</p>
+      <button class="ghost" data-act="friends-reload">Ya lo he hecho</button></div>`;
+    return;
+  }
+  if (!f.me) {
+    main.innerHTML = `${head}<div class="panel"><p>${esc(f.error || 'No se han podido cargar tus amigos.')}</p><button class="ghost" data-act="friends-reload">Reintentar</button></div>`;
+    return;
+  }
+  const cheered = cheeredToday();
+  const inc = incoming(), out = f.requests.filter(r => r.dir === 'out'), blocked = f.requests.filter(r => r.dir === 'blocked');
+  const card = p => {
+    const total = weekTotal(p.week);
+    const langs = langNames(p.langs);
+    return `<li class="fr-card">
+      <div class="fr-top">${avatar(p.name)}<div class="fr-who"><b>${esc(p.name || 'Sin nombre')}</b>
+        ${p.shared ? `<span class="fr-meta"><span class="fr-streak">${icon('fire', { size: 14 })} ${plural(p.streak, 'día', 'días')}</span>
+          <span class="${p.today ? 'fr-today' : 'muted'}">${p.today ? `${icon('check', { size: 13 })} Hoy, ${plural(p.today, 'repaso', 'repasos')}` : 'Hoy aún no ha estudiado'}</span></span>`
+          : '<span class="fr-meta muted">No comparte su actividad</span>'}</div>
+        <button type="button" class="iconbtn" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name)}" title="Opciones">${icon('ellipsis', { size: 18 })}</button></div>
+      ${p.shared ? `${weekBars(p.week)}<div class="fr-foot"><span class="muted small">${plural(total, 'repaso', 'repasos')} esta semana${langs.length ? ` · ${esc(langs.join(', '))}` : ''}</span>
+        <button type="button" class="ghost small-btn" data-cheer="${p.id}" ${cheered.has(p.id) ? 'disabled' : ''}>${cheered.has(p.id) ? 'Ánimo enviado' : '👏 Animar'}</button></div>` : ''}
+    </li>`;
+  };
+  const link = inviteLink(f.me.code);
+  main.innerHTML = `${head}
+    <section class="panel fr-invite">
+      <h2>Invita a tus amigos</h2>
+      <p class="muted small">Pásales tu enlace o tu código. Cuando lo acepten, veréis vuestras rachas y los repasos de la semana; nunca vuestros mazos ni apuntes.</p>
+      <div class="fr-code"><span class="muted small">Tu código</span><b id="frMyCode">${esc(formatCode(f.me.code))}</b></div>
+      <div class="btnrow"><button class="primary" data-act="fr-share" data-link="${esc(link)}">${icon('share', { size: 16 })} Compartir enlace</button>
+        <button class="ghost" data-act="fr-copy-code">${icon('copy', { size: 16 })} Copiar código</button></div>
+      <form data-form="add-friend" class="fr-add" autocomplete="off"><label for="frCode">Añadir con el código de un amigo</label>
+        <div class="fr-addrow"><input id="frCode" placeholder="XXXX-XXXX" maxlength="12" autocapitalize="characters" spellcheck="false"><button class="ghost" type="submit">Añadir</button></div></form>
+    </section>
+    ${inc.length ? `<div class="section-h"><h2>Peticiones</h2></div><ul class="list fr-reqs">${inc.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">quiere ser tu amigo</span></span>
+      <span class="btnrow"><button class="primary small-btn" data-fr-accept="${r.id}">Aceptar</button><button class="ghost small-btn" data-fr-reject="${r.id}">Rechazar</button></span></li>`).join('')}</ul>` : ''}
+    <div class="section-h"><h2>Tus amigos${f.list.length ? ` · ${f.list.length}` : ''}</h2></div>
+    ${f.list.length ? `<ul class="fr-list">${[...f.list].sort((a, b) => weekTotal(b.week) - weekTotal(a.week)).map(card).join('')}</ul>`
+      : '<p class="muted">Aún no tienes amigos en Flaski. Comparte tu enlace para empezar.</p>'}
+    ${out.length ? `<div class="section-h"><h2>Enviadas</h2></div><ul class="list fr-reqs">${out.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">pendiente</span></span>
+      <span class="btnrow"><button class="ghost small-btn" data-fr-cancel="${r.other}">Cancelar</button></span></li>`).join('')}</ul>` : ''}
+    <section class="panel fr-privacy"><h2>Privacidad</h2>
+      <div class="set-row"><div class="set-l"><b id="frShareL">Compartir mi actividad</b><small>Tus amigos ven tu racha, tus repasos de la semana y los idiomas que estudias.</small></div>
+        <div class="set-c"><label class="switch"><input type="checkbox" role="switch" id="frShare" aria-labelledby="frShareL" ${f.me.share ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
+      ${blocked.length ? `<p class="small" style="margin-bottom:4px"><b>Bloqueados</b></p><ul class="list fr-reqs">${blocked.map(r => `<li class="fr-req">${avatar(r.name)}<span>${esc(r.name || 'Alguien')}</span>
+        <span class="btnrow"><button class="ghost small-btn" data-fr-unblock="${r.other}">Desbloquear</button></span></li>`).join('')}</ul>` : ''}
+    </section>`;
+  loadFriends();
+}
+// Acciones de amigos: cada una llama a Supabase y vuelve a cargar la lista
+async function friendAction(fn, ok) {
+  try { await fn(); if (ok) toast(ok); } catch (e) { return fail(e); }
+  await loadFriends(true);
+}
+const ADD_MSG = {
+  sent: 'Petición enviada. Cuando la acepte, aparecerá en tu lista.', accepted: '¡Ya sois amigos!', already: 'Ya sois amigos',
+  pending: 'Ya le habías enviado una petición', self: 'Ese es tu propio código', not_found: 'No hay nadie con ese código', blocked: 'No se puede añadir a esa persona',
+};
+async function addFriend(raw) {
+  const code = cleanCode(raw);
+  if (!code) return toast('El código tiene 8 letras o números, como ABCD-1234');
+  try { const r = await api.social.request(code); toast(ADD_MSG[r] || 'Hecho'); } catch (e) { return fail(e); }
+  const inp = $('#frCode'); if (inp) inp.value = '';
+  await loadFriends(true);
+}
+function friendMenu(id) {
+  const p = S.friends?.list.find(x => x.id === id);
+  if (!p) return;
+  openSheet(`<h2>${esc(p.name || 'Amigo')}</h2>
+    <p class="muted small">Amigos desde el ${new Date(p.since).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>
+    <div class="btnrow" style="flex-direction:column;align-items:stretch">
+      <button class="ghost" data-fr-remove="${p.id}">Quitar de amigos</button>
+      <button class="ghost danger" data-fr-block="${p.id}">Bloquear</button>
+      <button class="primary" data-act="close-sheet">Cerrar</button></div>
+    <p class="muted small">Si lo bloqueas, deja de ver tu actividad y no puede volver a pedirte amistad.</p>`);
+}
+// Al abrir un enlace de invitación
+function inviteSheet(code) {
+  if (!api.social) return toast('Para añadir amigos necesitas una cuenta');
+  openSheet(`<h2>Te han invitado a Flaski</h2>
+    <p>Alguien quiere estudiar contigo. Si aceptas, os aparecerá la racha y los repasos de la semana del otro.</p>
+    <p class="muted small">Código de la invitación: <b>${esc(formatCode(code))}</b></p>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Ahora no</button><button class="primary" data-act="fr-accept-invite" data-code="${esc(code)}">Aceptar la invitación</button></div>`);
+}
+
 /* ===================== arranque ===================== */
 (async function boot() {
   document.title = APP_NAME;
@@ -3812,6 +4025,8 @@ document.addEventListener('keydown', e => {
   $('#appName').textContent = APP_NAME;
   const m = location.hash.match(/^#d-([0-9a-f-]{36})$/i);
   if (m) S.pendingShare = m[1];
+  const inv = parseInvite(location.hash);
+  if (inv) { S.pendingFriend = inv; history.replaceState(null, '', location.pathname + location.search); }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   if (api.mode === 'local') {
     const b = $('#banner');

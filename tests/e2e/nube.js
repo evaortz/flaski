@@ -27,6 +27,8 @@ export async function mockCloud(page) {
     tables: { decks: [DECK], cards: [card(1, 'ev', 'casa'), card(2, 'kapı', 'puerta'), card(3, 'su', 'agua')], progress: [], review_log: [], folders: [], tags: [], note_types: [], review_events: [] },
     writes: [],   // [método, tabla, cuerpo]
     files: new Map(),   // Storage: ruta → { body, type }
+    // Amigos: lo que devuelven las funciones de schema.sql (missing: como si faltara ejecutarlo)
+    social: { code: 'EVA7K2QX', share: true, friends: [], requests: [], cheers: [], result: 'sent', missing: false },
   };
   await page.route('**/js/config.js', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
   await page.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, ['sb-test-auth-token', JSON.stringify(SESSION)]);
@@ -53,6 +55,14 @@ export async function mockCloud(page) {
       const { p_day, p_delta } = req.postDataJSON();
       srv.writes.push(['rpc', 'bump_review_log', { p_day, p_delta }]);
       return json(srv.writes.filter(w => w[1] === 'bump_review_log' && w[2].p_day === p_day).reduce((s, w) => s + w[2].p_delta, 0));
+    }
+    const SOCIAL = { my_social: () => [{ code: srv.social.code, share: srv.social.share }], friend_summary: () => srv.social.friends,
+      friend_requests: () => srv.social.requests, my_cheers: () => srv.social.cheers, request_friend: () => srv.social.result };
+    const fn = path.startsWith('rpc/') ? path.slice(4) : '';
+    if (['my_social', 'friend_summary', 'friend_requests', 'my_cheers', 'request_friend', 'respond_friend', 'remove_friend', 'block_friend', 'unblock_friend', 'send_cheer', 'set_share'].includes(fn)) {
+      if (srv.social.missing) return json({ code: 'PGRST202', message: 'Could not find the function' }, 404);
+      srv.writes.push(['rpc', fn, req.postData() ? req.postDataJSON() : null]);
+      return json(SOCIAL[fn] ? SOCIAL[fn]() : null);
     }
     const method = req.method();
     if (method === 'GET') {

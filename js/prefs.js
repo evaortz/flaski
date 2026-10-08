@@ -27,7 +27,7 @@ export const DEFAULT_PREFS = {
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
-  home: { goal: 0, activity: true, forecast: true, forecastDays: 14, maturity: true, decks: true },
+  home: { goal: 0, activity: true, forecast: true, forecastDays: 14, maturity: true, decks: true, friends: true },
 };
 
 export const ACCENTS = [

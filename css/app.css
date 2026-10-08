@@ -1097,3 +1097,47 @@ img.media.img-missing{min-height:56px;border:1px dashed var(--line-strong,var(--
 .anki-check{display:flex;align-items:center;gap:8px;margin:6px 0 10px;font-size:14px;cursor:pointer}
 .anki-check input{width:auto;margin:0}
 .preview img.media:not([src]),.preview img.media.img-missing{display:none}
+
+/* ---------- Amigos ---------- */
+.fr-av{flex:none;display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--hover);color:var(--fg);font-weight:600;font-size:14px}
+.fr-av.me{background:var(--fg);color:var(--bg,#fff)}
+.fr-invite h2,.fr-privacy h2{margin-top:0}
+.fr-code{display:flex;flex-direction:column;gap:2px;margin:12px 0}
+.fr-code b{font:600 26px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em}
+.fr-add{margin-top:16px}
+.fr-addrow{display:flex;gap:8px}
+.fr-addrow input{flex:1;min-width:0;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em}
+.fr-reqs .fr-req{display:flex;align-items:center;gap:10px;padding:10px 4px}
+.fr-req>span:nth-child(2){flex:1;min-width:0}
+.fr-req .btnrow{margin:0;flex-wrap:nowrap}
+.fr-list{list-style:none;margin:0 0 20px;padding:0;display:grid;gap:10px}
+.fr-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.fr-top{display:flex;align-items:center;gap:10px}
+.fr-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fr-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px}
+.fr-streak,.rk-streak{display:inline-flex;align-items:center;gap:3px}
+.fr-today{color:var(--green,#2E7D4F);display:inline-flex;align-items:center;gap:3px}
+.fr-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;height:64px;margin:12px 0 6px}
+.fr-day{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;min-width:0}
+.fr-day i{display:block;width:100%;max-width:28px;border-radius:4px 4px 2px 2px;background:var(--fg);opacity:.35;min-height:0}
+.fr-day.today i{opacity:.8}
+.fr-day:not(.on)::before{content:'';display:block;width:100%;max-width:28px;height:3px;border-radius:2px;background:var(--line)}
+.fr-day small{font-size:11px;color:var(--muted)}
+.fr-day.today small{color:var(--fg);font-weight:600}
+.fr-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.fr-badge{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent,#2383E2);color:#fff;font-size:12px;font-weight:600;display:inline-grid;place-items:center;margin-left:auto}
+.fr-badge[hidden]{display:none}
+.rank{list-style:none;margin:4px 0 0;padding:0}
+.rank li{display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid var(--line)}
+.rank li:first-child{border-top:0}
+.rank li.me .rk-name{font-weight:600}
+.rk-pos{width:18px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.rk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-streak{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.rk-total{min-width:84px;text-align:right;font-variant-numeric:tabular-nums}
+.rk-total small{color:var(--muted)}
+.rk-foot{margin:6px 0 0}
+.cheer-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;margin:0 0 16px;border:1px solid var(--line);border-radius:10px;background:var(--hover)}
+.cheer-banner>span:nth-child(2){flex:1}
+.cheer-emo{font-size:22px}
+.fr-home-empty p{margin:4px 0 10px}

@@ -303,3 +303,211 @@ create policy "mis imágenes: cambiar" on storage.objects
 drop policy if exists "mis imágenes: borrar" on storage.objects;
 create policy "mis imágenes: borrar" on storage.objects
   for delete to authenticated using (bucket_id = 'media' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- Amigos (versión 8) ----------
+-- Cada cuenta tiene un código para invitar (privado: solo lo ve ella) y decide si comparte su actividad.
+create table if not exists public.social (
+  user_id  uuid primary key references auth.users on delete cascade,
+  code     text not null unique check (code ~ '^[A-Z0-9]{8}$'),
+  share    boolean not null default true
+);
+alter table public.social enable row level security;
+drop policy if exists "mi código" on public.social;
+create policy "mi código" on public.social
+  for select to authenticated using (user_id = auth.uid());
+drop policy if exists "mi privacidad" on public.social;
+create policy "mi privacidad" on public.social
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Amistades: la pide uno (requester) y la acepta el otro (addressee). status: pending · accepted · blocked
+create table if not exists public.friendships (
+  id          uuid primary key default gen_random_uuid(),
+  requester   uuid not null references auth.users on delete cascade,
+  addressee   uuid not null references auth.users on delete cascade,
+  status      text not null default 'pending' check (status in ('pending', 'accepted', 'blocked')),
+  blocked_by  uuid references auth.users on delete cascade,
+  created_at  timestamptz not null default now(),
+  check (requester <> addressee)
+);
+create unique index if not exists friendships_pair_idx on public.friendships (least(requester, addressee), greatest(requester, addressee));
+alter table public.friendships enable row level security;
+-- Se leen las propias; los cambios van por las funciones de abajo, que comprueban cada caso
+drop policy if exists "mis amistades" on public.friendships;
+create policy "mis amistades" on public.friendships
+  for select to authenticated using (requester = auth.uid() or addressee = auth.uid());
+
+-- Ánimos (👏) entre amigos: como mucho uno al día de cada persona a cada amigo
+create table if not exists public.cheers (
+  id         uuid primary key default gen_random_uuid(),
+  from_user  uuid not null references auth.users on delete cascade,
+  to_user    uuid not null references auth.users on delete cascade,
+  kind       text not null default 'clap' check (kind in ('clap', 'fire', 'go')),
+  day        date not null default current_date,
+  seen       boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (from_user, to_user, day)
+);
+alter table public.cheers enable row level security;
+drop policy if exists "mis ánimos" on public.cheers;
+create policy "mis ánimos" on public.cheers
+  for select to authenticated using (to_user = auth.uid() or from_user = auth.uid());
+drop policy if exists "ánimos vistos" on public.cheers;
+create policy "ánimos vistos" on public.cheers
+  for update to authenticated using (to_user = auth.uid()) with check (to_user = auth.uid());
+
+create or replace function public.are_friends(a uuid, b uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from friendships where status = 'accepted'
+    and ((requester = a and addressee = b) or (requester = b and addressee = a)));
+$$;
+
+-- Mi código (se crea la primera vez) y si comparto mi actividad
+create or replace function public.my_social()
+returns table (code text, share boolean) language plpgsql security definer set search_path = public as $$
+declare c text; abc text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+begin
+  if auth.uid() is null then raise exception 'sin sesión'; end if;
+  if not exists (select 1 from social s where s.user_id = auth.uid()) then
+    loop
+      c := '';
+      for i in 1..8 loop c := c || substr(abc, 1 + floor(random() * length(abc))::int, 1); end loop;
+      exit when not exists (select 1 from social s where s.code = c);
+    end loop;
+    insert into social (user_id, code) values (auth.uid(), c) on conflict do nothing;
+  end if;
+  return query select s.code, s.share from social s where s.user_id = auth.uid();
+end;
+$$;
+
+-- Compartir (o no) mi actividad con mis amigos
+create or replace function public.set_share(p_share boolean)
+returns void language sql security definer set search_path = public as $$
+  update social set share = p_share where user_id = auth.uid();
+$$;
+
+-- Pedir amistad con un código. Si la otra persona ya te la había pedido, quedáis como amigos.
+-- Devuelve: 'sent' · 'accepted' · 'already' · 'pending' · 'self' · 'not_found' · 'blocked'
+create or replace function public.request_friend(p_code text)
+returns text language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); other uuid; f friendships;
+begin
+  if me is null then raise exception 'sin sesión'; end if;
+  select user_id into other from social where code = upper(regexp_replace(p_code, '[^A-Za-z0-9]', '', 'g'));
+  if other is null then return 'not_found'; end if;
+  if other = me then return 'self'; end if;
+  select * into f from friendships where least(requester, addressee) = least(me, other) and greatest(requester, addressee) = greatest(me, other);
+  if f.id is null then
+    insert into friendships (requester, addressee) values (me, other);
+    return 'sent';
+  end if;
+  if f.status = 'blocked' then return 'blocked'; end if;
+  if f.status = 'accepted' then return 'already'; end if;
+  if f.addressee = me then update friendships set status = 'accepted' where id = f.id; return 'accepted'; end if;
+  return 'pending';
+end;
+$$;
+
+-- Aceptar o rechazar una petición recibida
+create or replace function public.respond_friend(p_id uuid, p_accept boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if p_accept then
+    update friendships set status = 'accepted' where id = p_id and addressee = auth.uid() and status = 'pending';
+  else
+    delete from friendships where id = p_id and addressee = auth.uid() and status = 'pending';
+  end if;
+end;
+$$;
+-- Quitar a un amigo o cancelar una petición enviada
+create or replace function public.remove_friend(p_other uuid)
+returns void language sql security definer set search_path = public as $$
+  delete from friendships where status <> 'blocked'
+    and ((requester = auth.uid() and addressee = p_other) or (requester = p_other and addressee = auth.uid()));
+$$;
+-- Bloquear: deja de ser amigo y no puede volver a pedírtelo
+create or replace function public.block_friend(p_other uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or p_other = me then return; end if;
+  if exists (select 1 from friendships where status = 'blocked' and blocked_by = p_other
+    and least(requester, addressee) = least(me, p_other) and greatest(requester, addressee) = greatest(me, p_other)) then return; end if;
+  delete from friendships where least(requester, addressee) = least(me, p_other) and greatest(requester, addressee) = greatest(me, p_other);
+  insert into friendships (requester, addressee, status, blocked_by) values (me, p_other, 'blocked', me);
+end;
+$$;
+create or replace function public.unblock_friend(p_other uuid)
+returns void language sql security definer set search_path = public as $$
+  delete from friendships where status = 'blocked' and blocked_by = auth.uid()
+    and ((requester = auth.uid() and addressee = p_other) or (requester = p_other and addressee = auth.uid()));
+$$;
+
+-- Peticiones y bloqueos, con el nombre de la otra persona. dir: 'in' (recibida) · 'out' (enviada) · 'blocked'
+create or replace function public.friend_requests()
+returns table (id uuid, other uuid, name text, dir text, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select f.id, case when f.requester = auth.uid() then f.addressee else f.requester end,
+    coalesce(p.display_name, ''), case when f.status = 'blocked' then 'blocked' when f.addressee = auth.uid() then 'in' else 'out' end, f.created_at
+  from friendships f
+  join profiles p on p.id = case when f.requester = auth.uid() then f.addressee else f.requester end
+  where (f.requester = auth.uid() or f.addressee = auth.uid())
+    and (f.status = 'pending' or (f.status = 'blocked' and f.blocked_by = auth.uid()))
+  order by f.created_at desc;
+$$;
+
+-- Racha de una persona: días seguidos con repasos hasta hoy (o hasta ayer, si hoy aún no ha estudiado)
+create or replace function public.streak_of(p_user uuid, p_today date)
+returns int language plpgsql stable security definer set search_path = public as $$
+declare d date := p_today; n int := 0;
+begin
+  if not exists (select 1 from review_log where user_id = p_user and day = d and count > 0) then d := d - 1; end if;
+  while exists (select 1 from review_log where user_id = p_user and day = d and count > 0) loop
+    n := n + 1; d := d - 1;
+  end loop;
+  return n;
+end;
+$$;
+
+-- Resumen de cada amigo: solo números ya calculados, y nada si ha elegido no compartir su actividad.
+-- p_today: el día de hoy en el dispositivo (los días del registro van en la hora de cada persona).
+-- week: repasos de lunes a domingo de esta semana · langs: idiomas de sus mazos (sin nombres de mazos)
+create or replace function public.friend_summary(p_today date)
+returns table (id uuid, name text, since timestamptz, shared boolean, streak int, today int, week int[], langs text[])
+language sql stable security definer set search_path = public as $$
+  with fr as (
+    select case when f.requester = auth.uid() then f.addressee else f.requester end as uid, f.created_at
+    from friendships f where f.status = 'accepted' and (f.requester = auth.uid() or f.addressee = auth.uid())
+  ), x as (
+    select fr.uid, fr.created_at, coalesce(p.display_name, '') as name, coalesce(s.share, true) as shared
+    from fr join profiles p on p.id = fr.uid left join social s on s.user_id = fr.uid
+  )
+  select x.uid, x.name, x.created_at, x.shared,
+    case when x.shared then streak_of(x.uid, p_today) else 0 end,
+    case when x.shared then coalesce((select l.count from review_log l where l.user_id = x.uid and l.day = p_today), 0) else 0 end,
+    case when x.shared then array(select coalesce((select l.count from review_log l where l.user_id = x.uid
+      and l.day = p_today - (extract(isodow from p_today)::int - 1) + g), 0) from generate_series(0, 6) g order by g) else '{}'::int[] end,
+    case when x.shared then array(select distinct split_part(d.options->>'lang', '-', 1) from decks d
+      where d.owner = x.uid and not coalesce(d.archived, false) and coalesce(d.options->>'lang', '') <> '') else '{}'::text[] end
+  from x;
+$$;
+
+-- Mandar un ánimo a un amigo (repetirlo el mismo día no hace nada)
+create or replace function public.send_cheer(p_to uuid, p_kind text default 'clap')
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not are_friends(auth.uid(), p_to) then raise exception 'Solo puedes animar a tus amigos'; end if;
+  insert into cheers (from_user, to_user, kind) values (auth.uid(), p_to, p_kind) on conflict do nothing;
+end;
+$$;
+-- Ánimos recibidos sin ver (de la última semana), con el nombre de quien los manda
+create or replace function public.my_cheers()
+returns table (id uuid, name text, kind text, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select c.id, coalesce(p.display_name, ''), c.kind, c.created_at from cheers c join profiles p on p.id = c.from_user
+  where c.to_user = auth.uid() and not c.seen and c.created_at > now() - interval '7 days' order by c.created_at desc limit 20;
+$$;
+
+revoke execute on function public.are_friends(uuid, uuid), public.streak_of(uuid, date) from public, anon, authenticated;
+grant execute on function public.my_social(), public.set_share(boolean), public.request_friend(text), public.respond_friend(uuid, boolean),
+  public.remove_friend(uuid), public.block_friend(uuid), public.unblock_friend(uuid), public.friend_requests(),
+  public.friend_summary(date), public.send_cheer(uuid, text), public.my_cheers() to authenticated;

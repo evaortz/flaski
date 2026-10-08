@@ -127,6 +127,7 @@ js/csv.js               Leer y escribir CSV (independiente)
 js/notes.js             Formato «por notas» para IAs y leer lo pegado (independiente)
 js/pages.js             Apuntes: bloques, atajos, tablas Markdown (independiente)
 js/media.js             Imágenes: en el navegador (IndexedDB) y en Supabase Storage
+js/friends.js           Amigos: códigos, invitaciones y clasificación semanal (independiente)
 js/anki.js              Importar mazos de Anki (.apkg), con js/zip.js y js/sqlite.js (independientes)
 FORMATO-IA.md           Instrucciones del formato para pegar en una IA (y skill de Claude)
 sw.js                   Hace que la app abra sin conexión
@@ -138,6 +139,8 @@ tests/                  Pruebas automáticas (no forman parte de la app)
 ```
 
 **Cosas que conviene saber:**
+
+- **Amigos** (solo con cuenta). Cada persona tiene un código y un enlace de invitación (Perfil → Amigos); la amistad la aceptan los dos. De un amigo solo se ve un resumen calculado en Supabase (racha, repasos de hoy y de la semana, idiomas), nunca sus mazos ni apuntes, y cada uno puede dejar de compartirlo. Las tablas y funciones están en `schema.sql` (versión 8).
 
 - **Importar de Anki.** «Mis mazos → Importar» acepta los .apkg y .colpkg de Anki (formato antiguo y el de Anki 2.1.50+, comprimido con Zstandard). Los tipos de nota Básico, Básico con inversa, Escribir la respuesta y Huecos pasan a los de Flaski; el resto, a tipos propios con los mismos campos. Se traen las imágenes, las etiquetas, el progreso y el historial de repasos; los audios no.
 

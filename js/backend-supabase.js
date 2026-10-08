@@ -273,6 +273,27 @@ export async function mergeLog(uid, rows) {
 }
 export const deleteEvent = queued('deleteEvent');
 
+/* ---------------- Amigos ---------------- */
+// Todo pasa por funciones de supabase/schema.sql: de los demás solo llegan números ya calculados.
+const rpc = async (fn, args) => { const { data, error } = await sb.rpc(fn, args); if (error) throw error; return data; };
+// ¿Falta ejecutar schema.sql (versión 8)?
+export const isMissingFn = e => ['PGRST202', '42883', 'PGRST205', '42P01'].includes(e?.code);
+export const social = {
+  me: async () => (await rpc('my_social'))?.[0] || null,              // { code, share }
+  setShare: share => rpc('set_share', { p_share: share }),
+  request: code => rpc('request_friend', { p_code: code }),            // 'sent' | 'accepted' | 'already' | 'pending' | 'self' | 'not_found' | 'blocked'
+  respond: (id, accept) => rpc('respond_friend', { p_id: id, p_accept: accept }),
+  remove: other => rpc('remove_friend', { p_other: other }),
+  block: other => rpc('block_friend', { p_other: other }),
+  unblock: other => rpc('unblock_friend', { p_other: other }),
+  requests: () => rpc('friend_requests'),                              // [{ id, other, name, dir, created_at }]
+  summary: today => rpc('friend_summary', { p_today: today }),         // [{ id, name, since, shared, streak, today, week, langs }]
+  cheer: (to, kind = 'clap') => rpc('send_cheer', { p_to: to, p_kind: kind }),
+  cheers: () => rpc('my_cheers'),                                      // [{ id, name, kind, created_at }]
+  seen: async ids => { if (ids.length) check(await sb.from('cheers').update({ seen: true }).in('id', ids)); },
+  isMissingFn,
+};
+
 /* ---------------- Imágenes ---------------- */
 // Almacén privado «media»: cada cuenta en su carpeta (uid/id). Ver supabase/schema.sql.
 export function imageStore(uid) {
