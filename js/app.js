@@ -19,9 +19,10 @@ import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
 import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
+import { readPdf, pdfToBlocks } from './pdf.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
 import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
-import { newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
+import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -210,7 +211,7 @@ function counts(scope = 'all') {
 /* ===================== navegación ===================== */
 function go(view, extra = {}) {
   Object.assign(S, { view }, extra);
-  closeSheet();
+  closeSheet(); closeBlockMenu();
   render();
   window.scrollTo(0, 0);
 }
@@ -1339,11 +1340,11 @@ function renderNotes() {
     : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
     : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
        <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
-       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>`;
+       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button><button class="ghost" data-act="import-pdf">Importar PDF</button></div>`;
   main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
     <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button></div>
+    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button><button class="ghost" data-act="import-pdf" title="Convertir un PDF en apuntes">${icon('file-text', { size: 16 })} PDF</button></div>
     <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
       <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
@@ -1365,19 +1366,29 @@ const statusOf = cards => cardsStatus(cards.map(c => S.progress.get(c.id) || nul
 const statusLabel = st => STATUS.find(s => s.id === st)?.label || '';
 // Tarjetas que tocan ahora en un ámbito (repasos + nuevas que caben hoy)
 const pendingIn = scope => { const c = counts(scope); return c.due + c.newToday; };
+// Texto de ayuda de un bloque vacío, según su tipo
+const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño', li: 'Lista', ol: 'Lista numerada', todo: 'Por hacer',
+  quote: 'Cita', callout: 'Escribe algo que quieras destacar', code: 'Código', table: BLOCK_PH, img: 'Pie de foto (opcional)' };
+const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❗', '📝', '🔑', '🧠'];
+const delBtn = (id, what) => `<button type="button" class="iconbtn nb-del" data-del-block="${id}" aria-label="Quitar ${what}" title="Quitar ${what}">${icon('trash-2', { size: 15 })}</button>`;
 function blockHTML(b, cards = []) {
   // Imagen: la imagen y debajo su pie (que se edita como un bloque de texto)
   if (b.type === 'img') {
-    return `<figure class="nb nb-img" data-block="${b.id}">${imgHTML(b.src, esc(b.text))}
-      <button type="button" class="iconbtn nb-del" data-del-block="${b.id}" aria-label="Quitar la imagen" title="Quitar la imagen">${icon('trash-2', { size: 15 })}</button>
-      <figcaption class="nb-text" data-edit-block="${b.id}">${b.text.trim() ? fmt(b.text) : '<span class="nb-ph">Pie de foto (opcional)</span>'}</figcaption></figure>`;
+    return `<figure class="nb nb-img" data-block="${b.id}">${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
+      <figcaption class="nb-text" data-edit-block="${b.id}">${b.text.trim() ? fmt(b.text) : `<span class="nb-ph">${PH.img}</span>`}</figcaption></figure>`;
   }
+  if (b.type === 'hr') return `<div class="nb nb-hr" data-block="${b.id}"><hr>${delBtn(b.id, 'el separador')}</div>`;
   const n = cards.length, st = statusOf(cards);
-  const body = !b.text.trim() ? `<span class="nb-ph">${BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text) : fmt(b.text);
+  const body = !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
+    : b.type === 'code' ? `<pre class="nb-code">${esc(b.text)}</pre>` : fmt(b.text);
+  // Lo que va delante del texto: el número, la casilla o el icono del destacado
+  const lead = b.type === 'ol' ? `<span class="nb-num" aria-hidden="true">${olNumbers(curPage()?.blocks || []).get(b.id) || 1}.</span>`
+    : b.type === 'todo' ? `<button type="button" class="nb-check" role="checkbox" aria-checked="${!!b.checked}" aria-label="Hecho" data-todo="${b.id}">${icon('check', { size: 13 })}</button>`
+    : b.type === 'callout' ? `<button type="button" class="nb-icon" data-callout-icon="${b.id}" aria-label="Cambiar el icono" title="Cambiar el icono">${esc(b.icon || '💡')}</button>` : '';
   // En los títulos: estudiar el apartado entero (el título y lo que cuelga de él)
   let sec = '';
   const p = curPage();
-  if (p && (b.type === 'h1' || b.type === 'h2')) {
+  if (p && ['h1', 'h2', 'h3'].includes(b.type)) {
     const ids = new Set(sectionIds(p.blocks, b.id));
     const secCards = cardList().filter(c => c.page_id === p.id && ids.has(c.block_id));
     if (secCards.length) {
@@ -1385,7 +1396,7 @@ function blockHTML(b, cards = []) {
       sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'tarjeta', 'tarjetas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
     }
   }
-  return `<div class="nb nb-${b.type}" data-block="${b.id}"><div class="nb-text" data-edit-block="${b.id}">${body}</div>${sec}
+  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}" data-block="${b.id}">${lead}<div class="nb-text" data-edit-block="${b.id}">${body}</div>${sec}
     ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
@@ -1423,7 +1434,7 @@ function renderPage() {
     </div>
     ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
-    <div class="pg-adds"><button type="button" class="pg-add" data-act="add-block">${icon('plus', { size: 15 })} Bloque</button><button type="button" class="pg-add" data-act="add-table">${icon('plus', { size: 15 })} Tabla</button><button type="button" class="pg-add" data-act="add-image">${icon('plus', { size: 15 })} Imagen</button></div>
+    <div class="pg-adds"><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
     <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
       <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} Crear tarjeta</button>
       <button type="button" class="ghost small-btn" data-act="sel-cloze">${icon('puzzle', { size: 15 })} Convertir en hueco</button></div>`;
@@ -1446,13 +1457,14 @@ function redrawBlocks(editId, caret) {
 }
 // Un bloque pasa a editarse: su texto se cambia por un cuadro de texto
 function editBlock(id, caret = null) {
+  if (NO_TEXT.includes(curPage()?.blocks.find(x => x.id === id)?.type)) return;
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
   const b = curPage()?.blocks.find(x => x.id === id);
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
   if (!b || !el) return;
-  const ph = b.type === 'img' ? 'Pie de foto (opcional)' : BLOCK_PH;
-  el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${ph}" aria-label="${b.type === 'img' ? 'Pie de foto' : 'Bloque'}">${esc(b.text)}</textarea>`;
+  const ph = b.type === 'p' ? BLOCK_PH + ' · / para más' : PH[b.type] || BLOCK_PH;
+  el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${ph}" aria-label="${b.type === 'img' ? 'Pie de foto' : 'Bloque'}" ${b.type === 'code' ? 'spellcheck="false"' : ''}>${esc(b.text)}</textarea>`;
   const t = document.querySelector(`[data-block-input="${id}"]`);
   autoGrow(t); t.focus();
   const pos = caret == null ? t.value.length : caret;
@@ -1467,6 +1479,29 @@ function commitBlockEl(t) {
   if (b.text !== t.value) { b.text = t.value; savePageSoon(p); }
   const wrap = t.closest('.nb');
   if (wrap) repaint(() => { wrap.outerHTML = blockHTML(b, pageCards(p.id).get(b.id)); });
+  renumber();
+}
+function renumber() {
+  const nums = olNumbers(curPage()?.blocks || []);
+  document.querySelectorAll('#pgBlocks .nb-ol').forEach(el => { const x = el.querySelector('.nb-num'); if (x) x.textContent = (nums.get(el.dataset.block) || 1) + '.'; });
+}
+// Cambia el tipo de un bloque (atajo o menú /) y lo deja editando
+function retypeBlock(b, type, text = '', extra = {}) {
+  const p = curPage(), i = p.blocks.indexOf(b);
+  closeBlockMenu();
+  if (type === 'img') { b.text = ''; savePageSoon(p); redrawBlocks(); return pickImage().then(f => f && addImageBlock(f, b.id)); }
+  Object.assign(b, { type, text }, extra);
+  if (type === 'table' && !text) b.text = TABLE_TEMPLATE;
+  if (type === 'todo' && b.checked == null) b.checked = false;
+  if (type === 'callout' && !b.icon) b.icon = '💡';
+  savePageSoon(p);
+  // Un separador no se escribe: se sigue en un párrafo debajo
+  if (type === 'hr') {
+    let next = p.blocks[i + 1];
+    if (!next || NO_TEXT.includes(next.type)) { next = newBlock(); p.blocks.splice(i + 1, 0, next); }
+    return redrawBlocks(next.id, 0);
+  }
+  redrawBlocks(b.id, type === 'table' ? 2 : b.text.length);
 }
 // Las tarjetas de un bloque que desaparece pasan al bloque donde se ha juntado
 function moveCards(fromBlock, toBlock) {
@@ -1481,6 +1516,26 @@ function blockKey(e) {
   const i = p.blocks.findIndex(x => x.id === t.dataset.blockInput);
   if (i < 0) return;
   const b = p.blocks[i], at = t.selectionStart, collapsed = at === t.selectionEnd;
+  // Menú de bloques abierto (/): las flechas lo recorren, Enter elige, Esc lo cierra
+  if (S.blockMenu?.blockId === b.id && !$('#blockMenu')?.hidden) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); return moveBlockMenu(e.key === 'ArrowDown' ? 1 : -1); }
+    if (e.key === 'Enter' || e.key === 'Tab') { const it = blockMenuItems()[S.blockMenu.i]; if (it) { e.preventDefault(); return retypeBlock(b, it.type); } }
+    if (e.key === 'Escape') { e.preventDefault(); return closeBlockMenu(); }
+  }
+  // En el código, Enter es un salto de línea y Tab mete dos espacios; Enter en una línea vacía al final (o Ctrl+Enter) sale
+  if (b.type === 'code') {
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); t.setRangeText('  ', at, t.selectionEnd, 'end'); autoGrow(t); return; }
+    if (e.key === 'Enter' && !e.isComposing) {
+      const out = e.ctrlKey || e.metaKey || (collapsed && at === t.value.length && t.value.endsWith('\n'));
+      if (!out) return;
+      e.preventDefault();
+      b.text = t.value.replace(/\n$/, '');
+      const next = newBlock();
+      p.blocks.splice(i + 1, 0, next);
+      savePageSoon(p);
+      return redrawBlocks(next.id, 0);
+    }
+  }
   // En una tabla, Enter es una fila nueva; Enter en una línea vacía al final (o Ctrl+Enter) sale de ella
   if (b.type === 'table' && e.key === 'Enter' && !e.isComposing) {
     const lineStart = t.value.lastIndexOf('\n', at - 1) + 1;
@@ -1506,7 +1561,7 @@ function blockKey(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     b.text = t.value;
-    if (b.type === 'li' && !b.text.trim()) { b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }   // Enter en un punto vacío: fin de la lista
+    if (['li', 'ol', 'todo'].includes(b.type) && !b.text.trim()) { b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }   // Enter en un punto vacío: fin de la lista
     const [cur, next] = splitBlock(b, at);
     p.blocks.splice(i, 1, cur, next);
     savePageSoon(p);
@@ -1521,7 +1576,9 @@ function blockKey(e) {
       p.blocks.splice(i, 1); moveCards(b.id, p.blocks[i - 1].id); savePageSoon(p);
       return redrawBlocks(p.blocks[i - 1].id);
     }
-    if (b.type === 'table' && t.value.trim()) return;   // en una tabla con contenido, Retroceso al principio no hace nada especial
+    // Detrás de un separador: Retroceso lo quita
+    if (i > 0 && p.blocks[i - 1].type === 'hr') { e.preventDefault(); b.text = t.value; p.blocks.splice(i - 1, 1); savePageSoon(p); return redrawBlocks(b.id, 0); }
+    if ((b.type === 'table' || b.type === 'code') && t.value.trim()) return;   // en una tabla o un código con contenido, no hace nada especial
     if (b.type !== 'p') { e.preventDefault(); b.text = t.value; b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }
     if (i > 0) {
       e.preventDefault();
@@ -1533,8 +1590,10 @@ function blockKey(e) {
       return redrawBlocks(block.id, caret);
     }
   }
-  if (e.key === 'ArrowUp' && collapsed && at === 0 && i > 0) { e.preventDefault(); return editBlock(p.blocks[i - 1].id); }
-  if (e.key === 'ArrowDown' && collapsed && at === t.value.length && i < p.blocks.length - 1) { e.preventDefault(); return editBlock(p.blocks[i + 1].id, 0); }
+  // Las flechas se saltan los separadores
+  const near = (dir) => { for (let j = i + dir; j >= 0 && j < p.blocks.length; j += dir) if (!NO_TEXT.includes(p.blocks[j].type)) return p.blocks[j]; return null; };
+  if (e.key === 'ArrowUp' && collapsed && at === 0 && near(-1)) { e.preventDefault(); return editBlock(near(-1).id); }
+  if (e.key === 'ArrowDown' && collapsed && at === t.value.length && near(1)) { e.preventDefault(); return editBlock(near(1).id, 0); }
   if (e.key === 'Escape') { e.preventDefault(); t.blur(); }
 }
 // Lo seleccionado en la página (para crear una tarjeta): { blockId, text, at }
@@ -1582,6 +1641,59 @@ document.addEventListener('paste', e => {
   savePageSoon(p);
   redrawBlocks(last.id, caret);
 });
+/* ---------- Menú de bloques (/ o «+ Bloque») ---------- */
+const GLYPH = { p: 'Aa', h1: 'H1', h2: 'H2', h3: 'H3', li: '•', ol: '1.', todo: '☐', quote: '❝', callout: '💡', code: '{ }', table: '▦', hr: '—' };
+const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function blockMenuItems() {
+  const q = fold(S.blockMenu?.q);
+  return BLOCK_MENU.filter(it => !q || fold(it.label + ' ' + it.keys).includes(q));
+}
+// mode: 'slash' (cambia el bloque donde se escribe «/») · 'append' (añade uno al final)
+function openBlockMenu({ mode, blockId = null, q = '', anchor }) {
+  const same = S.blockMenu && S.blockMenu.mode === mode && S.blockMenu.blockId === blockId;
+  S.blockMenu = { mode, blockId, q, i: same && S.blockMenu.q === q ? S.blockMenu.i : 0 };
+  let el = $('#blockMenu');
+  if (!el) { el = document.createElement('div'); el.id = 'blockMenu'; el.className = 'blk-menu'; el.setAttribute('role', 'listbox'); el.setAttribute('aria-label', 'Tipos de bloque'); document.body.appendChild(el); }
+  const items = blockMenuItems();
+  if (!items.length) { el.hidden = true; return; }
+  S.blockMenu.i = Math.min(S.blockMenu.i, items.length - 1);
+  el.innerHTML = items.map((it, k) => `<button type="button" class="blk-item" role="option" aria-selected="${k === S.blockMenu.i}" data-block-type="${it.type}">
+    <span class="blk-glyph" aria-hidden="true">${it.type === 'img' ? icon('image', { size: 16 }) : esc(GLYPH[it.type])}</span>
+    <span class="blk-txt"><b>${esc(it.label)}</b><small>${esc(it.hint)}</small></span>${it.md ? `<kbd>${esc(it.md)}</kbd>` : ''}</button>`).join('');
+  el.hidden = false;
+  // Debajo de donde se escribe; si no cabe, encima
+  const r = anchor.getBoundingClientRect(), h = Math.min(el.scrollHeight, 340), w = Math.min(300, innerWidth - 16);
+  el.style.width = w + 'px';
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  el.style.top = (r.bottom + 6 + h < innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
+  el.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+function moveBlockMenu(d) {
+  const n = blockMenuItems().length;
+  if (!n) return;
+  S.blockMenu.i = (S.blockMenu.i + d + n) % n;
+  document.querySelectorAll('#blockMenu .blk-item').forEach((b, k) => b.setAttribute('aria-selected', String(k === S.blockMenu.i)));
+  $('#blockMenu [aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+function closeBlockMenu() { S.blockMenu = null; const el = $('#blockMenu'); if (el) el.hidden = true; }
+// Elegir un tipo en el menú
+function chooseBlockType(type) {
+  const p = curPage(), m = S.blockMenu;
+  if (!p || !m) return;
+  if (m.mode === 'slash') { const b = p.blocks.find(x => x.id === m.blockId); if (b) retypeBlock(b, type); return; }
+  // Al final: se aprovecha el último bloque si es un párrafo vacío
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  let b = p.blocks[p.blocks.length - 1];
+  if (!b || b.type !== 'p' || b.text.trim()) { b = newBlock(); p.blocks.push(b); }
+  retypeBlock(b, type);
+}
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest?.('#blockMenu')) { e.preventDefault(); return; }
+  if (S.blockMenu && !e.target.closest?.('[data-act="block-menu"]')) closeBlockMenu();
+});
+document.addEventListener('focusout', e => { if (S.blockMenu?.mode === 'slash' && e.target.matches?.('[data-block-input]')) setTimeout(() => { if (!document.activeElement?.matches?.('[data-block-input]')) closeBlockMenu(); }, 0); });
+
 // Añade una imagen a los apuntes: detrás del bloque indicado (o al final; si el último está vacío, en su lugar)
 async function addImageBlock(file, afterId = null) {
   const p = curPage();
@@ -1607,13 +1719,14 @@ async function addImageBlock(file, afterId = null) {
 function removeImageBlock(id) {
   const p = curPage(), i = p?.blocks.findIndex(x => x.id === id);
   if (!p || i < 0) return;
+  const b = p.blocks[i];
   const next = p.blocks[i + 1] || p.blocks[i - 1];
   if (next) moveCards(id, next.id);
   p.blocks.splice(i, 1);
   if (!p.blocks.length) p.blocks.push(newBlock());
   savePageSoon(p);
   redrawBlocks();
-  toast('Imagen quitada');
+  toast(`${b.type === 'hr' ? 'Separador quitado' : 'Imagen quitada'}`);
 }
 // Arrastrar una imagen a los apuntes
 document.addEventListener('dragover', e => { if (S.view === 'page' && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
@@ -1635,6 +1748,33 @@ function newPage({ title = '', blocks = null } = {}) {
   go('page', { pageId: p.id });
   if (title || blocks?.length) return;
   setTimeout(() => $('#pgTitle')?.focus(), 30);
+}
+// Un PDF → un apunte: títulos, párrafos y listas; las páginas escaneadas, como imágenes
+async function importPdf(file) {
+  openSheet(`<h2>Importar PDF</h2><p class="muted" role="status" id="pdfStatus">Abriendo «${esc(file.name)}»…</p>`);
+  const status = t => { const el = $('#pdfStatus'); if (el) el.textContent = t; };
+  try {
+    const r = await readPdf(new Uint8Array(await file.arrayBuffer()), { onPage: (i, n) => status(`Leyendo la página ${i} de ${n}…`) });
+    const { blocks: raw, title } = pdfToBlocks(r.pages, { newBlock });
+    const scanned = raw.filter(b => b.type === 'img').length;
+    for (const b of raw) {
+      if (b.type !== 'img') continue;
+      const blob = r.pages[b.image]?.image;
+      delete b.image;
+      if (blob) { const id = newImageId(); await storeImage(id, blob, blob.type || 'image/jpeg'); b.src = id; }
+    }
+    const blocks = raw.filter(b => b.type !== 'img' || b.src);
+    if (!blocks.length) throw new Error('No se ha encontrado nada que convertir en este PDF.');
+    flushUploads();
+    newPage({ title: r.title || title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim(), blocks });
+    toast(scanned === r.pages.length ? 'El PDF está escaneado: sus páginas se han guardado como imágenes'
+      : `Apunte creado a partir de ${plural(r.pages.length, 'página', 'páginas')}${r.truncated ? ` (de ${r.total}: solo se importan las ${r.pages.length} primeras)` : ''}`);
+  } catch (e) {
+    console.error(e);
+    const msg = e?.name === 'PasswordException' ? 'El PDF está protegido con contraseña. Quítasela y vuelve a intentarlo.'
+      : e?.name === 'InvalidPDFException' ? 'El archivo no es un PDF válido.' : e?.message || 'No se ha podido leer el PDF.';
+    openSheet(`<h2>No se ha podido importar</h2><p>${esc(msg)}</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
+  }
 }
 function pastePageSheet() {
   openSheet(`<h2>Pegar apuntes</h2>
@@ -1671,7 +1811,9 @@ function notesHelpSheet() {
   openSheet(`<h2>Formato y atajos</h2>
     <p class="muted small">Toca cualquier parte para escribir en ella; al salir se ve con formato. Se guarda solo.</p>
     <h3 class="sub-h">Bloques (al principio de una línea)</h3>
-    ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('| A | B |', 'Tabla (abajo cómo)')])}
+    <p class="hint">Escribe <code>/</code> en una línea vacía (o pulsa «+ Bloque») para elegir entre todos los tipos: también destacados, imágenes y separadores.</p>
+    ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('### ', 'Título pequeño'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('1. ', 'Lista numerada'),
+      row('[] ', 'Casilla (<code>[x] </code> ya marcada)'), row('> ', 'Cita'), row('```', 'Código'), row('---', 'Separador'), row('| A | B |', 'Tabla (abajo cómo)')])}
     <h3 class="sub-h">Formato dentro del texto</h3>
     ${table([row('**negrita**', '<b>negrita</b>'), row('*cursiva*', '<i>cursiva</i>'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
     <h3 class="sub-h">Tablas</h3>
@@ -1681,12 +1823,12 @@ function notesHelpSheet() {
     <p class="hint">La segunda línea separa la cabecera: <code>:---</code> alinea a la izquierda, <code>:---:</code> al centro y <code>---:</code> a la derecha. Para poner una barra dentro de una celda: <code>\\|</code>. El botón «+ Tabla» crea una para rellenar.</p>
     <h3 class="sub-h">Teclas</h3>
     ${table([
-      key('Enter', 'Bloque nuevo (en una tabla, fila nueva; en un punto vacío, termina la lista)'),
+      key('Enter', 'Bloque nuevo (en una tabla, fila nueva; en un código, salto de línea; en un punto vacío, termina la lista)'),
       key('Mayús + Enter', 'Salto de línea dentro del mismo bloque'),
       key('Retroceso', 'Al principio de un bloque: lo junta con el anterior (en un título o lista, lo vuelve párrafo)'),
       key('↑ ↓', 'Al principio o al final de un bloque: pasa al anterior o al siguiente'),
       key('Esc', 'Deja de editar'),
-      key('Ctrl + Enter', 'En una tabla: sale de ella y crea un bloque debajo'),
+      key('Ctrl + Enter', 'En una tabla o un código: sale de él y crea un bloque debajo'),
     ], ['Tecla', 'Hace'])}
     <h3 class="sub-h">Tarjetas desde los apuntes</h3>
     <ul class="help-list">
@@ -2011,7 +2153,8 @@ async function restoreInto(data) {
     try {
       const have = await existingId(pg.id, id => S.pages.has(id));
       if (have) { pageMap.set(pg.id, have); rep.pages.skipped++; continue; }
-      const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: ['p', 'h1', 'h2', 'li', 'table', 'img'].includes(b.type) ? b.type : 'p', text: str(b.text, 20000), ...(b.type === 'img' ? { src: str(b.src, 64) } : {}) }));
+      const blocks = pg.blocks.filter(b => b && b.id && typeof b.text === 'string').map(b => ({ id: str(b.id, 40), type: BLOCK_TYPES.includes(b.type) ? b.type : 'p', text: str(b.text, 20000), ...(b.type === 'img' ? { src: str(b.src, 64) } : {}),
+        ...(b.type === 'todo' ? { checked: !!b.checked } : {}), ...(b.type === 'callout' ? { icon: str(b.icon || '💡', 16) } : {}) }));
       const np = await createKeepingId(api.createPage, { owner: uid, title: str(pg.title, 120), icon: str(pg.icon, 16), deck_id: null, folder_id: folderMap.get(pg.folder_id) || null, blocks,
         ...(S.pageTagsMissing ? {} : { tags: tagsOf(pg.tags) }) }, pg.id);
       S.pages.set(np.id, { ...np, blocks: np.blocks || blocks });
@@ -3287,6 +3430,18 @@ document.addEventListener('click', async e => {
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
+  if (ds.blockType) return chooseBlockType(ds.blockType);
+  if (ds.todo || ds.calloutIcon) {
+    const p = curPage(), blk = p?.blocks.find(x => x.id === (ds.todo || ds.calloutIcon));
+    if (!blk) return;
+    if (ds.todo) blk.checked = !blk.checked;
+    else blk.icon = CALLOUT_ICONS[(CALLOUT_ICONS.indexOf(blk.icon || '💡') + 1) % CALLOUT_ICONS.length];
+    savePageSoon(p);
+    const wrap = document.querySelector(`[data-block="${blk.id}"]`);
+    if (wrap && !wrap.querySelector('[data-block-input]')) repaint(() => { wrap.outerHTML = blockHTML(blk, pageCards(p.id).get(blk.id)); });
+    else if (wrap) { const lead = wrap.querySelector('.nb-check, .nb-icon'); wrap.classList.toggle('is-done', !!blk.checked); if (ds.todo) lead.setAttribute('aria-checked', String(!!blk.checked)); else lead.textContent = blk.icon; }
+    return;
+  }
   if (ds.friendMenu) return friendMenu(ds.friendMenu);
   if (ds.frAccept) return friendAction(() => api.social.respond(ds.frAccept, true), '¡Ya sois amigos!');
   if (ds.frReject) return friendAction(() => api.social.respond(ds.frReject, false));
@@ -3476,11 +3631,18 @@ document.addEventListener('click', async e => {
     case 'manage-types': S.typeEdit = null; return typesSheet();
     case 'new-page': return newPage();
     case 'paste-page': return pastePageSheet();
+    case 'import-pdf':
+      if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
+      return $('#pdfFile').click();
     case 'paste-page-ok': {
       const blocks = textToBlocks($('#pagePaste').value);
       if (!blocks.length) return toast('No has pegado nada');
       const title = blocks[0].type === 'h1' ? blocks.shift().text : '';
       return newPage({ title, blocks });
+    }
+    case 'block-menu': {
+      if (S.blockMenu?.mode === 'append') return closeBlockMenu();
+      return openBlockMenu({ mode: 'append', anchor: e.target.closest('button') });
     }
     case 'add-block': case 'add-table': {
       const p = curPage();
@@ -3711,9 +3873,13 @@ document.addEventListener('input', e => {
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
   if (e.target.matches?.('[data-block-input]')) {
     const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
-    // «# », «## », «- » al principio de un párrafo lo convierten en título o lista
+    // «# », «- », «1. », «[] », «> »… al principio de un párrafo cambian el tipo de bloque
     const sc = b && b.type === 'p' && shortcut(t.value);
-    if (sc) { b.type = sc.type; t.value = sc.text; t.closest('.nb').className = `nb nb-${sc.type}`; t.setSelectionRange(0, 0); }
+    if (sc) return retypeBlock(b, sc.type, sc.text, sc.type === 'todo' ? { checked: sc.checked } : {});
+    // «/» en un bloque vacío abre el menú de bloques; lo que se escribe detrás lo filtra
+    const m = b && !['code', 'table', 'img'].includes(b.type) && /^\/([^\s/]*)$/.exec(t.value);
+    if (m) openBlockMenu({ mode: 'slash', blockId: b.id, q: m[1], anchor: t });
+    else if (S.blockMenu?.mode === 'slash') closeBlockMenu();
     autoGrow(t);
     return;
   }
@@ -3822,6 +3988,7 @@ document.addEventListener('drop', e => {
 document.addEventListener('focusin', e => { if (e.target.matches('[data-fld], #typed, #c-hint')) S.lastField = e.target; });
 document.addEventListener('mousedown', e => { if (e.target.closest('[data-char], [data-fmt]')) e.preventDefault(); });
 $('#backupFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) restoreBackup(f); e.target.value = ''; });
+$('#pdfFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importPdf(f); e.target.value = ''; });
 $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = ''; });
 
 document.addEventListener('keydown', e => {

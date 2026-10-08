@@ -125,8 +125,9 @@ js/vendor/              Librerías de terceros incluidas
 licenses/               Licencias de terceros
 js/csv.js               Leer y escribir CSV (independiente)
 js/notes.js             Formato «por notas» para IAs y leer lo pegado (independiente)
-js/pages.js             Apuntes: bloques, atajos, tablas Markdown (independiente)
+js/pages.js             Apuntes: tipos de bloque, atajos, menú /, Markdown (independiente)
 js/media.js             Imágenes: en el navegador (IndexedDB) y en Supabase Storage
+js/pdf.js               Importar un PDF como apuntes (con PDF.js en js/vendor/pdfjs, que se carga al usarlo)
 js/friends.js           Amigos: códigos, invitaciones y clasificación semanal (independiente)
 js/anki.js              Importar mazos de Anki (.apkg), con js/zip.js y js/sqlite.js (independientes)
 FORMATO-IA.md           Instrucciones del formato para pegar en una IA (y skill de Claude)
@@ -139,6 +140,8 @@ tests/                  Pruebas automáticas (no forman parte de la app)
 ```
 
 **Cosas que conviene saber:**
+
+- **Apuntes desde un PDF.** «Apuntes → PDF» convierte un PDF en un apunte: adivina títulos (por tamaño o negrita), párrafos y listas, quita cabeceras, pies y números de página, y guarda como imagen las páginas escaneadas. Las imágenes y tablas que haya dentro del texto no se traen.
 
 - **Amigos** (solo con cuenta). Cada persona tiene un código y un enlace de invitación (Perfil → Amigos); la amistad la aceptan los dos. De un amigo solo se ve un resumen calculado en Supabase (racha, repasos de hoy y de la semana, idiomas), nunca sus mazos ni apuntes, y cada uno puede dejar de compartirlo. Las tablas y funciones están en `schema.sql` (versión 8).
 

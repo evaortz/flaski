@@ -1,5 +1,6 @@
 // Apuntes: escribir por bloques, tablas, crear tarjetas desde lo seleccionado y volver a ellos al estudiar
 import { test, expect, openApp, nav, createDeck } from './fixtures.js';
+import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
   await nav(page, 'Apuntes');
@@ -7,6 +8,11 @@ async function newPage(page, title) {
   await page.locator('#pgTitle').fill(title);
 }
 const block = (page, i) => page.locator('#pgBlocks .nb').nth(i);
+// «+ Bloque» y elegir el tipo en el menú
+async function addBlock(page, type) {
+  await page.locator('[data-act="block-menu"]').click();
+  await page.locator(`#blockMenu [data-block-type="${type}"]`).click();
+}
 // Escribe en el bloque que se está editando
 const type = (page, text) => page.locator('[data-block-input]').pressSequentially(text);
 
@@ -55,7 +61,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
 test('tablas en Markdown: se escriben como texto y se ven como tabla', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Tabla');
-  await page.locator('[data-act="add-table"]').click();
+  await addBlock(page, 'table');
   const t = page.locator('[data-block-input]');
   await t.fill('| Caso | Sufijo |\n| --- | :---: |\n| Locativo | -de |');
   await page.keyboard.press('End');
@@ -69,7 +75,7 @@ test('tablas en Markdown: se escriben como texto y se ven como tabla', async ({ 
   await expect(table.locator('tbody tr')).toHaveCount(2);
   await expect(table.locator('tbody tr').nth(1).locator('td').first()).toHaveText('Dativo');
   // Pegar texto con una tabla en un párrafo también la crea
-  await page.locator('[data-act="add-block"]').click();
+  await addBlock(page, 'p');
   await page.locator('[data-block-input]').fill('| A | B |\n|---|---|\n| 1 | 2 |');
   await page.keyboard.press('Escape');
   await expect(page.locator('#pgBlocks table')).toHaveCount(2);
@@ -271,7 +277,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   // En los apuntes: un bloque de imagen con su pie
   await newPage(page, 'Mapas');
   const chooser2 = page.waitForEvent('filechooser');
-  await page.locator('[data-act="add-image"]').click();
+  await addBlock(page, 'img');
   await (await chooser2).setFiles(PNG);
   const fig = page.locator('#pgBlocks .nb-img');
   await expect(fig.locator('img.media')).toHaveAttribute('src', /^blob:/);
@@ -288,4 +294,70 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   await expect(img).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => img.evaluate(i => i.complete && i.naturalWidth)).toBeGreaterThan(0);
   await expect(page.locator('#pgBlocks .nb-img figcaption')).toHaveText('Mapa de Turquía');
+});
+
+test('más tipos de bloque: atajos, menú /, casillas, destacado, código y separador; y vuelta a Markdown', async ({ page }) => {
+  await openApp(page);
+  await newPage(page, 'Bloques');
+  await block(page, 0).locator('.nb-text').click();
+  await type(page, '### Apartado');
+  await page.keyboard.press('Enter');
+  await type(page, '1. uno');
+  await page.keyboard.press('Enter');
+  await type(page, 'dos');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');            // fin de la lista numerada
+  await type(page, '[] repasar');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  // Menú /: se filtra escribiendo y se elige con Enter
+  await type(page, '/desta');
+  await expect(page.locator('#blockMenu .blk-item')).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  await type(page, 'Ojo con esto');
+  await page.keyboard.press('Enter');
+  await type(page, '```');
+  await type(page, 'x = 1');
+  await page.keyboard.press('Enter');
+  await type(page, 'y = 2');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');            // línea vacía al final: sale del código
+  await type(page, '---');
+  await type(page, 'Fin');
+  await page.keyboard.press('Escape');
+
+  const types = await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.replace('nb nb-', '').replace(' is-done', '')));
+  expect(types).toEqual(['h3', 'ol', 'ol', 'todo', 'callout', 'code', 'hr', 'p']);
+  await expect(page.locator('#pgBlocks .nb-num')).toHaveText(['1.', '2.']);
+  await expect(page.locator('#pgBlocks pre.nb-code')).toHaveText('x = 1\ny = 2');
+  // Marcar la casilla y cambiar el icono del destacado
+  await page.locator('#pgBlocks .nb-check').click();
+  await expect(page.locator('#pgBlocks .nb-todo')).toHaveClass(/is-done/);
+  await page.locator('#pgBlocks .nb-icon').click();
+  await expect(page.locator('#pgBlocks .nb-icon')).toHaveText('⚠️');
+
+  // Se guarda y vuelve igual al recargar
+  await page.reload();
+  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await nav(page, 'Apuntes');
+  await page.getByText('Bloques').first().click();
+  await expect(page.locator('#pgBlocks .nb-todo')).toHaveClass(/is-done/);
+  await expect(page.locator('#pgBlocks .nb')).toHaveCount(8);
+});
+
+test('importar un PDF: se convierte en un apunte con títulos, párrafos, listas y las páginas escaneadas como imagen', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Apuntes');
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('#main [data-act="import-pdf"]').first().click();
+  await (await chooser).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
+  await expect(page.locator('#pgTitle')).toHaveValue('casos');
+  const blocks = page.locator('#pgBlocks .nb');
+  await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(1);
+  expect(await blocks.evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['h2', 'p', 'h3', 'li', 'li', 'img']);
+  await expect(blocks.nth(0)).toHaveText('El locativo');
+  await expect(blocks.nth(4)).toHaveText('okulda: en la escuela');
+  await expect(blocks.nth(1)).toHaveText('El locativo indica dónde está algo. Se forma con el sufijo -de o -da según la armonía vocálica.');
+  await expect(page.locator('#pgBlocks .nb-img img.media')).toHaveAttribute('src', /^blob:/);
+  await expect(page.locator('#pgBlocks .nb-img figcaption')).toHaveText('Página 2');
 });

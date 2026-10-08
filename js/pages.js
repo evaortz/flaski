@@ -1,9 +1,30 @@
 // Apuntes: una página es una lista de bloques { id, type, text }.
-//   type: 'p' (párrafo) · 'h1' · 'h2' (títulos) · 'li' (lista) · 'table' · 'img' (imagen: src = id, text = pie)
+//   type: 'p' (párrafo) · 'h1' · 'h2' · 'h3' (títulos) · 'li' (lista) · 'ol' (lista numerada)
+//         · 'todo' (casilla: checked) · 'quote' (cita) · 'callout' (destacado: icon) · 'code' (código)
+//         · 'table' (tabla en Markdown) · 'img' (imagen: src = id, text = pie) · 'hr' (separador)
 // El id de un bloque no cambia al editarlo: las tarjetas vinculadas guardan (page_id, block_id).
 // Sin dependencias de la interfaz, así que se puede probar aparte.
 
-export const BLOCK_TYPES = ['p', 'h1', 'h2', 'li', 'table', 'img'];
+export const BLOCK_TYPES = ['p', 'h1', 'h2', 'h3', 'li', 'ol', 'todo', 'quote', 'callout', 'code', 'table', 'img', 'hr'];
+// Para el menú de bloques (/): nombre, para qué sirve, atajo al escribir y palabras con las que se busca
+export const BLOCK_MENU = [
+  { type: 'p', label: 'Texto', hint: 'Un párrafo normal', keys: 'parrafo texto' },
+  { type: 'h1', label: 'Título', hint: 'Título de un tema', md: '#', keys: 'titulo heading h1' },
+  { type: 'h2', label: 'Subtítulo', hint: 'Un apartado', md: '##', keys: 'subtitulo apartado h2' },
+  { type: 'h3', label: 'Título pequeño', hint: 'Un apartado dentro de otro', md: '###', keys: 'titulo pequeño h3 seccion' },
+  { type: 'li', label: 'Lista', hint: 'Puntos sin orden', md: '-', keys: 'lista vinetas puntos bullet' },
+  { type: 'ol', label: 'Lista numerada', hint: '1, 2, 3…', md: '1.', keys: 'lista numerada numeros pasos ordenada' },
+  { type: 'todo', label: 'Casilla', hint: 'Algo por hacer o por repasar', md: '[]', keys: 'casilla tarea todo pendiente check' },
+  { type: 'quote', label: 'Cita', hint: 'Una cita o un ejemplo', md: '>', keys: 'cita quote ejemplo' },
+  { type: 'callout', label: 'Destacado', hint: 'Una nota que llama la atención', keys: 'destacado nota aviso importante callout' },
+  { type: 'code', label: 'Código', hint: 'Texto tal cual, con letra de ancho fijo', md: '```', keys: 'codigo code formula' },
+  { type: 'table', label: 'Tabla', hint: 'Filas y columnas', keys: 'tabla columnas filas' },
+  { type: 'img', label: 'Imagen', hint: 'Del dispositivo o pegada', keys: 'imagen foto dibujo' },
+  { type: 'hr', label: 'Separador', hint: 'Una línea entre partes', md: '---', keys: 'separador linea division' },
+];
+// Bloques que no se editan como texto
+export const NO_TEXT = ['hr'];
+const LISTS = ['li', 'ol', 'todo'];
 const IMG_LINE = /^!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)$/;   // una línea que es solo una imagen
 
 /* ---------------- Tablas (Markdown) ----------------
@@ -33,24 +54,49 @@ export function parseTable(text) {
 export function blockId() {
   return 'b' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 7);
 }
-export const newBlock = (type = 'p', text = '') => ({ id: blockId(), type, text });
+export const newBlock = (type = 'p', text = '', extra = {}) => ({ id: blockId(), type, text, ...extra });
 export const imageBlock = (src, caption = '') => ({ id: blockId(), type: 'img', text: caption, src });
 
-// Atajos al escribir al principio de un párrafo: «# » título, «## » subtítulo, «- » o «* » lista
+// Atajos al escribir al principio de un párrafo: «# », «## », «### » títulos · «- » lista · «1. » numerada
+// · «[] » casilla · «> » cita · «```» código · «---» separador
 export function shortcut(text) {
-  const m = /^(#{1,2}|[-*•]) /.exec(text);
+  if (text === '```') return { type: 'code', text: '' };
+  if (/^(---|___|\*\*\*)$/.test(text)) return { type: 'hr', text: '' };
+  const m = /^(#{1,3}|[-*•]|\d{1,3}[.)]|\[ ?\]|\[[xX]\]|>) /.exec(text);
   if (!m) return null;
-  const type = m[1] === '#' ? 'h1' : m[1] === '##' ? 'h2' : 'li';
-  return { type, text: text.slice(m[0].length) };
+  const k = m[1], rest = text.slice(m[0].length);
+  if (k[0] === '#') return { type: ['h1', 'h2', 'h3'][k.length - 1], text: rest };
+  if (k[0] === '[') return { type: 'todo', text: rest, checked: /x/i.test(k) };
+  if (k === '>') return { type: 'quote', text: rest };
+  if (/\d/.test(k)) return { type: 'ol', text: rest };
+  return { type: 'li', text: rest };
 }
+// Un elemento de lista Markdown con casilla: «- [ ] repasar» / «- [x] hecho»
+const TODO_LINE = /^[-*] \[([ xX])\] (.*)$/;
+const CALLOUT_LINE = /^> ?\[!(\w+)\][-+]? ?(.*)$/;
 
 // Texto de varias líneas (pegado, o importado) → bloques. Las líneas vacías separan párrafos;
 // las líneas seguidas de un mismo párrafo se juntan.
 export function textToBlocks(text) {
   const out = [];
-  let para = null, table = null;
+  let para = null, table = null, code = null, quote = null;
   for (const raw of String(text ?? '').replace(/\r\n?/g, '\n').split('\n')) {
     const line = raw.trimEnd();
+    // Código entre ```: tal cual, con sus saltos de línea
+    if (code) {
+      if (/^```\s*$/.test(line.trim())) { code = null; continue; }
+      code.text += (code.text || code.started ? '\n' : '') + raw; code.started = true; continue;
+    }
+    if (/^```/.test(line.trim())) { code = newBlock('code', ''); out.push(code); para = quote = null; continue; }
+    // Citas y destacados: las líneas seguidas que empiezan por «>» van juntas
+    if (/^>/.test(line.trim())) {
+      const l = line.trim(), co = CALLOUT_LINE.exec(l);
+      if (co) { quote = newBlock('callout', co[2].trim(), { icon: '💡' }); out.push(quote); }
+      else if (quote) quote.text += (quote.text ? '\n' : '') + l.replace(/^> ?/, '');
+      else { quote = newBlock('quote', l.replace(/^> ?/, '')); out.push(quote); }
+      para = null; continue;
+    }
+    quote = null;
     // Líneas seguidas que empiezan y acaban por «|»: una tabla
     if (isRow(line)) {
       if (table) table.text += '\n' + line.trim();
@@ -62,20 +108,31 @@ export function textToBlocks(text) {
     if (!line.trim()) { para = null; continue; }
     const im = IMG_LINE.exec(line.trim());
     if (im) { out.push(imageBlock(im[2], im[1])); para = null; continue; }
-    const sc = shortcut(line.trimStart());
-    if (sc) { out.push(newBlock(sc.type, sc.text.trim())); para = null; continue; }
+    const td = TODO_LINE.exec(line.trim());
+    if (td) { out.push(newBlock('todo', td[2].trim(), { checked: td[1] !== ' ' })); para = null; continue; }
+    const sc = shortcut(line.trim());
+    if (sc) { out.push(newBlock(sc.type, sc.text.trim(), sc.type === 'todo' ? { checked: sc.checked } : {})); para = null; continue; }
     if (para) para.text += ' ' + line.trim();
     else { para = newBlock('p', line.trim()); out.push(para); }
   }
   if (table && !isTableText(table.text)) table.type = 'p';
+  for (const b of out) delete b.started;
   return out;
 }
 
 // Parte un bloque por el cursor (Enter): el bloque se queda con lo de antes y devuelve uno nuevo con lo
-// de después. Tras un título se sigue con un párrafo; en una lista, con otro elemento de lista.
+// de después. Tras un título se sigue con un párrafo; en una lista (o casillas), con otro elemento igual.
 export function splitBlock(block, at) {
-  const after = newBlock(block.type === 'li' ? 'li' : 'p', block.text.slice(at));
+  const list = LISTS.includes(block.type);
+  const after = newBlock(list ? block.type : 'p', block.text.slice(at), block.type === 'todo' ? { checked: false } : {});
   return [{ ...block, text: block.text.slice(0, at) }, after];
+}
+// Número de cada elemento de una lista numerada (se cuenta desde el primero de cada lista seguida)
+export function olNumbers(blocks) {
+  const out = new Map();
+  let n = 0;
+  for (const b of blocks) { n = b.type === 'ol' ? n + 1 : 0; if (n) out.set(b.id, n); }
+  return out;
 }
 
 // Junta un bloque con el anterior (Retroceso al principio). Devuelve el bloque unido y dónde queda el cursor.
@@ -114,7 +171,7 @@ export function cardsStatus(states, now = Date.now()) {
 
 // Bloques de un apartado: el título y lo que hay debajo hasta el siguiente título de su nivel o superior.
 // Un bloque que no es título es un apartado de un solo bloque.
-const level = t => (t === 'h1' ? 1 : t === 'h2' ? 2 : 9);
+const level = t => (t === 'h1' ? 1 : t === 'h2' ? 2 : t === 'h3' ? 3 : 9);
 export function sectionIds(blocks, id) {
   const i = blocks.findIndex(b => b.id === id);
   if (i < 0) return [];
@@ -128,7 +185,7 @@ export function sectionIds(blocks, id) {
 export function pageTitle(page) {
   const t = String(page?.title || '').trim();
   if (t) return t;
-  const first = (page?.blocks || []).find(b => b.type !== 'img' && b.text.trim());
+  const first = (page?.blocks || []).find(b => !['img', 'hr', 'code'].includes(b.type) && b.text.trim());
   return first ? first.text.replace(/[*_{}[\]|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : 'Sin título';
 }
 
@@ -136,16 +193,21 @@ export function pageTitle(page) {
 export function pageToMarkdown(page) {
   const t = String(page?.title || '').trim();
   let md = t ? `# ${t}` : '', prev = t ? 'h1' : null;
+  const nums = olNumbers(page?.blocks || []);
+  const quoted = t => t.split('\n').map(l => `> ${l}`).join('\n');
   for (const b of page?.blocks || []) {
-    if (b.type === 'img') {
-      if (b.src) { md += (md ? '\n\n' : '') + `![${b.text.replace(/[\]\n]/g, ' ')}](img:${b.src})`; prev = 'img'; }
-      continue;
-    }
-    if (!b.text.trim()) continue;
+    let line;
+    if (b.type === 'img') { if (!b.src) continue; line = `![${b.text.replace(/[\]\n]/g, ' ')}](img:${b.src})`; }
+    else if (b.type === 'hr') line = '---';
+    else if (!b.text.trim()) continue;
     // Cada título con su nivel: al pegarlo de nuevo, el primer «# » vuelve a ser el título del apunte
-    const line = b.type === 'h1' ? `# ${b.text}` : b.type === 'h2' ? `## ${b.text}` : b.type === 'li' ? `- ${b.text}` : b.text;
+    else line = {
+      h1: `# ${b.text}`, h2: `## ${b.text}`, h3: `### ${b.text}`, li: `- ${b.text}`, ol: `${nums.get(b.id)}. ${b.text}`,
+      todo: `- [${b.checked ? 'x' : ' '}] ${b.text}`, quote: quoted(b.text), callout: `> [!note] ${b.text.replace(/\n/g, '\n> ')}`,
+      code: `\`\`\`\n${b.text}\n\`\`\``,
+    }[b.type] ?? b.text;
     // Los puntos de una lista van seguidos; el resto, separados por una línea en blanco
-    md += !md ? line : (prev === 'li' && b.type === 'li' ? '\n' : '\n\n') + line;
+    md += !md ? line : (prev === b.type && LISTS.includes(b.type) ? '\n' : '\n\n') + line;
     prev = b.type;
   }
   return md + '\n';
@@ -153,7 +215,7 @@ export function pageToMarkdown(page) {
 
 // Primer texto de la página que no es título (para la vista previa en la lista)
 export function pageSnippet(page, n = 110) {
-  const b = (page?.blocks || []).find(x => x.text.trim() && (x.type === 'p' || x.type === 'li'));
+  const b = (page?.blocks || []).find(x => x.text.trim() && ['p', 'li', 'ol', 'todo', 'quote', 'callout'].includes(x.type));
   const s = b ? b.text.replace(/\*\*?|\{\{|\}\}|::[^}]*|\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() : '';
   return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 }
