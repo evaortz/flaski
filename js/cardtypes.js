@@ -19,10 +19,11 @@ export const MODES = [
   { id: 'draw', label: 'Escribir a mano', help: 'Dibujas la respuesta con el dedo. Con kanji y caracteres chinos se corrige trazo a trazo; con otros alfabetos comparas tu dibujo con la solución.' },
   { id: 'listen', label: 'Dictado', help: 'Escuchas la respuesta y la escribes. El campo necesita un idioma de audio.' },
   { id: 'order', label: 'Ordenar', help: 'Colocas las piezas en orden. Se separan por espacios; si escribes « / » entre piezas (útil en japonés o chino), se usan esas.' },
+  { id: 'conj', label: 'Conjugar', help: 'Escribes todas las formas de una tabla (persona → forma) y se corrigen una a una.' },
   { id: 'match', label: 'Emparejar', help: 'Unes cada elemento con su pareja. Una pareja por línea: «ev = casa».' },
   { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una tarjeta.' },
 ];
-export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match'];
+export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match', 'conj'];
 // Máximo de recuadros en «Tapar partes de una imagen» (cada uno, una tarjeta)
 export const MAX_MASKS = 30;
 
@@ -81,7 +82,7 @@ export const BUILTIN_TYPES = [
     templates: [{ id: 't1', name: 'Elegir', mode: 'choice', front: ['q'], back: ['n'], answer: 'a', wrong: 'w' }],
   },
   {
-    id: 'handwrite', builtin: true, scope: 'general', name: 'Escribir a mano', icon: '', lucide: 'pencil',
+    id: 'handwrite', builtin: true, scope: ['ja', 'zh', 'ko', 'ar', 'el', 'ru'], name: 'Escribir a mano', icon: '', lucide: 'pencil',
     description: 'Dibujas la respuesta con el dedo: fórmulas, kanji, alfabeto árabe, coreano, griego, ruso…',
     fields: [F('q', 'Pregunta'), F('a', 'Lo que hay que escribir', { lang: STUDY }), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Escribir a mano', mode: 'draw', front: ['q'], back: ['n'], answer: 'a', guide: false }],
@@ -115,6 +116,13 @@ export const BUILTIN_TYPES = [
       { id: 't1', name: 'Reconocer (palabra → traducción)', mode: 'flip', front: ['w'], back: ['t', 'p', 'e', 'n'] },
       { id: 't2', name: 'Recordar (traducción → escribir palabra)', mode: 'type', front: ['t'], back: ['p', 'e', 'n'], answer: 'w' },
     ],
+  },
+  {
+    id: 'conj', builtin: true, scope: 'lang', name: 'Conjugación', icon: '', lucide: 'table',
+    description: 'Un verbo en un tiempo: escribes la forma de cada persona y se corrige una a una.',
+    fields: [F('v', 'Verbo', { lang: STUDY, autoplay: true }), F('k', 'Tiempo (opcional)', { help: 'Ej.: Präsens, geçmiş zaman, ます形' }), F('t', 'Traducción', { lang: NATIVE }),
+      F('f', 'Formas', { lang: STUDY, help: 'Una por línea, persona = forma: ich = gehe' }), F('n', 'Notas')],
+    templates: [{ id: 't1', name: 'Conjugar', mode: 'conj', front: ['v', 'k', 't'], back: ['n'], answer: 'f' }],
   },
   {
     id: 'listen', builtin: true, scope: 'lang', name: 'Dictado', icon: '', lucide: 'headphones',
@@ -240,6 +248,7 @@ export function activeTemplates(type, fields) {
     if (t.mode === 'listen') return !!strip(fields[t.answer]);
     if (t.mode === 'order') return orderTokens(fields[t.answer]).length > 1;
     if (t.mode === 'match') return parsePairs(fields[t.answer]).length >= 2;
+    if (t.mode === 'conj') return !!strip(fields[t.front[0]]) && parsePairs(fields[t.answer]).length >= 1;
     if (t.mode === 'occlusion') return !!imageIdIn(fields[t.image]) && parseMasks(fields[t.answer]).length > t.mask;
     const front = t.front.some(id => strip(fields[id]));
     if (!front) return false;
@@ -254,6 +263,7 @@ export function missingFor(type, tpl, fields) {
   const name = id => type.fields.find(f => f.id === id)?.name || id;
   const empty = id => !String(fields[id] || '').trim();
   if (tpl.mode === 'cloze') return `«${name(tpl.front[0])}» con algún {{hueco}}`;
+  if (tpl.mode === 'conj') return `«${name(tpl.front[0])}» y «${name(tpl.answer)}» (una por línea: ich = gehe)`;
   if (tpl.mode === 'match') return `«${name(tpl.answer)}»: al menos dos parejas, una por línea (ev = casa)`;
   if (tpl.mode === 'occlusion') return imageIdIn(fields[tpl.image]) ? `al menos ${tpl.mask + 1} ${tpl.mask ? 'recuadros' : 'recuadro'} sobre la imagen` : 'una imagen';
   const need = [];
@@ -276,6 +286,9 @@ export function summarize(type, tpl, fields) {
       back: text.replace(CLOZE_RE, '$1'),
       note: join(tpl.back),
     };
+  }
+  if (tpl.mode === 'conj') {
+    return { front: tpl.front.slice(0, 2).map(val).filter(Boolean).join(' · '), back: parsePairs(val(tpl.answer)).map(p => `${p.a} ${p.b}`).join('\n'), note: tpl.back.map(val).filter(Boolean).join('\n') };
   }
   if (tpl.mode === 'match') {
     const pairs = parsePairs(val(tpl.answer));

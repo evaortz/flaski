@@ -1,6 +1,6 @@
 // Tipos de tarjeta: verdadero o falso, emparejar y tapar partes de una imagen
 import { deflateSync } from 'node:zlib';
-import { test, expect, openApp, createDeck } from './fixtures.js';
+import { test, expect, openApp, createDeck, nav } from './fixtures.js';
 
 // PNG de 400×300 de un solo color (como un mapa de verdad, para poder dibujar encima)
 function png(w, h) {
@@ -91,4 +91,38 @@ test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta
   await expect(page.locator('.card')).toContainText('¿Qué ciudad es?');
   await page.keyboard.press(' ');
   await expect(page.locator('.card .occ .occ-m.cur.open')).toHaveCount(1);
+});
+
+test('conjugación: se escriben todas las formas y se corrige cada una (en alemán, con mayúsculas y ß)', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Mis mazos');
+  await page.locator('#main [data-act="new-deck"]').click();
+  await page.locator('#d-name').fill('Alemán');
+  await page.locator('[data-kind="lang"]').click();
+  await page.locator('#d-lang').selectOption('de-DE');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await newCardOfType(page, 'conj');
+  await page.locator('#fld-v').fill('gehen');
+  await page.locator('#fld-k').fill('Präsens');
+  await page.locator('#fld-f').fill('ich = gehe\ndu = gehst\ner = geht');
+  await save(page);
+  await study(page);
+  await expect(page.locator('.conj-tbl th')).toHaveText(['ich', 'du', 'er']);
+  const ins = page.locator('.conj-in');
+  await ins.nth(0).fill('gehe');
+  await ins.nth(1).fill('gehts');
+  await ins.nth(2).fill('geht');
+  await page.getByRole('button', { name: 'Comprobar' }).click();
+  await expect(page.locator('.conj-res tr.ok')).toHaveCount(2);
+  await expect(page.locator('.conj-res tr.bad')).toContainText('gehts');
+  await expect(page.locator('.grade.suggested')).toHaveText(/Otra vez/);
+});
+
+test('«Escribir a mano» solo sale en mazos de idiomas con otro alfabeto', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await page.locator('#main [data-act="new-card"]').click();
+  await page.locator('[data-act="pick-type"]').click();
+  await expect(page.locator('[data-pick-type="truefalse"]')).toHaveCount(1);
+  await expect(page.locator('[data-pick-type="handwrite"]')).toHaveCount(0);
 });

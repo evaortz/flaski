@@ -342,6 +342,7 @@ async function onSignedIn(session) {
     S.loading = false;
     netState();
     migrateDeckLangs();
+    dedupeTypes();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
@@ -669,6 +670,22 @@ function faceHTML(model, st, { preview = false } = {}) {
     }).join('')}</div>`;
   }
 
+  if (tpl.mode === 'conj') {
+    const rows = parsePairs(val(tpl.answer)), lang = fdef(tpl.answer)?.lang || '';
+    if (!st.revealed) {
+      ask = `<${preview ? 'div' : 'form data-form="conj"'} class="conj" autocomplete="off"><table class="conj-tbl">${rows.map((r, k) => `<tr><th scope="row">${esc(r.a)}</th>
+        <td><input class="conj-in" data-conj="${k}" ${lang ? `lang="${lang}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${esc(r.a)}" ${preview ? 'disabled' : ''}></td></tr>`).join('')}</table>
+        <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>
+        ${preview || !charsFor(lang).length ? '' : `<div class="chars chars-study" role="group" aria-label="Letras especiales">${charsFor(lang).map(ch => `<button type="button" data-char="${ch}">${ch}</button>`).join('')}</div>`}`;
+    } else {
+      const res = st.conj || [];
+      ask = `<table class="conj-tbl conj-res">${rows.map((r, k) => {
+        const x = res[k];
+        const mine = !x ? '' : x.ok ? '' : `<span class="conj-mine">${esc(x.given || '—')}</span>`;
+        return `<tr class="${!x ? '' : x.ok ? 'ok' : x.near ? 'near' : 'bad'}"><th scope="row">${esc(r.a)}</th><td>${mine}<b>${fmt(r.b)}</b>${x && !x.ok && x.why ? ` <small>${esc(x.why)}</small>` : ''}</td></tr>`;
+      }).join('')}</table>`;
+    }
+  }
   if (tpl.mode === 'match') {
     const m = st.match || matchState(val(tpl.answer));
     if (!st.revealed) {
@@ -717,7 +734,7 @@ function faceHTML(model, st, { preview = false } = {}) {
   let answer = '';
   if (st.revealed) {
     if (tpl.mode === 'flip') answer = tpl.back.map((id, i) => block(id, i === 0)).join('');
-    else if (['cloze', 'choice', 'match', 'occlusion'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
+    else if (['cloze', 'choice', 'match', 'occlusion', 'conj'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
       const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
@@ -911,6 +928,7 @@ function renderStudy() {
     const suggest = st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
       : st.choice && st.choice.picked >= 0 ? (st.choice.opts[st.choice.picked] === st.choice.correct ? 3 : 1)
       : st.order?.checked ? (st.order.ok ? 3 : 1)
+      : st.conj ? (st.conj.every(x => x.ok) ? 3 : st.conj.every(x => x.ok || x.near) ? 2 : 1)
       : st.match && !st.match.gaveUp ? (st.match.wrong === 0 ? 3 : st.match.wrong === 1 ? 2 : 1)
       : st.match?.gaveUp ? 1
       : d && !d.img && !d.gaveUp ? (() => { const avg = d.mistakes / Math.max(1, d.n); return avg === 0 && !d.peeked ? 3 : avg <= 2 && !(d.peeked && avg > 0) ? 2 : 1; })()
@@ -938,6 +956,7 @@ function renderStudy() {
   if (!ses.revealed && model.tpl.mode === 'draw') mountDraw(st, model);
   if (ses.revealed && !st.playedBack) { st.playedBack = true; speakFields(model, revealIds(model.tpl)); }
   if (!ses.revealed && model.tpl.mode === 'type' && matchMedia('(hover:hover)').matches) $('#typed')?.focus();
+  if (!ses.revealed && model.tpl.mode === 'conj' && matchMedia('(hover:hover)').matches) $('.conj-in')?.focus();
 }
 function reveal() {
   const ses = S.session;
@@ -2531,6 +2550,7 @@ function fieldRoles(type, id) {
   const r = new Set();
   for (const t of type.templates) {
     if (t.mode === 'match' && t.answer === id) { r.add('parejas'); continue; }
+    if (t.mode === 'conj' && t.answer === id) { r.add('formas'); continue; }
     if (t.mode === 'occlusion') { if (t.front.includes(id)) r.add('anverso'); else if (t.back.includes(id)) r.add('reverso'); continue; }
     if (t.mode === 'cloze' && t.front[0] === id) r.add('huecos');
     else if (t.front.includes(id)) r.add('anverso');
@@ -3148,11 +3168,18 @@ function typesSheet() {
     <span class="info"><span class="dname">${esc(t.name)}</span><span class="meta">${esc(scopeText(t))} · ${esc(t.description || `${t.fields.length} campos · ${t.templates.length} ${t.templates.length === 1 ? 'tarjeta' : 'tarjetas'} por nota`)}</span></span>
     <button class="ghost small-btn" data-hide-type="${t.id}" aria-pressed="${typeHidden(t)}" title="${typeHidden(t) ? 'Volver a mostrarlo en el editor' : 'No mostrarlo en el editor'}">${typeHidden(t) ? 'Mostrar' : 'Ocultar'}</button>
     ${own ? `<button class="ghost small-btn" data-edit-type="${t.id}">Editar</button>` : `<button class="ghost small-btn" data-copy-type="${t.id}">Personalizar</button>`}</li>`;
+  // Por para qué sirven: cualquier tema, cualquier idioma y luego cada idioma (los tuyos primero en cada grupo)
+  const groups = new Map();
+  const keyOf = t => { const sc = typeScope(t); return sc === 'general' ? '0' : sc === 'lang' ? '1' : '2' + scopeText(t); };
   const own = [...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  for (const [t, mine] of [...own.map(t => [t, true]), ...BUILTIN_TYPES.map(t => [t, false])]) {
+    const k = keyOf(t);
+    if (!groups.has(k)) groups.set(k, { title: k === '0' ? 'Para cualquier tema' : k === '1' ? 'Para idiomas' : `Para ${scopeText(t).toLowerCase()}`, rows: [] });
+    groups.get(k).rows.push(row(t, mine));
+  }
   openSheet(`<h2>Tipos de tarjeta</h2>
-    <p class="muted small">Un tipo define qué campos rellenas y qué tarjetas se crean con ellos. Personaliza uno incluido o crea el tuyo desde cero. Los que ocultes no saldrán en el editor (siguen en «Ver todos los tipos»).</p>
-    ${own.length ? `<h3 class="sub-h">Tus tipos</h3><ul class="typelist">${own.map(t => row(t, true)).join('')}</ul>` : ''}
-    <h3 class="sub-h">Incluidos</h3><ul class="typelist">${BUILTIN_TYPES.map(t => row(t, false)).join('')}</ul>
+    <p class="muted small">Un tipo define qué campos rellenas y qué tarjetas se crean con ellos. En el editor solo salen los que sirven para el mazo (los de japonés, en mazos de japonés). Los que ocultes no saldrán en el editor (siguen en «Ver todos los tipos»).</p>
+    ${[...groups].sort((a, b) => a[0].localeCompare(b[0], 'es')).map(([, g]) => `<h3 class="sub-h">${esc(g.title)}</h3><ul class="typelist">${g.rows.join('')}</ul>`).join('')}
     <div class="btnrow"><button class="primary" data-act="new-type">+ Tipo nuevo</button><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
 function typeEditor(t) {
@@ -3280,11 +3307,13 @@ async function refreshDeckTypes(deckId) {
   S.decks.set(d.id, { tags: [], ...d });
 }
 // Crea en tu cuenta los tipos personalizados que trae un mazo ajeno y devuelve la traducción de ids
+// JSON con las claves ordenadas: Supabase no conserva el orden de las claves, así que sin esto dos tipos iguales no lo parecen
+const canonJSON = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(y => [y, x[y]])) : x));
 async function adoptTypes(types = []) {
   const map = new Map();
   for (const t of types || []) {
     if (!t || !Array.isArray(t.fields) || !Array.isArray(t.templates) || BUILTIN_TYPES.some(b => b.id === t.id)) continue;
-    const same = [...S.types.values()].find(x => x.name === t.name && JSON.stringify(x.fields) === JSON.stringify(t.fields) && JSON.stringify(x.templates) === JSON.stringify(t.templates));
+    const same = [...S.types.values()].find(x => x.name === t.name && canonJSON(x.fields) === canonJSON(t.fields) && canonJSON(x.templates) === canonJSON(t.templates));
     if (same) { map.set(t.id, same.id); continue; }
     const created = await api.createType({ owner: S.uid, name: String(t.name || 'Tipo').slice(0, 60), icon: String(t.icon || '').slice(0, 16), description: String(t.description || '').slice(0, 300), fields: t.fields, templates: t.templates });
     S.types.set(created.id, created);
@@ -3322,6 +3351,24 @@ function legacyCopyOf(t) {
 }
 // Se aplica en memoria en el acto (para pintar ya con el idioma) y se guarda después; si no se puede
 // guardar (sin red), se repite la próxima vez que se cargue.
+let dedupedFor = null;
+async function dedupeTypes() {
+  if (dedupedFor === S.uid || S.fromCache) return;
+  dedupedFor = S.uid;
+  const sig = t => canonJSON([t.name, t.fields, t.templates]);
+  const first = new Map();
+  const list = [...S.types.values()].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')));
+  for (const t of list) {
+    const keep = first.get(sig(t));
+    if (!keep) { first.set(sig(t), t); continue; }
+    try {
+      await api.retypeCards(t.id, keep.id);
+      for (const c of S.cards.values()) if (c.type_id === t.id) c.type_id = keep.id;
+      await api.deleteType(t.id);
+      S.types.delete(t.id);
+    } catch (e) { console.warn('No se ha podido juntar el tipo repetido', t.name, e); }
+  }
+}
 function migrateDeckLangs() {
   const decks = [...S.decks.values()].filter(x => !x.options || !('lang' in x.options));
   for (const d of decks) d.options = { ...(d.options || {}), lang: guessDeckLang(d) };
@@ -3986,6 +4033,14 @@ document.addEventListener('submit', async e => {
   const kind = form.dataset.form;
   if (['signin', 'signup', 'reset', 'newpass'].includes(kind)) return submitAuth(kind, form);
   if (kind === 'deck') return saveDeckForm(form);
+  if (kind === 'conj') {
+    const st = S.session?.st, c = S.cards.get(S.session?.queue[0]);
+    if (!st || !c) return;
+    const m = cardModel(c), lang = m.type.fields.find(f => f.id === m.tpl.answer)?.lang || '';
+    const rows = parsePairs(m.fields[m.tpl.answer]);
+    st.conj = rows.map((r, k) => { const given = form.querySelector(`[data-conj="${k}"]`)?.value || ''; return { given, ...checkTyped(given, r.b, lang) }; });
+    return reveal();
+  }
   if (kind === 'add-friend') return addFriend($('#frCode').value);
   if (kind === 'folder') return saveFolderForm(form);
   if (kind === 'quick') return saveQuick(form);

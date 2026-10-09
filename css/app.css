@@ -1208,3 +1208,16 @@ pre.nb-code{margin:0;font-size:14px;white-space:pre-wrap;line-height:1.55}
 .ef-occ .occ{margin-top:6px}
 .card .front .occ,.pv-card .front .occ{margin:0 auto 6px}
 .card .front:has(.occ),.pv-card .front:has(.occ){text-align:center}
+
+/* ---------- Conjugación ---------- */
+.conj{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:12px}
+.conj-tbl{border-collapse:collapse;margin:12px auto 0;font-size:16px}
+.conj-tbl th{padding:6px 14px 6px 0;text-align:right;font-weight:500;color:var(--muted);white-space:nowrap}
+.conj-tbl td{padding:4px 0}
+.conj-in{width:min(220px,52vw)}
+.conj-res td{padding:6px 0}
+.conj-res tr.ok b{color:var(--tag-green,#2E7D4F)}
+.conj-res tr.near b{color:var(--tag-orange,#D9730D)}
+.conj-res tr.bad b{color:var(--fg)}
+.conj-mine{text-decoration:line-through;color:var(--red,#E03E3E);margin-right:8px}
+.conj-res small{color:var(--muted);margin-left:6px}
