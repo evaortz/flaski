@@ -19,11 +19,14 @@ export const MODES = [
   { id: 'draw', label: 'Escribir a mano', help: 'Dibujas la respuesta con el dedo. Con kanji y caracteres chinos se corrige trazo a trazo; con otros alfabetos comparas tu dibujo con la solución.' },
   { id: 'listen', label: 'Dictado', help: 'Escuchas la respuesta y la escribes. El campo necesita un idioma de audio.' },
   { id: 'order', label: 'Ordenar', help: 'Colocas las piezas en orden. Se separan por espacios; si escribes « / » entre piezas (útil en japonés o chino), se usan esas.' },
+  { id: 'sort', label: 'Clasificar', help: 'Repartes elementos entre grupos. Un grupo por línea: «der: Tisch, Stuhl».' },
+  { id: 'clozechoice', label: 'Hueco con opciones', help: 'Eliges la palabra que falta entre varias opciones. Marca el hueco con {{ }}.' },
+  { id: 'number', label: 'Respuesta numérica', help: 'Escribes un número o un año; se acepta con el margen que pongas.' },
   { id: 'conj', label: 'Conjugar', help: 'Escribes todas las formas de una tabla (persona → forma) y se corrigen una a una.' },
   { id: 'match', label: 'Emparejar', help: 'Unes cada elemento con su pareja. Una pareja por línea: «ev = casa».' },
   { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una tarjeta.' },
 ];
-export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match', 'conj'];
+export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match', 'conj', 'sort', 'clozechoice', 'number'];
 // Máximo de recuadros en «Tapar partes de una imagen» (cada uno, una tarjeta)
 export const MAX_MASKS = 30;
 
@@ -93,6 +96,33 @@ export const BUILTIN_TYPES = [
     fields: [F('s', 'Afirmación'), F('v', '¿Verdadera o falsa?', { help: 'Escribe V o F (o «verdadero» / «falso»)' }), F('n', 'Explicación')],
     templates: [{ id: 't1', name: 'Verdadero o falso', mode: 'choice', front: ['s'], back: ['n'], answer: 'v', choices: ['Verdadero', 'Falso'],
       aliases: { v: 'Verdadero', f: 'Falso', verdadera: 'Verdadero', falsa: 'Falso', true: 'Verdadero', false: 'Falso', sí: 'Verdadero', si: 'Verdadero', no: 'Falso' } }],
+  },
+  {
+    id: 'sort', builtin: true, scope: 'general', name: 'Clasificar', icon: '', lucide: 'columns-3',
+    description: 'Repartes elementos entre sus grupos: der/die/das, vertebrados e invertebrados, tipos de datos…',
+    fields: [F('q', 'Instrucción (opcional)', { help: 'Ej.: ¿Qué artículo lleva cada palabra?' }),
+      F('g', 'Grupos', { help: 'Un grupo por línea, su nombre y dos puntos: der: Tisch, Stuhl, Apfel' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Clasificar', mode: 'sort', front: ['q'], back: ['n'], answer: 'g' }],
+  },
+  {
+    id: 'clozechoice', builtin: true, scope: 'general', name: 'Hueco con opciones', icon: '', lucide: 'list-checks',
+    description: 'Una frase con un hueco: eliges la palabra que falta entre cuatro.',
+    fields: [F('x', 'Frase con hueco', { lang: STUDY, help: 'Marca la palabra que falta: Ich wohne {{seit}} zwei Jahren hier.' }),
+      F('w', 'Opciones incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan los huecos de otras tarjetas del mazo.' }), F('e', 'Extra')],
+    templates: [{ id: 't1', name: 'Elegir', mode: 'clozechoice', front: ['x'], back: ['e'], answer: 'x', wrong: 'w' }],
+  },
+  {
+    id: 'steps', builtin: true, scope: 'general', name: 'Ordenar los pasos', icon: '', lucide: 'list-ordered',
+    description: 'Pones en orden los pasos de un proceso, las fases de algo o una serie de fechas.',
+    fields: [F('q', 'Pregunta', { help: 'Ej.: Ordena las fases de la mitosis' }), F('s', 'Pasos, en orden', { help: 'Uno por línea, en el orden correcto' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Ordenar', mode: 'order', front: ['q'], back: ['n'], answer: 's' }],
+  },
+  {
+    id: 'number', builtin: true, scope: 'general', name: 'Respuesta numérica', icon: '', lucide: 'hash',
+    description: 'Escribes un número, un año o una cantidad, con el margen que quieras.',
+    fields: [F('q', 'Pregunta'), F('a', 'Respuesta', { help: 'Un número: 1492, 3,14, 300000' }),
+      F('t', 'Margen (opcional)', { help: 'Cuánto te puedes desviar: 5 (±5) o 2% (±2 %). Vacío = exacto' }), F('u', 'Unidad (opcional)', { help: 'km, °C, años…' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Responder', mode: 'number', front: ['q'], back: ['n'], answer: 'a' }],
   },
   {
     id: 'match', builtin: true, scope: 'general', name: 'Emparejar', icon: '', lucide: 'link',
@@ -201,12 +231,50 @@ export const isCJK = ch => CJK_RE.test(ch);
 /* ---------------- Ordenar ---------------- */
 export function orderTokens(text) {
   const t = stripRuby(String(text || '')).replace(/\*\*?/g, '').trim();
+  if (t.includes('\n')) return t.split('\n').map(x => x.trim()).filter(Boolean);   // pasos: uno por línea
   if (t.includes('/')) return t.split('/').map(x => x.trim()).filter(Boolean);
   return t.split(/\s+/).filter(Boolean);
 }
 export function orderJoin(tokens, original) {
+  if (String(original || '').trim().includes('\n')) return tokens.join(' → ');
   return String(original || '').includes('/') && tokens.some(x => CJK_RE.test(x) || /[\u3040-\u30FF]/.test(x)) ? tokens.join('') : tokens.join(' ');
 }
+/* ---------------- Clasificar ---------------- */
+// «der: Tisch, Stuhl» por línea → [{ name: 'der', items: ['Tisch', 'Stuhl'] }]
+export function parseGroups(text) {
+  return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const i = l.indexOf(':');
+    if (i <= 0) return null;
+    return { name: l.slice(0, i).trim(), items: l.slice(i + 1).split(/[,;]/).map(x => x.trim()).filter(Boolean) };
+  }).filter(g => g && g.name && g.items.length);
+}
+
+/* ---------------- Hueco con opciones ---------------- */
+// La respuesta del primer hueco: «Ich wohne {{seit}} …» → 'seit'
+export const clozeAnswer = text => (/\{\{(.+?)(?:::(.+?))?\}\}/.exec(String(text || '')) || [])[1]?.trim() || '';
+
+/* ---------------- Respuesta numérica ---------------- */
+// «1.492», «3,14», «300 000», «-5» → número (o NaN)
+export function parseNumber(s) {
+  let t = String(s ?? '').trim().replace(/[\s\u00a0']/g, '').replace(/[^\d.,+-]/g, '');
+  if (!t) return NaN;
+  const comma = (t.match(/,/g) || []).length, dot = (t.match(/\./g) || []).length;
+  if (comma && dot) t = t.lastIndexOf(',') > t.lastIndexOf('.') ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  else if (comma === 1 && !/^[+-]?\d{1,3},\d{3}$/.test(t)) t = t.replace(',', '.');
+  else if (comma) t = t.replace(/,/g, '');
+  else if (dot > 1 || /^[+-]?\d{1,3}\.\d{3}$/.test(t)) t = t.replace(/\./g, '');   // 1.492 = mil cuatrocientos noventa y dos
+  return Number(t);
+}
+// given, expected, margen («5» o «2%») → { ok, near, diff, expected }
+export function checkNumber(given, expected, margin = '') {
+  const g = parseNumber(given), e = parseNumber(expected);
+  const m = String(margin || '').trim(), pct = m.endsWith('%');
+  const tol = Math.abs(m ? (pct ? (parseNumber(m) / 100) * e : parseNumber(m)) : 0) || 0;
+  if (!Number.isFinite(g) || !Number.isFinite(e)) return { ok: false, near: false, diff: NaN, expected: e, given: g };
+  const diff = g - e, slack = Math.max(tol, Math.abs(e) * 1e-9);
+  return { ok: Math.abs(diff) <= slack, near: Math.abs(diff) > slack && Math.abs(diff) <= Math.max(tol * 2, Math.abs(e) * 0.05), diff, expected: e, given: g, tol };
+}
+
 /* ---------------- Emparejar ---------------- */
 // «ev = casa» por línea → [{ a: 'ev', b: 'casa' }]
 export function parsePairs(text) {
@@ -248,6 +316,9 @@ export function activeTemplates(type, fields) {
     if (t.mode === 'listen') return !!strip(fields[t.answer]);
     if (t.mode === 'order') return orderTokens(fields[t.answer]).length > 1;
     if (t.mode === 'match') return parsePairs(fields[t.answer]).length >= 2;
+    if (t.mode === 'sort') return parseGroups(fields[t.answer]).length >= 2;
+    if (t.mode === 'clozechoice') return !!clozeAnswer(fields[t.answer]);
+    if (t.mode === 'number') return !!strip(fields[t.front[0]]) && Number.isFinite(parseNumber(fields[t.answer]));
     if (t.mode === 'conj') return !!strip(fields[t.front[0]]) && parsePairs(fields[t.answer]).length >= 1;
     if (t.mode === 'occlusion') return !!imageIdIn(fields[t.image]) && parseMasks(fields[t.answer]).length > t.mask;
     const front = t.front.some(id => strip(fields[id]));
@@ -263,6 +334,9 @@ export function missingFor(type, tpl, fields) {
   const name = id => type.fields.find(f => f.id === id)?.name || id;
   const empty = id => !String(fields[id] || '').trim();
   if (tpl.mode === 'cloze') return `«${name(tpl.front[0])}» con algún {{hueco}}`;
+  if (tpl.mode === 'sort') return `«${name(tpl.answer)}»: al menos dos grupos, uno por línea (der: Tisch, Stuhl)`;
+  if (tpl.mode === 'clozechoice') return `«${name(tpl.answer)}» con la palabra que falta entre {{ }}`;
+  if (tpl.mode === 'number') return `«${name(tpl.front[0])}» y «${name(tpl.answer)}» (un número)`;
   if (tpl.mode === 'conj') return `«${name(tpl.front[0])}» y «${name(tpl.answer)}» (una por línea: ich = gehe)`;
   if (tpl.mode === 'match') return `«${name(tpl.answer)}»: al menos dos parejas, una por línea (ev = casa)`;
   if (tpl.mode === 'occlusion') return imageIdIn(fields[tpl.image]) ? `al menos ${tpl.mask + 1} ${tpl.mask ? 'recuadros' : 'recuadro'} sobre la imagen` : 'una imagen';
@@ -287,6 +361,9 @@ export function summarize(type, tpl, fields) {
       note: join(tpl.back),
     };
   }
+  if (tpl.mode === 'sort') return { front: join(tpl.front) || 'Clasificar', back: parseGroups(val(tpl.answer)).map(g => `${g.name}: ${g.items.join(', ')}`).join('\n'), note: join(tpl.back) };
+  if (tpl.mode === 'clozechoice') { const x = val(tpl.answer); return { front: x.replace(CLOZE_RE, '[…]'), back: clozeAnswer(x), note: join(tpl.back) }; }
+  if (tpl.mode === 'number') return { front: join(tpl.front), back: [val(tpl.answer), fields.u].filter(Boolean).join(' ') + (fields.t ? ` (±${fields.t})` : ''), note: join(tpl.back) };
   if (tpl.mode === 'conj') {
     return { front: tpl.front.slice(0, 2).map(val).filter(Boolean).join(' · '), back: parsePairs(val(tpl.answer)).map(p => `${p.a} ${p.b}`).join('\n'), note: tpl.back.map(val).filter(Boolean).join('\n') };
   }

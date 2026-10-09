@@ -10,7 +10,7 @@ import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmap, forecast, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS } from './cardtypes.js';
+import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck, descendants } from './org.js';
@@ -634,6 +634,7 @@ function faceHTML(model, st, { preview = false } = {}) {
   let front;
   if (tpl.mode === 'occlusion') front = occlusionHTML(val(tpl.image), val(tpl.answer), tpl.mask, st.revealed) + tpl.front.map(id => block(id, false)).join('');
   else if (tpl.mode === 'match' && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">Une cada elemento con su pareja</span></div></div>`;
+  else if (tpl.mode === 'clozechoice') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.answer), st.revealed)}</span>${st.revealed ? say(tpl.answer) : ''}</div></div>`;
   else if (tpl.mode === 'cloze') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.front[0]), st.revealed)}</span>${say(tpl.front[0])}</div></div>`;
   else front = tpl.front.map((id, i) => block(id, i === 0)).join('');
   if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
@@ -661,7 +662,7 @@ function faceHTML(model, st, { preview = false } = {}) {
           <div class="vrow"><span class="vl">Correcta</span><span class="diff">${r.diff.filter(x => x.t !== 'extra').map(x => `<span class="d-${x.t === 'miss' ? 'need' : 'ok'}">${esc(x.c)}</span>`).join('')}</span></div></div>`;
     }
   }
-  if (tpl.mode === 'choice' && st.choice) {
+  if ((tpl.mode === 'choice' || tpl.mode === 'clozechoice') && st.choice) {
     const c = st.choice;
     ask = `<div class="choices">${c.opts.map((o, i) => {
       let cls = '';
@@ -670,6 +671,37 @@ function faceHTML(model, st, { preview = false } = {}) {
     }).join('')}</div>`;
   }
 
+  if (tpl.mode === 'sort') {
+    const so = st.sort || sortState(val(tpl.answer));
+    const chip = (it, attr, cls = '') => `<button type="button" class="schip${cls}" ${attr} ${preview || st.revealed ? 'disabled' : ''}>${fmt(it.t)}</button>`;
+    if (!st.revealed) {
+      const pool = so.items.filter(it => so.place[it.i] == null);
+      ask = `<div class="sort-pool" aria-label="Por colocar">${pool.length ? pool.map(it => chip(it, `data-sort-pick="${it.i}"`, so.sel === it.i ? ' sel' : '')).join('') : '<span class="hint">Todo colocado</span>'}</div>
+        <div class="sort-groups">${so.groups.map((g, k) => `<div class="sort-g${so.sel != null ? ' armed' : ''}" data-sort-group="${k}" role="button" tabindex="0" aria-label="Grupo ${esc(g)}"><div class="sort-gh">${fmt(g)}</div>
+          <div class="sort-gi">${so.items.filter(it => so.place[it.i] === k).map(it => chip(it, `data-sort-back="${it.i}"`)).join('')}</div></div>`).join('')}</div>
+        ${preview ? '' : `<p class="hint" style="text-align:center">Toca un elemento y luego su grupo</p><div class="btnrow" style="justify-content:center"><button type="button" class="primary" data-act="sort-check" ${pool.length ? 'disabled' : ''}>Comprobar</button></div>`}`;
+    } else {
+      const bad = so.items.filter(it => so.place[it.i] != null && so.place[it.i] !== it.g).length;
+      ask = `${so.checked ? (bad ? `<div class="verdict bad">${plural(bad, 'elemento mal colocado', 'elementos mal colocados')}</div>` : `<div class="verdict ok">${icon('check', { size: 16 })} Todo en su grupo</div>`) : ''}
+        <div class="sort-groups">${so.groups.map((g, k) => `<div class="sort-g"><div class="sort-gh">${fmt(g)}</div><div class="sort-gi">${so.items.filter(it => it.g === k).map(it => {
+          const put = so.place[it.i], cls = !so.checked ? '' : put === k ? ' ok' : ' bad';
+          return `<span class="schip${cls}">${fmt(it.t)}${so.checked && put !== k && put != null ? ` <small>(pusiste ${esc(so.groups[put])})</small>` : ''}</span>`;
+        }).join('')}</div></div>`).join('')}</div>`;
+    }
+  }
+  if (tpl.mode === 'number') {
+    const unit = String(fields.u || '').trim(), tol = String(fields.t || '').trim();
+    if (!st.revealed) {
+      ask = `<${preview ? 'div' : 'form data-form="number"'} class="typed" autocomplete="off">
+        <span class="num-in"><input id="numIn" inputmode="decimal" placeholder="Tu respuesta" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>${unit ? `<span class="muted">${esc(unit)}</span>` : ''}</span>
+        <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>`;
+    } else {
+      const r = st.number, right = `<b>${esc(val(tpl.answer))}${unit ? ' ' + esc(unit) : ''}</b>${tol ? ` <span class="muted">(±${esc(tol)})</span>` : ''}`;
+      ask = !r ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${right}</span></div></div>`
+        : r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto: ${right}${r.diff ? ` · pusiste ${esc(String(r.given))}` : ''}</div>`
+        : `<div class="verdict bad">${r.near ? '<div class="vnear">Casi</div>' : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span>${Number.isFinite(r.given) ? esc(String(r.given)) : '<i>(no es un número)</i>'}</span></div><div class="vrow"><span class="vl">Correcta</span><span>${right}</span></div></div>`;
+    }
+  }
   if (tpl.mode === 'conj') {
     const rows = parsePairs(val(tpl.answer)), lang = fdef(tpl.answer)?.lang || '';
     if (!st.revealed) {
@@ -703,7 +735,8 @@ function faceHTML(model, st, { preview = false } = {}) {
   }
   if (tpl.mode === 'order') {
     const o = st.order || { tokens: orderTokens(val(tpl.answer)).map((t, i) => ({ t, i })), picked: [] };
-    const chip = (tok, attr) => `<button type="button" class="ochip" ${attr} ${preview || st.revealed ? 'disabled' : ''}>${esc(tok.t)}</button>`;
+    const steps = val(tpl.answer).trim().includes('\n');
+    const chip = (tok, attr) => `<button type="button" class="ochip${steps ? ' ostep' : ''}" ${attr} ${preview || st.revealed ? 'disabled' : ''}>${esc(tok.t)}</button>`;
     if (!st.revealed) {
       const pool = o.tokens.filter(t => !o.picked.includes(t.i));
       ask = `<div class="ord-answer" aria-label="Tu frase">${o.picked.length ? o.picked.map((i, k) => chip(o.tokens.find(t => t.i === i), `data-ord-remove="${k}"`)).join('') : '<span class="hint">Toca las piezas en orden</span>'}</div>
@@ -734,7 +767,7 @@ function faceHTML(model, st, { preview = false } = {}) {
   let answer = '';
   if (st.revealed) {
     if (tpl.mode === 'flip') answer = tpl.back.map((id, i) => block(id, i === 0)).join('');
-    else if (['cloze', 'choice', 'match', 'occlusion', 'conj'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
+    else if (['cloze', 'choice', 'match', 'occlusion', 'conj', 'sort', 'clozechoice', 'number'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
       const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
@@ -772,6 +805,26 @@ function occlusionHTML(imgText, maskText, cur, revealed, { edit = false } = {}) 
   if (!id) return edit ? '' : '<div class="fld fld-main"><span class="muted">Falta la imagen</span></div>';
   const masks = parseMasks(maskText);
   return `<div class="occ${edit ? ' occ-edit' : ''}" ${edit ? 'id="occStage"' : ''}>${imgHTML(id)}${masks.map((m, k) => `<${edit ? 'button type="button"' : 'div'} class="occ-m${k === cur ? ' cur' : ''}${k === cur && revealed ? ' open' : ''}" style="left:${m.x}%;top:${m.y}%;width:${m.w}%;height:${m.h}%" ${edit ? `data-occ-del="${k}" title="Quitar este recuadro"` : ''}>${edit ? `<span>${k + 1}</span>` : k === cur && !revealed ? '<span>?</span>' : ''}</${edit ? 'button' : 'div'}>`).join('')}</div>`;
+}
+// Opciones de «Hueco con opciones»: la buena, las que pusiste y, si faltan, huecos de otras tarjetas del mazo
+function clozeChoices(c, model, pool = null) {
+  const others = pool || cardList().filter(x => x.deck_id === c?.deck_id && x.id !== c?.id).map(x => { const m = cardModel(x); return m.tpl.mode === 'clozechoice' || m.tpl.mode === 'cloze' ? clozeAnswer(m.fields[m.tpl.mode === 'cloze' ? m.tpl.front[0] : m.tpl.answer]) : ''; }).filter(Boolean);
+  const tpl = { ...model.tpl, answer: '__a' };
+  return { ...choiceOptions(tpl, { ...model.fields, __a: clozeAnswer(model.fields[model.tpl.answer]) }, others), picked: -1 };
+}
+function sortState(text) {
+  const groups = parseGroups(text).slice(0, 6);
+  const items = shuffled(groups.flatMap((g, k) => g.items.map(t => ({ t, g: k }))).slice(0, 18)).map((it, i) => ({ ...it, i }));
+  return { groups: groups.map(g => g.name), items, place: {}, sel: null, checked: false };
+}
+function sortAction(kind, i) {
+  const so = S.session?.st?.sort;
+  if (!so || S.session.revealed) return;
+  if (kind === 'pick') so.sel = so.sel === i ? null : i;
+  // Con uno elegido, tocar otro ya colocado es tocar su grupo; si no, ese vuelve a la bandeja
+  else if (kind === 'back') { if (so.sel != null && so.sel !== i) so.place[so.sel] = so.place[i]; else delete so.place[i]; so.sel = null; }
+  else if (kind === 'group' && so.sel != null) { so.place[so.sel] = i; so.sel = null; }
+  renderStudy();
 }
 /* ---------- Dictado y escritura a mano ---------- */
 function playListen(model, rate = 1) {
@@ -888,6 +941,8 @@ function cardState(c) {
     shuffleTokens(st.order);
   }
   if (model.tpl.mode === 'match') st.match = matchState(model.fields[model.tpl.answer]);
+  if (model.tpl.mode === 'sort') st.sort = sortState(model.fields[model.tpl.answer]);
+  if (model.tpl.mode === 'clozechoice') st.choice = clozeChoices(c, model);
   if (model.tpl.mode === 'choice') {
     const pool = cardList().filter(x => x.deck_id === c.deck_id && x.id !== c.id && x.type_id === c.type_id)
       .map(x => { const m = cardModel(x); return m.fields[m.tpl.answer] ?? x.back; });
@@ -928,6 +983,8 @@ function renderStudy() {
     const suggest = st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
       : st.choice && st.choice.picked >= 0 ? (st.choice.opts[st.choice.picked] === st.choice.correct ? 3 : 1)
       : st.order?.checked ? (st.order.ok ? 3 : 1)
+      : st.sort?.checked ? (() => { const bad = st.sort.items.filter(it => st.sort.place[it.i] !== it.g).length; return bad === 0 ? 3 : bad === 1 ? 2 : 1; })()
+      : st.number ? (st.number.ok ? 3 : st.number.near ? 2 : 1)
       : st.conj ? (st.conj.every(x => x.ok) ? 3 : st.conj.every(x => x.ok || x.near) ? 2 : 1)
       : st.match && !st.match.gaveUp ? (st.match.wrong === 0 ? 3 : st.match.wrong === 1 ? 2 : 1)
       : st.match?.gaveUp ? 1
@@ -947,7 +1004,7 @@ function renderStudy() {
       <div class="front">${front}</div>${hint}${ask}
       ${answer ? `<div class="answer">${answer}</div>` : ''}
     </article>${foot}
-    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : model.tpl.mode === 'choice' ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
+    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
   if (!st.played) {
     st.played = true;
     if (model.tpl.mode === 'listen') { if (S.prefs.study.autoplay) playListen(model, 1); }
@@ -957,6 +1014,7 @@ function renderStudy() {
   if (ses.revealed && !st.playedBack) { st.playedBack = true; speakFields(model, revealIds(model.tpl)); }
   if (!ses.revealed && model.tpl.mode === 'type' && matchMedia('(hover:hover)').matches) $('#typed')?.focus();
   if (!ses.revealed && model.tpl.mode === 'conj' && matchMedia('(hover:hover)').matches) $('.conj-in')?.focus();
+  if (!ses.revealed && model.tpl.mode === 'number' && matchMedia('(hover:hover)').matches) $('#numIn')?.focus();
 }
 function reveal() {
   const ses = S.session;
@@ -2553,6 +2611,8 @@ function fieldRoles(type, id) {
   for (const t of type.templates) {
     if (t.mode === 'match' && t.answer === id) { r.add('parejas'); continue; }
     if (t.mode === 'conj' && t.answer === id) { r.add('formas'); continue; }
+    if (t.mode === 'sort' && t.answer === id) { r.add('grupos'); continue; }
+    if (t.mode === 'clozechoice' && t.answer === id) { r.add('huecos'); continue; }
     if (t.mode === 'occlusion') { if (t.front.includes(id)) r.add('anverso'); else if (t.back.includes(id)) r.add('reverso'); continue; }
     if (t.mode === 'cloze' && t.front[0] === id) r.add('huecos');
     else if (t.front.includes(id)) r.add('anverso');
@@ -2901,10 +2961,10 @@ function drawPreview() {
   const tpl = tpls.find(t => t.id === e.pv);
   const model = { type, tpl, fields: e.fields };
   const st = { revealed: e.pvSide === 'back', typed: null, choice: null };
-  if (tpl.mode === 'choice') {
+  if (tpl.mode === 'choice' || tpl.mode === 'clozechoice') {
     const pool = cardList().filter(x => x.deck_id === $('#c-deck')?.value).map(x => x.back).filter(Boolean);
     while (pool.length < 3) pool.push(`Otra opción ${pool.length + 1}`);
-    st.choice = { ...choiceOptions(tpl, e.fields, pool), picked: -1 };
+    st.choice = tpl.mode === 'clozechoice' ? clozeChoices(null, model, pool) : { ...choiceOptions(tpl, e.fields, pool), picked: -1 };
   }
   const f = faceHTML(model, st, { preview: true });
   const modeLabel = MODES.find(m => m.id === tpl.mode)?.label || '';
@@ -3557,6 +3617,8 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) {
     // Furigana oculta: tocar un kanji deja ver su lectura (solo esa, y se vuelve a ocultar con otro toque)
+    const sg = e.target.closest('[data-sort-group]');
+    if (sg) return sortAction('group', +sg.dataset.sortGroup);
     const rb = e.target.closest('.ruby-hide ruby');
     if (rb) { rb.classList.toggle('peek'); return; }
     // Tocar un bloque de los apuntes lo pone en edición (salvo que se esté seleccionando texto)
@@ -3591,6 +3653,8 @@ document.addEventListener('click', async e => {
   if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); speak(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
   if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
   if (ds.match) return pickMatch(ds.match);
+  if (ds.sortPick !== undefined) return sortAction('pick', +ds.sortPick);
+  if (ds.sortBack !== undefined) return sortAction('back', +ds.sortBack);
   if (ds.occDel !== undefined) return occDelete(+ds.occDel);
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
   if (ds.listen) { const c = S.cards.get(S.session?.queue[0]); if (c) playListen(cardModel(c), +ds.listen); return; }
@@ -3926,6 +3990,7 @@ document.addEventListener('click', async e => {
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
     case 'add-anki': return addAnki(e.target.closest('button'));
+    case 'sort-check': { const so = S.session?.st?.sort; if (so) { so.checked = true; reveal(); } return; }
     case 'occ-pick': { const f = await pickImage(); return f && occSetImage(f); }
     case 'occ-clear': { const { m } = occFields(); if (m) { m.value = ''; occRedraw(); } return; }
     case 'friends-reload': S.friends = null; return renderFriends();
@@ -4035,6 +4100,13 @@ document.addEventListener('submit', async e => {
   const kind = form.dataset.form;
   if (['signin', 'signup', 'reset', 'newpass'].includes(kind)) return submitAuth(kind, form);
   if (kind === 'deck') return saveDeckForm(form);
+  if (kind === 'number') {
+    const st = S.session?.st, c = S.cards.get(S.session?.queue[0]);
+    if (!st || !c) return;
+    const m = cardModel(c);
+    st.number = checkNumber($('#numIn').value, m.fields[m.tpl.answer], m.fields.t);
+    return reveal();
+  }
   if (kind === 'conj') {
     const st = S.session?.st, c = S.cards.get(S.session?.queue[0]);
     if (!st || !c) return;
@@ -4209,7 +4281,7 @@ document.addEventListener('keydown', e => {
   if (S.view !== 'study' || !S.session || e.target.matches('input,textarea,select')) return;
   const ses = S.session; const c = S.cards.get(ses.queue[0]); const mode = c ? cardModel(c).tpl.mode : 'flip';
   if ((e.key === ' ' || e.key === 'Enter') && !ses.revealed && ses.queue.length && ['flip', 'cloze', 'occlusion'].includes(mode)) { e.preventDefault(); reveal(); }
-  else if (!ses.revealed && mode === 'choice' && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
+  else if (!ses.revealed && (mode === 'choice' || mode === 'clozechoice') && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
   else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
 });
 

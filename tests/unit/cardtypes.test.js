@@ -117,3 +117,20 @@ test('opción múltiple: la correcta siempre está y no hay repetidas', () => {
     assert.equal(opts.length, 4);
   }
 });
+
+test('tipos nuevos: grupos, hueco con opciones, números y pasos', async () => {
+  const m = await import('../../js/cardtypes.js');
+  assert.deepEqual(m.parseGroups('der: Tisch, Stuhl\nsin dos puntos\ndie: Lampe'), [{ name: 'der', items: ['Tisch', 'Stuhl'] }, { name: 'die', items: ['Lampe'] }]);
+  assert.equal(m.clozeAnswer('Ich wohne {{seit::prep.}} hier'), 'seit');
+  for (const [v, n] of [['1492', 1492], ['1.492', 1492], ['3,14', 3.14], ['300 000', 300000], ['12.345,6', 12345.6], ['-5', -5]]) assert.equal(m.parseNumber(v), n, v);
+  assert.ok(m.checkNumber('1455', '1453', '2').ok);
+  assert.ok(m.checkNumber('1456', '1453', '2').near);
+  assert.ok(m.checkNumber('102', '100', '2%').ok);
+  assert.ok(!m.checkNumber('abc', '100').ok);
+  assert.deepEqual(m.orderTokens('Profase\nMetafase'), ['Profase', 'Metafase']);
+  assert.equal(m.orderJoin(['a', 'b'], 'a\nb'), 'a → b');
+  const t = id => m.BUILTIN_TYPES.find(x => x.id === id);
+  assert.equal(m.activeTemplates(t('sort'), { g: 'A: 1\nB: 2' }).length, 1);
+  assert.equal(m.activeTemplates(t('sort'), { g: 'A: 1' }).length, 0);
+  assert.equal(m.activeTemplates(t('number'), { q: '¿?', a: 'mil' }).length, 0);
+});

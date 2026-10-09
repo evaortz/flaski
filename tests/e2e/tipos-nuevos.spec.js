@@ -126,3 +126,66 @@ test('«Escribir a mano» solo sale en mazos de idiomas con otro alfabeto', asyn
   await expect(page.locator('[data-pick-type="truefalse"]')).toHaveCount(1);
   await expect(page.locator('[data-pick-type="handwrite"]')).toHaveCount(0);
 });
+
+test('clasificar: cada elemento a su grupo; los mal colocados se marcan', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Biología');
+  await newCardOfType(page, 'sort');
+  await page.locator('#fld-g').fill('Mamíferos: perro, ballena\nAves: pingüino, águila');
+  await save(page);
+  await study(page);
+  const put = async (item, group) => {
+    await page.locator('.sort-pool .schip', { hasText: item }).click();
+    await page.locator('.sort-g', { hasText: group }).first().click();
+  };
+  await put('perro', 'Mamíferos'); await put('ballena', 'Aves'); await put('pingüino', 'Aves'); await put('águila', 'Aves');
+  await page.locator('[data-act="sort-check"]').click();
+  await expect(page.locator('.verdict')).toContainText('1 elemento mal colocado');
+  await expect(page.locator('.schip.bad')).toContainText('ballena');
+  await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
+});
+
+test('hueco con opciones: se elige la palabra que falta', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Alemán');
+  await newCardOfType(page, 'clozechoice');
+  await page.locator('#fld-x').fill('Ich wohne {{seit}} zwei Jahren hier.');
+  await page.locator('#fld-w').fill('für; vor; mit');
+  await save(page);
+  await study(page);
+  await expect(page.locator('.blank')).toHaveCount(1);
+  await expect(page.locator('.choice')).toHaveCount(4);
+  await page.locator('.choice', { hasText: 'seit' }).click();
+  await expect(page.locator('.choice.right')).toContainText('seit');
+  await expect(page.locator('.blank.on')).toHaveText('seit');
+  await expect(page.locator('.grade.suggested')).toHaveText(/Bien/);
+});
+
+test('ordenar los pasos: una línea por paso', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Biología');
+  await newCardOfType(page, 'steps');
+  await page.locator('#fld-q').fill('Fases de la mitosis');
+  await page.locator('#fld-s').fill('Profase\nMetafase\nAnafase\nTelofase');
+  await save(page);
+  await study(page);
+  for (const p of ['Profase', 'Metafase', 'Anafase', 'Telofase']) await page.locator('.ord-pool .ochip', { hasText: p }).click();
+  await page.locator('[data-act="ord-check"]').click();
+  await expect(page.locator('.verdict.ok')).toContainText('Profase → Metafase → Anafase → Telofase');
+});
+
+test('respuesta numérica: con margen, «casi» y la coma decimal', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await newCardOfType(page, 'number');
+  await page.locator('#fld-q').fill('¿En qué año cayó Constantinopla?');
+  await page.locator('#fld-a').fill('1453');
+  await page.locator('#fld-t').fill('2');
+  await save(page);
+  await study(page);
+  await page.locator('#numIn').fill('1460');
+  await page.locator('#numIn').press('Enter');
+  await expect(page.locator('.verdict.bad')).toContainText('Casi');
+  await expect(page.locator('.verdict.bad')).toContainText('1453');
+  await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
+});
