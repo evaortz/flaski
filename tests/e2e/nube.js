@@ -79,7 +79,8 @@ export async function mockCloud(page) {
 
 export async function openCloud(page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // Con muchas pruebas a la vez, arrancar puede tardar más de lo normal
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20000 });
   await expect(page.locator('#main .spin')).toHaveCount(0);
 }
 

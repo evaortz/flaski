@@ -18,7 +18,7 @@ export const DEFAULT_PREFS = {
   },
   types: { hidden: [] },    // tipos de tarjeta que no quieres ver en el editor
   intro: { done: false },   // ya has visto la presentación de bienvenida
-  algo: { preset: 'standard', custom: { ...DEFAULT_ALGO }, retention: 0.9 },
+  algo: { preset: 'fsrs', custom: { ...DEFAULT_ALGO }, retention: 0.9 },   // FSRS para quien empieza
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'
     accent: 'blue',
@@ -66,7 +66,12 @@ export function mergePrefs(base, saved) {
   }
   return out;
 }
-export const loadPrefs = saved => mergePrefs(DEFAULT_PREFS, saved || {});
+// Quien ya usaba la app sin haber elegido ritmo sigue con el que tenía (el clásico); los nuevos empiezan con FSRS
+export const loadPrefs = saved => {
+  const p = mergePrefs(DEFAULT_PREFS, saved || {});
+  if (saved && Object.keys(saved).length && !saved.algo?.preset) p.algo.preset = 'standard';
+  return p;
+};
 
 // Parámetros del algoritmo para un mazo: los del mazo si tiene un preajuste propio; si no, los globales.
 export function algoFor(prefs, deck) {
