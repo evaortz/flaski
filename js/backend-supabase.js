@@ -3,7 +3,7 @@
 // La librería va incluida en la app (js/vendor) para que arranque sin conexión.
 import { createClient } from './vendor/supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { toRow } from './rows.js';
+import { toRow, progressCols } from './rows.js';
 import { createOutbox } from './outbox.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
@@ -128,6 +128,9 @@ export async function loadAll(uid, { retry = true } = {}) {
     const { error } = await sb.from('pages').select('tags').limit(1).retry(retry);
     if (error && (error.code === '42703' || /tags/.test(error.message || ''))) pageTagsMissing = true;
   }
+  // ¿Tiene ya progress las columnas de FSRS (schema.sql, versión 9)? Si no, se guarda sin ellas
+  { const { error } = await sb.from('progress').select('stability').limit(1).retry(retry);
+    progressCols.extra = !(error && (error.code === '42703' || /stability/.test(error.message || ''))); }
   return { profile, settings, decks, cards, progress, log, folders, tags, types, events, pages, pagesMissing, pageTagsMissing };
 }
 

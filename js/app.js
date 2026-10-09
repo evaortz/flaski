@@ -1,7 +1,7 @@
 // Flaski · lógica de la interfaz
 // Estructura: estado (S) → funciones render*() que pintan cada vista → manejadores de eventos.
 import * as api from './api.js';
-import { toRow } from './rows.js';
+import { toRow, progressCols } from './rows.js';
 import { schedule, fmtWhen, startOfDay, dateKey, DAY, GRADES, ALGO_PRESETS, DEFAULT_ALGO } from './srs.js';
 import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from './prefs.js';
 import { statsView, drawStats } from './stats.js';
@@ -2087,8 +2087,10 @@ function renderSettings() {
     ${setSec('brain', 'Ritmo de repaso', `
       <p class="muted small set-intro">Decide cada cuánto vuelven las tarjetas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada mazo puede usar otro ritmo en sus opciones.</p>
       <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
+      ${P.algo.preset === 'fsrs' ? `<div class="set-row"><div class="set-l"><b id="retL">Retención deseada</b><small>Con qué probabilidad quieres recordar cada tarjeta cuando vuelva. Más alta, más repasos. Entre 85 % y 92 % va bien.</small></div>
+        <div class="set-c"><span class="range"><input type="range" data-pref="algo.retention" data-num min="0.8" max="0.97" step="0.01" value="${P.algo.retention}" aria-labelledby="retL"><output id="retOut">${Math.round(P.algo.retention * 100)} %</output></span></div></div>` : ''}
       <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una tarjeta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
-      <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
+      <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''} ${P.algo.preset === 'fsrs' ? 'hidden' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
         <div class="algo-grid">${ALGO_FIELDS.map(x => `<label class="af"><span>${x.label}</span>${numIn('algo.custom.' + x.k, { min: x.min, max: x.max, step: x.step, unit: x.unit, cur: P.algo.preset === 'custom' ? P.algo.custom[x.k] : A[x.k] }).replace('<input', P.algo.preset === 'custom' ? '<input' : '<input disabled')}</label>`).join('')}</div>
         <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
       </details>`, 's-algo')}
@@ -2138,7 +2140,7 @@ document.addEventListener('click', e => {
 function prefChanged(path) {
   if (path.startsWith('look.')) applyLook(S.prefs.look);
   if (path === 'study.rate') { setBaseRate(S.prefs.study.rate); const o = $('#rateOut'); if (o) o.textContent = Math.round(S.prefs.study.rate * 100) + ' %'; }
-  if (path.startsWith('algo.')) { const pv = $('#algoPv'); if (pv) pv.textContent = algoPreview(algoFor(S.prefs, null)); }
+  if (path.startsWith('algo.')) { const pv = $('#algoPv'); if (pv) pv.textContent = algoPreview(algoFor(S.prefs, null)); const ro = $('#retOut'); if (ro) ro.textContent = Math.round(S.prefs.algo.retention * 100) + ' %'; }
   if (path === 'home.forecast') $('#row-fcdays')?.classList.toggle('is-off', !S.prefs.home.forecast);
   savePrefsSoon();
 }
@@ -2282,7 +2284,7 @@ async function restoreInto(data) {
         const prog = [], evs = [];
         for (const [old, id] of cardMap) {
           const p = progressBy.get(old);
-          if (p && p.due) prog.push({ user_id: uid, card_id: id, reps: Number(p.reps) || 0, interval: Number(p.interval) || 0, ease: Number(p.ease) || 2.5, lapses: Number(p.lapses) || 0, due: p.due, first_seen: p.first_seen || p.due, last: p.last || p.due });
+          if (p && p.due) prog.push({ user_id: uid, card_id: id, reps: Number(p.reps) || 0, interval: Number(p.interval) || 0, ease: Number(p.ease) || 2.5, lapses: Number(p.lapses) || 0, due: p.due, first_seen: p.first_seen || p.due, last: p.last || p.due, ...(p.stability > 0 && progressCols.extra ? { stability: Number(p.stability), difficulty: Number(p.difficulty) } : {}) });
           for (const e of eventsBy.get(old) || []) {
             if (!(e.grade >= 1 && e.grade <= 4) || !e.ts) continue;
             evs.push({ id: await idFor(e.id), user_id: uid, card_id: id, deck_id: deck.id, ts: e.ts, grade: e.grade, state: e.state || 'review', ivl: Number(e.ivl) || 0, last_ivl: Number(e.last_ivl) || 0, ease: Number(e.ease) || 2.5, ms: Number(e.ms) || 0 });

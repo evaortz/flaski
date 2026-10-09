@@ -18,7 +18,7 @@ export const DEFAULT_PREFS = {
   },
   types: { hidden: [] },    // tipos de tarjeta que no quieres ver en el editor
   intro: { done: false },   // ya has visto la presentación de bienvenida
-  algo: { preset: 'standard', custom: { ...DEFAULT_ALGO } },
+  algo: { preset: 'standard', custom: { ...DEFAULT_ALGO }, retention: 0.9 },
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'
     accent: 'blue',
@@ -71,7 +71,8 @@ export const loadPrefs = saved => mergePrefs(DEFAULT_PREFS, saved || {});
 // Parámetros del algoritmo para un mazo: los del mazo si tiene un preajuste propio; si no, los globales.
 export function algoFor(prefs, deck) {
   const own = deck?.options?.preset;
-  const pick = (preset, custom) => preset === 'custom' ? { ...DEFAULT_ALGO, ...custom } : { ...DEFAULT_ALGO, ...(ALGO_PRESETS[preset]?.algo || {}) };
+  const pick = (preset, custom) => preset === 'custom' ? { ...DEFAULT_ALGO, ...custom, fsrs: false }
+    : { ...DEFAULT_ALGO, ...(ALGO_PRESETS[preset]?.algo || {}), ...(preset === 'fsrs' ? { retention: prefs.algo.retention || 0.9 } : {}) };
   if (own) return pick(own, deck.options.custom || prefs.algo.custom);
   return pick(prefs.algo.preset, prefs.algo.custom);
 }

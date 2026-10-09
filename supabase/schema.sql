@@ -511,3 +511,8 @@ revoke execute on function public.are_friends(uuid, uuid), public.streak_of(uuid
 grant execute on function public.my_social(), public.set_share(boolean), public.request_friend(text), public.respond_friend(uuid, boolean),
   public.remove_friend(uuid), public.block_friend(uuid), public.unblock_friend(uuid), public.friend_requests(),
   public.friend_summary(date), public.send_cheer(uuid, text), public.my_cheers() to authenticated;
+
+-- ---------- FSRS (versión 9) ----------
+-- El algoritmo FSRS guarda de cada tarjeta su estabilidad (días) y su dificultad (1 a 10)
+alter table public.progress add column if not exists stability  real;
+alter table public.progress add column if not exists difficulty real;

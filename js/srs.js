@@ -1,4 +1,5 @@
-// Repaso espaciado (SM-2 simplificado). Sin dependencias: se puede probar aparte.
+// Repaso espaciado: SM-2 simplificado (el clásico) o FSRS (js/fsrs.js). Sin dependencias: se puede probar aparte.
+import { fsrsSchedule } from './fsrs.js';
 //
 // Estado de una tarjeta (null = nueva):
 //   { reps, interval (días), ease, lapses, due (ms), firstSeen (ms), last (ms) }
@@ -35,9 +36,12 @@ export const DEFAULT_ALGO = {
   intervalMod: 1.0,
   maxDays: 365,
   lapseEase: 0.2,
+  fsrs: false,        // usar FSRS en vez del algoritmo clásico
+  retention: 0.9,     // FSRS: probabilidad de recordar con la que se programa cada repaso
 };
 
 export const ALGO_PRESETS = {
+  fsrs: { label: 'FSRS', help: 'El algoritmo moderno de Anki: aprende de cada respuesta. Menos repasos para recordar lo mismo.', algo: { ...DEFAULT_ALGO, fsrs: true, maxDays: 3650 } },
   standard: { label: 'Estándar', help: 'El ritmo recomendado. Equilibrado para retener el 90 %.', algo: { ...DEFAULT_ALGO } },
   gentle: { label: 'Suave', help: 'Para temas difíciles o si tienes poco tiempo diario.', algo: { ...DEFAULT_ALGO, startEase: 2.3, easyDays: 3, intervalMod: 0.85 } },
   intense: { label: 'Intenso', help: 'Avanza más rápido si te resulta fácil.', algo: { ...DEFAULT_ALGO, startEase: 2.7, easyDays: 5, intervalMod: 1.15 } },
@@ -45,6 +49,7 @@ export const ALGO_PRESETS = {
 
 export function schedule(prev, g, now = Date.now(), algo = DEFAULT_ALGO) {
   const A = { ...DEFAULT_ALGO, ...algo };
+  if (A.fsrs) return fsrsSchedule(prev, g, now, A, startOfDay);
   const s = prev ? { ...prev } : { reps: 0, interval: 0, ease: A.startEase, lapses: 0 };
   if (!s.firstSeen) s.firstSeen = now;
   s.last = now;

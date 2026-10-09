@@ -1,8 +1,11 @@
 // Conversión entre el estado de repaso que usa la app (fechas en milisegundos)
 // y las filas que se guardan (fechas en texto ISO). La usan los dos backends.
 
+// FSRS guarda además estabilidad y dificultad. extra = false si la base de datos aún no tiene esas columnas.
+export const progressCols = { extra: true };
 export function toRow(uid, cardId, s) {
   return {
+    ...(progressCols.extra && s.stability > 0 ? { stability: s.stability, difficulty: s.difficulty } : {}),
     user_id: uid, card_id: cardId,
     reps: s.reps, interval: s.interval, ease: s.ease, lapses: s.lapses || 0,
     due: new Date(s.due).toISOString(),
@@ -15,5 +18,6 @@ export function fromRow(r) {
   return {
     reps: r.reps, interval: r.interval, ease: r.ease, lapses: r.lapses,
     due: Date.parse(r.due), firstSeen: Date.parse(r.first_seen), last: Date.parse(r.last),
+    ...(r.stability > 0 ? { stability: r.stability, difficulty: r.difficulty } : {}),
   };
 }
