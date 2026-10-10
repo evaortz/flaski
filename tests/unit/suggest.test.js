@@ -208,3 +208,24 @@ test('filtro anafórico y destacados: descarta «dicho proceso», «ambos», y p
   assert.equal(callouts[1].front, '¿Qué son los cloroplastos?');
 });
 
+
+test('lo resaltado, subrayado o en color cuenta como negrita; los subpuntos dan una tarjeta', async () => {
+  const { suggestCards, emphasize, writingTips } = await import('../../js/suggest.js');
+  assert.equal(emphasize('La ==membrana== y la <u>pared</u> y <span style="color:red">el núcleo</span>'), 'La **membrana** y la **pared** y **el núcleo**');
+  const page = { title: 'Célula', blocks: [
+    { id: 'a', type: 'p', text: 'La ==membrana== protege la célula y regula lo que entra.' },
+    { id: 'b', type: 'li', text: 'Núcleo' }, { id: 'c', type: 'li', text: 'ADN', indent: 1 }, { id: 'd', type: 'li', text: 'Nucléolo', indent: 1 }, { id: 'e', type: 'li', text: 'Citoplasma' },
+  ] };
+  const s = suggestCards(page);
+  assert.ok(s.some(x => x.kind === 'bold' && x.fields.x.includes('{{membrana}}')), 'hueco del resaltado');
+  const sub = s.find(x => x.kind === 'sub');
+  assert.equal(sub.front, 'Núcleo: ¿qué incluye?');
+  assert.equal(sub.back, '- ADN\n- Nucléolo');
+  assert.ok(s.every(x => x.id && x.id.includes('|')), 'cada sugerencia con un id estable');
+  // Consejos según cómo está escrito
+  const tips = writingTips({ blocks: [
+    { id: 'p', type: 'p', text: 'x'.repeat(10) + ' ' + 'palabra '.repeat(40) },
+    { id: 'l1', type: 'li', text: 'uno' }, { id: 'l2', type: 'li', text: 'dos' },
+  ] }, []);
+  assert.deepEqual(tips.map(t => t.id), ['emphasis', 'list']);
+});

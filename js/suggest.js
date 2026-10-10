@@ -4,10 +4,10 @@
 // salen ya marcadas. Sin dependencias de la interfaz, así que se puede probar aparte.
 import { BUILTIN_TYPES, activeTemplates, summarize, baseLang } from './cardtypes.js';
 import { pageTitle, parseTable } from './pages.js';
-import { toPlain } from './inline.js';
+import { toPlain, toRuns } from './inline.js';
 
 export const KINDS = {
-  vocab: 'Vocabulario', def: 'Definición', term: 'Concepto', bold: 'Negrita', table: 'Tabla', match: 'Emparejar',
+  vocab: 'Vocabulario', def: 'Definición', term: 'Concepto', bold: 'Destacado', sub: 'Subpuntos', table: 'Tabla', match: 'Emparejar',
   conj: 'Conjugación', steps: 'Pasos', list: 'Lista', sort: 'Clasificar', date: 'Fecha', phrase: 'Frase', code: 'Código',
   section: 'Apartado', qa: 'Pregunta',
 };
@@ -284,6 +284,19 @@ const VERBISH = /(?<![\p{L}])(es|son|era|fue|ser|está|están|tiene|tienen|hay|p
 const EXERCISE = /^(?:\d+\s*[.)-]+\s*-?\s*)?(haz|hacer|realiza|lee|leer|responde|contesta|completa|elabora|busca|observa|mira|explica|define|indica|señala|rodea|marca|subraya|escribe|copia|resume|piensa|relaciona|une|ordena|identifica|compara|justifica|analiza|comenta|calcula|dibuja|investiga|elige|selecciona|repasa|repasar|para repasar|empezamos)(?![\p{L}])/iu;
 const SAYS = /(?<![\p{L}])(comenta|afirma|dice|señala|explica|escribe|indica|sostiene|asegura|añade|recuerda|opina|cuenta|declara|says|writes|states|argues)$/iu;
 
+// Lo que el autor destacó (negrita, subrayado, resaltado o color) se trata igual que la negrita: «**así**»
+export function emphasize(src) {
+  const out = toRuns(src).map(r => {
+    if (r.raw) return r.text;
+    if (r.st.code) return '`' + r.text + '`';
+    const em = r.st.b || r.st.u || r.st.bg || r.st.color;
+    if (!em || !r.text.trim()) return r.text;
+    const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(r.text);
+    return `${m[1]}**${m[2]}**${m[3]}`;
+  }).join('');
+  return out.replace(/\*\*\*\*/g, '');
+}
+
 /* ---------------- Reglas ---------------- */
 // «Término: definición» (también con =, →, —, – o « - »)
 function splitDef(text) {
@@ -330,7 +343,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     const key = norm(sum.front) + '|' + norm(sum.back);
     if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
     seen.add(key); seen.add(norm(sum.front));
-    out.push({ key: `${kind}:${blockId}:${out.length}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
+    out.push({ key: `${kind}:${blockId}:${out.length}`, id: `${kind}|${blockId}|${norm(sum.front).slice(0, 60)}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
       front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.1 : 0)), ...extra });
     return true;
   };
@@ -351,13 +364,17 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   const nearestHeading = id => { const h = headOf.get(id); return h?.length ? h[h.length - 1] : ''; };
 
   // Grupos seguidos de elementos de lista (con lo que los presenta: un título o un párrafo acabado en «:»)
+  // (solo los del primer nivel: los subpuntos con sangría no cortan la lista)
   const runs = [];
+  const LIST = ['li', 'ol', 'todo'];
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
-    if (!['li', 'ol'].includes(b.type)) continue;
-    const run = [b];
-    while (blocks[i + 1] && blocks[i + 1].type === b.type) run.push(blocks[++i]);
-    const prev = blocks[i - run.length];
+    if (!['li', 'ol'].includes(b.type) || b.indent) continue;
+    const run = [b], first = i;
+    let j = i + 1;
+    while (blocks[j] && ((blocks[j].type === b.type && !blocks[j].indent) || (LIST.includes(blocks[j].type) && blocks[j].indent > 0))) { if (!blocks[j].indent) run.push(blocks[j]); j++; }
+    i = j - 1;
+    const prev = blocks[first - 1];
     runs.push({ type: b.type, items: run, intro: prev && /^(h[1-3]|p)$/.test(prev.type) ? prev : null });
   }
   const shortItem = b => plainText(b.text).length > 0 && plainText(b.text).length <= 120;
@@ -457,7 +474,25 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     for (let k = i; k <= j; k++) used.add(blocks[k].id);
   }
 
-  /* 3) Listas con título */
+  /* 3) Un punto con subpuntos (sangría): «Núcleo» → ADN, nucléolo… */
+  const LIST_WORDS = /^(tipos|clases|partes|características|funciones|causas|consecuencias|ventajas|inconvenientes|desventajas|ejemplos|elementos|componentes|fases|etapas)(?![\p{L}])/iu;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (!['li', 'ol', 'p'].includes(b.type) || used.has(b.id)) continue;
+    const d = b.indent || 0, kids = [];
+    for (let j = i + 1; j < blocks.length && [...LIST, 'p'].includes(blocks[j].type) && (blocks[j].indent || 0) > d; j++) if ((blocks[j].indent || 0) === d + 1) kids.push(blocks[j]);
+    if (kids.length < 2 || kids.length > 10 || !kids.every(shortItem)) continue;
+    const head = plainText(b.text).replace(/:$/, '').trim();
+    if (!head || words(head).length > 10 || /\?$/.test(head)) continue;
+    // Subpuntos que son definiciones («término: …»): mejor una tarjeta por cada uno
+    if (kids.filter(k => splitDef(k.text) || boldLead(k.text)).length >= kids.length * 0.5) continue;
+    const ctx = nearestHeading(b.id);
+    const q = LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? `${head}: ¿cuáles son?` : `${head}: ¿qué incluye?`;
+    add('sub', b.id, 'basic', { q: q + (ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${plainText(k.text)}`).join('\n'), n: '' }, kids.length <= 6 ? 0.7 : 0.55);
+    used.add(b.id);
+  }
+
+  /* 3b) Listas con título */
   // Listas hermanas bajo títulos del mismo nivel (Ventajas / Inconvenientes…): clasificar
   const STEPS_RE = /\b(fases|pasos|etapas|orden|proceso|procedimiento|cronolog|secuencia|ciclo|steps|phases|stages|order)\b/i;
   const sectionLists = runs.filter(r => r.type === 'li' && r.intro && /^h[2-3]$/.test(r.intro.type) && !STEPS_RE.test(plainText(r.intro.text)) && r.items.length >= 2 && r.items.length <= 8 && r.items.every(shortItem)
@@ -506,7 +541,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
     if (used.has(b.id) || !['p', 'li', 'ol', 'callout', 'quote', 'code'].includes(b.type)) continue;
-    const text = String(b.text || '').replace(IMG, '').trim();
+    const text = emphasize(String(b.text || '').replace(IMG, '')).trim();
     if (!text) continue;
 
     // Código con su explicación justo antes: «Para deshacer el último commit:» + código
@@ -617,4 +652,31 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   // En el orden en que aparecen en los apuntes
   const pos = new Map(blocks.map((b, i) => [b.id, i]));
   return out.sort((a, b) => (pos.get(a.blockId) ?? 0) - (pos.get(b.blockId) ?? 0)).map(s => ({ ...s, selected: s.score >= PRESELECT }));
+}
+
+/* ---------------- Consejos para escribir los apuntes de forma que salgan más (y mejores) tarjetas ---------------- */
+// Mira cómo está escrito este apunte y qué no ha dado ninguna sugerencia → [{ id, text }] (los más útiles primero)
+export function writingTips(page, suggestions = []) {
+  const blocks = (page?.blocks || []).filter(b => !/https?:\/\//.test(b.text || ''));
+  const withSug = new Set(suggestions.map(s => s.blockId));
+  const tips = [];
+  const emphasized = b => toRuns(b.text || '').some(r => r.st.b || r.st.u || r.st.bg || r.st.color);
+  const longPlain = blocks.filter(b => b.type === 'p' && plainText(b.text).length > 220 && !emphasized(b) && !withSug.has(b.id));
+  if (longPlain.length) tips.push({ id: 'emphasis', n: longPlain.length, text: `${longPlain.length === 1 ? 'Un párrafo largo no da' : `${longPlain.length} párrafos largos no dan`} ninguna tarjeta. Marca en **negrita** o ==resalta== la palabra clave de cada idea y saldrá una frase para completar.` });
+  // Listas sin nada que las presente
+  let bare = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    if (!['li', 'ol'].includes(blocks[i].type) || blocks[i].indent || (i && ['li', 'ol', 'todo'].includes(blocks[i - 1].type))) continue;
+    let n = 0;
+    for (let j = i; blocks[j] && ['li', 'ol'].includes(blocks[j].type); j++) if (!blocks[j].indent) n++;
+    const prev = blocks[i - 1], intro = prev && (/^h[1-3]$/.test(prev.type) || /:$/.test(plainText(prev.text)));
+    if (n >= 2 && !intro && !withSug.has(blocks[i].id)) bare++;
+  }
+  if (bare) tips.push({ id: 'list', n: bare, text: `${bare === 1 ? 'Hay una lista' : `Hay ${bare} listas`} sin nada encima. Escribe antes un título o una frase acabada en dos puntos («Las fases de la mitosis son:») y saldrá la pregunta con la lista; si es numerada, para ordenar los pasos.` });
+  if (!blocks.some(b => /^h[1-3]$/.test(b.type)) && blocks.filter(b => plainText(b.text)).length >= 8) tips.push({ id: 'heads', text: 'Divide el apunte con títulos (escribe «## » al principio de una línea): cada apartado da su propia pregunta y luego puedes estudiarlos por separado.' });
+  const defs = suggestions.filter(s => s.kind === 'def').length, paras = blocks.filter(b => b.type === 'p' && plainText(b.text)).length;
+  if (!defs && paras >= 3) tips.push({ id: 'defs', text: 'Escribe las definiciones así: «Mitosis: división de una célula en dos células hijas». Es lo que mejor se convierte en tarjeta.' });
+  const lists = blocks.filter(b => ['li', 'ol'].includes(b.type));
+  if (lists.length >= 6 && !lists.some(b => b.indent)) tips.push({ id: 'indent', text: 'Usa la sangría (Tab) para los subpuntos: «Núcleo» con «ADN» y «Nucléolo» debajo da la pregunta «Núcleo: ¿qué incluye?».' });
+  return tips;
 }

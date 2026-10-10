@@ -1474,3 +1474,38 @@ a.wl:hover{text-decoration:underline}
 @media (max-width:520px){.help-tbl td:first-child{white-space:normal}.help-tbl td:first-child code{white-space:normal;word-break:break-word}}
 .kc{white-space:nowrap}
 .nb:has(.tbl-ed),.nb:has(.tbl-ed):hover{background:transparent}
+
+/* ---------- Sugerencias: de dónde sale cada una, descartar, consejos y cómo funcionan ---------- */
+.sug-wrap .ed-top{grid-template-columns:40px minmax(0,1fr) 40px}
+.sug-refresh{justify-self:end}
+.sug-src{grid-column:1 / -1;display:flex;align-items:center;gap:5px;min-width:0;margin-top:4px;font-size:12.5px;color:var(--faint);white-space:nowrap;overflow:hidden}
+.sug-src > span{flex:none;color:var(--muted)}
+.sug-src svg{flex:none}
+.sug-x{flex:none;align-self:flex-start;margin-top:8px;color:var(--faint);opacity:.7}
+.sug-x:hover{color:var(--fg);opacity:1}
+.sug-new{font-size:11.5px;font-weight:600;color:var(--accent);padding:0 4px}
+.sug-list .sug.is-new{animation:sugIn .6s ease}
+@keyframes sugIn{from{background:color-mix(in srgb,var(--accent) 12%,transparent)}to{background:transparent}}
+.sug-only{display:flex;align-items:center;gap:8px;margin:0 auto 12px;padding:8px 12px;border-radius:8px;background:var(--soft);font-size:14px}
+.sug-only .link{margin-left:auto}
+.sug-tips{margin:6px auto 16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.sug-tips-h{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:14px}
+.sug-tips-h svg{color:var(--c-yellow)}
+.sug-tips ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--fg)}
+.sug-how{margin:4px auto 14px;border-top:1px solid var(--line);padding-top:10px}
+.sug-how summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:var(--muted);list-style:none}
+.sug-how summary::-webkit-details-marker{display:none}
+.sug-how summary:hover{color:var(--fg)}
+.sug-how[open] summary{color:var(--fg);margin-bottom:8px}
+.sug-how-tbl td{font-size:13.5px;white-space:normal !important}
+.sug-how-tbl td:first-child{width:45%}
+.sug-marks-opt{display:inline-flex;align-items:center;gap:4px;margin-left:4px;color:var(--fg);cursor:pointer}
+.sug-hidden{margin:0 auto 10px}
+/* La ✨ junto a los bloques que dan tarjetas */
+.nb-sugdot{position:absolute;right:6px;top:5px;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--c-yellow);display:grid;place-items:center;opacity:.45;cursor:pointer;transition:opacity .15s}
+.nb:hover>.nb-sugdot,.nb-sugdot:hover{opacity:1}
+.nb-sugdot:hover{background:var(--hover)}
+.nb:has(.nb-cards)>.nb-sugdot{right:34px}
+.nb:has(.nb-sec)>.nb-sugdot{display:none}
+.nb-h1>.nb-sugdot{top:18px}.nb-h2>.nb-sugdot{top:13px}
+.sug-x.iconbtn{border:0;background:transparent;box-shadow:none}
