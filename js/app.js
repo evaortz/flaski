@@ -2597,7 +2597,12 @@ function openSheet(html, { full = false } = {}) {
   const f = $('#sheetBody').querySelector('input,textarea');
   if (f && matchMedia('(hover:hover)').matches) setTimeout(() => f.focus(), 30);
 }
-function closeSheet() { $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').classList.remove('sheet-full'); if (S.edit) S.edit.open = false; }
+function closeSheet() {
+  const backToSug = S.edit?.open && S.edit.sugIndex != null && S.sug;
+  closeSheetOnly();
+  if (backToSug) { S.edit = null; drawSuggestions(); }
+}
+function closeSheetOnly() { $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').classList.remove('sheet-full'); if (S.edit) S.edit.open = false; }
 // Cerrar pidiendo confirmación si hay cambios sin guardar en el editor de tarjetas
 function requestClose() {
   if (S.edit?.open && S.edit.dirty && $('.ed')) {
@@ -2871,7 +2876,7 @@ function linkProp(link) {
   return `<div class="prop"><span class="prop-k">${icon('notebook-text', { size: 16 })} Apuntes</span>
     <span class="prop-v prop-link">${esc(pageTitle(pg))}${b ? ` · <span class="muted">«${esc(plain(b.text).slice(0, 50))}${b.text.length > 50 ? '…' : ''}»</span>` : ''}</span></div>`;
 }
-function cardForm(c, { deckId: forcedDeck, prefill = null, source = null } = {}) {
+function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugIndex = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
   const deckId = c?.deck_id || forcedDeck || (S.view === 'deck' && S.deckId) || sessionDeck || [...S.decks.values()].find(d => !d.archived)?.id || [...S.decks.keys()][0];
   if (!deckId) { toast('Crea primero un mazo'); return deckForm(null); }
@@ -2886,14 +2891,14 @@ function cardForm(c, { deckId: forcedDeck, prefill = null, source = null } = {})
     const t = defaultTypeFor(deckId);
     model = { type: t, tpl: t.templates[0], fields: {} };
   }
-  S.edit = { open: true, dirty: !!source, deckId, source, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
+  S.edit = { open: true, dirty: !!source && sugIndex == null, deckId, source, sugIndex, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
     fields: { ...model.fields }, pv: model.tpl.id, pvSide: 'front', hint: prefill?.hint ?? c?.hint ?? '', tags: prefill?.tags ?? c?.tags ?? [] };
   const p = c && S.progress.get(c.id);
   const deck = S.decks.get(deckId);
   openSheet(`<form data-form="card" data-id="${c ? c.id : ''}" class="ed" autocomplete="off">
     <header class="ed-top">
       <button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
-      <div class="ed-title"><span>${c ? 'Editar tarjeta' : 'Nueva tarjeta'}</span>
+      <div class="ed-title"><span>${c ? 'Editar tarjeta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva tarjeta'}</span>
         <label class="ed-deck" title="Mazo">${deck ? deckIcon(deck) : ''}<select id="c-deck" aria-label="Mazo">${deckOptions(deckId)}</select></label></div>
       <button type="submit" class="primary ed-save">Guardar</button>
     </header>
@@ -2932,7 +2937,7 @@ function cardForm(c, { deckId: forcedDeck, prefill = null, source = null } = {})
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
         ${p ? '<button type="button" class="ghost small-btn" data-act="reset-card">Reiniciar progreso</button>' : ''}` : ''}
       <span class="spacer"></span>
-      ${c ? '' : '<button type="button" class="ghost" data-act="save-card-more">Guardar y otra</button>'}
+      ${c || sugIndex != null ? '' : '<button type="button" class="ghost" data-act="save-card-more">Guardar y otra</button>'}
       <button type="submit" class="primary">Guardar</button>
     </footer>
   </form>`, { full: true });
@@ -3814,8 +3819,6 @@ document.addEventListener('click', async e => {
   if (!b) {
     // Furigana oculta: tocar un kanji deja ver su lectura (solo esa, y se vuelve a ocultar con otro toque)
     // Tocar una sugerencia (no su casilla ni «Editar») la marca o la quita
-    const sr = e.target.closest('[data-sug-row]');
-    if (sr && !e.target.closest('input, textarea, a')) { const cb = sr.querySelector('.sug-cb'); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); return; }
     const sg = e.target.closest('[data-sort-group]');
     if (sg) return sortAction('group', +sg.dataset.sortGroup);
     const rb = e.target.closest('.ruby-hide ruby');
@@ -3885,14 +3888,20 @@ document.addEventListener('click', async e => {
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
   if (ds.tbl) return tableAction(b.closest('[data-table-ed]').dataset.tableEd, ds.tbl);
-  if (ds.sugEdit !== undefined) { readSugEdit(); S.sug.edit = +ds.sugEdit; drawSuggestions(); document.querySelector('.sug-in')?.focus(); return; }
-  if (ds.sugSave !== undefined) { readSugEdit(); return drawSuggestions(); }
+  if (ds.sugOpen !== undefined) return openSugEditor(+ds.sugOpen);
+  if (ds.sugType) {
+    const g = S.sug, all = [...new Set(g.list.map(x => x.typeId))];
+    if (!g.types) g.types = new Set(all);
+    g.types.has(ds.sugType) ? g.types.delete(ds.sugType) : g.types.add(ds.sugType);
+    if (!g.types.size || g.types.size === all.length) g.types = null;
+    return redrawSuggestions();
+  }
   if (ds.sugGroup) {
     readSugEdit();
-    const g = S.sug, items = g.list.filter(x => (ds.sugGroup === 'rec') === (x.score >= PRESELECT));
+    const g = S.sug, items = g.list.filter(x => (!g.types || g.types.has(x.typeId)) && (ds.sugGroup === 'rec') === (x.score >= PRESELECT));
     const all = items.every(x => x.selected);
     items.forEach(x => { x.selected = !all; });
-    const y = $('#sheetBody').scrollTop; drawSuggestions(); $('#sheetBody').scrollTop = y; return;
+    return redrawSuggestions();
   }
   if (ds.blockType) return chooseBlockType(ds.blockType);
   if (ds.todo || ds.calloutIcon) {
@@ -4204,7 +4213,7 @@ document.addEventListener('click', async e => {
     case 'add-anki': return addAnki(e.target.closest('button'));
     case 'suggest-cards': closeSheet(); return openSuggestions();
     case 'sug-create': return createSuggested(e.target.closest('button'));
-    case 'sug-more': { readSugEdit(); S.sug.showMore = !S.sug.showMore; const y = $('#sheetBody').scrollTop; drawSuggestions(); $('#sheetBody').scrollTop = y; return; }
+    case 'sug-more': { S.sug.showMore = !S.sug.showMore; return redrawSuggestions(); }
     case 'sort-check': { const so = S.session?.st?.sort; if (so) { so.checked = true; reveal(); } return; }
     case 'occ-pick': { const f = await pickImage(); return f && occSetImage(f); }
     case 'occ-clear': { const { m } = occFields(); if (m) { m.value = ''; occRedraw(); } return; }
@@ -4345,7 +4354,7 @@ document.addEventListener('submit', async e => {
     try { const t = await addTag($('#nt-name').value, $('#nt-color').value); if (t) tagsSheet(); } catch (err) { fail(err); }
     return;
   }
-  if (kind === 'card') return saveCardForm(form, false);
+  if (kind === 'card') return S.edit?.sugIndex != null ? saveSugEditor() : saveCardForm(form, false);
   if (kind === 'profile') return saveProfileForm(form);
   if (kind === 'changepass') {
     const v = $('#cp').value;
@@ -4413,9 +4422,9 @@ document.addEventListener('change', async e => {
     if (sgi) { sgi.selected = e.target.checked; e.target.closest('.sug')?.classList.toggle('on', sgi.selected); }
     const sel = S.sug.list.filter(x => x.selected), n = sel.reduce((k, x) => k + (x.cards || 1), 0), btn = document.querySelector('[data-act="sug-create"]');
     if (btn) { btn.disabled = !n; btn.textContent = n ? `Crear ${plural(n, 'tarjeta', 'tarjetas')}` : 'Marca alguna'; }
-    const cnt = document.querySelector('.sug-wrap .ed-foot .muted'); if (cnt) cnt.textContent = plural(sel.length, 'marcada', 'marcadas');
+    const cnt = $('#sugCount'); if (cnt) cnt.textContent = plural(sel.length, 'marcada', 'marcadas');
     const gh = e.target.closest('.sug-group')?.querySelector('[data-sug-group]');
-    if (gh) { const items = S.sug.list.filter(x => (gh.dataset.sugGroup === 'rec') === (x.score >= PRESELECT)); gh.textContent = items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'; }
+    if (gh) { const items = S.sug.list.filter(x => (!S.sug.types || S.sug.types.has(x.typeId)) && (gh.dataset.sugGroup === 'rec') === (x.score >= PRESELECT)); gh.textContent = items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'; }
     return;
   }
   if (e.target.id === 'sugDeck') {
@@ -4530,7 +4539,7 @@ function openSuggestions() {
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
   const deckId = p.deck_id && S.decks.has(p.deck_id) ? p.deck_id : '';
-  S.sug = { pageId: p.id, deckId: deckId || (S.decks.size ? [...S.decks.values()].find(d => !d.archived)?.id || '' : 'new'), list: [], edit: null, showMore: null };
+  S.sug = { pageId: p.id, deckId: deckId || (S.decks.size ? [...S.decks.values()].find(d => !d.archived)?.id || '' : 'new'), list: [], types: null, showMore: null, scroll: 0 };
   S.sug.list = suggestFor(p, S.sug.deckId === 'new' ? '' : S.sug.deckId);
   drawSuggestions();
 }
@@ -4540,62 +4549,74 @@ function drawSuggestions() {
   const list = g.list;
   const picked = list.filter(x => x.selected);
   const nCards = picked.reduce((n, x) => n + (x.cards || 1), 0);
-  const rec = list.filter(x => x.score >= PRESELECT), more = list.filter(x => x.score < PRESELECT);
+  // Filtro por tipo de tarjeta
+  const typeIds = [...new Set(list.map(x => x.typeId))];
+  const visible = list.filter(x => !g.types || g.types.has(x.typeId));
+  const rec = visible.filter(x => x.score >= PRESELECT), more = visible.filter(x => x.score < PRESELECT);
   if (g.showMore == null) g.showMore = rec.length < 5;
   const deckSel = `<select id="sugDeck" aria-label="Mazo donde se crean">${[...S.decks.values()].filter(d => !d.archived).map(d => `<option value="${d.id}" ${d.id === g.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
     <option value="new" ${g.deckId === 'new' ? 'selected' : ''}>+ Mazo nuevo: «${esc(pageTitle(p).slice(0, 60))}»</option></select>`;
-  const editable = x => x.typeId === 'basic' || x.typeId === 'cloze';
+  // Cada sugerencia, como una fila de la lista de un mazo (con su casilla para crearla o no)
   const row = x => {
-    const i = list.indexOf(x);
-    if (g.edit === i) {
-      const f = x.typeId === 'cloze'
-        ? `<label>Frase con hueco <small class="muted">(lo que va entre {{ }} se oculta)</small></label><textarea class="sug-in" data-sug-field="x" rows="2">${esc(x.fields.x)}</textarea>`
-        : `<label>Pregunta</label><textarea class="sug-in" data-sug-field="q" rows="2">${esc(x.fields.q)}</textarea><label>Respuesta</label><textarea class="sug-in" data-sug-field="a" rows="3">${esc(x.fields.a)}</textarea>`;
-      return `<li class="sug sug-editing">${f}<div class="btnrow"><span class="spacer"></span><button type="button" class="primary small-btn" data-sug-save="${i}">Listo</button></div></li>`;
-    }
+    const i = list.indexOf(x), t = getType(x.typeId);
     const where = x.section && x.section !== pageTitle(p) ? x.section.split(' › ').at(-1) : '';
-    return `<li class="sug${x.selected ? ' on' : ''}" data-sug-row="${i}">
-      <input type="checkbox" class="sug-cb" data-sug="${i}" ${x.selected ? 'checked' : ''} aria-label="Crear esta tarjeta">
-      <div class="sug-body"><div class="sug-front">${fmt(x.front)}</div><div class="sug-back">${fmt(x.back)}</div>
-        <div class="sug-meta">${esc(x.label)}${x.cards > 1 ? ` · ${x.cards} tarjetas` : ''}${where ? ` · ${esc(where)}` : ''}</div></div>
-      ${editable(x) ? `<button type="button" class="link sug-edit" data-sug-edit="${i}">Editar</button>` : ''}</li>`;
+    return `<li class="sug${x.selected ? ' on' : ''}"><label class="sug-check" title="${x.selected ? 'Se creará' : 'No se creará'}"><input type="checkbox" data-sug="${i}" ${x.selected ? 'checked' : ''} aria-label="Crear esta tarjeta"></label>
+      <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(x.back)}</span>
+        <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} tarjetas</span>` : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span></button></li>`;
   };
   const group = (title, items, key) => items.length ? `<div class="sug-group">
     <div class="sug-gh"><h3>${title} <span class="muted">· ${items.length}</span></h3>
       <button type="button" class="link small" data-sug-group="${key}">${items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'}</button></div>
-    <ul class="sug-list">${items.map(row).join('')}</ul></div>` : '';
+    <ul class="list sug-list">${items.map(row).join('')}</ul></div>` : '';
   const body = !list.length
     ? `<div class="sug-empty"><p><b>No he encontrado nada claro que convertir en tarjetas.</b></p>
         <p class="muted">Las sugerencias salen de cómo están escritos los apuntes. Prueba a:</p>
         <ul class="muted"><li>escribir definiciones así: <code>Mitosis: división de una célula…</code></li><li>poner en <b>negrita</b> lo importante</li>
         <li>usar tablas y listas con un título encima («Fases de…», «Las causas son:»)</li></ul>
         <p class="muted">También puedes seleccionar cualquier texto del apunte y pulsar «Crear tarjeta».</p></div>`
-    : `${group('Recomendadas', rec, 'rec')}
+    : `<div class="sug-filters" role="group" aria-label="Filtrar por tipo de tarjeta">${typeIds.map(id => { const t = getType(id); return `<button type="button" class="chip-btn" data-sug-type="${id}" aria-pressed="${!g.types || g.types.has(id)}">${typeIcon(t, 14)} ${esc(t?.name || id)} <span>${list.filter(x => x.typeId === id).length}</span></button>`; }).join('')}</div>
+       ${group('Recomendadas', rec, 'rec')}
        ${more.length ? (g.showMore ? group('Otras posibles', more, 'more') + (rec.length >= 5 ? '<button type="button" class="link sug-toggle" data-act="sug-more">Ocultar las otras posibles</button>' : '')
-         : `<button type="button" class="ghost sug-toggle" data-act="sug-more">Ver ${plural(more.length, 'otra posible', 'otras posibles')}</button>`) : ''}`;
+         : `<button type="button" class="ghost sug-toggle" data-act="sug-more">Ver ${plural(more.length, 'otra posible', 'otras posibles')}</button>`) : ''}
+       ${!visible.length ? '<p class="muted">Ninguna sugerencia de estos tipos.</p>' : ''}`;
   openSheet(`<div class="sug-wrap">
     <header class="ed-top"><button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
       <div class="ed-title"><span>Tarjetas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div><span></span></header>
-    <div class="sug-main">
-      ${list.length ? `<p class="sug-intro">He encontrado <b>${plural(list.length, 'posible tarjeta', 'posibles tarjetas')}</b> en tus apuntes. Las recomendadas ya están marcadas: toca una para quitarla o añadirla.</p>
+    <div class="sug-main" id="sugMain">
+      ${list.length ? `<p class="sug-intro">He encontrado <b>${plural(list.length, 'posible tarjeta', 'posibles tarjetas')}</b> en tus apuntes. Las recomendadas ya están marcadas. Toca una para verla y editarla.</p>
       <div class="sug-deck"><label for="sugDeck">Crear en</label>${deckSel}</div>` : ''}
       ${body}
     </div>
-    ${list.length ? `<footer class="ed-foot"><span class="muted small">${plural(picked.length, 'marcada', 'marcadas')}</span><span class="spacer"></span>
+    ${list.length ? `<footer class="ed-foot"><span class="muted small" id="sugCount">${plural(picked.length, 'marcada', 'marcadas')}</span><span class="spacer"></span>
       <button type="button" class="primary" data-act="sug-create" ${nCards ? '' : 'disabled'}>${nCards ? `Crear ${plural(nCards, 'tarjeta', 'tarjetas')}` : 'Marca alguna'}</button></footer>` : ''}
   </div>`, { full: true });
+  if (g.scroll) { const m = $('#sugMain'); if (m) m.scrollTop = g.scroll; g.scroll = 0; }
 }
-function readSugEdit() {
-  const g = S.sug;
-  if (!g || g.edit == null) return;
-  const s = g.list[g.edit];
-  document.querySelectorAll('[data-sug-field]').forEach(t => { s.fields[t.dataset.sugField] = t.value; });
-  // Vista previa al día con lo retocado
-  const type = getType(s.typeId), active = activeTemplates(type, s.fields);
-  if (active.length) { const sum = summarize(type, active[0], s.fields); s.front = sum.front; s.back = sum.back; s.cards = active.length; }
-  else s.selected = false;
-  g.edit = null;
+const sugScroll = () => { const m = $('#sugMain'); if (m && S.sug) S.sug.scroll = m.scrollTop; };
+function redrawSuggestions() { sugScroll(); drawSuggestions(); }
+// Editar una sugerencia: el mismo editor que «+ Tarjeta», relleno con su tipo y sus campos
+function openSugEditor(i) {
+  const g = S.sug, x = g?.list[i];
+  if (!x) return;
+  sugScroll();
+  const deckId = g.deckId !== 'new' && S.decks.has(g.deckId) ? g.deckId : [...S.decks.keys()][0];
+  cardForm(null, { deckId, prefill: { typeId: x.typeId, fields: { ...x.fields }, hint: x.hint || '' }, source: { page_id: g.pageId, block_id: x.blockId }, sugIndex: i });
 }
+function saveSugEditor() {
+  const e = readEditor(), g = S.sug, x = g?.list[e.sugIndex];
+  if (!x) return;
+  const type = getType(e.typeId) || BUILTIN_TYPES[0];
+  const fields = {};
+  for (const f of type.fields) fields[f.id] = String(e.fields[f.id] || '').trim();
+  const active = activeTemplates(typeIn(type, $('#c-deck')?.value), fields);
+  if (!active.length) return toast(`Falta ${missingFor(type, type.templates[0], fields)}`);
+  const sum = summarize(type, active[0], fields);
+  Object.assign(x, { typeId: type.id, fields, front: sum.front, back: sum.back, cards: active.length, selected: true, hint: (e.hint || '').trim() });
+  e.dirty = false;
+  closeSheet();
+  toast('Sugerencia guardada');
+}
+function readSugEdit() {}
 async function createSuggested(btn) {
   const g = S.sug, p = S.pages.get(g?.pageId);
   if (!g || !p) return;
@@ -4617,7 +4638,7 @@ async function createSuggested(btn) {
       for (const t of activeTemplates(type, s.fields)) {
         const sum = summarize(type, t, s.fields);
         rows.push({ deck_id: deckId, owner: S.uid, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000),
-          position: base + i / 1000 + rows.length / 1e6, note_id: note, type_id: s.typeId, template: t.id, fields: s.fields, hint: '', tags: [], page_id: p.id, block_id: s.blockId });
+          position: base + i / 1000 + rows.length / 1e6, note_id: note, type_id: s.typeId, template: t.id, fields: s.fields, hint: s.hint || '', tags: [], page_id: p.id, block_id: s.blockId });
       }
     }
     const made = await api.createCards(rows);

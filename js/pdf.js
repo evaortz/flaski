@@ -180,8 +180,13 @@ export function pageLines(page) {
     const w = [...rows.values()].map(r => r.b - r.a).sort((a, b) => a - b);
     return w.length ? w[Math.floor(w.length / 2)] / Math.max(1, to - from) : 0;
   };
-  const twoCols = share(cross) < 0.08 && share(left) > 0.2 && share(right) > 0.2
-    && fill(left, Math.min(...left.map(it => it.x)), mid) > 0.6 && fill(right, mid, Math.max(...right.map(it => it.x + it.w))) > 0.6;
+  // …o si los dos lados van a su aire (distinto número de líneas: una tabla a la izquierda y una lista o un recuadro
+  // a la derecha); en una tabla, cada fila tiene celdas a los dos lados
+  const lineCount = list => new Set(list.map(it => Math.round(it.y / 2))).size;
+  const lc = [lineCount(left), lineCount(right)];
+  const apart = Math.abs(lc[0] - lc[1]) / Math.max(1, ...lc) > 0.3;
+  const twoCols = share(cross) < 0.08 && share(left) > 0.12 && share(right) > 0.12
+    && (apart || (fill(left, Math.min(...left.map(it => it.x)), mid) > 0.6 && fill(right, mid, Math.max(...right.map(it => it.x + it.w))) > 0.6));
   const groups = twoCols ? [[...cross, ...left.filter(it => !cross.includes(it))], right.filter(it => !left.includes(it) && !cross.includes(it))] : [items];
   const lines = [];
   for (const g of groups) {
@@ -311,7 +316,9 @@ export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ t
     const page = pages[pi];
     if (page.image) { blocks.push(newBlock('img', `Página ${pi + 1}`, { image: pi })); last = null; return; }
     const width = lines.filter(l => !l.table).map(l => l.w).sort((a, b) => a - b)[Math.floor(lines.length * 0.75)] || page.width;
-    const kept = lines.filter(l => !(repeated(edgeKey(l, page)) || ((l.y > page.height * 0.9 || l.y < page.height * 0.1) && PAGE_NO.test(l.text))));
+    const edge = l => l.y > page.height * 0.9 || l.y < page.height * 0.1;
+    // Pies y cabeceras: repetidos en muchas páginas, números de página, y en el borde, © o direcciones web
+    const kept = lines.filter(l => l.table || !(repeated(edgeKey(l, page)) || (edge(l) && (PAGE_NO.test(l.text) || /©|\bwww\.|https?:\/\//i.test(l.text)))));
     withTables(kept).forEach(l => {
       if (l.table) { blocks.push(newBlock('table', l.table)); last = null; return; }
       const kind = kindOf(l);

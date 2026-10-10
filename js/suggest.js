@@ -203,7 +203,7 @@ function splitDef(text) {
   if (!m) return null;
   let term = m[1].trim(), def = m[2].trim();
   term = term.replace(/^[-•*]\s*/, '');
-  const tp = plainText(term);
+  const tp = plainText(term).replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '');
   // «Presentan multitud de formas: …» empieza por un verbo: no es un término
   if (words(tp).length >= 3 && /^\p{L}{4,}(an|en|aron|ieron|aban|ían)\s/u.test(tp) && looksSpanish(tp) > 0) return null;
   if (!tp || !/\p{L}/u.test(tp) || LABELS.test(tp) || words(tp).length > 7 || DANGLING.test(tp) || /[.?!](\s|$)/.test(tp) || /[()]/.test(tp) || VERBISH.test(tp) || SAYS.test(tp) || EXERCISE.test(tp)
@@ -280,8 +280,12 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (!t.rows.length || used.has(b.id)) continue;
     // Cabeceras que se repiten (las de cada página de un examen o una ficha) no son contenido
     if (tables.filter(x => headSig(x) === headSig({ t })).length > 1 && headSig({ t })) { used.add(b.id); continue; }
-    const head = t.head.map(plainText);
+    let head = t.head.map(plainText);
     let rows = t.rows.map(r => r.map(c => c.trim())).filter(r => r.some(c => plainText(c)));
+    if (head.length >= 3 && head.filter(Boolean).length === 1 && rows.length >= 2) { head = rows[0].map(plainText); rows = rows.slice(1); }
+    // Frases partidas en varias filas (celdas que empiezan en minúscula y son trozos de frase): no es una tabla de datos
+    const frag = rows.filter(r => r.some(c => /^\p{Ll}/u.test(plainText(c)) && words(c).length >= 3)).length;
+    if (rows.length >= 3 && frag >= rows.length * 0.4) { used.add(b.id); continue; }
     // Una clave partida en dos líneas («Forma de» / «gobierno»): se junta con la fila de arriba
     rows = rows.reduce((acc, r) => {
       const prev = acc.at(-1), k0 = plainText(r[0]);
@@ -326,9 +330,9 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       const key = plainText(r[0]);
       if (!key) continue;
       for (let j = 1; j < head.length; j++) {
-        if (!plainText(r[j])) continue;
+        if (!plainText(r[j]) || (!head[j] && head.length > 2)) continue;
         const col = head[j] ? (ARTICLE.test(head[j]) || /^[\p{Lu}][\p{Ll}]/u.test(head[j]) ? head[j].charAt(0).toLocaleLowerCase() + head[j].slice(1) : head[j]) : '';
-        add('table', b.id, 'basic', { q: col ? `${r[0].trim()} → ${col}` : r[0].trim(), a: r[j].trim(), n: head[0] && head[j] ? `${head[0]}: ${key}` : '' }, head.length <= 3 ? 0.8 : 0.7);
+        add('table', b.id, 'basic', { q: col ? `${r[0].trim()} → ${col}` : r[0].trim(), a: r[j].trim(), n: head[0] && head[j] ? `${head[0]}: ${key}` : '' }, head.length <= 3 && rows.length <= 10 ? 0.8 : 0.6);
       }
     }
     // Alternativa: toda la tabla como emparejar (si es corta y de dos columnas)

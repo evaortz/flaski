@@ -450,11 +450,23 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await expect(items.nth(0)).toContainText('Mitosis');
   await expect(items.nth(1)).toContainText('La […] protege la célula.');
   await expect(items.nth(2)).toContainText('Ordena: fases de la mitosis');
-  // Retocar la primera y quitar la segunda
-  await items.nth(0).locator('[data-sug-edit]').click();
-  await page.locator('[data-sug-field="q"]').fill('¿Qué es la mitosis?');
-  await page.locator('[data-sug-save]').click();
+  // Filtro por tipo de tarjeta
+  await page.locator('[data-sug-type="cloze"]').click();
+  await expect(items).toHaveCount(2);
+  await page.locator('[data-sug-type="cloze"]').click();
+  await expect(items).toHaveCount(3);
+  // Editar con el mismo editor que «+ Tarjeta»: se guarda en la sugerencia y se vuelve a la lista
+  await items.nth(0).locator('[data-sug-open]').click();
+  await expect(page.locator('.ed-title')).toContainText('Editar sugerencia');
+  await expect(page.locator('#fld-q')).toHaveValue('Mitosis');
+  await page.locator('#fld-q').fill('¿Qué es la mitosis?');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
   await expect(items.nth(0)).toContainText('¿Qué es la mitosis?');
+  // Cerrar el editor sin guardar también vuelve a la lista
+  await items.nth(2).locator('[data-sug-open]').click();
+  await page.locator('.ed-x').click();
+  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
   await items.nth(1).locator('[data-sug]').uncheck();
   await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 tarjetas');
   await page.locator('[data-act="sug-create"]').click();
@@ -463,4 +475,23 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   // Al pedirlas otra vez, ya no propone lo que es tarjeta
   await page.locator('[data-act="suggest-cards"]').first().click();
   await expect(page.locator('.sug')).toHaveCount(1);
+});
+
+test('sugerencias: la lista se desplaza con la rueda del ratón', async ({ page }) => {
+  await openApp(page);
+  await newPage(page, 'Muchas');
+  await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
+  const md = Array.from({ length: 30 }, (_, i) => `Término ${i + 1}: definición número ${i + 1} del tema.`).join('\n\n');
+  await page.evaluate(v => {
+    const dt = new DataTransfer(); dt.setData('text/plain', v);
+    document.querySelector('[data-block-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, md);
+  await page.keyboard.press('Escape');
+  await page.locator('[data-act="suggest-cards"]').first().click();
+  await expect(page.locator('.sug')).toHaveCount(30);
+  const main = page.locator('#sugMain');
+  const box = await main.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 900);
+  await expect.poll(() => main.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
 });
