@@ -11,7 +11,7 @@ export const NEWS_ALWAYS = true;
 const SLIDES = [
   { id: 'intro' },
   { id: 'formato', title: 'Da formato a tus apuntes',
-    text: 'Selecciona un texto para ponerlo en negrita, subrayarlo, tacharlo o darle color y fondo. Mientras escribes ves las marcas que lo hacen (es Markdown), así aprendes a escribirlo tú. Y lo que pegas de Word, Google Docs o una web llega con su formato.',
+    text: 'Selecciona un texto para ponerlo en negrita, subrayarlo, tacharlo o darle color y fondo. Y lo que pegas de Word, Google Docs o una web llega con su formato.',
     alt: 'Unos apuntes con palabras en negrita y en color, y la barra de formato con los colores abierta' },
   { id: 'organizar', title: 'Ordena tus apuntes a tu manera',
     text: 'Arrastra cada bloque por su asa ⋮⋮ o tócala para convertirlo, duplicarlo o borrarlo. Selecciona varios a la vez, haz subpuntos con Tab, pliega apartados, enlaza apuntes con [[ ]], busca y reemplaza… y deshaz lo que sea con Ctrl+Z.',
