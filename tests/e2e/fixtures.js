@@ -73,3 +73,16 @@ export async function addBuiltinDeck(page, name) {
   await page.getByRole('button', { name: 'Añadir a mis mazos' }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }
+// Unos apuntes a partir de un texto: un apunte nuevo (el primer «# » es su título) y el resto pegado dentro
+export async function pasteNotes(page, text) {
+  const m = /^# (.+)\n+/.exec(text);
+  await page.locator('#main [data-act="new-page"]').first().click();
+  if (m) await page.locator('#pgTitle').fill(m[1]);
+  await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
+  await page.evaluate(t => {
+    const dt = new DataTransfer(); dt.setData('text/plain', t);
+    document.querySelector('[data-block-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, m ? text.slice(m[0].length) : text);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+}

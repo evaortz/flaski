@@ -1,5 +1,5 @@
 // Fotografía las pantallas que se enseñan en la presentación de bienvenida, en claro y en oscuro.
-import { test, expect, openApp, nav, addBuiltinDeck } from './e2e/fixtures.js';
+import { test, expect, openApp, nav, addBuiltinDeck, pasteNotes } from './e2e/fixtures.js';
 
 const OUT = new URL('../img/onboarding/', import.meta.url);
 const shot = (page, name, scheme) => page.screenshot({ path: new URL(`${name}-${scheme}.jpg`, OUT).pathname.replace(/^\/([A-Z]:)/, '$1'), type: 'jpeg', quality: 82 });
@@ -44,9 +44,7 @@ for (const scheme of ['light', 'dark']) {
       await page.locator('[data-kind="other"]').click();
       await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
       await nav(page, 'Apuntes');
-      await page.locator('[data-act="paste-page"]').first().click();
-      await page.locator('#pagePaste').fill('# Revolución francesa\n\n## Fechas clave\n\nLa toma de la Bastilla, el 14 de julio de 1789, marca el inicio de la revolución.\n\n## Personajes\n\nRobespierre lideró el periodo del Terror.\n\n| Año | Hecho |\n|---|---|\n| 1789 | Toma de la Bastilla |\n| 1793 | Comienza el Terror |');
-      await page.locator('[data-act="paste-page-ok"]').click();
+      await pasteNotes(page, '# Revolución francesa\n\n## Fechas clave\n\nLa toma de la Bastilla, el 14 de julio de 1789, marca el inicio de la revolución.\n\n## Personajes\n\nRobespierre lideró el periodo del Terror.\n\n| Año | Hecho |\n|---|---|\n| 1789 | Toma de la Bastilla |\n| 1793 | Comienza el Terror |');
       await page.locator('#pgDeck').selectOption({ label: 'Historia' });
       for (const [i, w, q] of [[1, '1789', '¿Año de la toma de la Bastilla?'], [3, 'Robespierre', '¿Quién lideró el Terror?']]) {
         await page.locator('#pgBlocks .nb').nth(i).locator('.nb-text').click();

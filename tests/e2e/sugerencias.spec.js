@@ -1,11 +1,9 @@
 // Sugerencias: actualizar tras cambiar el apunte, descartar, la ✨ de los bloques y los consejos
-import { test, expect, openApp, nav } from './fixtures.js';
+import { test, expect, openApp, nav, pasteNotes } from './fixtures.js';
 
 async function pastePage(page, text) {
   await nav(page, 'Apuntes');
-  await page.locator('[data-act="paste-page"]').first().click();
-  await page.locator('#pagePaste').fill(text);
-  await page.locator('[data-act="paste-page-ok"]').click();
+  await pasteNotes(page, text);
 }
 
 test('actualizar las sugerencias tras cambiar el apunte, conservando lo retocado; descartar', async ({ page }) => {

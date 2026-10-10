@@ -1513,3 +1513,7 @@ a.wl:hover{text-decoration:underline}
 /* Atkinson Hyperlegible en toda la app (ver --font en :root); la de cada dispositivo, como opción para las tarjetas */
 :root{--font-native:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI",Helvetica,Arial,sans-serif}
 .ff-native{font-family:var(--font-native)}
+/* General Sans para los títulos (encabezados, título del apunte y de cada ventana); el resto, Atkinson Hyperlegible */
+:root{--font-head:"General Sans",var(--font)}
+h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.nb-h1 .nb-input,.nb-h2 .nb-input,.nb-h3 .nb-input,
+.ed-title > span,.help-h,.toc-h,.ob-mark,.brand .name,.brand .mark{font-family:var(--font-head);letter-spacing:-.005em}

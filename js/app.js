@@ -1491,11 +1491,11 @@ function renderNotes() {
     : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
     : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
        <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
-       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="paste-page">Pegar apuntes</button></div>`;
+       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button></div>`;
   main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
     <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button><button class="ghost" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">${icon('download', { size: 16 })} Exportar</button></div>
+    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button><button class="ghost" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">${icon('download', { size: 16 })} Exportar</button></div>
     <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
       <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
@@ -3273,12 +3273,6 @@ async function importNoteFiles(files, into) {
 }
 let importInto = false;
 $('#noteFile').addEventListener('change', e => { const f = e.target.files; if (f?.length) importNoteFiles(f, importInto); e.target.value = ''; });
-function pastePageSheet() {
-  openSheet(`<h2>Pegar apuntes</h2>
-    <p class="muted small">Pega tus apuntes (de Word, Notion, Google Docs…). Las líneas con «# » serán títulos y las que empiezan por «- », listas.</p>
-    <textarea id="pagePaste" class="paste-box" rows="10" aria-label="Apuntes"></textarea>
-    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="paste-page-ok">Crear apunte</button></div>`);
-}
 // Crear una tarjeta (o un hueco) con lo seleccionado en los apuntes, ya vinculada a su bloque
 function cardFromSelection(kind) {
   const sel = S.pageSel, p = curPage();
@@ -5440,18 +5434,11 @@ document.addEventListener('click', async e => {
     case 'quick-add': return quickSheet();
     case 'manage-types': S.typeEdit = null; return typesSheet();
     case 'new-page': return newPage();
-    case 'paste-page': return pastePageSheet();
     case 'import-pdf': closeSheet(); return $('#pdfFile').click();
     case 'import-into-page': closeSheet(); importInto = true; return $('#noteFile').click();
     case 'import-notes': importInto = false; return $('#noteFile').click();
     case 'export-page': return exportSheet();
     case 'export-all-notes': return exportAllNotes();
-    case 'paste-page-ok': {
-      const blocks = textToBlocks($('#pagePaste').value);
-      if (!blocks.length) return toast('No has pegado nada');
-      const title = blocks[0].type === 'h1' ? blocks.shift().text : '';
-      return newPage({ title, blocks });
-    }
     case 'block-menu': {
       if (S.blockMenu?.mode === 'append') return closeBlockMenu();
       return openBlockMenu({ mode: 'append', anchor: e.target.closest('button') });

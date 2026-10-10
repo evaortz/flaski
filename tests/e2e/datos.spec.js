@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, openApp, nav, answer, createDeck, addBasicCards } from './fixtures.js';
+import { test, expect, openApp, nav, answer, createDeck, addBasicCards, pasteNotes } from './fixtures.js';
 
 const CSV = '﻿pregunta;respuesta;nota\nçiçek;flor;"con ""comillas"""\nkapı;puerta;\nsolo;;\n';
 
@@ -95,9 +95,7 @@ test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', 
   await openApp(page);
   await createDeck(page, 'Con apuntes');
   await nav(page, 'Apuntes');
-  await page.locator('[data-act="paste-page"]').click();
-  await page.locator('#pagePaste').fill('# Mis apuntes\n\nEl agua es su.');
-  await page.locator('[data-act="paste-page-ok"]').click();
+  await pasteNotes(page, '# Mis apuntes\n\nEl agua es su.');
   await page.locator('#pgDeck').selectOption({ label: 'Con apuntes' });
   await page.locator('#pgBlocks .nb-text').first().click();
   await page.locator('[data-block-input]').evaluate(t => { const k = t.value.indexOf('su'); t.setSelectionRange(k, k + 2); document.dispatchEvent(new Event('selectionchange')); });

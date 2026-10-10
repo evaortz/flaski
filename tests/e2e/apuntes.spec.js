@@ -1,5 +1,5 @@
 // Apuntes: escribir por bloques, tablas, crear tarjetas desde lo seleccionado y volver a ellos al estudiar
-import { test, expect, openApp, nav, createDeck } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
 import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
@@ -179,9 +179,7 @@ test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await nav(page, 'Apuntes');
-  await page.locator('[data-act="paste-page"]').click();
-  await page.locator('#pagePaste').fill('# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.');
-  await page.locator('[data-act="paste-page-ok"]').click();
+  await pasteNotes(page, '# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.');
   await page.locator('#pgDeck').selectOption({ label: 'Historia' });
   await cardFrom(page, 1, '1789', '¿Año de la Bastilla?');
   await cardFrom(page, 3, 'Robespierre', '¿Quién lideró el Terror?');
@@ -226,9 +224,7 @@ test('la guía de formato y atajos de los apuntes', async ({ page }) => {
 });
 
 async function pastePage(page, text) {
-  await page.locator('[data-act="paste-page"]').first().click();
-  await page.locator('#pagePaste').fill(text);
-  await page.locator('[data-act="paste-page-ok"]').click();
+  await pasteNotes(page, text);
 }
 
 test('carpetas: compartidas con los mazos, crear apuntes dentro y moverlos', async ({ page }) => {
@@ -308,11 +304,9 @@ test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async 
 test('pegar unos apuntes enteros', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Apuntes');
-  await page.locator('[data-act="paste-page"]').click();
-  await page.locator('#pagePaste').fill('# Revolución francesa\n\nEmpezó en 1789.\n\n- Toma de la Bastilla\n- Declaración de derechos\n\n| Año | Hecho |\n|---|---|\n| 1789 | Bastilla |');
-  await page.locator('[data-act="paste-page-ok"]').click();
+  await pasteNotes(page, '# Revolución francesa\n\nEmpezó en 1789.\n\n- Toma de la Bastilla\n- Declaración de derechos\n\n| Año | Hecho |\n|---|---|\n| 1789 | Bastilla |');
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución francesa');
-  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['p', 'li', 'li', 'table']);
+  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['p', 'li', 'li', 'table', 'p']);   // detrás de una tabla, un párrafo para seguir escribiendo
   await nav(page, 'Apuntes');
   await page.locator('#pageSearch').fill('bastilla');
   await expect(page.locator('#main .list li')).toHaveCount(1);
