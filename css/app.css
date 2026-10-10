@@ -1280,20 +1280,42 @@ pre.nb-code{margin:0;font-size:14px;white-space:pre-wrap;line-height:1.55}
 @media (max-width:620px){.pg-suggest span{display:none}}
 
 /* ---------- Editor de tablas ---------- */
-.tbl-ed{margin:6px 0}
-.tbl-tools{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px;margin-bottom:6px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
-.tbl-tools button{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--fg);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
-.tbl-tools button:hover{background:var(--hover)}
-.tbl-tools button.danger{color:var(--red,#E03E3E)}
-.tbl-tools .tbl-done{background:var(--fg);color:var(--bg);font-weight:600}
-.tbl-tools .tbl-done:hover{background:var(--fg);opacity:.88}
-.tbl-sep{width:1px;height:18px;background:var(--line);margin:0 2px}
-.tbl-grid td,.tbl-grid th{padding:0}
-.tbl-grid .tc{display:block;width:100%;min-width:90px;border:0;border-radius:0;background:transparent;padding:6px 10px;font:inherit;font-size:15px;color:var(--fg);box-shadow:none}
+/* Editor de tablas: celdas que crecen con el texto, asas de fila y columna, «+» para añadir */
+.tbl-ed{position:relative;margin:4px 0 2px;padding-left:14px}
+.tbl-tools{display:flex;align-items:center;gap:2px;margin:0 0 6px}
+.tbl-tools button{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.tbl-tools button:hover{background:var(--hover);color:var(--fg)}
+.tbl-tools button.danger:hover{color:var(--c-red)}
+.tbl-tools .tbl-done{margin-left:4px;background:var(--fg);color:var(--bg);font-weight:600}
+.tbl-tools .tbl-done:hover{background:var(--fg);color:var(--bg);opacity:.88}
+.tbl-size{padding-left:2px}
+.tbl-box{display:flex;align-items:stretch;gap:4px;min-width:0}
+.tbl-box .nb-tablewrap{flex:0 1 auto;min-width:0;margin:0}
+.tbl-grid{border-collapse:collapse;min-width:0}
+.tbl-grid td,.tbl-grid th{padding:0;vertical-align:top;background:var(--bg)}
+.tbl-grid th{background:var(--soft)}
+.tbl-grid .tc{display:block;field-sizing:content;width:100%;min-width:110px;max-width:340px;min-height:36px;resize:none;overflow:hidden;border:0;border-radius:0;background:transparent;padding:7px 10px;font:inherit;font-size:15px;line-height:1.45;color:var(--fg);box-shadow:none;white-space:pre-wrap;overflow-wrap:anywhere}
 .tbl-grid th .tc{font-weight:600}
+.tbl-grid .tc::placeholder{color:var(--faint);font-weight:400}
 .tbl-grid .tc:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--bg)}
-.tbl-hint{margin:4px 0 0}
-@media (max-width:620px){.tbl-tools button{padding:0 7px;font-size:12.5px}.tbl-hint{display:none}}
+.tbl-grid .is-col,.tbl-grid .is-row{background:color-mix(in srgb,var(--accent) 10%,var(--bg))}
+.tbl-add{display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:transparent;color:var(--faint);cursor:pointer;opacity:0;transition:opacity .12s,background-color .12s}
+.tbl-addcol{flex:none;width:22px}
+.tbl-addrow{width:100%;height:22px;margin-top:4px}
+.tbl-ed:hover .tbl-add,.tbl-ed:focus-within .tbl-add{opacity:1}
+.tbl-add:hover{background:var(--hover);color:var(--muted)}
+.tbl-h{position:absolute;z-index:3;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted);cursor:pointer;box-shadow:0 1px 3px rgba(15,15,15,.08)}
+.tbl-hcol{width:28px;height:18px}
+.tbl-hrow{width:18px;height:24px}
+.tbl-h:hover{color:var(--fg);border-color:var(--line-strong)}
+.tbl-h[hidden]{display:none}
+.ops-types.ops-3{grid-template-columns:repeat(3,1fr)}
+.tbl-hint{margin:2px 0 0;font-size:12.5px}
+.tbl-hint kbd{font-family:inherit;font-size:11.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--bg)}
+@media (max-width:620px){.tbl-tools button span{display:none}.tbl-hint{display:none}.tbl-add{opacity:1}.tbl-grid .tc{min-width:96px;max-width:240px}}
+/* La tabla al leerla */
+.nb-tbl{border-radius:2px}
+.nb-tbl td,.nb-tbl th{line-height:1.45}
 
 /* ---------- Formato del texto (Markdown al estilo de Obsidian) ---------- */
 /* Los bloques se pintan con su Markdown entero; las marcas (**, <u>…) solo se ven donde está el cursor */
@@ -1451,3 +1473,4 @@ a.wl:hover{text-decoration:underline}
 .help a.wl{pointer-events:none}
 @media (max-width:520px){.help-tbl td:first-child{white-space:normal}.help-tbl td:first-child code{white-space:normal;word-break:break-word}}
 .kc{white-space:nowrap}
+.nb:has(.tbl-ed),.nb:has(.tbl-ed):hover{background:transparent}

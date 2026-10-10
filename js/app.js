@@ -2593,7 +2593,7 @@ document.addEventListener('focusout', e => {
   if (!ed || repainting) return;
   setTimeout(() => { if (ed.isConnected && !ed.contains(document.activeElement)) commitTable(ed.dataset.tableEd); }, 0);
 });
-document.addEventListener('focusin', e => { if (e.target.matches?.('.tc')) { S.tblFocus = { r: e.target.dataset.r, c: +e.target.dataset.c }; const a = $('#tblAlign'); if (a) a.title = `Alinear la columna donde estás (ahora: ${{ '': 'izquierda', left: 'izquierda', center: 'centrada', right: 'derecha' }[tblAlign.get(e.target.closest('[data-table-ed]').dataset.tableEd)?.[S.tblFocus.c] || '']})`; } });
+document.addEventListener('focusin', e => { if (e.target.matches?.('.tc')) { S.tblFocus = { r: e.target.dataset.r, c: +e.target.dataset.c }; placeTblHandles(e.target.parentElement); autoGrow(e.target); const a = $('#tblAlign'); if (a) a.title = `Alinear la columna donde estás (ahora: ${{ '': 'izquierda', left: 'izquierda', center: 'centrada', right: 'derecha' }[tblAlign.get(e.target.closest('[data-table-ed]').dataset.tableEd)?.[S.tblFocus.c] || '']})`; } });
 document.addEventListener('focusout', e => { if (!repainting && e.target.matches?.('[data-block-input]') && e.target.isConnected) commitBlockEl(e.target); });
 document.addEventListener('paste', e => {
   const t = e.target;
@@ -2656,26 +2656,91 @@ function tableModel(b) {
 function tableEditorHTML(b, t) {
   const n = t.head.length;
   const al = i => (t.align[i] ? ` style="text-align:${t.align[i]}"` : '');
-  const cell = (v, r, c) => `<input class="tc" data-r="${r}" data-c="${c}" value="${esc(v)}" aria-label="${r === 'h' ? `Cabecera, columna ${c + 1}` : `Fila ${+r + 1}, columna ${c + 1}`}"${al(c)} spellcheck="true">`;
-  const alignIcon = { '': 'Izquierda', left: 'Izquierda', center: 'Centrada', right: 'Derecha' };
+  // Cada celda, un cuadro de texto que crece con lo escrito (y parte las líneas largas, como al verla)
+  const cell = (v, r, c) => `<textarea class="tc" rows="1" data-r="${r}" data-c="${c}" aria-label="${r === 'h' ? `Cabecera, columna ${c + 1}` : `Fila ${+r + 1}, columna ${c + 1}`}"${al(c)} spellcheck="true" placeholder="${r === 'h' ? `Columna ${c + 1}` : ''}">${esc(v)}</textarea>`;
   return `<div class="tbl-ed" data-table-ed="${b.id}">
     <div class="tbl-tools" role="toolbar" aria-label="Tabla">
-      <button type="button" data-tbl="row-add" title="Añadir una fila debajo de la actual">${icon('plus', { size: 14 })} Fila</button>
-      <button type="button" data-tbl="col-add" title="Añadir una columna a la derecha de la actual">${icon('plus', { size: 14 })} Columna</button>
-      <span class="tbl-sep" aria-hidden="true"></span>
-      <button type="button" data-tbl="row-del" title="Quitar la fila donde estás">Quitar fila</button>
-      <button type="button" data-tbl="col-del" title="Quitar la columna donde estás">Quitar columna</button>
-      <button type="button" data-tbl="align" id="tblAlign" title="Alinear la columna donde estás (ahora: ${alignIcon[t.align[S.tblFocus?.c ?? 0] || ''].toLowerCase()})">Alinear</button>
+      <span class="tbl-size muted small">${plural(t.rows.length, 'fila', 'filas')} · ${plural(n, 'columna', 'columnas')}</span>
       <span class="spacer"></span>
-      <button type="button" data-tbl="raw" title="Escribir la tabla como texto (Markdown)">Como texto</button>
-      <button type="button" data-tbl="delete" class="danger" title="Quitar la tabla">${icon('trash-2', { size: 14 })}</button>
+      <button type="button" data-tbl="raw" title="Escribir la tabla como texto (Markdown)">${icon('code', { size: 14 })} <span>Como texto</span></button>
+      <button type="button" data-tbl="delete" class="danger" title="Quitar la tabla" aria-label="Quitar la tabla">${icon('trash-2', { size: 14 })}</button>
       <button type="button" data-tbl="done" class="tbl-done">Listo</button>
     </div>
-    <div class="nb-tablewrap"><table class="nb-tbl tbl-grid"><thead><tr>${t.head.map((v, c) => `<th>${cell(v, 'h', c)}</th>`).join('')}</tr></thead>
-      <tbody>${t.rows.map((r, ri) => `<tr>${Array.from({ length: n }, (_, c) => `<td>${cell(r[c] ?? '', ri, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    <p class="hint tbl-hint">Tab: celda siguiente · Enter: fila de abajo · Puedes pegar celdas copiadas de Excel o Google Sheets</p>
+    <div class="tbl-box">
+      <div class="nb-tablewrap"><table class="nb-tbl tbl-grid"><thead><tr>${t.head.map((v, c) => `<th>${cell(v, 'h', c)}</th>`).join('')}</tr></thead>
+        <tbody>${t.rows.map((r, ri) => `<tr>${Array.from({ length: n }, (_, c) => `<td>${cell(r[c] ?? '', ri, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <button type="button" class="tbl-add tbl-addcol" data-tbl="col-end" title="Añadir una columna al final" aria-label="Añadir una columna">${icon('plus', { size: 14 })}</button>
+    </div>
+    <button type="button" class="tbl-add tbl-addrow" data-tbl="row-end" title="Añadir una fila al final" aria-label="Añadir una fila">${icon('plus', { size: 14 })}</button>
+    <button type="button" class="tbl-h tbl-hcol" data-tblmenu="col" aria-label="Opciones de la columna" title="Opciones de la columna" hidden>${icon('ellipsis', { size: 14 })}</button>
+    <button type="button" class="tbl-h tbl-hrow" data-tblmenu="row" aria-label="Opciones de la fila" title="Opciones de la fila" hidden>${icon('grip-vertical', { size: 14 })}</button>
+    <p class="hint tbl-hint">${kb('Tab')} celda siguiente · ${kb('Enter')} fila de abajo · ${kb('Ctrl+Enter')} salir · Puedes pegar celdas de Excel o Google Sheets</p>
   </div>`;
 }
+// Las asas de la fila y la columna de la celda donde se está (o sobre la que pasa el ratón)
+function placeTblHandles(cellEl) {
+  const ed = cellEl?.closest('[data-table-ed]');
+  if (!ed) return;
+  const box = ed.getBoundingClientRect(), cr = cellEl.getBoundingClientRect();
+  const tr = cellEl.closest('tr').getBoundingClientRect(), wrap = ed.querySelector('.nb-tablewrap').getBoundingClientRect();
+  const hc = ed.querySelector('.tbl-hcol'), hr = ed.querySelector('.tbl-hrow');
+  const inp = cellEl.querySelector('.tc');
+  const visible = cr.right > wrap.left + 8 && cr.left < wrap.right - 8;
+  hc.hidden = !visible;
+  hc.dataset.c = inp.dataset.c;
+  hc.style.left = `${cr.left - box.left + cr.width / 2 - 14}px`;
+  hc.style.top = `${ed.querySelector('thead').getBoundingClientRect().top - box.top - 11}px`;
+  hr.hidden = false;
+  hr.dataset.r = inp.dataset.r;
+  hr.style.top = `${tr.top - box.top + tr.height / 2 - 12}px`;
+  hr.style.left = `${wrap.left - box.left - 10}px`;
+  ed.querySelectorAll('.tbl-grid .is-col, .tbl-grid .is-row').forEach(x => x.classList.remove('is-col', 'is-row'));
+}
+document.addEventListener('mouseover', e => { const c = e.target.closest?.('.tbl-grid td, .tbl-grid th'); if (c && !S.tblMenu) placeTblHandles(c); });
+document.addEventListener('scroll', e => { if (e.target.classList?.contains('nb-tablewrap')) { const f = e.target.querySelector('.tc:focus'); if (f) placeTblHandles(f.parentElement); } }, true);
+// Menú de una fila o una columna
+function openTblMenu(btn) {
+  const ed = btn.closest('[data-table-ed]'), kind = btn.dataset.tblmenu;
+  const t = readGrid(ed, tblAlign.get(ed.dataset.tableEd));
+  const r = kind === 'row' ? btn.dataset.r : (S.tblFocus?.r ?? 'h'), c = kind === 'col' ? +btn.dataset.c : (S.tblFocus?.c ?? 0);
+  S.tblFocus = { r, c };
+  S.tblMenu = { id: ed.dataset.tableEd, kind };
+  const item = (act, ic, label, cls = '') => `<button type="button" role="menuitem" class="blk-item${cls}" data-tbl="${act}"><span class="blk-glyph" aria-hidden="true">${ic}</span><span class="blk-txt"><b>${label}</b></span></button>`;
+  const al = tblAlign.get(ed.dataset.tableEd)?.[c] || '';
+  const alignBtn = (v, label, glyph) => `<button type="button" role="menuitemradio" aria-checked="${(al === 'left' ? '' : al) === v}" class="ops-type" data-tbl="align-${v || 'left'}" title="${label}"><span aria-hidden="true">${glyph}</span><small>${label}</small></button>`;
+  let el = $('#tblMenu');
+  if (!el) { el = document.createElement('div'); el.id = 'tblMenu'; el.className = 'blk-menu blk-ops'; el.setAttribute('role', 'menu'); document.body.appendChild(el); }
+  el.innerHTML = kind === 'col'
+    ? `<p class="ops-h">Columna ${c + 1}${t.head[c] ? ` · ${esc(t.head[c])}` : ''}</p>
+      <div class="ops-types ops-3">${alignBtn('', 'Izquierda', '⇤')}${alignBtn('center', 'Centro', '↔')}${alignBtn('right', 'Derecha', '⇥')}</div><div class="ops-sep"></div>
+      ${item('col-left', '←', 'Insertar a la izquierda')}${item('col-right', '→', 'Insertar a la derecha')}
+      ${item('col-mleft', icon('chevron-right', { size: 14 }).replace('<svg', '<svg style="transform:rotate(180deg)"'), 'Mover a la izquierda')}${item('col-mright', icon('chevron-right', { size: 14 }), 'Mover a la derecha')}
+      ${t.rows.length > 1 ? `${item('sort-asc', 'A↓', 'Ordenar de la A a la Z')}${item('sort-desc', 'Z↓', 'Ordenar de la Z a la A')}` : ''}
+      <div class="ops-sep"></div>${item('col-del', icon('trash-2', { size: 15 }), 'Borrar la columna', ' danger')}`
+    : `<p class="ops-h">${r === 'h' ? 'Cabecera' : `Fila ${+r + 1}`}</p>
+      ${r === 'h' ? '' : item('row-above', '↑', 'Insertar arriba')}${item('row-below', '↓', 'Insertar debajo')}
+      ${r === 'h' ? '' : `${item('row-dup', icon('copy', { size: 15 }), 'Duplicar la fila')}${item('row-mup', icon('arrow-up', { size: 15 }), 'Mover arriba')}${item('row-mdown', icon('arrow-down', { size: 15 }), 'Mover abajo')}`}
+      <div class="ops-sep"></div>${item('row-del', icon('trash-2', { size: 15 }), r === 'h' ? 'Borrar la cabecera (la primera fila pasa a serlo)' : 'Borrar la fila', ' danger')}`;
+  el.hidden = false;
+  const rr = btn.getBoundingClientRect(), w = Math.min(260, innerWidth - 16);
+  el.style.width = w + 'px';
+  const h = el.offsetHeight;
+  el.style.left = `${Math.max(8, Math.min(rr.left, innerWidth - w - 8))}px`;
+  el.style.top = `${rr.bottom + 4 + h < innerHeight ? rr.bottom + 4 : Math.max(8, rr.top - h - 4)}px`;
+  // Se marcan la fila o la columna a las que se refiere
+  ed.querySelectorAll('.tc').forEach(x => x.parentElement.classList.toggle(kind === 'col' ? 'is-col' : 'is-row', kind === 'col' ? +x.dataset.c === c : x.dataset.r === String(r)));
+}
+function closeTblMenu() {
+  if (!S.tblMenu) return;
+  S.tblMenu = null;
+  const el = $('#tblMenu');
+  if (el) el.hidden = true;
+  document.querySelectorAll('.tbl-grid .is-col, .tbl-grid .is-row').forEach(x => x.classList.remove('is-col', 'is-row'));
+}
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest?.('#tblMenu, .tbl-h, .tbl-add')) { e.preventDefault(); return; }
+  closeTblMenu();
+});
 const tableEd = id => document.querySelector(`[data-table-ed="${id}"]`);
 // La cuadrícula tal como está en pantalla → { head, align, rows }
 function readGrid(ed, align) {
@@ -2696,6 +2761,7 @@ function editTable(id, focus = null) {
   tblAlign.set(id, t.align);
   S.tblFocus = focus || S.tblFocus || { r: 'h', c: 0 };
   el.outerHTML = tableEditorHTML(b, t);
+  tableEd(id).querySelectorAll('.tc').forEach(autoGrow);
   tblFocusCell(id, S.tblFocus);
 }
 function tblFocusCell(id, { r, c }) {
@@ -2721,13 +2787,38 @@ function reshapeTable(id, fn) {
   const p = curPage(), b = p.blocks.find(x => x.id === id);
   b.text = tableToMarkdown(t); savePageSoon(p);
   repaint(() => { tableEd(id).outerHTML = tableEditorHTML(b, t); });
+  tableEd(id).querySelectorAll('.tc').forEach(autoGrow);
   S.tblFocus = f;
   tblFocusCell(id, f);
 }
 function tableAction(id, act) {
   const n = () => readGrid(tableEd(id)).head.length;
-  if (act === 'row-add') return reshapeTable(id, (t, f) => { const at = f.r === 'h' ? 0 : +f.r + 1; t.rows.splice(at, 0, Array(t.head.length).fill('')); f.r = at; });
-  if (act === 'col-add') return reshapeTable(id, (t, f) => { const at = f.c + 1; t.head.splice(at, 0, ''); t.align.splice(at, 0, ''); t.rows.forEach(r => r.splice(at, 0, '')); f.c = at; });
+  closeTblMenu();
+  const addCol = at => (t, f) => { const k = at(t, f); t.head.splice(k, 0, ''); t.align.splice(k, 0, ''); t.rows.forEach(r => r.splice(k, 0, '')); f.c = k; };
+  const swap = (a, i, j) => { [a[i], a[j]] = [a[j], a[i]]; };
+  if (act === 'row-add' || act === 'row-below') return reshapeTable(id, (t, f) => { const at = f.r === 'h' ? 0 : +f.r + 1; t.rows.splice(at, 0, Array(t.head.length).fill('')); f.r = at; });
+  if (act === 'row-above') return reshapeTable(id, (t, f) => { const at = +f.r; t.rows.splice(at, 0, Array(t.head.length).fill('')); f.r = at; });
+  if (act === 'row-end') return reshapeTable(id, (t, f) => { t.rows.push(Array(t.head.length).fill('')); f.r = t.rows.length - 1; f.c = 0; });
+  if (act === 'row-dup') return reshapeTable(id, (t, f) => { t.rows.splice(+f.r + 1, 0, [...t.rows[+f.r]]); f.r = +f.r + 1; });
+  if (act === 'row-mup' || act === 'row-mdown') return reshapeTable(id, (t, f) => {
+    const i = +f.r, j = i + (act === 'row-mup' ? -1 : 1);
+    if (j < 0 || j >= t.rows.length) return;
+    swap(t.rows, i, j); f.r = j;
+  });
+  if (act === 'col-add' || act === 'col-right') return reshapeTable(id, addCol((t, f) => f.c + 1));
+  if (act === 'col-left') return reshapeTable(id, addCol((t, f) => f.c));
+  if (act === 'col-end') return reshapeTable(id, addCol(t => t.head.length));
+  if (act === 'col-mleft' || act === 'col-mright') return reshapeTable(id, (t, f) => {
+    const i = f.c, j = i + (act === 'col-mleft' ? -1 : 1);
+    if (j < 0 || j >= t.head.length) return;
+    [t.head, t.align, ...t.rows].forEach(a => swap(a, i, j)); f.c = j;
+  });
+  if (act.startsWith('align-')) return reshapeTable(id, (t, f) => { t.align[f.c] = act === 'align-left' ? '' : act.slice(6); });
+  if (act === 'sort-asc' || act === 'sort-desc') return reshapeTable(id, (t, f) => {
+    const k = f.c, dir = act === 'sort-asc' ? 1 : -1;
+    // Las filas vacías, al final
+    t.rows.sort((a, b) => (!plain(a[k] || '').trim()) - (!plain(b[k] || '').trim()) || dir * plain(a[k] || '').localeCompare(plain(b[k] || ''), 'es', { numeric: true, sensitivity: 'base' }));
+  });
   if (act === 'row-del') return reshapeTable(id, (t, f) => {
     if (f.r === 'h') { if (!t.rows.length) return toast('La tabla necesita al menos la cabecera'); t.head = t.rows.shift(); f.r = 'h'; return; }
     t.rows.splice(+f.r, 1); f.r = t.rows.length ? Math.min(+f.r, t.rows.length - 1) : 'h';
@@ -2788,8 +2879,12 @@ function tableKey(e) {
     return reshapeTable(id, (tt, f) => { tt.rows.push(Array(n).fill('')); f.r = tt.rows.length - 1; });
   }
   if (e.key === 'ArrowDown' && ri < last) { e.preventDefault(); return go(ri + 1, c); }
+  // ← → en el borde del texto: a la celda de al lado
+  const atStart = inp.selectionStart === 0 && inp.selectionEnd === 0, atEnd = inp.selectionStart === inp.value.length;
+  if (e.key === 'ArrowLeft' && atStart && c > 0) { e.preventDefault(); return go(r, c - 1); }
+  if (e.key === 'ArrowRight' && atEnd && c < n - 1) { e.preventDefault(); return go(r, c + 1); }
   if (e.key === 'ArrowUp' && ri >= 0) { e.preventDefault(); return go(ri === 0 ? 'h' : ri - 1, c); }
-  if (e.key === 'Escape') { e.preventDefault(); return commitTable(id); }
+  if (e.key === 'Escape') { e.preventDefault(); if (S.tblMenu) return closeTblMenu(); return commitTable(id); }
 }
 // Pegar celdas de una hoja de cálculo: rellenan desde la celda actual y amplían la tabla si hace falta
 function tablePaste(e) {
@@ -3066,7 +3161,17 @@ function helpContent() {
         ['«Enlazado desde»', 'Al pie del apunte, los otros apuntes que lo enlazan con ' + c('[[ ]]') + '. Si cambias el título, sus enlaces se actualizan solos.'],
       ])}
       <h4 class="help-sub">Tablas</h4>
-      <p class="hint">«+ Bloque» → <b>Tabla</b>, y escribe en cada celda: ${kb('Tab')} pasa a la siguiente y ${kb('Enter')} a la de abajo. Puedes pegar celdas copiadas de Excel o Google Sheets. Arriba tienes botones para añadir o quitar filas y columnas.</p>
+      <p class="hint">Crea una con «+ Bloque» → <b>Tabla</b> (o ${c('/tabla')}), y escribe en cada celda: las celdas crecen con el texto. Toca una tabla para editarla y <b>Listo</b> (o ${kb('Esc')}) para terminar.</p>
+      ${two(['Con', 'Puedes'], [
+        [kb('Tab') + ' / ' + kb('Mayús+Tab'), 'Ir a la celda siguiente o a la anterior (en la última, crea una fila)'],
+        [kb('Enter'), 'Bajar a la fila de abajo (en la última, crea otra)'],
+        [kb('↑') + ' ' + kb('↓') + ' ' + kb('←') + ' ' + kb('→'), 'Moverte entre celdas (← → al llegar al borde del texto)'],
+        [kb('Ctrl+Enter'), 'Salir de la tabla y seguir escribiendo debajo'],
+        ['<b>+</b> abajo o a la derecha', 'Añadir una fila o una columna al final'],
+        ['Asa ⋮⋮ de la fila', 'Insertar arriba o debajo, duplicar, mover o borrar la fila'],
+        ['Botón ⋯ de la columna', 'Alinear (izquierda, centro, derecha), insertar a un lado, mover, <b>ordenar</b> de la A a la Z (o al revés) o borrar la columna'],
+        ['Pegar', 'Celdas copiadas de Excel, Google Sheets o Numbers: se rellenan desde la celda donde estás y la tabla crece si hace falta'],
+      ])}
       <p class="hint">Si prefieres escribirla como texto (<b>Como texto</b>): la segunda línea separa la cabecera, y ${c(':---')} alinea a la izquierda, ${c(':---:')} al centro y ${c('---:')} a la derecha.</p>
       <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
 | :------- | :----: | ------: |
@@ -4902,7 +5007,8 @@ document.addEventListener('click', async e => {
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
-  if (ds.tbl) return tableAction(b.closest('[data-table-ed]').dataset.tableEd, ds.tbl);
+  if (ds.tblmenu) return S.tblMenu ? closeTblMenu() : openTblMenu(b);
+  if (ds.tbl) { const tid = b.closest('[data-table-ed]')?.dataset.tableEd || S.tblMenu?.id; return tid && tableAction(tid, ds.tbl); }
   if (ds.sugOpen !== undefined) return openSugEditor(+ds.sugOpen);
   if (ds.sugType) {
     const g = S.sug, all = [...new Set(g.list.map(x => x.typeId))];
@@ -5396,7 +5502,7 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
-  if (e.target.matches?.('.tc')) { histRecord('type'); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
+  if (e.target.matches?.('.tc')) { histRecord('type'); autoGrow(e.target); placeTblHandles(e.target.parentElement); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
   if (e.target.matches?.('[data-block-input]')) {
     const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
     // «# », «- », «1. », «[] », «> »… al principio de un párrafo cambian el tipo de bloque
