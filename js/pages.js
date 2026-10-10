@@ -123,10 +123,13 @@ export function textToBlocks(text) {
     if (!line.trim()) { para = null; continue; }
     const im = IMG_LINE.exec(line.trim());
     if (im) { out.push(imageBlock(im[2], im[1])); para = null; continue; }
+    // Sangría de las listas: dos espacios (o un tabulador) por nivel
+    const ind = Math.min(MAX_INDENT, Math.floor(/^[ \t]*/.exec(line)[0].replace(/\t/g, '  ').length / 2));
+    const extra = ind ? { indent: ind } : {};
     const td = TODO_LINE.exec(line.trim());
-    if (td) { out.push(newBlock('todo', td[2].trim(), { checked: td[1] !== ' ' })); para = null; continue; }
+    if (td) { out.push(newBlock('todo', td[2].trim(), { checked: td[1] !== ' ', ...extra })); para = null; continue; }
     const sc = shortcut(line.trim());
-    if (sc) { out.push(newBlock(sc.type, sc.text.trim(), sc.type === 'todo' ? { checked: sc.checked } : {})); para = null; continue; }
+    if (sc) { out.push(newBlock(sc.type, sc.text.trim(), { ...(sc.type === 'todo' ? { checked: sc.checked } : {}), ...(LISTS.includes(sc.type) ? extra : {}) })); para = null; continue; }
     if (para) para.text += ' ' + line.trim();
     else { para = newBlock('p', line.trim()); out.push(para); }
   }
@@ -139,15 +142,98 @@ export function textToBlocks(text) {
 // de después. Tras un título se sigue con un párrafo; en una lista (o casillas), con otro elemento igual.
 export function splitBlock(block, at) {
   const list = LISTS.includes(block.type);
-  const after = newBlock(list ? block.type : 'p', block.text.slice(at), block.type === 'todo' ? { checked: false } : {});
+  const after = newBlock(list ? block.type : 'p', block.text.slice(at), { ...(block.type === 'todo' ? { checked: false } : {}), ...(block.indent && (list || block.type === 'p') ? { indent: block.indent } : {}) });
   return [{ ...block, text: block.text.slice(0, at) }, after];
 }
 // Número de cada elemento de una lista numerada (se cuenta desde el primero de cada lista seguida)
+// Con sangría, cada nivel cuenta por separado: 1, 2, (1, 2), 3…
 export function olNumbers(blocks) {
-  const out = new Map();
-  let n = 0;
-  for (const b of blocks) { n = b.type === 'ol' ? n + 1 : 0; if (n) out.set(b.id, n); }
+  const out = new Map(), cnt = [];
+  for (const b of blocks) {
+    const d = Math.min(MAX_INDENT, b.indent || 0);
+    if (!LISTS.includes(b.type)) { cnt.length = d ? Math.min(cnt.length, d) : 0; continue; }
+    cnt.length = Math.min(cnt.length, d + 1);
+    for (let k = 0; k < d; k++) cnt[k] ||= 0;
+    cnt[d] = b.type === 'ol' ? (cnt[d] || 0) + 1 : 0;
+    if (b.type === 'ol') out.set(b.id, cnt[d]);
+  }
   return out;
+}
+// Sangría (Tab / Mayús+Tab): en listas, casillas y párrafos; como mucho un nivel más que el bloque de encima
+export const MAX_INDENT = 4;
+export const INDENTABLE = ['p', 'li', 'ol', 'todo'];
+export function canIndent(blocks, i, dir) {
+  const b = blocks[i];
+  if (!b || !INDENTABLE.includes(b.type)) return false;
+  const d = b.indent || 0;
+  if (dir < 0) return d > 0;
+  const prev = blocks[i - 1];
+  return d < MAX_INDENT && !!prev && INDENTABLE.includes(prev.type) && d <= (prev.indent || 0);
+}
+
+/* ---------------- Plegar apartados y mover bloques ---------------- */
+const HEADS = ['h1', 'h2', 'h3'];
+// Bloques ocultos porque su título está plegado
+export function hiddenIds(blocks) {
+  const out = new Set();
+  for (const b of blocks) if (b.collapsed && HEADS.includes(b.type) && !out.has(b.id)) sectionIds(blocks, b.id).slice(1).forEach(id => out.add(id));
+  return out;
+}
+// Un bloque «con lo que lleva»: un título plegado arrastra su apartado; un punto de lista, sus subpuntos → [desde, hasta]
+export function unitOf(blocks, i) {
+  const b = blocks[i];
+  if (!b) return [i, i];
+  let j = i;
+  if (b.collapsed && HEADS.includes(b.type)) j = i + sectionIds(blocks, b.id).length - 1;
+  else if (INDENTABLE.includes(b.type)) { const d = b.indent || 0; while (j + 1 < blocks.length && INDENTABLE.includes(blocks[j + 1].type) && (blocks[j + 1].indent || 0) > d) j++; }
+  return [i, j];
+}
+// Mueve los bloques ids (seguidos) un puesto arriba (-1) o abajo (1), saltando el vecino entero.
+// Devuelve la lista nueva, o null si no se puede
+export function moveBlocks(blocks, ids, dir) {
+  const idx = blocks.map((b, k) => (ids.includes(b.id) ? k : -1)).filter(k => k >= 0);
+  if (!idx.length) return null;
+  const a = idx[0], z = Math.max(idx[idx.length - 1], unitOf(blocks, idx[idx.length - 1])[1]);
+  const group = blocks.slice(a, z + 1), rest = [...blocks.slice(0, a), ...blocks.slice(z + 1)];
+  let at;
+  if (dir < 0) {
+    if (a === 0) return null;
+    // El vecino de arriba entero: si está dentro de un apartado plegado, delante de su título
+    const hid = hiddenIds(blocks);
+    let k = a - 1;
+    while (k > 0 && hid.has(blocks[k].id)) k--;
+    at = k;
+  } else {
+    if (z >= blocks.length - 1) return null;
+    at = unitOf(blocks, z + 1)[1] + 1 - group.length;
+  }
+  rest.splice(at, 0, ...group);
+  return rest;
+}
+
+/* ---------------- Buscar en un texto (sin distinguir mayúsculas ni tildes) ---------------- */
+// Cada carácter se pliega a uno solo: las posiciones valen para el texto original
+export const foldSame = s => String(s ?? '').replace(/[^]/g, c => (c.normalize('NFD')[0] || c).toLowerCase());
+export function findAll(text, q) {
+  const t = foldSame(text), n = foldSame(q), out = [];
+  if (!n) return out;
+  for (let k = t.indexOf(n); k >= 0; k = t.indexOf(n, k + n.length)) out.push(k);
+  return out;
+}
+
+/* ---------------- Enlaces entre apuntes: [[Título]] o [[Título|texto]] ---------------- */
+export const WIKI_RE = /\[\[([^[\]|\n]+?)(?:\|([^[\]\n]+?))?\]\]/g;
+export const wikiLinks = text => [...String(text ?? '').matchAll(WIKI_RE)].map(m => m[1].trim());
+export const sameTitle = (a, b) => foldSame(String(a ?? '').trim().replace(/\s+/g, ' ')) === foldSame(String(b ?? '').trim().replace(/\s+/g, ' '));
+// Apuntes que enlazan a este (por su título)
+export function backlinks(pages, page) {
+  const t = String(page?.title || '').trim();
+  if (!t) return [];
+  return pages.filter(p => p.id !== page.id && (p.blocks || []).some(b => wikiLinks(b.text).some(x => sameTitle(x, t))));
+}
+// Al cambiar el título de un apunte, los enlaces que lo nombraban pasan al nuevo
+export function renameLinks(text, from, to) {
+  return String(text ?? '').replace(WIKI_RE, (m, t, alias) => (sameTitle(t, from) ? `[[${to}${alias ? '|' + alias : ''}]]` : m));
 }
 
 // Junta un bloque con el anterior (Retroceso al principio). Devuelve el bloque unido y dónde queda el cursor.
@@ -222,7 +308,8 @@ export function pageToMarkdown(page) {
       code: `\`\`\`\n${b.text}\n\`\`\``,
     }[b.type] ?? b.text;
     // Los puntos de una lista van seguidos; el resto, separados por una línea en blanco
-    md += !md ? line : (prev === b.type && LISTS.includes(b.type) ? '\n' : '\n\n') + line;
+    if (b.indent && LISTS.includes(b.type)) line = '  '.repeat(b.indent) + line;
+    md += !md ? line : (LISTS.includes(prev) && LISTS.includes(b.type) ? '\n' : '\n\n') + line;
     prev = b.type;
   }
   return md + '\n';

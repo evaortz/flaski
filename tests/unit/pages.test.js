@@ -114,3 +114,41 @@ test('tablas: de Markdown a celdas y vuelta, con alineación y barras dentro de 
   assert.deepEqual(gridFromPaste('a\tb\nc\td\n'), [['a', 'b'], ['c', 'd']]);
   assert.equal(gridFromPaste('solo texto'), null);
 });
+
+test('sangría: numeración por niveles, Tab con límites y vuelta a Markdown', async () => {
+  const { olNumbers, canIndent, textToBlocks, pageToMarkdown } = await import('../../js/pages.js');
+  const B = (type, indent = 0) => ({ id: type + indent + Math.random(), type, text: 'x', indent });
+  const bl = [B('ol'), B('ol', 1), B('ol', 1), B('ol'), B('li', 1), B('ol')];
+  assert.deepEqual([...olNumbers(bl).values()], [1, 1, 2, 2, 3]);
+  assert.equal(canIndent(bl, 0, 1), false);            // el primero no puede tener sangría
+  assert.equal(canIndent(bl, 3, 1), true);
+  assert.equal(canIndent(bl, 1, 1), false);            // ya tiene un nivel más que el de encima
+  const t = textToBlocks('- uno\n  - dos\n    - tres\n- cuatro');
+  assert.deepEqual(t.map(b => b.indent || 0), [0, 1, 2, 0]);
+  assert.equal(pageToMarkdown({ title: '', blocks: t }), '- uno\n  - dos\n    - tres\n- cuatro\n');
+});
+
+test('plegar apartados y mover bloques (con su apartado o sus subpuntos)', async () => {
+  const { hiddenIds, moveBlocks } = await import('../../js/pages.js');
+  const b = (id, type = 'p', extra = {}) => ({ id, type, text: id, ...extra });
+  const page = [b('t1', 'h2', { collapsed: true }), b('a'), b('b'), b('t2', 'h2'), b('c'), b('l1', 'li'), b('l2', 'li', { indent: 1 }), b('d')];
+  assert.deepEqual([...hiddenIds(page)], ['a', 'b']);
+  // Subir «t2» salta el apartado plegado entero
+  assert.deepEqual(moveBlocks(page, ['t2'], -1).map(x => x.id), ['t2', 't1', 'a', 'b', 'c', 'l1', 'l2', 'd']);
+  // Bajar el título plegado lo lleva con su apartado
+  assert.deepEqual(moveBlocks(page, ['t1'], 1).map(x => x.id), ['t2', 't1', 'a', 'b', 'c', 'l1', 'l2', 'd']);
+  // Un punto de lista se mueve con sus subpuntos; y saltando un punto con subpuntos
+  assert.deepEqual(moveBlocks(page, ['l1'], 1).map(x => x.id), ['t1', 'a', 'b', 't2', 'c', 'd', 'l1', 'l2']);
+  assert.deepEqual(moveBlocks(page, ['c'], 1).map(x => x.id), ['t1', 'a', 'b', 't2', 'l1', 'l2', 'c', 'd']);
+  assert.equal(moveBlocks(page, ['t1'], -1), null);
+});
+
+test('buscar sin mayúsculas ni tildes, y enlaces entre apuntes', async () => {
+  const { findAll, wikiLinks, backlinks, renameLinks } = await import('../../js/pages.js');
+  assert.deepEqual(findAll('Célula y CELULA y celula', 'celula'), [0, 9, 18]);
+  assert.deepEqual(wikiLinks('ver [[La célula]] y [[Mitosis|la mitosis]]'), ['La célula', 'Mitosis']);
+  const a = { id: 'a', title: 'La célula', blocks: [] };
+  const b = { id: 'b', title: 'Mitosis', blocks: [{ id: 'x', type: 'p', text: 'Ocurre en la [[la celula]].' }] };
+  assert.deepEqual(backlinks([a, b], a).map(p => p.id), ['b']);
+  assert.equal(renameLinks('[[La célula|aquí]] y [[Otra]]', 'la celula', 'Célula eucariota'), '[[Célula eucariota|aquí]] y [[Otra]]');
+});

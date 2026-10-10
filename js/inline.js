@@ -14,6 +14,7 @@ const colorName = v => { const c = String(v || '').toLowerCase(); return c === '
 const IMG = /!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)/y;
 const KANJI = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF々〆ヶ]/;
 const RUBY = /([\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF々〆ヶ]+)\[([^\]\n]+)\]/y;
+const WIKI = /\[\[([^[\]|\n]+?)(?:\|([^[\]\n]+?))?\]\]/y;
 const LINK = /\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s()<>]+)\)/y;
 const TAG = /<(\/?)(u|span|mark)((?:\s+style\s*=\s*"[^"<>]*")?)\s*>/yi;
 const ESCAPABLE = '\\*_~=`[]<>!#|';
@@ -72,9 +73,17 @@ export function parse(src) {
       IMG.lastIndex = i; const m = IMG.exec(src);
       if (m && i + m[0].length <= limit) { atoms.push({ t: 'img', s: i, cs: i, ce: i + m[0].length, e: i + m[0].length, alt: m[1], id: m[2] }); i += m[0].length; continue; }
     }
+    if (ch === '[' && src[i + 1] === '[') {
+      WIKI.lastIndex = i; const m = WIKI.exec(src);
+      if (m && i + m[0].length <= limit) {
+        const e = i + m[0].length, cs = m[2] ? i + 2 + m[1].length + 1 : i + 2;
+        atoms.push({ t: 'wiki', s: i, cs, ce: e - 2, e, v: m[1].trim() });
+        i = e; continue;
+      }
+    }
     if (KANJI.test(ch) && !KANJI.test(src[i - 1] || '')) {
       RUBY.lastIndex = i; const m = RUBY.exec(src);
-      if (m && i + m[0].length <= limit) {
+      if (m && src[i + m[1].length + 1] !== '[' && i + m[0].length <= limit) {
         const ce = i + m[1].length;
         atoms.push({ t: 'ruby', s: i, cs: i, ce, rs: ce + 1, re: i + m[0].length - 1, e: i + m[0].length });
         i += m[0].length; continue;
@@ -163,7 +172,7 @@ function tree(src, nodes) {
   }
   return root;
 }
-const ATOMS = ['code', 'esc', 'img', 'ruby'];
+const ATOMS = ['code', 'esc', 'img', 'ruby', 'wiki'];
 // Recorre el árbol: texto suelto → onText(desde, hasta); nodo → onNode(nodo, () => su contenido ya pintado)
 function walk(src, node, onNode, onText) {
   let out = '', at = node.cs;
@@ -185,6 +194,8 @@ export function nodesOf(root) {
 /* ---------------- Pintar ---------------- */
 export const escHTML = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const imgTag = (id, alt = '') => `<img class="media" data-img="${id}" alt="${escHTML(alt)}" loading="lazy" decoding="async">`;
+// Enlace a otro apunte (la app lo abre por su título)
+const wikiTag = (title, html) => `<a class="wl" href="#" data-wiki="${escHTML(title)}">${html}</a>`;
 const safeHref = u => (/^(https?:\/\/|mailto:)/i.test(u) ? escHTML(u) : '#');
 const TAGS = { b: 'b', i: 'i', s: 's', u: 'u' };
 function inner(src, n, html) {
@@ -201,6 +212,7 @@ export function toHTML(src) {
   return walk(src, parse(src), (n, kids) => {
     if (n.t === 'code') return `<code>${escHTML(src.slice(n.cs, n.ce))}</code>`;
     if (n.t === 'esc') return escHTML(src[n.cs]);
+    if (n.t === 'wiki') return wikiTag(n.v, escHTML(src.slice(n.cs, n.ce)));
     if (n.t === 'img') return imgTag(n.id, n.alt);
     if (n.t === 'ruby') return `<ruby>${escHTML(src.slice(n.s, n.ce))}<rt>${escHTML(src.slice(n.rs, n.re))}</rt></ruby>`;
     return inner(src, n, kids());
@@ -218,6 +230,7 @@ export function toLiveHTML(src, a = -1, b = a) {
   const out = walk(src, parse(src), (n, kids) => {
     if (n.t === 'code') return box(n, `${mk(n.s, n.cs)}<code>${raw(n.cs, n.ce)}</code>${mk(n.ce, n.e)}`);
     if (n.t === 'esc') return box(n, `${mk(n.s, n.cs)}${raw(n.cs, n.ce)}`);
+    if (n.t === 'wiki') return box(n, mk(n.s, n.cs) + wikiTag(n.v, raw(n.cs, n.ce)) + mk(n.ce, n.e));
     if (n.t === 'img') return box(n, `${mk(n.s, n.e)}${imgTag(n.id, n.alt).replace('<img ', '<img contenteditable="false" ')}`);
     if (n.t === 'ruby') return box(n, `<ruby>${raw(n.s, n.ce)}${mk(n.ce, n.rs)}<rt>${raw(n.rs, n.re)}</rt>${mk(n.re, n.e)}</ruby>`);
     return box(n, `${mk(n.s, n.cs)}${inner(src, n, kids())}${mk(n.ce, n.e)}`);
@@ -231,6 +244,7 @@ export function toPlain(src) {
   return walk(src, parse(src), (n, kids) => {
     if (n.t === 'code') return src.slice(n.cs, n.ce);
     if (n.t === 'esc') return src[n.cs];
+    if (n.t === 'wiki') return src.slice(n.cs, n.ce);
     if (n.t === 'img') return '';
     if (n.t === 'ruby') return src.slice(n.s, n.e);
     return kids();
@@ -249,7 +263,7 @@ export function toRuns(src) {
       text(at, n.s);
       if (n.t === 'code') out.push({ text: src.slice(n.cs, n.ce), st: { ...st, code: true }, s: n.cs });
       else if (n.t === 'esc') out.push({ text: src[n.cs], st, s: n.cs });
-      else if (n.t === 'img' || n.t === 'ruby') out.push({ text: src.slice(n.s, n.e), st, s: n.s, raw: true });
+      else if (n.t === 'img' || n.t === 'ruby' || n.t === 'wiki') out.push({ text: src.slice(n.s, n.e), st, s: n.s, raw: true });
       else go(n, { ...st, [n.t === 'link' ? 'href' : n.t]: n.v || true });
       at = n.e;
     }

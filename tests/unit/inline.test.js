@@ -104,3 +104,11 @@ test('colores al pegar: el de Notion más parecido; negro, gris y blanco no cuen
   assert.equal(paletteFor(255, 255, 255, true), '');
   assert.equal(paletteFor(120, 60, 20), 'brown');
 });
+
+test('enlaces a otros apuntes: [[Título]] y [[Título|texto]]', () => {
+  assert.equal(toHTML('ver [[Mitosis]]'), 'ver <a class="wl" href="#" data-wiki="Mitosis">Mitosis</a>');
+  assert.equal(toHTML('[[Mitosis|la división]]'), '<a class="wl" href="#" data-wiki="Mitosis">la división</a>');
+  assert.equal(toPlain('[[Mitosis|la división]] y [[Meiosis]]'), 'la división y Meiosis');
+  assert.match(toLiveHTML('[[Mitosis|la división]]'), /<span class="mk">\[\[Mitosis\|<\/span><a class="wl"/);
+  assert.equal(toHTML('漢字[かんじ]'), '<ruby>漢字<rt>かんじ</rt></ruby>');
+});

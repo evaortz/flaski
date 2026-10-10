@@ -26,7 +26,7 @@ import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, img
 import { toHTML, toLiveHTML, toPlain, toggleMark, marksAt, COLORS as TEXT_COLORS, COLOR_LABEL } from './inline.js';
 import { makeLive, liveSet, selOffsets, textOffset } from './liveedit.js';
 import { htmlToBlocks } from './paste.js';
-import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
+import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 import { buzz, canVibrate, swipeable, chime, canAudio } from './feel.js';
 
 const $ = s => document.querySelector(s);
@@ -213,7 +213,8 @@ function counts(scope = 'all') {
 /* ===================== navegación ===================== */
 function go(view, extra = {}) {
   Object.assign(S, { view }, extra);
-  closeSheet(); closeBlockMenu();
+  closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind();
+  S.bsel = null; S.tocOpen = false;
   render();
   window.scrollTo(0, 0);
 }
@@ -1417,6 +1418,7 @@ const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.ic
 const pageTimers = new Map();
 // Guarda una página poco después del último cambio (se escribe mucho seguido)
 function savePageSoon(p, wait = 700) {
+  if (p.id === S.pageId) histRecord();
   p.updated_at = new Date().toISOString();
   savedState('saving');
   clearTimeout(pageTimers.get(p.id));
@@ -1518,34 +1520,43 @@ const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño
   quote: 'Cita', callout: 'Escribe algo que quieras destacar', code: 'Código', table: BLOCK_PH, img: 'Pie de foto (opcional)' };
 const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❗', '📝', '🔑', '🧠'];
 const delBtn = (id, what) => `<button type="button" class="iconbtn nb-del" data-del-block="${id}" aria-label="Quitar ${what}" title="Quitar ${what}">${icon('trash-2', { size: 15 })}</button>`;
-function blockHTML(b, cards = []) {
+// Lo que hace falta saber de toda la página para pintar un bloque: los ocultos (plegados) y los números de las listas
+const blockCtx = (p = curPage()) => ({ hidden: hiddenIds(p?.blocks || []), nums: olNumbers(p?.blocks || []) });
+const blocksHTML = (p, cards = pageCards(p.id)) => { const ctx = blockCtx(p); return p.blocks.map(b => blockHTML(b, cards.get(b.id), ctx)).join(''); };
+// El asa de cada bloque: arrastrar para moverlo, clic para sus opciones
+const gripBtn = id => `<button type="button" class="nb-grip" data-grip="${id}" tabindex="-1" aria-label="Mover o más opciones" title="Arrastra para mover · clic para más opciones">${icon('grip-vertical', { size: 16 })}</button>`;
+function blockHTML(b, cards = [], ctx = blockCtx()) {
+  const cls = `${ctx.hidden.has(b.id) ? ' is-folded' : ''}${S.bsel?.ids.has(b.id) ? ' is-sel' : ''}`;
   // Imagen: la imagen y debajo su pie (que se edita como un bloque de texto)
   if (b.type === 'img') {
-    return `<figure class="nb nb-img" data-block="${b.id}">${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
+    return `<figure class="nb nb-img${cls}" data-block="${b.id}">${gripBtn(b.id)}${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
       <figcaption class="nb-text md" data-edit-block="${b.id}" data-ph="${PH.img}">${toLiveHTML(b.text)}</figcaption></figure>`;
   }
-  if (b.type === 'hr') return `<div class="nb nb-hr" data-block="${b.id}"><hr>${delBtn(b.id, 'el separador')}</div>`;
+  if (b.type === 'hr') return `<div class="nb nb-hr${cls}" data-block="${b.id}">${gripBtn(b.id)}<hr>${delBtn(b.id, 'el separador')}</div>`;
   const n = cards.length, st = statusOf(cards);
   // El texto se pinta igual que en el editor (con las marcas ocultas): al tocarlo, el cursor cae donde se ha tocado
   const md = !['table', 'code'].includes(b.type);
   const body = md ? toLiveHTML(b.text) : !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
     : `<pre class="nb-code">${esc(b.text)}</pre>`;
   // Lo que va delante del texto: el número, la casilla o el icono del destacado
-  const lead = b.type === 'ol' ? `<span class="nb-num" aria-hidden="true">${olNumbers(curPage()?.blocks || []).get(b.id) || 1}.</span>`
+  const lead = b.type === 'ol' ? `<span class="nb-num" aria-hidden="true">${ctx.nums.get(b.id) || 1}.</span>`
     : b.type === 'todo' ? `<button type="button" class="nb-check" role="checkbox" aria-checked="${!!b.checked}" aria-label="Hecho" data-todo="${b.id}">${icon('check', { size: 13 })}</button>`
     : b.type === 'callout' ? `<button type="button" class="nb-icon" data-callout-icon="${b.id}" aria-label="Cambiar el icono" title="Cambiar el icono">${esc(b.icon || '💡')}</button>` : '';
   // En los títulos: estudiar el apartado entero (el título y lo que cuelga de él)
-  let sec = '';
+  let sec = '', fold = '';
   const p = curPage();
   if (p && ['h1', 'h2', 'h3'].includes(b.type)) {
     const ids = new Set(sectionIds(p.blocks, b.id));
+    // Plegar el apartado (solo si tiene algo debajo)
+    if (ids.size > 1 || b.collapsed) fold = `<button type="button" class="nb-fold" data-fold="${b.id}" tabindex="-1" aria-expanded="${!b.collapsed}" aria-label="${b.collapsed ? 'Desplegar' : 'Plegar'} el apartado" title="${b.collapsed ? `Desplegar (${plural(ids.size - 1, 'bloque', 'bloques')})` : 'Plegar el apartado'}">${icon('chevron-right', { size: 15 })}</button>`;
     const secCards = cardList().filter(c => c.page_id === p.id && ids.has(c.block_id));
     if (secCards.length) {
       const pend = pendingIn(`page:${p.id}:${b.id}`), sst = statusOf(secCards);
       sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'tarjeta', 'tarjetas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
     }
   }
-  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}" data-block="${b.id}">${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
+  const ind = b.indent ? ` data-ind="${b.indent}" style="--ind:${b.indent}"` : '';
+  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
     ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
@@ -1568,6 +1579,11 @@ function renderPage() {
   main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
       <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
       ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}
+      <span class="pg-hist" role="group" aria-label="Deshacer y rehacer">
+        <button type="button" class="iconbtn" data-act="pg-undo" aria-label="Deshacer" title="Deshacer (Ctrl+Z)" disabled>${icon('undo-2', { size: 18 })}</button>
+        <button type="button" class="iconbtn" data-act="pg-redo" aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled>${icon('redo-2', { size: 18 })}</button></span>
+      <button type="button" class="iconbtn pg-tocbtn" data-act="toc" aria-label="Índice" title="Índice del apunte" aria-haspopup="true" hidden>${icon('list', { size: 18 })}</button>
+      <button type="button" class="iconbtn" data-act="find" aria-label="Buscar en el apunte" title="Buscar y reemplazar (Ctrl+F)">${icon('search', { size: 18 })}</button>
       <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone tarjetas a partir de este apunte">${icon('sparkles', { size: 15 })} <span>Sugerir tarjetas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
@@ -1583,8 +1599,11 @@ function renderPage() {
       ${total ? '' : prop('notebook-text', 'Tarjetas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
     </div>
     ${pageStatusHTML(p, cards)}
-    <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
+    <div class="pg-blocks" id="pgBlocks">${blocksHTML(p, cards)}</div>
     <div class="pg-adds"><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
+    <section id="pgLinks" class="pg-links" aria-label="Apuntes que enlazan a este"></section>
+    <nav id="pgToc" class="pg-toc" aria-label="Índice del apunte" hidden></nav>
+    <div id="blkBar" class="selbar blk-bar" role="toolbar" aria-label="Bloques seleccionados" hidden></div>
     <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
       <div class="fmt-btns" role="group" aria-label="Formato">
         <button type="button" class="fmt" data-nfmt="b" title="Negrita · **texto** (Ctrl+B)" aria-label="Negrita"><b>B</b></button>
@@ -1603,7 +1622,11 @@ function renderPage() {
       <p class="fmt-h">Fondo</p>
       <div class="fmt-grid">${['default', ...TEXT_COLORS].map(c => `<button type="button" role="menuitem" class="fmt-sw fmt-bg hl-${c}" data-nfmt="bg" data-color="${c}" title="${c === 'default' ? 'Sin fondo' : `Fondo ${COLOR_LABEL[c].toLowerCase()}`}" aria-label="Fondo ${c === 'default' ? 'ninguno' : COLOR_LABEL[c].toLowerCase()}">A</button>`).join('')}</div>
     </div>`;
+  histStart(p);
+  if (S.bsel?.pageId !== p.id) S.bsel = null;
+  afterBlocksDrawn();
   if (S.focusBlock) {
+    revealBlock(S.focusBlock);
     const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
     if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
     S.focusBlock = null;
@@ -1617,12 +1640,614 @@ function repaint(fn) { repainting = true; try { fn(); } finally { repainting = f
 // Vuelve a pintar los bloques y deja editando uno (con el cursor en «caret»)
 function redrawBlocks(editId, caret) {
   const p = curPage(), cards = pageCards(p.id);
-  repaint(() => { $('#pgBlocks').innerHTML = p.blocks.map(b => blockHTML(b, cards.get(b.id))).join(''); });
+  repaint(() => { $('#pgBlocks').innerHTML = blocksHTML(p, cards); });
+  afterBlocksDrawn();
   if (editId) editBlock(editId, caret);
 }
+// Tras pintar los bloques: el índice, los enlaces de otros apuntes, la búsqueda abierta y la selección
+function afterBlocksDrawn() {
+  updateToc();
+  updateLinks();
+  if (S.find?.open) runFind(true);
+  updateHistBtns();
+  paintBlockSel();
+}
+const blockById = id => curPage()?.blocks.find(x => x.id === id);
+// Un bloque dentro de un apartado plegado: se despliega lo necesario para verlo
+function revealBlock(id) {
+  const p = curPage();
+  if (!p || !hiddenIds(p.blocks).has(id)) return false;
+  for (const b of p.blocks) if (b.collapsed && sectionIds(p.blocks, b.id).includes(id)) delete b.collapsed;
+  savePageSoon(p);
+  if ($('#pgBlocks')) redrawBlocks();
+  return true;
+}
+function toggleFold(id) {
+  const p = curPage(), b = blockById(id);
+  if (!b) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  if (b.collapsed) delete b.collapsed; else b.collapsed = true;
+  savePageSoon(p);
+  redrawBlocks();
+}
+
+/* ---------- Deshacer y rehacer en todo el apunte (Ctrl+Z / Ctrl+Mayús+Z) ----------
+   Cada cambio guarda una copia del apunte; lo que se escribe seguido en un bloque cuenta como un solo paso.
+   Al deshacer, el cursor vuelve a donde estaba el cambio. */
+const H = { id: null, list: [], i: 0, t: 0, kind: '' };
+let histApplying = false;
+function histFocus() {
+  const a = document.activeElement;
+  if (a?.dataset?.blockInput) return { id: a.dataset.blockInput, a: a.selectionStart, b: a.selectionEnd };
+  const t = a?.closest?.('[data-table-ed]');
+  return t ? { id: t.dataset.tableEd } : null;
+}
+function histStart(p) {
+  if (H.id !== p.id) Object.assign(H, { id: p.id, list: [{ json: JSON.stringify(p.blocks), focus: null }], i: 0, t: 0, kind: '' });
+}
+function histRecord(kind = 'cmd') {
+  const p = curPage();
+  if (!p || histApplying || S.view !== 'page' || H.id !== p.id) return;
+  const json = JSON.stringify(p.blocks), top = H.list[H.i], focus = histFocus(), now = Date.now();
+  if (top.json === json) { if (focus) top.focus = focus; return; }
+  if (kind === 'type' && H.kind === 'type' && H.i > 0 && now - H.t < 1500 && top.focus?.id === focus?.id) Object.assign(top, { json, focus });
+  else {
+    H.list.length = H.i + 1;
+    H.list.push({ json, focus });
+    if (H.list.length > 300) H.list.shift();
+    H.i = H.list.length - 1;
+  }
+  H.t = now; H.kind = kind;
+  updateHistBtns();
+}
+function updateHistBtns() {
+  const u = $('.pg-hist [data-act="pg-undo"]'), r = $('.pg-hist [data-act="pg-redo"]');
+  if (u) u.disabled = !(H.id === S.pageId && H.i > 0);
+  if (r) r.disabled = !(H.id === S.pageId && H.i < H.list.length - 1);
+}
+function histTravel(dir) {
+  const p = curPage(), j = H.i + dir;
+  if (!p || H.id !== p.id) return;
+  if (j < 0 || j >= H.list.length) return toast(dir < 0 ? 'No hay nada que deshacer' : 'No hay nada que rehacer');
+  const from = H.list[H.i], to = H.list[j];
+  H.i = j; H.kind = 'cmd';
+  histApplying = true;
+  try {
+    p.blocks = JSON.parse(to.json);
+    closeBlockMenu(); closeOps(); closeWikiMenu();
+    S.bsel = null;
+    // El cursor, donde estaba el cambio que se deshace (o el que se rehace)
+    const f = [dir < 0 ? from.focus : to.focus, dir < 0 ? to.focus : from.focus].find(x => x && p.blocks.some(b => b.id === x.id));
+    savePageSoon(p);
+    redrawBlocks(f?.id, f && f.a != null ? { a: f.a, b: f.b } : null);
+  } finally { histApplying = false; }
+  updateHistBtns();
+}
+document.addEventListener('live-history', e => { if (S.view === 'page') { e.preventDefault(); histTravel(e.detail); } });
+
+/* ---------- Mover, duplicar, borrar, sangrar y convertir bloques ---------- */
+function moveSel(ids, dir) {
+  const p = curPage(), next = moveBlocks(p.blocks, ids, dir);
+  if (!next) return false;
+  p.blocks = next;
+  savePageSoon(p);
+  return true;
+}
+// Copia los bloques (con su apartado plegado o sus subpuntos) justo detrás; devuelve las copias
+function duplicateBlocks(ids) {
+  const p = curPage(), take = new Set();
+  let last = -1;
+  p.blocks.forEach((b, i) => {
+    if (!ids.includes(b.id)) return;
+    const [a, z] = unitOf(p.blocks, i);
+    for (let k = a; k <= z; k++) take.add(k);
+    last = Math.max(last, z);
+  });
+  if (last < 0) return [];
+  const copies = [...take].sort((x, y) => x - y).map(k => ({ ...JSON.parse(JSON.stringify(p.blocks[k])), id: blockId() }));
+  p.blocks.splice(last + 1, 0, ...copies);
+  savePageSoon(p);
+  return copies;
+}
+// Borra bloques (un título plegado, con su apartado). Las tarjetas que salían de ellos pasan al bloque de antes
+function deleteBlocks(ids) {
+  const p = curPage(), gone = new Set(ids);
+  for (const id of ids) if (blockById(id)?.collapsed) sectionIds(p.blocks, id).forEach(x => gone.add(x));
+  const first = p.blocks.findIndex(b => gone.has(b.id));
+  const keep = p.blocks.filter(b => !gone.has(b.id));
+  const near = keep[Math.max(0, first - 1)] || null;
+  if (near) for (const id of gone) moveCards(id, near.id);
+  p.blocks = keep.length ? keep : [newBlock()];
+  savePageSoon(p);
+  return near && keep.length ? near : p.blocks[0];
+}
+// Tab / Mayús+Tab: los subpuntos se mueven con su punto
+function indentBlocks(ids, dir) {
+  const p = curPage(), done = new Set();
+  let changed = false;
+  for (const id of ids) {
+    const i = p.blocks.findIndex(x => x.id === id);
+    if (done.has(id) || !canIndent(p.blocks, i, dir)) continue;
+    const [a, z] = unitOf(p.blocks, i);
+    for (let k = a; k <= z; k++) {
+      const b = p.blocks[k];
+      if (done.has(b.id) || !INDENTABLE.includes(b.type)) continue;
+      const d = Math.max(0, Math.min(MAX_INDENT, (b.indent || 0) + dir));
+      if (d) b.indent = d; else delete b.indent;
+      done.add(b.id);
+    }
+    changed = true;
+  }
+  if (changed) savePageSoon(p);
+  return changed;
+}
+const CONVERT = ['p', 'h1', 'h2', 'h3', 'li', 'ol', 'todo', 'quote', 'callout', 'code'];
+function convertBlocks(ids, type) {
+  const p = curPage();
+  for (const id of ids) {
+    const b = blockById(id);
+    if (!b || !CONVERT.includes(b.type)) continue;
+    b.type = type;
+    if (type === 'todo' && b.checked == null) b.checked = false;
+    if (type === 'callout' && !b.icon) b.icon = '💡';
+    if (!INDENTABLE.includes(type)) delete b.indent;
+    if (!['h1', 'h2', 'h3'].includes(type)) delete b.collapsed;
+  }
+  savePageSoon(p);
+}
+
+/* ---------- Selección de bloques (Esc, Mayús+clic, arrastrar por varios bloques, Ctrl+A) ---------- */
+function visibleIds() {
+  const p = curPage(), hid = hiddenIds(p?.blocks || []);
+  return (p?.blocks || []).filter(b => !hid.has(b.id)).map(b => b.id);
+}
+function selRange(fromId, toId) {
+  const vis = visibleIds();
+  let a = vis.indexOf(fromId), z = vis.indexOf(toId);
+  if (a < 0 || z < 0) return [toId];
+  if (a > z) [a, z] = [z, a];
+  return vis.slice(a, z + 1);
+}
+// Los seleccionados, en el orden del apunte
+const selIds = () => (S.bsel ? curPage().blocks.filter(b => S.bsel.ids.has(b.id)).map(b => b.id) : []);
+function setBlockSel(ids, anchor = ids[0], head = ids[ids.length - 1]) {
+  S.bsel = ids.length ? { pageId: S.pageId, ids: new Set(ids), anchor, head } : null;
+  paintBlockSel();
+}
+function paintBlockSel() {
+  document.querySelectorAll('#pgBlocks .nb').forEach(el => el.classList.toggle('is-sel', !!S.bsel?.ids.has(el.dataset.block)));
+  const bar = $('#blkBar');
+  if (!bar) return;
+  // La barra, con varios bloques (con uno solo, basta su asa o el teclado)
+  bar.hidden = !S.bsel || S.bsel.ids.size < 2;
+  if (bar.hidden) return;
+  bar.innerHTML = `<span class="blk-count">${plural(S.bsel.ids.size, 'bloque', 'bloques')}</span>
+    <button type="button" class="ghost small-btn" data-act="bsel-ops" aria-haspopup="true">Convertir y más</button>
+    <button type="button" class="ghost small-btn" data-act="bsel-dup" title="Duplicar (Ctrl+D)">${icon('copy', { size: 15 })} <span>Duplicar</span></button>
+    <button type="button" class="ghost small-btn danger" data-act="bsel-del" title="Borrar (Supr)">${icon('trash-2', { size: 15 })} <span>Borrar</span></button>
+    <button type="button" class="iconbtn" data-act="bsel-clear" aria-label="Quitar la selección" title="Quitar la selección (Esc)">${icon('x', { size: 16 })}</button>`;
+}
+function clearBlockSel() { if (S.bsel) { S.bsel = null; paintBlockSel(); } closeOps(); }
+// Acciones sobre los bloques seleccionados (o sobre los de la lista «ids»)
+function blockAction(op, ids = selIds()) {
+  const p = curPage();
+  if (!p || !ids.length) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  closeOps();
+  if (op === 'del') { const near = deleteBlocks(ids); S.bsel = null; redrawBlocks(); toast(ids.length > 1 ? `${plural(ids.length, 'bloque borrado', 'bloques borrados')} · Ctrl+Z para deshacer` : 'Bloque borrado · Ctrl+Z para deshacer'); return near; }
+  if (op === 'dup') { const c = duplicateBlocks(ids); redrawBlocks(); setBlockSel(c.map(x => x.id)); return; }
+  if (op === 'up' || op === 'down') { if (moveSel(ids, op === 'up' ? -1 : 1)) { redrawBlocks(); document.querySelector(`[data-block="${ids[0]}"]`)?.scrollIntoView({ block: 'nearest' }); } return; }
+  if (op === 'indent' || op === 'outdent') { if (indentBlocks(ids, op === 'indent' ? 1 : -1)) redrawBlocks(); return; }
+  if (op === 'fold') { toggleFold(ids[0]); return; }
+  if (op.startsWith('to:')) { convertBlocks(ids, op.slice(3)); redrawBlocks(); }
+}
+// Copiar o cortar bloques: en Markdown y con formato (al pegarlos en los apuntes vuelven a ser los mismos bloques)
+function blocksToHTML(blocks) {
+  return blocks.map(b => {
+    const t = toHTML(b.text), ind = b.indent ? ` data-ind="${b.indent}"` : '';
+    if (/^h[123]$/.test(b.type)) return `<${b.type}>${t}</${b.type}>`;
+    if (b.type === 'li' || b.type === 'ol') return `<${b.type === 'li' ? 'ul' : 'ol'}><li${ind}>${t}</li></${b.type === 'li' ? 'ul' : 'ol'}>`;
+    if (b.type === 'todo') return `<ul><li class="task-list-item"${ind}><input type="checkbox"${b.checked ? ' checked' : ''}>${t}</li></ul>`;
+    if (b.type === 'quote' || b.type === 'callout') return `<blockquote>${t}</blockquote>`;
+    if (b.type === 'code') return `<pre><code>${esc(b.text)}</code></pre>`;
+    if (b.type === 'table') return tableHTML(b.text);
+    if (b.type === 'hr') return '<hr>';
+    if (b.type === 'img') return `<p>${esc(`![${b.text}](img:${b.src})`)}</p>`;
+    return `<p${ind}>${t}</p>`;
+  }).join('');
+}
+function copyBlocks(e, cut) {
+  if (!S.bsel || S.view !== 'page' || !e.clipboardData) return;
+  const a = document.activeElement;
+  if (a?._live || a?.matches?.('input, textarea')) return;
+  const p = curPage(), ids = selIds(), blocks = p.blocks.filter(b => ids.includes(b.id));
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', pageToMarkdown({ title: '', blocks }).trim());
+  e.clipboardData.setData('text/html', blocksToHTML(blocks));
+  if (cut) blockAction('del', ids);
+  else toast(plural(blocks.length, 'bloque copiado', 'bloques copiados'));
+}
+document.addEventListener('copy', e => copyBlocks(e, false));
+document.addEventListener('cut', e => copyBlocks(e, true));
+// Teclas con bloques seleccionados (sin estar escribiendo)
+function blockSelKey(e) {
+  const ids = selIds(), mod = e.ctrlKey || e.metaKey;
+  if (!ids.length) return false;
+  const vis = visibleIds();
+  if (e.key === 'Escape') { clearBlockSel(); return true; }
+  if (e.key === 'Backspace' || e.key === 'Delete') { blockAction('del', ids); return true; }
+  if (e.key === 'Enter' && !mod) { const id = S.bsel.head; clearBlockSel(); editBlock(id); return true; }
+  if (e.key === 'Tab') { blockAction(e.shiftKey ? 'outdent' : 'indent', ids); return true; }
+  if (mod && e.key.toLowerCase() === 'd') { blockAction('dup', ids); return true; }
+  if (mod && e.key.toLowerCase() === 'a') { setBlockSel(vis); return true; }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    const dir = e.key === 'ArrowUp' ? -1 : 1;
+    if (e.altKey || (mod && e.shiftKey)) { blockAction(dir < 0 ? 'up' : 'down', ids); return true; }
+    const k = Math.max(0, Math.min(vis.length - 1, vis.indexOf(S.bsel.head) + dir));
+    if (e.shiftKey) setBlockSel(selRange(S.bsel.anchor, vis[k]), S.bsel.anchor, vis[k]);
+    else setBlockSel([vis[k]]);
+    document.querySelector(`[data-block="${vis[k]}"]`)?.scrollIntoView({ block: 'nearest' });
+    return true;
+  }
+  return false;
+}
+// Arrastrar el ratón por varios bloques (sin estar escribiendo) los selecciona enteros
+let justSelected = 0;
+document.addEventListener('pointerup', () => {
+  if (S.view !== 'page' || drag) return;
+  const sel = getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+  const nbOf = n => (n?.nodeType === 1 ? n : n?.parentElement)?.closest?.('#pgBlocks .nb');
+  const a = nbOf(sel.anchorNode), z = nbOf(sel.focusNode);
+  if (!a || !z || a === z) return;
+  setBlockSel(selRange(a.dataset.block, z.dataset.block), a.dataset.block, z.dataset.block);
+  sel.removeAllRanges();
+  justSelected = Date.now();
+});
+
+/* ---------- Asa de cada bloque: arrastrar para moverlo, clic para sus opciones ---------- */
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest?.('.nb-grip');
+  if (!g || S.view !== 'page' || e.button > 0) return;
+  e.preventDefault();
+  drag = { id: g.dataset.grip, x: e.clientX, y: e.clientY, on: false, pid: e.pointerId, grip: g };
+});
+function startDrag() {
+  const p = curPage();
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  closeOps();
+  const ids = S.bsel?.ids.has(drag.id) ? selIds() : [drag.id];
+  // Lo que se mueve: los bloques y lo que llevan (apartado plegado, subpuntos)
+  const idx = p.blocks.map((b, k) => (ids.includes(b.id) ? k : -1)).filter(k => k >= 0);
+  const a = idx[0], z = Math.max(idx[idx.length - 1], unitOf(p.blocks, idx[idx.length - 1])[1]);
+  drag.ids = p.blocks.slice(a, z + 1).map(b => b.id);
+  drag.on = true;
+  document.body.classList.add('dragging-blocks');
+  drag.ids.forEach(id => document.querySelector(`[data-block="${id}"]`)?.classList.add('is-dragging'));
+  let line = $('#dropLine');
+  if (!line) { line = document.createElement('div'); line.id = 'dropLine'; line.className = 'drop-line'; document.body.appendChild(line); }
+  line.hidden = false;
+}
+function dragOver(y) {
+  if (y < 70) scrollBy(0, -12); else if (y > innerHeight - 90) scrollBy(0, 12);
+  const els = [...document.querySelectorAll('#pgBlocks .nb')].filter(el => !drag.ids.includes(el.dataset.block) && !el.classList.contains('is-folded'));
+  let before = null, ref = null;
+  for (const el of els) { const r = el.getBoundingClientRect(); if (y < r.top + r.height / 2) { before = el.dataset.block; ref = r; break; } }
+  drag.before = before;
+  const box = $('#pgBlocks').getBoundingClientRect(), line = $('#dropLine');
+  const last = els[els.length - 1]?.getBoundingClientRect();
+  const top = ref ? ref.top - 2 : (last ? last.bottom + 1 : box.top);
+  Object.assign(line.style, { top: `${top}px`, left: `${box.left}px`, width: `${box.width}px` });
+}
+document.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 5) return; startDrag(); }
+  e.preventDefault();
+  dragOver(e.clientY);
+});
+function endDrag(cancel = false) {
+  const d = drag;
+  drag = null;
+  document.body.classList.remove('dragging-blocks');
+  const line = $('#dropLine');
+  if (line) line.hidden = true;
+  document.querySelectorAll('.is-dragging').forEach(el => el.classList.remove('is-dragging'));
+  if (cancel || !d?.on) return;
+  const p = curPage(), group = p.blocks.filter(b => d.ids.includes(b.id)), rest = p.blocks.filter(b => !d.ids.includes(b.id));
+  let at = d.before ? rest.findIndex(b => b.id === d.before) : rest.length;
+  if (at < 0) at = rest.length;
+  rest.splice(at, 0, ...group);
+  if (rest.every((b, k) => b === p.blocks[k])) return;
+  p.blocks = rest;
+  savePageSoon(p);
+  redrawBlocks();
+  d.ids.forEach(id => document.querySelector(`[data-block="${id}"]`)?.classList.add('flash'));
+}
+document.addEventListener('pointerup', e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (drag.on) return endDrag();
+  const d = drag;
+  drag = null;
+  openOps(d.id, d.grip);
+});
+document.addEventListener('pointercancel', () => { if (drag) endDrag(true); });
+
+/* ---------- Opciones de un bloque (clic en el asa) ---------- */
+function openOps(id, anchor) {
+  if (!S.bsel?.ids.has(id)) setBlockSel([id]);
+  const ids = selIds(), blocks = ids.map(blockById).filter(Boolean);
+  const types = new Set(blocks.map(b => b.type));
+  const one = types.size === 1 ? [...types][0] : null;
+  const canConv = blocks.every(b => CONVERT.includes(b.type));
+  const p = curPage();
+  const i0 = p.blocks.findIndex(b => b.id === ids[0]);
+  let el = $('#blkOps');
+  if (!el) { el = document.createElement('div'); el.id = 'blkOps'; el.className = 'blk-menu blk-ops'; el.setAttribute('role', 'menu'); document.body.appendChild(el); }
+  const item = (op, ic, label, key = '', cls = '') => `<button type="button" role="menuitem" class="blk-item${cls}" data-bop="${op}"><span class="blk-glyph" aria-hidden="true">${ic}</span><span class="blk-txt"><b>${label}</b></span>${key ? `<kbd>${key}</kbd>` : ''}</button>`;
+  const heads = blocks.length === 1 && ['h1', 'h2', 'h3'].includes(one) && sectionIds(p.blocks, ids[0]).length > 1;
+  el.innerHTML = `${canConv ? `<p class="ops-h">Convertir en</p><div class="ops-types">${CONVERT.map(t => { const m = BLOCK_MENU.find(x => x.type === t); return `<button type="button" role="menuitemradio" aria-checked="${one === t}" class="ops-type" data-bop="to:${t}" title="${esc(m.label)}"><span aria-hidden="true">${esc(GLYPH[t])}</span><small>${esc(m.label)}</small></button>`; }).join('')}</div><div class="ops-sep"></div>` : ''}
+    ${item('dup', icon('copy', { size: 15 }), 'Duplicar', 'Ctrl+D')}
+    ${item('up', icon('arrow-up', { size: 15 }), 'Mover arriba', 'Alt+↑')}
+    ${item('down', icon('arrow-down', { size: 15 }), 'Mover abajo', 'Alt+↓')}
+    ${blocks.some(b => INDENTABLE.includes(b.type)) ? `${canIndent(p.blocks, i0, 1) ? item('indent', '→', 'Aumentar sangría', 'Tab') : ''}${blocks.some(b => b.indent) ? item('outdent', '←', 'Reducir sangría', 'Mayús+Tab') : ''}` : ''}
+    ${heads ? item('fold', icon('chevron-right', { size: 15 }), blocks[0].collapsed ? 'Desplegar el apartado' : 'Plegar el apartado') : ''}
+    <div class="ops-sep"></div>
+    ${item('del', icon('trash-2', { size: 15 }), blocks.length > 1 ? `Borrar ${blocks.length} bloques` : 'Borrar', 'Supr', ' danger')}`;
+  el.hidden = false;
+  const r = anchor.getBoundingClientRect(), w = Math.min(280, innerWidth - 16);
+  el.style.width = w + 'px';
+  const h = el.offsetHeight;
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  el.style.top = (r.bottom + 4 + h < innerHeight ? r.bottom + 4 : Math.max(8, r.top - h - 4)) + 'px';
+  el.querySelector('button')?.focus({ preventScroll: true });
+}
+function closeOps() { const el = $('#blkOps'); if (el) el.hidden = true; }
+document.addEventListener('pointerdown', e => { if (S.tocOpen && !e.target.closest?.('#pgToc, .pg-tocbtn')) { S.tocOpen = false; updateToc(); } });
+document.addEventListener('pointerdown', e => {
+  if (S.view !== 'page' || e.target.closest?.('#blkOps, #blkBar, .nb-grip')) return;
+  closeOps();
+  if (S.bsel && !e.shiftKey) clearBlockSel();
+});
+
+/* ---------- Buscar y reemplazar en el apunte (Ctrl+F) ---------- */
+function openFind(withReplace = false) {
+  const open = document.querySelector('[data-block-input]');
+  const sel = getSelection()?.toString().trim();
+  if (open) commitBlockEl(open);
+  clearBlockSel();
+  S.find = { ...(S.find || { q: '', r: '', i: 0 }), open: true, rep: withReplace || !!S.find?.rep };
+  if (sel && !sel.includes('\n') && sel.length < 80) S.find.q = sel;
+  let bar = $('#findBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'findBar'; bar.className = 'find-bar'; bar.setAttribute('role', 'search');
+    $('.pg-top').after(bar);
+  }
+  bar.innerHTML = `<div class="find-row">${icon('search', { size: 16 })}<input id="findQ" type="text" placeholder="Buscar en el apunte" aria-label="Buscar en el apunte" value="${esc(S.find.q)}" autocomplete="off">
+      <span id="findCount" class="find-count muted small" aria-live="polite"></span>
+      <button type="button" class="iconbtn" data-act="find-prev" aria-label="Anterior" title="Anterior (Mayús+Enter)">${icon('arrow-up', { size: 16 })}</button>
+      <button type="button" class="iconbtn" data-act="find-next" aria-label="Siguiente" title="Siguiente (Enter)">${icon('arrow-down', { size: 16 })}</button>
+      <button type="button" class="iconbtn" data-act="find-rep" aria-label="Reemplazar" aria-pressed="${S.find.rep}" title="Reemplazar (Ctrl+H)">${icon('arrow-up-down', { size: 16 })}</button>
+      <button type="button" class="iconbtn" data-act="find-close" aria-label="Cerrar la búsqueda" title="Cerrar (Esc)">${icon('x', { size: 16 })}</button></div>
+    <div class="find-row" ${S.find.rep ? '' : 'hidden'}><span class="find-pad" aria-hidden="true"></span><input id="findR" placeholder="Reemplazar por" aria-label="Reemplazar por" value="${esc(S.find.r)}" autocomplete="off">
+      <button type="button" class="ghost small-btn" data-act="find-one">Reemplazar</button><button type="button" class="ghost small-btn" data-act="find-all">Todos</button></div>`;
+  bar.hidden = false;
+  const inp = $(withReplace && S.find.q ? '#findR' : '#findQ');
+  inp.focus(); inp.select();
+  runFind();
+}
+function closeFind() {
+  if (S.find) S.find.open = false;
+  const bar = $('#findBar');
+  if (bar) bar.remove();
+  if (window.CSS?.highlights) { CSS.highlights.delete('find'); CSS.highlights.delete('find-cur'); }
+}
+// Dónde aparece lo buscado: rangos del texto que se ve (sin las marcas del Markdown)
+function findMatches(q) {
+  const out = [];
+  if (!q) return out;
+  for (const nb of document.querySelectorAll('#pgBlocks .nb')) {
+    const root = nb.querySelector('.nb-text, .nb-input');
+    if (!root || root.matches('textarea')) continue;
+    const nodes = [];
+    let text = '';
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      const n = w.currentNode;
+      if (n.parentElement.closest('.mk:not(.on > .mk), .nb-ph, rt')) continue;
+      nodes.push({ n, at: text.length });
+      text += n.data;
+    }
+    const start = x => { let j = nodes.length - 1; while (j > 0 && nodes[j].at > x) j--; return [nodes[j].n, x - nodes[j].at]; };
+    const end = x => { let j = nodes.length - 1; while (j > 0 && nodes[j].at >= x) j--; return [nodes[j].n, x - nodes[j].at]; };
+    let k = 0;
+    for (const at of findAll(text, q)) {
+      const [sn, so] = start(at), [en, eo] = end(at + q.length);
+      const r = document.createRange();
+      r.setStart(sn, so); r.setEnd(en, eo);
+      out.push({ id: nb.dataset.block, r, k: k++, src: root.classList.contains('md') ? [textOffset(root, sn, so), textOffset(root, en, eo)] : null });
+    }
+  }
+  return out;
+}
+function runFind(keep = false) {
+  const f = S.find;
+  if (!f?.open) return;
+  f.list = findMatches(f.q);
+  if (!keep) f.i = 0;
+  f.i = Math.min(f.i, Math.max(0, f.list.length - 1));
+  const cnt = $('#findCount');
+  if (cnt) cnt.textContent = !f.q ? '' : f.list.length ? `${f.i + 1} de ${f.list.length}` : 'Sin resultados';
+  if (window.CSS?.highlights && window.Highlight) {
+    CSS.highlights.set('find', new Highlight(...f.list.map(m => m.r)));
+    if (f.list[f.i]) CSS.highlights.set('find-cur', new Highlight(f.list[f.i].r)); else CSS.highlights.delete('find-cur');
+  }
+}
+function gotoFind(dir) {
+  const f = S.find;
+  if (!f?.list?.length) return;
+  f.i = (f.i + dir + f.list.length) % f.list.length;
+  const m = f.list[f.i];
+  if (revealBlock(m.id)) runFind(true);
+  runFind(true);
+  const r = f.list[f.i]?.r.getBoundingClientRect();
+  if (r && (r.top < 110 || r.bottom > innerHeight - 90)) scrollBy({ top: r.top - innerHeight / 3, behavior: 'smooth' });
+}
+// Reemplaza en el Markdown del bloque (lo encontrado en un texto con formato, o la misma aparición en una tabla o un código)
+function replaceMatch(b, m, rep, q) {
+  if (m.src) { b.text = b.text.slice(0, m.src[0]) + rep + b.text.slice(m.src[1]); return true; }
+  const at = findAll(b.text, q)[m.k];
+  if (at == null) return false;
+  b.text = b.text.slice(0, at) + rep + b.text.slice(at + q.length);
+  return true;
+}
+function replaceFind(all) {
+  const f = S.find, p = curPage();
+  if (!f?.list?.length) return;
+  const list = all ? [...f.list].reverse() : [f.list[f.i]];
+  let n = 0;
+  for (const m of list) { const b = blockById(m.id); if (b && replaceMatch(b, m, f.r, f.q)) n++; }
+  if (!n) return;
+  savePageSoon(p);
+  redrawBlocks();
+  if (all) toast(`${plural(n, 'cambio', 'cambios')} · Ctrl+Z para deshacer`);
+}
+
+/* ---------- Índice del apunte (a la derecha en pantallas grandes; si no, en un menú) ---------- */
+function updateToc() {
+  const p = curPage(), nav = $('#pgToc'), btn = $('.pg-tocbtn');
+  if (!p || !nav) return;
+  const heads = p.blocks.filter(b => ['h1', 'h2', 'h3'].includes(b.type) && toPlain(b.text).trim());
+  const show = heads.length >= 2;
+  if (btn) btn.hidden = !show;
+  nav.hidden = !show;
+  if (!show) { S.tocOpen = false; nav.innerHTML = ''; return; }
+  const min = Math.min(...heads.map(h => +h.type[1]));
+  nav.classList.toggle('pop', !!S.tocOpen);
+  nav.innerHTML = `<p class="toc-h">En este apunte</p>${heads.map(h => `<a href="#" class="toc-i" style="--lvl:${+h.type[1] - min}" data-toc="${h.id}">${esc(toPlain(h.text))}</a>`).join('')}`;
+  tocActive();
+}
+function tocActive() {
+  const nav = $('#pgToc');
+  if (!nav || nav.hidden) return;
+  let cur = null;
+  for (const a of nav.querySelectorAll('[data-toc]')) {
+    const el = document.querySelector(`[data-block="${a.dataset.toc}"]`);
+    if (el && !el.classList.contains('is-folded') && el.getBoundingClientRect().top < 160) cur = a;
+  }
+  nav.querySelectorAll('[data-toc]').forEach(a => a.classList.toggle('on', a === (cur || nav.querySelector('[data-toc]'))));
+}
+addEventListener('scroll', () => { if (S.view === 'page') tocActive(); }, { passive: true });
+function gotoBlock(id) {
+  revealBlock(id);
+  const el = document.querySelector(`[data-block="${id}"]`);
+  if (!el) return;
+  scrollTo({ top: el.getBoundingClientRect().top + scrollY - 90, behavior: 'smooth' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+/* ---------- Enlaces entre apuntes: [[Título]] ---------- */
+const findPageByTitle = t => [...S.pages.values()].find(p => sameTitle(p.title || '', t)) || [...S.pages.values()].find(p => sameTitle(pageTitle(p), t));
+function openWiki(title) {
+  const t = String(title || '').trim();
+  if (!t) return;
+  const target = findPageByTitle(t);
+  if (target) return go('page', { pageId: target.id });
+  // Como en Obsidian: si no existe, se crea (en la misma carpeta)
+  const here = curPage();
+  newPage({ title: t, folder: here ? pageFolder(here) : undefined });
+  toast(`Apunte «${t}» creado`);
+}
+// Al escribir «[[», una lista de apuntes para enlazar
+function wikiCheck(ed) {
+  if (!ed?._live) return closeWikiMenu();
+  const caret = ed.selectionStart, before = ed.value.slice(0, caret);
+  const m = /\[\[([^[\]|\n]{0,60})$/.exec(before);
+  if (!m || ed.selectionEnd !== caret) return closeWikiMenu();
+  const q = m[1], fq = fold(q.trim());
+  const pages = [...S.pages.values()].filter(p => p.id !== S.pageId && (!fq || fold(pageTitle(p)).includes(fq)))
+    .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || ''))).slice(0, 8);
+  const items = pages.map(p => ({ title: p.title?.trim() || pageTitle(p), icon: p.icon }));
+  if (q.trim() && !items.some(x => sameTitle(x.title, q))) items.push({ title: q.trim(), create: true });
+  if (!items.length) return closeWikiMenu();
+  const same = S.wiki && S.wiki.start === m.index && S.wiki.blockId === ed.dataset.blockInput;
+  S.wiki = { blockId: ed.dataset.blockInput, start: m.index, items, i: same ? Math.min(S.wiki.i, items.length - 1) : 0 };
+  let el = $('#wikiMenu');
+  if (!el) { el = document.createElement('div'); el.id = 'wikiMenu'; el.className = 'blk-menu'; el.setAttribute('role', 'listbox'); el.setAttribute('aria-label', 'Enlazar a un apunte'); document.body.appendChild(el); }
+  el.innerHTML = `<p class="ops-h">Enlazar a un apunte</p>${items.map((x, k) => `<button type="button" class="blk-item" role="option" aria-selected="${k === S.wiki.i}" data-wiki-pick="${k}">
+    <span class="blk-glyph" aria-hidden="true">${x.create ? icon('plus', { size: 15 }) : x.icon ? esc(x.icon) : icon('file-text', { size: 15 })}</span>
+    <span class="blk-txt"><b>${x.create ? `Crear «${esc(x.title)}»` : esc(x.title)}</b></span></button>`).join('')}`;
+  el.hidden = false;
+  const r = getSelection()?.rangeCount ? getSelection().getRangeAt(0).getBoundingClientRect() : ed.getBoundingClientRect();
+  const w = Math.min(300, innerWidth - 16), h = Math.min(el.scrollHeight, 340);
+  el.style.width = w + 'px';
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  el.style.top = (r.bottom + 6 + h < innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
+}
+function closeWikiMenu() { S.wiki = null; const el = $('#wikiMenu'); if (el) el.hidden = true; }
+function pickWiki(k) {
+  const w = S.wiki, x = w?.items[k], ed = document.activeElement?._live ? document.activeElement : document.querySelector(`[data-block-input="${w?.blockId}"]`);
+  if (!x || !ed) return closeWikiMenu();
+  const v = ed.value, caret = ed.selectionStart;
+  const end = v.slice(caret, caret + 2) === ']]' ? caret + 2 : v[caret] === ']' ? caret + 1 : caret;
+  const link = `[[${x.title}]]`;
+  closeWikiMenu();
+  liveSet(ed, v.slice(0, w.start) + link + v.slice(end), w.start + link.length);
+}
+function wikiKey(e) {
+  if (!S.wiki || $('#wikiMenu')?.hidden) return false;
+  const n = S.wiki.items.length;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    S.wiki.i = (S.wiki.i + (e.key === 'ArrowDown' ? 1 : -1) + n) % n;
+    document.querySelectorAll('#wikiMenu .blk-item').forEach((b, k) => b.setAttribute('aria-selected', String(k === S.wiki.i)));
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab') { pickWiki(S.wiki.i); return true; }
+  if (e.key === 'Escape') { closeWikiMenu(); return true; }
+  return false;
+}
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest?.('#wikiMenu')) { e.preventDefault(); const b = e.target.closest('[data-wiki-pick]'); if (b) pickWiki(+b.dataset.wikiPick); return; }
+  if (S.wiki) closeWikiMenu();
+});
+// Debajo del apunte: los que enlazan a él
+function updateLinks() {
+  const p = curPage(), box = $('#pgLinks');
+  if (!p || !box) return;
+  const list = backlinks([...S.pages.values()], p);
+  box.hidden = !list.length;
+  box.innerHTML = list.length ? `<h3 class="sub-h">Enlazado desde <span class="muted">· ${list.length}</span></h3>
+    <ul class="list notes-list">${list.map(o => {
+      const b = o.blocks.find(x => /\[\[/.test(x.text) && toPlain(x.text));
+      return `<li><button class="deck note-row" data-page="${o.id}"><span class="icon">${o.icon ? esc(o.icon) : icon('file-text', { size: 20 })}</span>
+        <span class="info"><span class="dname">${esc(pageTitle(o))}</span>${b ? `<span class="snip">${esc(toPlain(b.text).slice(0, 140))}</span>` : ''}</span></button></li>`;
+    }).join('')}</ul>` : '';
+}
+// Al cambiar el título, los enlaces de otros apuntes que lo nombraban se actualizan
+document.addEventListener('focusin', e => { if (e.target.id === 'pgTitle') S.titleBefore = curPage()?.title || ''; });
+document.addEventListener('change', e => {
+  if (e.target.id !== 'pgTitle') return;
+  const from = String(S.titleBefore || '').trim(), to = String(curPage()?.title || '').trim();
+  S.titleBefore = to;
+  if (!from || !to || sameTitle(from, to) && from === to) return;
+  let n = 0;
+  for (const o of S.pages.values()) {
+    if (o.id === S.pageId) continue;
+    let changed = false;
+    for (const b of o.blocks || []) { const t = renameLinks(b.text, from, to); if (t !== b.text) { b.text = t; changed = true; } }
+    if (changed) { savePageSoon(o); n++; }
+  }
+  if (n) toast(`Enlaces actualizados en ${plural(n, 'apunte', 'apuntes')}`);
+});
 // Un bloque pasa a editarse: su texto se cambia por un cuadro de texto
 function editBlock(id, caret = null) {
   if (NO_TEXT.includes(curPage()?.blocks.find(x => x.id === id)?.type)) return;
+  if (revealBlock(id)) return editBlock(id, caret);   // dentro de un apartado plegado: se despliega
+  if (S.bsel) clearBlockSel();
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
   const openTbl = document.querySelector('[data-table-ed]');
@@ -1642,13 +2267,15 @@ function editBlockRaw(id, caret = null) {
     el.dataset.ph = ph;
     el.setAttribute('aria-label', b.type === 'img' ? 'Pie de foto' : 'Bloque');
     makeLive(el, b.text, caret == null ? null : typeof caret === 'object' ? caret.a : caret, typeof caret === 'object' && caret ? caret.b : undefined);
+    histRecord();   // el paso de antes recuerda dónde estaba el cursor
     return;
   }
   el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${ph}" aria-label="${b.type === 'img' ? 'Pie de foto' : 'Bloque'}" ${b.type === 'code' ? 'spellcheck="false"' : ''}>${esc(b.text)}</textarea>`;
   const t = document.querySelector(`[data-block-input="${id}"]`);
   autoGrow(t); t.focus();
-  const pos = caret == null ? t.value.length : caret;
+  const pos = caret == null ? t.value.length : typeof caret === 'object' ? caret.a ?? t.value.length : caret;
   t.setSelectionRange(pos, pos);
+  histRecord();
 }
 // Guarda lo escrito en un bloque y lo vuelve a mostrar con formato
 function commitBlockEl(t) {
@@ -1702,6 +2329,32 @@ function blockKey(e) {
     if (e.key === 'Enter' || e.key === 'Tab') { const it = blockMenuItems()[S.blockMenu.i]; if (it) { e.preventDefault(); return retypeBlock(b, it.type); } }
     if (e.key === 'Escape') { e.preventDefault(); return closeBlockMenu(); }
   }
+  // Lista de apuntes para enlazar abierta ([[)
+  if (wikiKey(e)) { e.preventDefault(); return; }
+  const mod = e.ctrlKey || e.metaKey;
+  // Alt+↑/↓ (o Ctrl+Mayús+↑/↓): mover el bloque
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (e.altKey || (mod && e.shiftKey))) {
+    e.preventDefault();
+    b.text = t.value;
+    const caret = { a: at, b: t.selectionEnd };
+    if (moveSel([b.id], e.key === 'ArrowUp' ? -1 : 1)) redrawBlocks(b.id, caret);
+    return;
+  }
+  // Ctrl+D: duplicar el bloque
+  if (mod && !e.shiftKey && e.key.toLowerCase() === 'd') {
+    e.preventDefault();
+    b.text = t.value;
+    const [copy] = duplicateBlocks([b.id]);
+    if (copy) redrawBlocks(copy.id, { a: at, b: t.selectionEnd });
+    return;
+  }
+  // Tab / Mayús+Tab: sangría (en listas, casillas y párrafos)
+  if (e.key === 'Tab' && b.type !== 'code' && b.type !== 'table') {
+    e.preventDefault();
+    b.text = t.value;
+    if (indentBlocks([b.id], e.shiftKey ? -1 : 1)) redrawBlocks(b.id, { a: at, b: t.selectionEnd });
+    return;
+  }
   // En el código, Enter es un salto de línea y Tab mete dos espacios; Enter en una línea vacía al final (o Ctrl+Enter) sale
   if (b.type === 'code') {
     if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); t.setRangeText('  ', at, t.selectionEnd, 'end'); autoGrow(t); return; }
@@ -1741,7 +2394,18 @@ function blockKey(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     b.text = t.value;
-    if (['li', 'ol', 'todo'].includes(b.type) && !b.text.trim()) { b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }   // Enter en un punto vacío: fin de la lista
+    // Enter en un punto vacío: si tiene sangría, sube un nivel; si no, fin de la lista
+    if (['li', 'ol', 'todo'].includes(b.type) && !b.text.trim()) {
+      if (b.indent) indentBlocks([b.id], -1); else { b.type = 'p'; savePageSoon(p); }
+      return redrawBlocks(b.id, 0);
+    }
+    // Al final de un título plegado: el bloque nuevo va detrás de todo su apartado
+    if (b.collapsed && at === b.text.length && ['h1', 'h2', 'h3'].includes(b.type)) {
+      const next = newBlock();
+      p.blocks.splice(unitOf(p.blocks, i)[1] + 1, 0, next);
+      savePageSoon(p);
+      return redrawBlocks(next.id, 0);
+    }
     const [cur, next] = splitBlock(b, at);
     p.blocks.splice(i, 1, cur, next);
     savePageSoon(p);
@@ -1759,6 +2423,8 @@ function blockKey(e) {
     // Detrás de un separador: Retroceso lo quita
     if (i > 0 && p.blocks[i - 1].type === 'hr') { e.preventDefault(); b.text = t.value; p.blocks.splice(i - 1, 1); savePageSoon(p); return redrawBlocks(b.id, 0); }
     if ((b.type === 'table' || b.type === 'code') && t.value.trim()) return;   // en una tabla o un código con contenido, no hace nada especial
+    // Con sangría, primero se quita un nivel
+    if (b.indent) { e.preventDefault(); b.text = t.value; indentBlocks([b.id], -1); return redrawBlocks(b.id, 0); }
     if (b.type !== 'p') { e.preventDefault(); b.text = t.value; b.type = 'p'; savePageSoon(p); return redrawBlocks(b.id, 0); }
     if (i > 0) {
       e.preventDefault();
@@ -1770,11 +2436,17 @@ function blockKey(e) {
       return redrawBlocks(block.id, caret);
     }
   }
-  // Las flechas se saltan los separadores
-  const near = (dir) => { for (let j = i + dir; j >= 0 && j < p.blocks.length; j += dir) if (!NO_TEXT.includes(p.blocks[j].type)) return p.blocks[j]; return null; };
+  // Las flechas se saltan los separadores y lo plegado
+  const hid = hiddenIds(p.blocks);
+  const near = (dir) => { for (let j = i + dir; j >= 0 && j < p.blocks.length; j += dir) if (!NO_TEXT.includes(p.blocks[j].type) && !hid.has(p.blocks[j].id)) return p.blocks[j]; return null; };
   if (e.key === 'ArrowUp' && collapsed && at === 0 && near(-1)) { e.preventDefault(); return editBlock(near(-1).id); }
   if (e.key === 'ArrowDown' && collapsed && at === t.value.length && near(1)) { e.preventDefault(); return editBlock(near(1).id, 0); }
-  if (e.key === 'Escape') { e.preventDefault(); t.blur(); getSelection()?.removeAllRanges(); }
+  // Ctrl+A con todo el bloque ya seleccionado (o vacío): se seleccionan todos los bloques
+  if (mod && e.key.toLowerCase() === 'a' && at === 0 && t.selectionEnd === t.value.length) {
+    e.preventDefault(); t.blur(); getSelection()?.removeAllRanges(); setBlockSel(visibleIds()); return;
+  }
+  // Esc: deja de escribir y el bloque queda seleccionado (para moverlo, borrarlo, convertirlo…)
+  if (e.key === 'Escape') { e.preventDefault(); t.blur(); getSelection()?.removeAllRanges(); setBlockSel([b.id]); }
 }
 // Lo seleccionado en la página (para crear una tarjeta): { blockId, text, at }
 function readPageSelection() {
@@ -1797,6 +2469,7 @@ function readPageSelection() {
 }
 document.addEventListener('selectionchange', () => {
   if (S.view !== 'page') return;
+  if (S.wiki && document.activeElement?._live) wikiCheck(document.activeElement);
   S.pageSel = readPageSelection();
   const bar = $('#selBar');
   if (!bar) return;
@@ -1877,9 +2550,41 @@ document.addEventListener('keydown', e => {
   S.pageSel = readPageSelection();
   formatSelection(kind, kind === 'bg' ? 'yellow' : '');
 }, true);
+// Lo escrito pasa al apunte en cuanto se escribe (para deshacer paso a paso y guardar sin salir del bloque)
+function syncBlock(t, kind = 'cmd') {
+  const p = curPage(), b = p?.blocks.find(x => x.id === t.dataset.blockInput);
+  if (!b || b.text === t.value) return;
+  b.text = t.value;
+  histRecord(kind);
+  savePageSoon(p);
+}
+// Cambios del editor que no son «input» (formato, pegar, Mayús+Enter, deshacer del propio editor…)
+document.addEventListener('live-change', e => { if (S.view === 'page' && e.target.dataset?.blockInput) { syncBlock(e.target); wikiCheck(e.target); } });
+// Teclas de todo el apunte: deshacer/rehacer, buscar, y las de los bloques seleccionados
+document.addEventListener('keydown', e => {
+  if (S.view !== 'page' || !$('#sheet').hidden) return;
+  const t = e.target, mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  const inPage = t === document.body || !!t.closest?.('#pgBlocks');
+  // El título, el buscador y otros campos se quedan con sus teclas de siempre
+  const field = !inPage && t.matches?.('input, textarea, select, [contenteditable]');
+  if (mod && !e.altKey && (k === 'z' || k === 'y') && !field) { e.preventDefault(); e.stopPropagation(); return histTravel(k === 'y' || e.shiftKey ? 1 : -1); }
+  if (mod && !e.altKey && !e.shiftKey && (k === 'f' || k === 'h')) { e.preventDefault(); e.stopPropagation(); return openFind(k === 'h'); }
+  if (t.id === 'findQ' || t.id === 'findR') {
+    if (e.key === 'Escape') { e.preventDefault(); closeFind(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (t.id === 'findR') replaceFind(false); else gotoFind(e.shiftKey ? -1 : 1); }
+    return;
+  }
+  if (e.key === 'Escape' && S.tocOpen) { S.tocOpen = false; updateToc(); return; }
+  if (S.bsel && !field && !t.closest?.('#blkOps') && blockSelKey(e)) { e.preventDefault(); e.stopPropagation(); }
+  if (e.key === 'Escape' && !$('#blkOps')?.hidden) closeOps();
+}, true);
+document.addEventListener('input', e => {
+  if (e.target.id === 'findQ') { S.find.q = e.target.value; runFind(); }
+  if (e.target.id === 'findR') S.find.r = e.target.value;
+});
 // Que pulsar la barra no quite la selección ni cierre el bloque que se está editando
 document.addEventListener('pointerdown', e => {
-  if (e.target.closest?.('#selBar, .tbl-tools, #fmtColors')) e.preventDefault();
+  if (e.target.closest?.('#selBar, .tbl-tools, #fmtColors, .pg-hist, .nb-fold')) e.preventDefault();
   else closeColorMenu();
 });
 // Al salir de la cuadrícula (a otra parte de la página), la tabla se guarda y se ve con formato
@@ -1918,6 +2623,8 @@ document.addEventListener('paste', e => {
   }
   if (!blocks.length) return;
   e.preventDefault();
+  // Imágenes copiadas de los propios apuntes: vuelven a ser bloques de imagen
+  blocks = blocks.map(x => { const m = x.type === 'p' && /^!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)$/.exec(x.text.trim()); return m ? imageBlock(m[2], m[1]) : x; });
   // Un solo párrafo: dentro del bloque, donde está el cursor
   if (blocks.length === 1 && blocks[0].type === 'p') {
     // Con los espacios de los bordes de lo copiado («palabra » + lo que sigue)
@@ -2210,11 +2917,11 @@ document.addEventListener('drop', e => {
   e.preventDefault();
   addImageBlock(f, e.target.closest?.('[data-block]')?.dataset.block || null);
 });
-function newPage({ title = '', blocks = null } = {}) {
+function newPage({ title = '', blocks = null, folder } = {}) {
   if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
   const deckId = S.view === 'deck' ? S.deckId : null;
   // Se crea en la carpeta que estás viendo (en «Apuntes» o en «Mis mazos»)
-  const folderId = S.view === 'notes' ? S.noteFolder : S.view === 'deck' ? S.decks.get(S.deckId)?.folder_id || null : null;
+  const folderId = folder !== undefined ? folder : S.view === 'notes' ? S.noteFolder : S.view === 'deck' ? S.decks.get(S.deckId)?.folder_id || null : null;
   const p = { id: api.newId(), owner: S.uid, title, icon: '', deck_id: deckId, folder_id: folderId, tags: [], blocks: blocks?.length ? blocks : [newBlock()] };
   S.pages.set(p.id, p);
   savePageSoon(p, 0);
@@ -2320,8 +3027,14 @@ function notesHelpSheet() {
       key('Mayús + Enter', 'Salto de línea dentro del mismo bloque'),
       key('Retroceso', 'Al principio de un bloque: lo junta con el anterior (en un título o lista, lo vuelve párrafo)'),
       key('↑ ↓', 'Al principio o al final de un bloque: pasa al anterior o al siguiente'),
-      key('Esc', 'Deja de editar'),
       key('Ctrl + Enter', 'En una tabla o un código: sale de él y crea un bloque debajo'),
+      key('Ctrl + Z', 'Deshacer (en todo el apunte: lo escrito, bloques borrados, movidos…) · <kbd>Ctrl + Mayús + Z</kbd> rehacer'),
+      key('Tab', 'En una lista, casilla o párrafo: sangría (<kbd>Mayús + Tab</kbd> la quita)'),
+      key('Alt + ↑ ↓', 'Mover el bloque arriba o abajo (también arrastrando su asa ⋮⋮)'),
+      key('Ctrl + D', 'Duplicar el bloque'),
+      key('Esc', 'Selecciona el bloque: luego <kbd>Mayús</kbd> + clic o flechas para seleccionar más, <kbd>Supr</kbd> para borrar, <kbd>Ctrl + C</kbd> para copiar'),
+      key('Ctrl + F', 'Buscar en el apunte (<kbd>Ctrl + H</kbd> para reemplazar)'),
+      key('[[', 'Enlazar a otro apunte (si no existe, se crea al abrir el enlace)'),
     ], ['Tecla', 'Hace'])}
     <h3 class="sub-h">Tarjetas desde los apuntes</h3>
     <ul class="help-list">
@@ -3985,6 +4698,24 @@ document.addEventListener('click', async e => {
     if (sg) return sortAction('group', +sg.dataset.sortGroup);
     const rb = e.target.closest('.ruby-hide ruby');
     if (rb) { rb.classList.toggle('peek'); return; }
+    // Enlace a otro apunte: se abre (mientras se escribe en el bloque, con Ctrl+clic)
+    const wl = e.target.closest('a.wl');
+    if (wl) {
+      e.preventDefault();
+      if (!wl.closest('[data-block-input]') || e.ctrlKey || e.metaKey) return openWiki(wl.dataset.wiki);
+    }
+    const toc = e.target.closest('[data-toc]');
+    if (toc) { e.preventDefault(); S.tocOpen = false; updateToc(); return gotoBlock(toc.dataset.toc); }
+    // Mayús+clic en un bloque: selecciona desde el que se estaba editando (o el último seleccionado) hasta él
+    const nbk = S.view === 'page' && e.shiftKey && e.target.closest('#pgBlocks .nb');
+    if (nbk) {
+      const from = S.bsel?.anchor || document.querySelector('[data-block-input]')?.dataset.blockInput || nbk.dataset.block;
+      const open = document.querySelector('[data-block-input]');
+      if (open) { open.blur(); }
+      getSelection()?.removeAllRanges();
+      return setBlockSel(selRange(from, nbk.dataset.block), from, nbk.dataset.block);
+    }
+    if (Date.now() - justSelected < 400) return;   // se acaba de seleccionar arrastrando por varios bloques
     // Tocar un bloque de los apuntes lo pone en edición (salvo que se esté seleccionando texto)
     const eb = e.target.closest('[data-edit-block]');
     const td = e.target.closest?.('.nb-tbl td, .nb-tbl th');
@@ -4003,6 +4734,8 @@ document.addEventListener('click', async e => {
   const ds = b.dataset;
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
+  if (ds.bop) return blockAction(ds.bop);
+  if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
   if (ds.stp !== undefined) { S.stats.period = Number(ds.stp); const y = scrollY; renderStats(); scrollTo(0, y); return; }
@@ -4343,6 +5076,20 @@ document.addEventListener('click', async e => {
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
     case 'fmt-colors': return toggleColorMenu();
+    case 'pg-undo': return histTravel(-1);
+    case 'pg-redo': return histTravel(1);
+    case 'find': return S.find?.open ? closeFind() : openFind();
+    case 'find-next': return gotoFind(1);
+    case 'find-prev': return gotoFind(-1);
+    case 'find-close': return closeFind();
+    case 'find-rep': S.find.rep = !S.find.rep; return openFind(S.find.rep);
+    case 'find-one': return replaceFind(false);
+    case 'find-all': return replaceFind(true);
+    case 'toc': S.tocOpen = !S.tocOpen; return updateToc();
+    case 'bsel-ops': return openOps(selIds()[0], b);
+    case 'bsel-dup': return blockAction('dup');
+    case 'bsel-del': return blockAction('del');
+    case 'bsel-clear': return clearBlockSel();
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
     case 'pick-type': return openTypePicker(true);
@@ -4536,12 +5283,14 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
-  if (e.target.matches?.('.tc')) return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd);
+  if (e.target.matches?.('.tc')) { histRecord('type'); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
   if (e.target.matches?.('[data-block-input]')) {
     const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
     // «# », «- », «1. », «[] », «> »… al principio de un párrafo cambian el tipo de bloque
     const sc = b && b.type === 'p' && shortcut(t.value);
     if (sc) return retypeBlock(b, sc.type, sc.text, sc.type === 'todo' ? { checked: sc.checked } : {});
+    syncBlock(t, 'type');
+    wikiCheck(t);
     // «/» en un bloque vacío abre el menú de bloques; lo que se escribe detrás lo filtra
     const m = b && !['code', 'table', 'img'].includes(b.type) && /^\/([^\s/]*)$/.exec(t.value);
     if (m) openBlockMenu({ mode: 'slash', blockId: b.id, q: m[1], anchor: t });

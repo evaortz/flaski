@@ -3,7 +3,7 @@
 // El texto del elemento es siempre exactamente el Markdown (las marcas están ahí, ocultas), así que el cursor
 // se traduce a una posición del texto contando caracteres. Tras cada cambio se vuelve a pintar.
 // Para el resto de la app se comporta como un <textarea>: value, selectionStart/End, setSelectionRange y setRangeText.
-import { toLiveHTML, toHTML, sliceMarkdown } from './inline.js';
+import { toLiveHTML, toHTML, sliceMarkdown, parse, nodesOf } from './inline.js';
 
 // Posición en el texto de un punto del DOM (nodo, desplazamiento) dentro de root
 export function textOffset(root, node, off) {
@@ -65,6 +65,8 @@ function record(el, a, b, kind = 'cmd') {
   el._last = now; el._kind = kind;
 }
 function travel(el, dir) {
+  // Si la página lleva su propio historial (el de todo el apunte), lo usa ella
+  if (!el.dispatchEvent(new CustomEvent('live-history', { bubbles: true, cancelable: true, detail: dir }))) return;
   const i = el._hi + dir;
   if (i < 0 || i >= el._hist.length) return;
   // Antes de deshacer, lo último escrito queda como un paso propio
@@ -100,16 +102,58 @@ function onInput(e) {
   record(el, o.a, o.b, /^(insertText|deleteContent)/.test(e.inputType || '') ? 'type' : 'cmd');
   paint(el, o.a, o.b);
 }
+// Si detrás del cursor solo quedan marcas de cierre hasta el final de la línea («**», «]]», «](url)»),
+// el cursor va detrás de ellas: así lo que se escribe al final no cae dentro de la negrita o del enlace
+export function snapLineEnd(el) {
+  const o = selOffsets(el), v = el._src;
+  if (!o || o.a !== o.b) return;
+  let end = v.indexOf('\n', o.a);
+  if (end < 0) end = v.length;
+  if (end === o.a) return;
+  const closers = nodesOf(parse(v)).filter(n => n.ce < n.e).map(n => [n.ce, n.e]);
+  for (let k = o.a; k < end; k++) if (!closers.some(([x, y]) => x <= k && k < y)) return;
+  setSelOffsets(el, end);
+  refreshMarks(el);
+}
 function onKey(e) {
   const el = e.currentTarget, mod = e.ctrlKey || e.metaKey;
+  if (e.key === 'End' && !e.shiftKey) setTimeout(() => snapLineEnd(el), 0);
   if (mod && !e.altKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); return travel(el, e.shiftKey ? 1 : -1); }
   if (mod && !e.altKey && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); return travel(el, 1); }
   // Mayús+Enter: salto de línea dentro del bloque (Enter solo lo parte, eso lo hace la app)
   if (e.key === 'Enter' && e.shiftKey && !e.isComposing) { e.preventDefault(); el.setRangeText('\n', el.selectionStart, el.selectionEnd, 'end'); }
 }
+// Paréntesis, corchetes y comillas se cierran solos; con texto seleccionado, *, _, ~, =, ` y ( [ " lo envuelven
+const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', '«': '»' };
+const CLOSERS = new Set(Object.values(PAIRS));
+const WRAP = new Set(['*', '_', '~', '=', '`', ...Object.keys(PAIRS)]);
+function autoPair(e, el) {
+  const o = selOffsets(el), v = el._src;
+  if (!o || e.isComposing) return false;
+  const { a, b } = o;
+  if (e.inputType === 'deleteContentBackward' && a === b && a > 0 && PAIRS[v[a - 1]] && v[a] === PAIRS[v[a - 1]] && v[a - 1] !== v[a]) {
+    liveSet(el, v.slice(0, a - 1) + v.slice(a + 1), a - 1);
+    return true;
+  }
+  if (e.inputType !== 'insertText' || !e.data || e.data.length !== 1) return false;
+  const ch = e.data;
+  if (a < b && WRAP.has(ch)) { liveSet(el, v.slice(0, a) + ch + v.slice(a, b) + (PAIRS[ch] || ch) + v.slice(b), a + 1, b + 1); return true; }
+  if (a !== b) return false;
+  // El cierre que ya está justo detrás del cursor: se pasa por encima
+  if (CLOSERS.has(ch) && v[a] === ch && (ch !== '"' || (v.slice(0, a).split('"').length % 2 === 0))) { setSelOffsets(el, a + 1); refreshMarks(el); el.dispatchEvent(new CustomEvent('live-change', { bubbles: true })); return true; }
+  if (PAIRS[ch]) {
+    const next = v[a] || '', prev = v[a - 1] || '';
+    if (next && !/[\s)\]}.,;:!?»]/.test(next)) return false;
+    if (ch === '"' && /[\p{L}\p{N}]/u.test(prev)) return false;
+    liveSet(el, v.slice(0, a) + ch + PAIRS[ch] + v.slice(a), a + 1);
+    return true;
+  }
+  return false;
+}
 function onBeforeInput(e) {
   const el = e.currentTarget;
   if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') { e.preventDefault(); travel(el, e.inputType === 'historyUndo' ? -1 : 1); }
+  if (autoPair(e, el)) { e.preventDefault(); return; }
   // Que el navegador no meta negritas por su cuenta
   if (/^format/.test(e.inputType)) e.preventDefault();
   // Los saltos de línea los mete el navegador como <br> o <div> (y se perderían): se escriben como texto
@@ -161,10 +205,12 @@ export function makeLive(el, src, caret = null, end = caret) {
   el.addEventListener('beforeinput', onBeforeInput);
   el.addEventListener('copy', onCopy);
   el.addEventListener('cut', onCopy);
+  el.addEventListener('pointerup', () => setTimeout(() => snapLineEnd(el), 0));
   el.innerHTML = toLiveHTML(el._src, a, b);
   el.classList.toggle('is-empty', !el._src);
   el.focus({ preventScroll: true });
   setSelOffsets(el, a, b);
+  if (a === b) snapLineEnd(el);
   el.scrollIntoView?.({ block: 'nearest' });
   return el;
 }

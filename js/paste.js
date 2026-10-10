@@ -156,27 +156,30 @@ export function htmlToBlocks(html) {
         // Un párrafo con solo un título de Google Docs dentro, o un elemento de lista de Word
         const wl = wordList(n);
         const t = inlineText(n, s);
-        if (t) out.push(newBlock(wl || 'p', wl ? t.replace(/\n/g, ' ') : t));
+        const pind = Math.min(4, +n.dataset?.ind || 0);
+        if (t) out.push(newBlock(wl || 'p', wl ? t.replace(/\n/g, ' ') : t, pind ? { indent: pind } : {}));
         continue;
       }
       visit(n, s);
       flush(s);
     }
   };
-  const item = (li, st, type) => {
+  const item = (li, st, type, depth = 0) => {
     const box = li.querySelector(':scope > input[type=checkbox], :scope > p > input[type=checkbox], :scope > label > input[type=checkbox]');
     const checked = box ? box.checked || box.hasAttribute('checked') : /\b(checked|done)\b/.test(li.className || '') && /task|todo|check/.test(li.className || '');
     const isTodo = !!box || !!li.querySelector('.checkbox') || /task-list-item|to-do/.test(li.className || '') || !!li.closest('.to-do-list');
     const done = checked || !!li.querySelector('.checkbox-on');
     const t = inlineText(li, styleOf(li, st), true);
-    if (t) out.push(newBlock(isTodo ? 'todo' : type, t.replace(/\n/g, ' '), isTodo ? { checked: !!done } : {}));
+    // La sangría: la de las listas anidadas, o la que traen los bloques copiados de los propios apuntes
+    const ind = Math.min(4, Math.max(depth, +li.dataset?.ind || 0));
+    if (t) out.push(newBlock(isTodo ? 'todo' : type, t.replace(/\n/g, ' '), { ...(isTodo ? { checked: !!done } : {}), ...(ind ? { indent: ind } : {}) }));
     // Las listas de dentro van detrás, como puntos de la misma lista
-    for (const sub of li.querySelectorAll(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) list(sub, st, sub.tagName === 'OL' ? 'ol' : 'li');
+    for (const sub of li.querySelectorAll(':scope > ul, :scope > ol, :scope > div > ul, :scope > div > ol')) list(sub, st, sub.tagName === 'OL' ? 'ol' : 'li', depth + 1);
   };
-  const list = (el, st, type) => {
+  const list = (el, st, type, depth = 0) => {
     for (const li of el.children) {
-      if (li.tagName === 'LI') item(li, st, type);
-      else if (li.tagName === 'UL' || li.tagName === 'OL') list(li, st, li.tagName === 'OL' ? 'ol' : 'li');
+      if (li.tagName === 'LI') item(li, st, type, depth);
+      else if (li.tagName === 'UL' || li.tagName === 'OL') list(li, st, li.tagName === 'OL' ? 'ol' : 'li', depth + 1);
       else visit({ childNodes: [li] }, st);
     }
   };

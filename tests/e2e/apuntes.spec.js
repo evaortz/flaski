@@ -33,7 +33,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await page.keyboard.press('Escape');
 
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(5);
-  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['h1', 'p', 'li', 'li', 'p']);
+  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['h1', 'p', 'li', 'li', 'p']);
   // Retroceso al principio de un párrafo lo junta con el anterior
   await block(page, 4).locator('.nb-text').click();
   await page.keyboard.press('Home');
@@ -46,7 +46,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await page.keyboard.press('Home');
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Escape');
-  await expect(block(page, 3)).toHaveClass('nb nb-p');
+  await expect(block(page, 3)).toHaveClass(/(^| )nb-p( |$)/);
 
   // Se guarda: al volver a la lista y abrirlo sigue igual
   await page.reload();
@@ -55,7 +55,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await page.getByRole('button', { name: /Casos del turco/ }).click();
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(4);
   await expect(block(page, 0)).toHaveText('Locativo');
-  await expect(block(page, 3)).toHaveClass('nb nb-p');
+  await expect(block(page, 3)).toHaveClass(/(^| )nb-p( |$)/);
 });
 
 test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de una hoja de cálculo) y se guardan', async ({ page }) => {
@@ -291,7 +291,7 @@ test('pegar unos apuntes enteros', async ({ page }) => {
   await page.locator('#pagePaste').fill('# Revolución francesa\n\nEmpezó en 1789.\n\n- Toma de la Bastilla\n- Declaración de derechos\n\n| Año | Hecho |\n|---|---|\n| 1789 | Bastilla |');
   await page.locator('[data-act="paste-page-ok"]').click();
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución francesa');
-  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['p', 'li', 'li', 'table']);
+  expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['p', 'li', 'li', 'table']);
   await nav(page, 'Apuntes');
   await page.locator('#pageSearch').fill('bastilla');
   await expect(page.locator('#main .list li')).toHaveCount(1);
@@ -370,7 +370,7 @@ test('más tipos de bloque: atajos, menú /, casillas, destacado, código y sepa
   await type(page, 'Fin');
   await page.keyboard.press('Escape');
 
-  const types = await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.replace('nb nb-', '').replace(' is-done', '')));
+  const types = await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3).replace(' is-done', '')));
   expect(types).toEqual(['h3', 'ol', 'ol', 'todo', 'callout', 'code', 'hr', 'p']);
   await expect(page.locator('#pgBlocks .nb-num')).toHaveText(['1.', '2.']);
   await expect(page.locator('#pgBlocks pre.nb-code')).toHaveText('x = 1\ny = 2');
@@ -403,7 +403,7 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   await expect(page.locator('#pgTitle')).toHaveValue('Los casos del turco');
   const blocks = page.locator('#pgBlocks .nb');
   await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(1);
-  expect(await blocks.evaluateAll(els => els.map(e => e.className.replace('nb nb-', '')))).toEqual(['h2', 'p', 'h3', 'li', 'li', 'table', 'img']);
+  expect(await blocks.evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['h2', 'p', 'h3', 'li', 'li', 'table', 'img']);
   await expect(blocks.nth(0)).toHaveText('El locativo');
   await expect(blocks.nth(1)).toHaveText('El locativo indica dónde está algo. Se forma con el sufijo -de o -da según la armonía vocálica.');
   await expect(blocks.nth(4)).toHaveText('okulda: en la escuela');
