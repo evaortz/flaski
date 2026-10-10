@@ -294,8 +294,8 @@ test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async 
   await expect(page.locator('.pg-icon')).toBeVisible();
 
   await page.locator('[data-act="page-menu"]').click();
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act="page-md"]').click()]);
-  expect(dl.suggestedFilename()).toBe('revolucion.md');
+  const [dl] = await Promise.all([page.waitForEvent('download'), (async () => { await page.locator('[data-act="export-page"]').click(); await page.locator('[data-export="md"]').click(); })()]);
+  expect(dl.suggestedFilename()).toBe('Revolución.md');
   const { readFile } = await import('node:fs/promises');
   expect(await readFile(await dl.path(), 'utf8')).toBe('# Revolución\n\n## Fechas\n\n- 1789\n- 1793\n');
 
@@ -416,7 +416,7 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   await page.locator('[data-act="new-page"]').first().click();
   await page.locator('[data-act="page-menu"]').click();
   const chooser = page.waitForEvent('filechooser');
-  await page.locator('#sheetBody [data-act="import-pdf"]').click();
+  await page.locator('#sheetBody [data-act="import-into-page"]').click();
   await (await chooser).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
   // Después de importar se ofrecen las tarjetas sugeridas
   await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
@@ -437,7 +437,7 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   await page.locator('[data-act="page-menu"]').click();
   await expect(page.locator('#sheetBody')).toContainText('se añade al final');
   const chooser2 = page.waitForEvent('filechooser');
-  await page.locator('#sheetBody [data-act="import-pdf"]').click();
+  await page.locator('#sheetBody [data-act="import-into-page"]').click();
   await (await chooser2).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
   await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
   await page.locator('#sheetBody [data-act="close-sheet"]').first().click();

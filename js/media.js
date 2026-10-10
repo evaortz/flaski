@@ -175,3 +175,10 @@ export async function importImages(map) {
   if (n && remote) await flushUploads();
   return n;
 }
+
+// El archivo de una imagen guardada (para exportar a Word, HTML, Markdown…), o null si no está
+export async function imageBlob(id) {
+  if (!(await imageUrl(id))) return null;
+  const rec = await getRec(id).catch(() => null);
+  return rec?.blob || null;
+}

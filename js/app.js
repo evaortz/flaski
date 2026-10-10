@@ -22,10 +22,12 @@ import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS,
 import { readPdf, pdfToBlocks } from './pdf.js';
 import { suggestCards, PRESELECT } from './suggest.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
-import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
+import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE, imageBlob } from './media.js';
 import { toHTML, toLiveHTML, toPlain, toggleMark, marksAt, COLORS as TEXT_COLORS, COLOR_LABEL } from './inline.js';
 import { makeLive, liveSet, selOffsets, textOffset } from './liveedit.js';
 import { htmlToBlocks } from './paste.js';
+import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, titleFromFile, markdownImageRefs } from './notesio.js';
+import { readZip } from './zip.js';
 import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 import { buzz, canVibrate, swipeable, chime, canAudio } from './feel.js';
 
@@ -1493,7 +1495,7 @@ function renderNotes() {
   main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
     <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button></div>
+    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="paste-page" title="Pegar apuntes de otra aplicación">${icon('copy', { size: 16 })} Pegar</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button><button class="ghost" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">${icon('download', { size: 16 })} Exportar</button></div>
     <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
       <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
@@ -2624,7 +2626,8 @@ document.addEventListener('paste', e => {
   if (!blocks.length) return;
   e.preventDefault();
   // Imágenes copiadas de los propios apuntes: vuelven a ser bloques de imagen
-  blocks = blocks.map(x => { const m = x.type === 'p' && /^!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)$/.exec(x.text.trim()); return m ? imageBlock(m[2], m[1]) : x; });
+  blocks = blocks.map(x => { const m = x.type === 'p' && /^!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)$/.exec(x.text.trim()); return m ? imageBlock(m[2], m[1]) : x; })
+    .filter(x => x.type !== 'img' || x.src);   // imágenes incrustadas en lo pegado: así no se pueden traer
   // Un solo párrafo: dentro del bloque, donde está el cursor
   if (blocks.length === 1 && blocks[0].type === 'p') {
     // Con los espacios de los bordes de lo copiado («palabra » + lo que sigue)
@@ -3066,6 +3069,204 @@ async function importPdf(file) {
     openSheet(`<h2>No se ha podido importar</h2><p>${esc(msg)}</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
   }
 }
+/* ---------- Exportar e importar apuntes en otros formatos ---------- */
+const bytesOf = async blob => new Uint8Array(await blob.arrayBuffer());
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const EXT_OF = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/avif': 'avif', 'image/bmp': 'bmp' };
+// Una imagen para meterla en otro formato. Word solo entiende PNG y JPEG: las demás se convierten
+async function exportImage(id, { wordSafe = false } = {}) {
+  let blob = await imageBlob(id);
+  if (!blob) return null;
+  let w = 0, h = 0;
+  try {
+    const bmp = await createImageBitmap(blob);
+    w = bmp.width; h = bmp.height;
+    if (wordSafe && !['image/png', 'image/jpeg'].includes(blob.type)) {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(bmp, 0, 0);
+      blob = await new Promise(ok => c.toBlob(ok, 'image/png')) || blob;
+    }
+    bmp.close?.();
+  } catch { if (wordSafe && !['image/png', 'image/jpeg'].includes(blob.type)) return null; }
+  return { blob, bytes: await bytesOf(blob), ext: EXT_OF[blob.type] || 'png', w, h };
+}
+const toDataUrl = blob => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ok(null); r.readAsDataURL(blob); });
+function exportSheet() {
+  const p = curPage();
+  const opt = (fmt, ic, title, sub) => `<li><button class="row-link" data-export="${fmt}">${icon(ic, { size: 20 })}<span><b>${title}</b><small>${sub}</small></span></button></li>`;
+  const imgs = pageImageIds(p).length;
+  openSheet(`<h2>Exportar «${esc(pageTitle(p))}»</h2>
+    <ul class="list linklist">
+      ${opt('docx', 'file-text', 'Word (.docx)', 'Con títulos, listas, tablas, colores e imágenes. Se abre en Word, Google Docs o Pages')}
+      ${opt('pdf', 'download', 'PDF', 'Se abre la ventana de imprimir: elige «Guardar como PDF»')}
+      ${opt('md', 'code', `Markdown${imgs ? ' (.zip con las imágenes)' : ' (.md)'}`, 'Para Obsidian, Notion, Typora… Conserva el formato y los enlaces [[ ]]')}
+      ${opt('html', 'link', 'Página web (.html)', 'Un solo archivo con todo dentro, para verlo en cualquier navegador')}
+    </ul>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
+}
+async function exportPage(fmt) {
+  const p = curPage();
+  if (!p) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  const name = safeName(pageTitle(p)), ids = pageImageIds(p);
+  closeSheet();
+  toast('Preparando…');
+  try {
+    if (fmt === 'md') {
+      if (!ids.length) return download(pageToMarkdown(p), `${name}.md`, 'text/markdown;charset=utf-8');
+      const names = new Map(), files = [];
+      for (const id of ids) { const im = await exportImage(id); if (im) { names.set(id, `${id}.${im.ext}`); files.push({ name: `imagenes/${id}.${im.ext}`, data: im.bytes }); } }
+      files.unshift({ name: `${name}.md`, data: markdownWithImages(p, names) });
+      return downloadBlob(new Blob([writeZip(files)], { type: 'application/zip' }), `${name}.zip`);
+    }
+    if (fmt === 'docx') {
+      const images = new Map();
+      for (const id of ids) { const im = await exportImage(id, { wordSafe: true }); if (im) images.set(id, im); }
+      return downloadBlob(new Blob([pageToDocx(p, images)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), `${name}.docx`);
+    }
+    // HTML y PDF: un solo archivo con las imágenes dentro
+    const urls = new Map();
+    for (const id of ids) { const b = await imageBlob(id); const u = b && await toDataUrl(b); if (u) urls.set(id, u); }
+    if (fmt === 'html') return download(pageToHTML(p, urls), `${name}.html`, 'text/html;charset=utf-8');
+    // PDF: la página en un marco invisible, y la ventana de imprimir del navegador
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(frame);
+    frame.srcdoc = pageToHTML(p, urls);
+    frame.onload = () => {
+      setTimeout(() => {
+        try { frame.contentWindow.focus(); frame.contentWindow.print(); }
+        catch { download(pageToHTML(p, urls, { print: true }), `${name}.html`, 'text/html;charset=utf-8'); toast('Abre el archivo y elige «Imprimir» → «Guardar como PDF»'); }
+        setTimeout(() => frame.remove(), 60000);
+      }, 250);
+    };
+  } catch (e) { console.error(e); toast('No se ha podido exportar'); }
+}
+// Todos los apuntes, en Markdown y por carpetas, con sus imágenes (para una copia o para llevarlos a Obsidian)
+async function exportAllNotes() {
+  const pages = [...S.pages.values()];
+  if (!pages.length) return toast('No tienes apuntes todavía');
+  toast('Preparando…');
+  const files = [], used = new Set(), names = new Map();
+  for (const id of new Set(pages.flatMap(pageImageIds))) { const im = await exportImage(id); if (im) { names.set(id, `${id}.${im.ext}`); files.push({ name: `imagenes/${id}.${im.ext}`, data: im.bytes }); } }
+  for (const p of pages) {
+    const dirs = pageFolder(p) ? folderPath(S.folders, p.folder_id).map(f => safeName(f.name)) : [];
+    let path = [...dirs, safeName(pageTitle(p))].join('/'), k = 2;
+    while (used.has(path.toLowerCase())) path = `${[...dirs, safeName(pageTitle(p))].join('/')} (${k++})`;
+    used.add(path.toLowerCase());
+    files.push({ name: `${path}.md`, data: markdownWithImages(p, names, `${'../'.repeat(dirs.length)}imagenes`) });
+  }
+  downloadBlob(new Blob([writeZip(files)], { type: 'application/zip' }), `Apuntes de Flaski ${new Date().toISOString().slice(0, 10)}.zip`);
+}
+// Las imágenes que vienen dentro de lo importado (data: o archivos) se guardan como las demás
+async function storeImages(blocks) {
+  for (const b of blocks) {
+    if (b.type !== 'img' || b.src) continue;
+    try {
+      const blob = b.blob || (b.dataUrl ? await (await fetch(b.dataUrl)).blob() : null);
+      if (blob) { const id = newImageId(); await storeImage(id, blob, blob.type || 'image/png'); b.src = id; }
+    } catch { /* se queda sin imagen */ }
+    delete b.dataUrl; delete b.blob;
+  }
+  return blocks.filter(b => b.type !== 'img' || b.src);
+}
+const EXT = name => String(name).split('.').pop().toLowerCase();
+// Un archivo → [{ title, blocks }] (un .zip puede traer varios apuntes)
+async function fileToPages(file) {
+  const ext = EXT(file.name), title = titleFromFile(file.name);
+  if (ext === 'docx') {
+    const html = await docxToHTML(await bytesOf(file));
+    const blocks = htmlToBlocks(html) || [];
+    const t = blocks[0]?.type === 'h1' ? blocks.shift().text.replace(/[*_]/g, '') : title;
+    return [{ title: t, blocks: await storeImages(blocks) }];
+  }
+  if (ext === 'html' || ext === 'htm') {
+    const html = await file.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const blocks = htmlToBlocks(doc.body?.innerHTML || '') || [];
+    const t = doc.title?.trim() || (blocks[0]?.type === 'h1' ? blocks.shift().text : title);
+    if (doc.title?.trim() && blocks[0]?.type === 'h1' && sameTitle(blocks[0].text, doc.title)) blocks.shift();
+    return [{ title: t, blocks: await storeImages(blocks) }];
+  }
+  if (ext === 'csv' || ext === 'tsv') return [{ title, blocks: csvToBlocks(await file.text()) }];
+  if (/^image\//.test(file.type)) { const id = await saveImage(file); return id ? [{ title, blocks: [imageBlock(id)] }] : []; }
+  if (ext === 'zip') {
+    const zip = readZip(await bytesOf(file));
+    const out = [], stored = new Map();
+    const names = [...zip.keys()];
+    for (const path of names.filter(n => /\.(md|markdown|txt)$/i.test(n) && !/(^|\/)(__MACOSX|\.)/.test(n))) {
+      let md = new TextDecoder().decode(await zip.get(path).read());
+      // Imágenes citadas con su ruta dentro del .zip (relativa al apunte) o por su nombre (![[foto.png]] de Obsidian)
+      const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+      for (const ref of markdownImageRefs(md)) {
+        let p = decodeURIComponent(ref.path);
+        let full = ref.wiki ? names.find(n => n.split('/').pop() === p.split('/').pop()) : (dir + p).split('/').reduce((a, seg) => (seg === '..' ? a.slice(0, -1) : seg === '.' ? a : [...a, seg]), []).join('/');
+        if (!full || !zip.has(full) || !imageType(full)) continue;
+        if (!stored.has(full)) { const id = newImageId(); await storeImage(id, await zip.get(full).read(), imageType(full)); stored.set(full, id); }
+        md = md.split(ref.full).join(`![${ref.alt}](img:${stored.get(full)})`);
+      }
+      out.push(markdownToPage(md, path));
+    }
+    if (!out.length) throw new Error(`«${file.name}» no tiene apuntes en Markdown dentro.`);
+    return out;
+  }
+  if (['md', 'markdown', 'txt'].includes(ext) || file.type.startsWith('text/')) return [markdownToPage(await file.text(), file.name)];
+  throw new Error(`No sé abrir «${file.name}». Prueba con PDF, Word, Markdown, HTML o CSV.`);
+}
+// Importar: en el apunte abierto (se añade al final, o lo llena si está vacío) o como apuntes nuevos (uno por archivo)
+async function importNoteFiles(files, into) {
+  files = [...files];
+  if (!files.length) return;
+  // Los PDF van por su camino (con su progreso y las sugerencias de tarjetas)
+  if (files.length === 1 && EXT(files[0].name) === 'pdf') {
+    if (!into) newPage({ title: titleFromFile(files[0].name) });
+    return importPdf(files[0]);
+  }
+  openSheet(`<h2>Importar</h2><p class="muted" role="status" id="impStatus">Leyendo…</p>`);
+  const status = t => { const el = $('#impStatus'); if (el) el.textContent = t; };
+  const made = [], errors = [];
+  for (const [k, f] of files.entries()) {
+    status(`Leyendo «${f.name}»${files.length > 1 ? ` (${k + 1} de ${files.length})` : ''}…`);
+    try {
+      if (EXT(f.name) === 'pdf') { errors.push(`«${f.name}»: los PDF, de uno en uno`); continue; }
+      made.push(...await fileToPages(f));
+    } catch (e) { console.error(e); errors.push(e.message || `No se ha podido leer «${f.name}»`); }
+  }
+  flushUploads();
+  const good = made.filter(x => x.blocks.length);
+  if (!good.length) {
+    return openSheet(`<h2>No se ha podido importar</h2><p>${esc(errors[0] || 'No se ha encontrado nada que importar.')}</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
+  }
+  closeSheet();
+  if (into && curPage()) {
+    const p = curPage(), open = document.querySelector('[data-block-input]');
+    if (open) commitBlockEl(open);
+    const empty = !p.blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr');
+    const add = good.flatMap((x, i) => [...(empty && i === 0 ? [] : x.title ? [newBlock('h1', x.title)] : []), ...x.blocks]);
+    if (empty) p.blocks = add; else p.blocks.push(...add);
+    if (!String(p.title || '').trim() && good[0].title) p.title = good[0].title;
+    savePageSoon(p, 0);
+    renderPage();
+    toast(`Importado${errors.length ? ` (${errors.length} con problemas)` : ''}`);
+  } else {
+    const folder = S.view === 'notes' ? S.noteFolder : S.view === 'page' ? pageFolder(curPage()) : null;
+    const pages = good.map(x => { const p = { id: api.newId(), owner: S.uid, title: x.title || '', icon: '', deck_id: null, folder_id: folder || null, tags: [], blocks: x.blocks }; S.pages.set(p.id, p); savePageSoon(p, 0); return p; });
+    if (pages.length === 1) go('page', { pageId: pages[0].id });
+    else { S.view === 'notes' ? renderNotes() : go('notes'); }
+    toast(`${plural(pages.length, 'apunte importado', 'apuntes importados')}${errors.length ? ` · ${errors.length} con problemas` : ''}`);
+  }
+  if (errors.length) console.warn(errors);
+}
+let importInto = false;
+$('#noteFile').addEventListener('change', e => { const f = e.target.files; if (f?.length) importNoteFiles(f, importInto); e.target.value = ''; });
 function pastePageSheet() {
   openSheet(`<h2>Pegar apuntes</h2>
     <p class="muted small">Pega tus apuntes (de Word, Notion, Google Docs…). Las líneas con «# » serán títulos y las que empiezan por «- », listas.</p>
@@ -3182,8 +3383,10 @@ function helpContent() {
       ${two(['Desde', 'Pasa'], [
         ['Word, Google Docs, Notion, una web…', 'Al pegar se conservan los títulos, listas, tablas, negritas, colores y enlaces, cada cosa en su bloque.'],
         ['Texto en Markdown', 'Al pegarlo, cada línea se convierte en su bloque (títulos, listas, tablas…).'],
-        ['Un PDF', 'Menú ⋯ → <b>Importar PDF</b>: títulos, párrafos, listas y tablas; las páginas escaneadas, como imágenes.'],
-        ['Hacia otra app', 'Menú ⋯ → <b>Descargar como Markdown</b> o <b>Copiar como texto</b> (se abre bien en Obsidian).'],
+        ['Un archivo', 'Menú ⋯ del apunte → <b>Importar…</b>: <b>PDF</b> (con sus tablas; las páginas escaneadas, como imágenes), <b>Word</b> (.docx, con formato e imágenes), <b>Markdown</b>, <b>HTML</b> o <b>CSV</b> (como tabla). Se añade al final del apunte.'],
+        ['Muchos a la vez', 'En la lista de Apuntes → <b>Importar</b>: un apunte nuevo por archivo. También un <b>.zip</b> exportado de Notion u Obsidian (con sus imágenes).'],
+        ['Hacia otra app', 'Menú ⋯ → <b>Exportar…</b>: <b>Word</b>, <b>PDF</b> (desde la ventana de imprimir), <b>Markdown</b> (con sus imágenes; se abre bien en Obsidian) o <b>página web</b>. O <b>Copiar como texto</b>.'],
+        ['Todos tus apuntes', 'En la lista de Apuntes → <b>Exportar</b>: un .zip con todos en Markdown, por carpetas y con sus imágenes.'],
       ])}`),
     teclado: sec('teclado', 'Atajos de teclado', `<h4 class="help-sub">Al escribir</h4>
       ${two(['Tecla', 'Hace'], [
@@ -4953,6 +5156,7 @@ document.addEventListener('click', async e => {
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
   if (ds.helpTab) return showHelpTab(ds.helpTab);
+  if (ds.export) return exportPage(ds.export);
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
@@ -5227,6 +5431,10 @@ document.addEventListener('click', async e => {
     case 'new-page': return newPage();
     case 'paste-page': return pastePageSheet();
     case 'import-pdf': closeSheet(); return $('#pdfFile').click();
+    case 'import-into-page': closeSheet(); importInto = true; return $('#noteFile').click();
+    case 'import-notes': importInto = false; return $('#noteFile').click();
+    case 'export-page': return exportSheet();
+    case 'export-all-notes': return exportAllNotes();
     case 'paste-page-ok': {
       const blocks = textToBlocks($('#pagePaste').value);
       if (!blocks.length) return toast('No has pegado nada');
@@ -5277,8 +5485,8 @@ document.addEventListener('click', async e => {
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
         <li><button class="row-link" data-act="suggest-cards">${icon('sparkles', { size: 20 })}<span><b>Sugerir tarjetas</b><small>Propone tarjetas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
-        <li><button class="row-link" data-act="import-pdf">${icon('file-text', { size: 20 })}<span><b>Importar PDF</b><small>${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'Su contenido se añade al final de este apunte' : 'Lo convierte en este apunte: títulos, párrafos, listas y tablas'}</small></span></button></li>
-        <li><button class="row-link" data-act="page-md">${icon('download', { size: 20 })}<span><b>Descargar como Markdown</b><small>Para guardarlo o abrirlo en otra aplicación</small></span></button></li>
+        <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
+        <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
         <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus tarjetas no se borran: solo dejan de estar unidas a él</small></span></button></li>
       </ul>

@@ -130,6 +130,12 @@ export function htmlToBlocks(html) {
   const visit = (node, st) => {
     for (const n of node.childNodes) {
       if (n.nodeType === 3) { if (n.data.trim() || buf.length) buf.push({ text: n.data.replace(/[\s ]+/g, ' '), st }); continue; }
+      // Imágenes que vienen dentro (de un Word importado, o pegadas): un bloque de imagen que la app guarda luego
+      if (n.nodeType === 1 && n.tagName === 'IMG' && /^data:image\//.test(n.getAttribute('src') || '')) {
+        flush(st);
+        out.push(newBlock('img', n.getAttribute('alt') || '', { dataUrl: n.getAttribute('src') }));
+        continue;
+      }
       if (n.nodeType !== 1 || SKIP.has(n.tagName) || hidden(n)) continue;
       const tag = n.tagName;
       if (tag === 'BR') { buf.push({ text: '\n', st: {} }); continue; }
