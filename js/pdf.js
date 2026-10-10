@@ -103,7 +103,15 @@ function uniq(vals, tol = 2.5) {
   for (const v of [...vals].sort((a, b) => a - b)) if (!out.length || v - out[out.length - 1] > tol) out.push(v);
   return out;
 }
-const joinText = (a, b) => (!a ? b : /\p{L}-$/u.test(a) && /^\p{Ll}/u.test(b) ? a.slice(0, -1) + b : a + ' ' + b);
+export const dehyphen = (a, b) => {
+  if (!a) return (b || '').trim();
+  if (!b) return (a || '').trim();
+  if (/\p{L}[-\u00AD–—]\s*$/u.test(a) && /^\p{Ll}/u.test(b.trimStart())) {
+    return a.replace(/[-\u00AD–—]\s*$/, '') + b.trimStart();
+  }
+  return a.trimEnd() + ' ' + b.trimStart();
+};
+const joinText = (a, b) => dehyphen(a, b);
 // Texto de una celda: sus trozos de arriba abajo y de izquierda a derecha
 function cellText(items) {
   const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x), lines = [];
@@ -162,7 +170,7 @@ export function gridTables(page) {
 /* ---------------- Trozos de texto → bloques (sin interfaz) ---------------- */
 const BULLET = /^[•◦▪▫●○■□‣⁃∙·➢➤►▶✓✔\-–—*](?=\s|$)\s*/;
 const NUMBERED = /^(\d{1,2}|[a-zA-Z])[.)]\s+/;
-const PAGE_NO = /^(p(á|a)g(ina|e)?\.?\s*)?\d{1,4}(\s*(de|of|\/)\s*\d{1,4})?$/i;
+const PAGE_NO = /^(?:p(?:á|a)g(?:ina|e)?\.?\s*)?(?:\d{1,4}|[ivxlcdm]+)(?:\s*(?:de|of|\/)\s*(?:\d{1,4}|[ivxlcdm]+))?$/i;
 const round = v => Math.round(v * 2) / 2;
 
 // Trozos de una página → líneas { text, size, bold, x, y, w } en orden de lectura (con dos columnas, primero la izquierda)
@@ -187,7 +195,19 @@ export function pageLines(page) {
   const apart = Math.abs(lc[0] - lc[1]) / Math.max(1, ...lc) > 0.3;
   const twoCols = share(cross) < 0.08 && share(left) > 0.12 && share(right) > 0.12
     && (apart || (fill(left, Math.min(...left.map(it => it.x)), mid) > 0.6 && fill(right, mid, Math.max(...right.map(it => it.x + it.w))) > 0.6));
-  const groups = twoCols ? [[...cross, ...left.filter(it => !cross.includes(it))], right.filter(it => !left.includes(it) && !cross.includes(it))] : [items];
+  let groups;
+  if (twoCols) {
+    const leftOnly = left.filter(it => !cross.includes(it)), rightOnly = right.filter(it => !left.includes(it) && !cross.includes(it));
+    const allColY = [...leftOnly, ...rightOnly].map(it => it.y);
+    const maxY = allColY.length ? Math.max(...allColY) : Infinity;
+    const minY = allColY.length ? Math.min(...allColY) : -Infinity;
+    const topCross = cross.filter(it => it.y >= maxY);
+    const midCross = cross.filter(it => it.y < maxY && it.y >= minY);
+    const botCross = cross.filter(it => it.y < minY);
+    groups = [topCross, [...midCross, ...leftOnly], rightOnly, botCross].filter(g => g.length);
+  } else {
+    groups = [items];
+  }
   const lines = [];
   for (const g of groups) {
     const sorted = [...g].sort((a, b) => b.y - a.y || a.x - b.x);
@@ -291,7 +311,7 @@ export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ t
     return lines;
   });
   // Cabeceras y pies: lo que se repite arriba o abajo en muchas páginas (con los números cambiados por #)
-  const edgeKey = (l, p) => (l.y > p.height * 0.9 || l.y < p.height * 0.1 ? l.text.replace(/\d+/g, '#').toLowerCase() : null);
+  const edgeKey = (l, p) => (l.y > p.height * 0.88 || l.y < p.height * 0.12 ? l.text.replace(/\d+/g, '#').toLowerCase() : null);
   const seen = new Map();
   perPage.forEach((lines, i) => new Set(lines.map(l => edgeKey(l, pages[i])).filter(Boolean)).forEach(k => seen.set(k, (seen.get(k) || 0) + 1)));
   const repeated = k => k && pages.length >= 3 && seen.get(k) >= Math.max(2, pages.length * 0.4);
@@ -311,12 +331,12 @@ export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ t
     if (NUMBERED.test(l.text) && l.text.length > 4) return 'ol';
     return 'p';
   };
-  const join = (a, b) => (/\p{L}-$/u.test(a) && /^\p{Ll}/u.test(b) ? a.slice(0, -1) + b : a + ' ' + b);
+  const join = (a, b) => dehyphen(a, b);
   perPage.forEach((lines, pi) => {
     const page = pages[pi];
     if (page.image) { blocks.push(newBlock('img', `Página ${pi + 1}`, { image: pi })); last = null; return; }
     const width = lines.filter(l => !l.table).map(l => l.w).sort((a, b) => a - b)[Math.floor(lines.length * 0.75)] || page.width;
-    const edge = l => l.y > page.height * 0.9 || l.y < page.height * 0.1;
+    const edge = l => l.y > page.height * 0.88 || l.y < page.height * 0.12;
     // Pies y cabeceras: repetidos en muchas páginas, números de página, y en el borde, © o direcciones web
     const kept = lines.filter(l => l.table || !(repeated(edgeKey(l, page)) || (edge(l) && (PAGE_NO.test(l.text) || /©|\bwww\.|https?:\/\//i.test(l.text)))));
     withTables(kept).forEach(l => {

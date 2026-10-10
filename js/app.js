@@ -23,7 +23,11 @@ import { readPdf, pdfToBlocks } from './pdf.js';
 import { suggestCards, PRESELECT } from './suggest.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
 import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
+import { toHTML, toLiveHTML, toPlain, toggleMark, marksAt, COLORS as TEXT_COLORS, COLOR_LABEL } from './inline.js';
+import { makeLive, liveSet, selOffsets, textOffset } from './liveedit.js';
+import { htmlToBlocks } from './paste.js';
 import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
+import { buzz, canVibrate, swipeable, chime, canAudio } from './feel.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -65,13 +69,10 @@ const S = {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-// Formato sencillo: *cursiva*, **negrita**, saltos de línea, furigana 漢字[かんじ] e imágenes ![pie](img:id)
-// (las imágenes se cargan después: ver hydrate en media.js)
+// Formato: **negrita**, *cursiva*, <u>subrayado</u>, colores… (ver inline.js), saltos de línea, furigana
+// 漢字[かんじ] e imágenes ![pie](img:id) (las imágenes se cargan después: ver hydrate en media.js)
 const imgHTML = (id, alt = '') => `<img class="media" data-img="${id}" alt="${alt}" loading="lazy" decoding="async">`;
-function fmt(s) {
-  return esc(s).replace(IMG_RE, (_, alt, id) => imgHTML(id, alt)).replace(RUBY_RE, '<ruby>$1<rt>$2</rt></ruby>')
-    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
-}
+const fmt = s => toHTML(s);
 // Cada vez que se pinta algo con imágenes, se cargan (del navegador o de la nube)
 let hydrateQueued = false;
 new MutationObserver(() => {
@@ -79,7 +80,7 @@ new MutationObserver(() => {
   hydrateQueued = true;
   queueMicrotask(() => { hydrateQueued = false; hydrate(document); });
 }).observe(document.body, { childList: true, subtree: true });
-const plain = s => stripImages(s).replace(/\*/g, '');
+const plain = s => toPlain(stripImages(s));
 const norm = s => plain(s).toLocaleLowerCase();
 const cardList = () => [...S.cards.values()];
 let toastTimer;
@@ -853,6 +854,7 @@ async function mountDraw(st, model) {
     };
     st.draw = startQuiz($('#hwBox'), chars, lang, {
       size, guide: !!tpl.guide, onProgress: progress,
+      onStroke: ok => haptic(ok ? 'stroke' : 'miss'),
       onDone: r => { st.drawn = { ...r, peeked: !!st.peeked }; reveal(); },
     });
   } else {
@@ -1016,7 +1018,24 @@ function renderStudy() {
   if (!ses.revealed && model.tpl.mode === 'type' && matchMedia('(hover:hover)').matches) $('#typed')?.focus();
   if (!ses.revealed && model.tpl.mode === 'conj' && matchMedia('(hover:hover)').matches) $('.conj-in')?.focus();
   if (!ses.revealed && model.tpl.mode === 'number' && matchMedia('(hover:hover)').matches) $('#numIn')?.focus();
+  // Móvil: con la respuesta a la vista, deslizar la tarjeta valora (izquierda «Otra vez», derecha «Bien», arriba «Fácil»)
+  if (ses.revealed && S.prefs.study.swipe) {
+    const two = S.prefs.study.buttons === 2;
+    const map = { left: 1, right: 3, up: 4 };
+    swipeable(main.querySelector('article.card'), {
+      dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil' },
+      onCross: () => haptic('tick'),
+      onSwipe: d => grade(map[d]),
+    });
+  }
 }
+// Sensación táctil y sonora, si están activadas en Ajustes
+const GRADE_SOUNDS = { 1: 'again', 2: 'hard', 3: 'good', 4: 'easy' };
+function feedback(kind, g = null) {
+  if (S.prefs.study.haptics) buzz(kind);
+  if (S.prefs.study.sound) chime(g ? (GRADE_SOUNDS[g] || kind) : kind);
+}
+function haptic(kind) { feedback(kind); }
 function reveal() {
   const ses = S.session;
   if (!ses || ses.revealed) return;
@@ -1061,6 +1080,7 @@ function grade(g) {
   // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
   api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
   saveSnapSoon();
+  feedback(!ses.queue.length ? 'done' : g === 1 ? 'again' : 'ok', !ses.queue.length ? null : g);
   renderStudy();
 }
 function undo() {
@@ -1502,12 +1522,14 @@ function blockHTML(b, cards = []) {
   // Imagen: la imagen y debajo su pie (que se edita como un bloque de texto)
   if (b.type === 'img') {
     return `<figure class="nb nb-img" data-block="${b.id}">${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
-      <figcaption class="nb-text" data-edit-block="${b.id}">${b.text.trim() ? fmt(b.text) : `<span class="nb-ph">${PH.img}</span>`}</figcaption></figure>`;
+      <figcaption class="nb-text md" data-edit-block="${b.id}" data-ph="${PH.img}">${toLiveHTML(b.text)}</figcaption></figure>`;
   }
   if (b.type === 'hr') return `<div class="nb nb-hr" data-block="${b.id}"><hr>${delBtn(b.id, 'el separador')}</div>`;
   const n = cards.length, st = statusOf(cards);
-  const body = !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
-    : b.type === 'code' ? `<pre class="nb-code">${esc(b.text)}</pre>` : fmt(b.text);
+  // El texto se pinta igual que en el editor (con las marcas ocultas): al tocarlo, el cursor cae donde se ha tocado
+  const md = !['table', 'code'].includes(b.type);
+  const body = md ? toLiveHTML(b.text) : !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
+    : `<pre class="nb-code">${esc(b.text)}</pre>`;
   // Lo que va delante del texto: el número, la casilla o el icono del destacado
   const lead = b.type === 'ol' ? `<span class="nb-num" aria-hidden="true">${olNumbers(curPage()?.blocks || []).get(b.id) || 1}.</span>`
     : b.type === 'todo' ? `<button type="button" class="nb-check" role="checkbox" aria-checked="${!!b.checked}" aria-label="Hecho" data-todo="${b.id}">${icon('check', { size: 13 })}</button>`
@@ -1523,7 +1545,7 @@ function blockHTML(b, cards = []) {
       sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'tarjeta', 'tarjetas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
     }
   }
-  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}" data-block="${b.id}">${lead}<div class="nb-text" data-edit-block="${b.id}">${body}</div>${sec}
+  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}" data-block="${b.id}">${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
     ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
@@ -1564,8 +1586,23 @@ function renderPage() {
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
     <div class="pg-adds"><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
     <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
-      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} Crear tarjeta</button>
-      <button type="button" class="ghost small-btn" data-act="sel-cloze">${icon('puzzle', { size: 15 })} Convertir en hueco</button></div>`;
+      <div class="fmt-btns" role="group" aria-label="Formato">
+        <button type="button" class="fmt" data-nfmt="b" title="Negrita · **texto** (Ctrl+B)" aria-label="Negrita"><b>B</b></button>
+        <button type="button" class="fmt" data-nfmt="i" title="Cursiva · *texto* (Ctrl+I)" aria-label="Cursiva"><i>I</i></button>
+        <button type="button" class="fmt" data-nfmt="u" title="Subrayado · &lt;u&gt;texto&lt;/u&gt; (Ctrl+U)" aria-label="Subrayado"><u>U</u></button>
+        <button type="button" class="fmt" data-nfmt="s" title="Tachado · ~~texto~~ (Ctrl+Mayús+S)" aria-label="Tachado"><s>S</s></button>
+        <button type="button" class="fmt" data-nfmt="code" title="Código · \`texto\` (Ctrl+E)" aria-label="Código">${icon('code', { size: 15 })}</button>
+        <button type="button" class="fmt fmt-color" data-act="fmt-colors" title="Color del texto o del fondo" aria-label="Color" aria-haspopup="true" aria-expanded="false"><span class="fmt-a">A</span>${icon('chevron-down', { size: 12 })}</button>
+      </div>
+      <span class="selbar-sep" aria-hidden="true"></span>
+      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} <span>Crear tarjeta</span></button>
+      <button type="button" class="ghost small-btn" data-act="sel-cloze" title="Convertir en hueco">${icon('puzzle', { size: 15 })} <span>Hueco</span></button></div>
+    <div id="fmtColors" class="fmt-colors" role="menu" aria-label="Color" hidden>
+      <p class="fmt-h">Color del texto</p>
+      <div class="fmt-grid">${['default', ...TEXT_COLORS].map(c => `<button type="button" role="menuitem" class="fmt-sw" data-nfmt="color" data-color="${c}" title="${c === 'default' ? 'Predeterminado' : COLOR_LABEL[c]}" aria-label="Texto ${c === 'default' ? 'predeterminado' : COLOR_LABEL[c].toLowerCase()}"><span class="tc-${c}">A</span></button>`).join('')}</div>
+      <p class="fmt-h">Fondo</p>
+      <div class="fmt-grid">${['default', ...TEXT_COLORS].map(c => `<button type="button" role="menuitem" class="fmt-sw fmt-bg hl-${c}" data-nfmt="bg" data-color="${c}" title="${c === 'default' ? 'Sin fondo' : `Fondo ${COLOR_LABEL[c].toLowerCase()}`}" aria-label="Fondo ${c === 'default' ? 'ninguno' : COLOR_LABEL[c].toLowerCase()}">A</button>`).join('')}</div>
+    </div>`;
   if (S.focusBlock) {
     const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
     if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
@@ -1598,6 +1635,15 @@ function editBlockRaw(id, caret = null) {
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
   if (!b || !el) return;
   const ph = b.type === 'p' ? BLOCK_PH + ' · / para más' : PH[b.type] || BLOCK_PH;
+  // Texto: el editor con formato (enseña el Markdown donde está el cursor). Código y tablas como texto: un cuadro de texto
+  if (el.classList.contains('md')) {
+    el.removeAttribute('data-edit-block');
+    el.dataset.blockInput = id;
+    el.dataset.ph = ph;
+    el.setAttribute('aria-label', b.type === 'img' ? 'Pie de foto' : 'Bloque');
+    makeLive(el, b.text, caret == null ? null : typeof caret === 'object' ? caret.a : caret, typeof caret === 'object' && caret ? caret.b : undefined);
+    return;
+  }
   el.outerHTML = `<textarea class="nb-input" data-block-input="${id}" rows="1" placeholder="${ph}" aria-label="${b.type === 'img' ? 'Pie de foto' : 'Bloque'}" ${b.type === 'code' ? 'spellcheck="false"' : ''}>${esc(b.text)}</textarea>`;
   const t = document.querySelector(`[data-block-input="${id}"]`);
   autoGrow(t); t.focus();
@@ -1728,27 +1774,114 @@ function blockKey(e) {
   const near = (dir) => { for (let j = i + dir; j >= 0 && j < p.blocks.length; j += dir) if (!NO_TEXT.includes(p.blocks[j].type)) return p.blocks[j]; return null; };
   if (e.key === 'ArrowUp' && collapsed && at === 0 && near(-1)) { e.preventDefault(); return editBlock(near(-1).id); }
   if (e.key === 'ArrowDown' && collapsed && at === t.value.length && near(1)) { e.preventDefault(); return editBlock(near(1).id, 0); }
-  if (e.key === 'Escape') { e.preventDefault(); t.blur(); }
+  if (e.key === 'Escape') { e.preventDefault(); t.blur(); getSelection()?.removeAllRanges(); }
 }
 // Lo seleccionado en la página (para crear una tarjeta): { blockId, text, at }
 function readPageSelection() {
   const a = document.activeElement;
   if (a?.matches?.('[data-block-input]')) {
-    return a.selectionEnd > a.selectionStart ? { blockId: a.dataset.blockInput, text: a.value.slice(a.selectionStart, a.selectionEnd), at: a.selectionStart } : null;
+    const x = a.selectionStart, y = a.selectionEnd;
+    return y > x ? { blockId: a.dataset.blockInput, text: a.value.slice(x, y), at: x, end: y, live: !!a._live } : null;
   }
   const sel = getSelection(), txt = sel?.toString() || '';
   const node = sel?.anchorNode;
   const nb = node && (node.nodeType === 1 ? node : node.parentElement)?.closest?.('#pgBlocks .nb');
-  return txt.trim() && nb ? { blockId: nb.dataset.block, text: txt, at: -1 } : null;
+  if (!txt.trim() || !nb) return null;
+  // En un bloque de texto sin editar, las posiciones en su Markdown (para darle formato)
+  const md = nb.querySelector('.nb-text.md'), o = md && selOffsets(md);
+  if (o && o.b > o.a) {
+    const b = curPage()?.blocks.find(x => x.id === nb.dataset.block);
+    if (b) return { blockId: b.id, text: b.text.slice(o.a, o.b), at: o.a, end: o.b };
+  }
+  return { blockId: nb.dataset.block, text: txt, at: -1 };
 }
 document.addEventListener('selectionchange', () => {
   if (S.view !== 'page') return;
   S.pageSel = readPageSelection();
   const bar = $('#selBar');
-  if (bar) bar.hidden = !S.pageSel;
+  if (!bar) return;
+  bar.hidden = !S.pageSel;
+  if (!S.pageSel) { closeColorMenu(); return; }
+  // Los botones de formato, solo en texto (no en un código o una tabla escrita como texto)
+  const b = curPage()?.blocks.find(x => x.id === S.pageSel.blockId);
+  const canFmt = S.pageSel.end != null && b && !['code', 'table'].includes(b.type);
+  bar.querySelector('.fmt-btns').hidden = !canFmt;
+  bar.querySelector('.selbar-sep').hidden = !canFmt;
+  if (canFmt) {
+    const on = marksAt(b.id === document.activeElement?.dataset?.blockInput ? document.activeElement.value : b.text, S.pageSel.at, S.pageSel.end);
+    bar.querySelectorAll('[data-nfmt]').forEach(x => x.setAttribute('aria-pressed', String(!!on[x.dataset.nfmt])));
+  }
+  placeSelBar();
 });
+// La barra, encima de lo seleccionado (en el móvil, abajo, donde no la tapa el menú del sistema)
+function placeSelBar() {
+  const bar = $('#selBar'), sel = getSelection();
+  if (!bar || bar.hidden) return;
+  const r = sel?.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : null;
+  const float = innerWidth >= 700 && r && (r.width || r.height);
+  bar.classList.toggle('float', !!float);
+  if (!float) { bar.style.left = bar.style.top = ''; return; }
+  const w = bar.offsetWidth, h = bar.offsetHeight;
+  const left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  const top = r.top - h - 10 > 56 ? r.top - h - 10 : r.bottom + 10;
+  bar.style.left = `${left}px`; bar.style.top = `${top}px`;
+  const menu = $('#fmtColors');
+  if (menu && !menu.hidden) placeColorMenu();
+}
+addEventListener('scroll', () => { if (S.view === 'page') placeSelBar(); }, { passive: true });
+function toggleColorMenu() {
+  const m = $('#fmtColors');
+  if (!m) return;
+  m.hidden = !m.hidden;
+  $('#selBar [data-act="fmt-colors"]')?.setAttribute('aria-expanded', String(!m.hidden));
+  if (!m.hidden) placeColorMenu();
+}
+function closeColorMenu() { const m = $('#fmtColors'); if (m && !m.hidden) { m.hidden = true; $('#selBar [data-act="fmt-colors"]')?.setAttribute('aria-expanded', 'false'); } }
+function placeColorMenu() {
+  const m = $('#fmtColors'), btn = $('#selBar [data-act="fmt-colors"]');
+  if (!m || !btn) return;
+  const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left))}px`;
+  m.style.top = `${r.bottom + 6 + h < innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)}px`;
+}
+// Negrita, cursiva, color… a lo seleccionado. Se escribe en Markdown: si el bloque se está editando, se ven las marcas
+function formatSelection(kind, color = '') {
+  const sel = S.pageSel || readPageSelection(), p = curPage();
+  const ed = document.activeElement?._live ? document.activeElement : null;
+  const id = ed?.dataset.blockInput || sel?.blockId;
+  const b = p?.blocks.find(x => x.id === id);
+  if (!b || ['code', 'table'].includes(b.type)) return;
+  if (kind === 'color' || kind === 'bg') closeColorMenu();
+  if (ed) {
+    const r = toggleMark(ed.value, ed.selectionStart, ed.selectionEnd, kind, color);
+    liveSet(ed, r.text, r.a, r.b);
+    return;
+  }
+  if (!sel || sel.end == null) return;
+  const r = toggleMark(b.text, sel.at, sel.end, kind, color);
+  b.text = r.text;
+  savePageSoon(p);
+  // Se abre el bloque con lo formateado seleccionado: así se ven las marcas que se han puesto
+  editBlock(b.id, { a: r.a, b: r.b });
+}
+// Atajos de teclado del formato (en un bloque que se está editando)
+const FMT_KEYS = { b: 'b', i: 'i', u: 'u', e: 'code' };
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (!t?._live || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const k = e.key.toLowerCase();
+  let kind = !e.shiftKey ? FMT_KEYS[k] : k === 's' || k === 'x' ? 's' : k === 'h' ? 'bg' : null;
+  if (!kind) return;
+  e.preventDefault();
+  e.stopPropagation();
+  S.pageSel = readPageSelection();
+  formatSelection(kind, kind === 'bg' ? 'yellow' : '');
+}, true);
 // Que pulsar la barra no quite la selección ni cierre el bloque que se está editando
-document.addEventListener('pointerdown', e => { if (e.target.closest?.('#selBar, .tbl-tools')) e.preventDefault(); });
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest?.('#selBar, .tbl-tools, #fmtColors')) e.preventDefault();
+  else closeColorMenu();
+});
 // Al salir de la cuadrícula (a otra parte de la página), la tabla se guarda y se ve con formato
 document.addEventListener('focusout', e => {
   const ed = e.target.closest?.('[data-table-ed]');
@@ -1764,21 +1897,42 @@ document.addEventListener('paste', e => {
   const img = imageFile(e.clipboardData);
   if (img && document.querySelector('.ef-occ') && !t.matches?.('.ef-input')) { e.preventDefault(); return occSetImage(img); }
   if (img && t.matches?.('.ef-input')) { e.preventDefault(); return imageIntoField(t, img); }
-  if (img && S.view === 'page' && !t.closest?.('.sheet')) { e.preventDefault(); return addImageBlock(img, t.dataset?.blockInput); }
-  if (!t.matches?.('[data-block-input]')) return;
-  const text = e.clipboardData?.getData('text/plain') || '';
-  if (!text.includes('\n')) return;
-  // Varias líneas pegadas: se convierten en bloques (títulos, listas y párrafos)
-  const blocks = textToBlocks(text);
+  const ed = t.closest?.('[data-block-input]');
+  if (img && S.view === 'page' && !t.closest?.('.sheet')) { e.preventDefault(); return addImageBlock(img, ed?.dataset.blockInput); }
+  if (!ed) return;
+  const text = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+  const p = curPage(), i = p.blocks.findIndex(x => x.id === ed.dataset.blockInput), b = p.blocks[i];
+  if (!b || b.type === 'code' || b.type === 'table') return;   // en un código o una tabla como texto, tal cual
+  // Con formato (Word, Google Docs, una web…): bloques con su negrita, colores, listas, tablas…
+  const html = e.clipboardData?.getData('text/html') || '';
+  let blocks = html ? htmlToBlocks(html) : null;
+  if (!blocks) {
+    if (!text.includes('\n')) {
+      if (!ed._live) return;
+      e.preventDefault();
+      ed.setRangeText(text, ed.selectionStart, ed.selectionEnd, 'end');
+      return;
+    }
+    // Varias líneas pegadas: se convierten en bloques (títulos, listas y párrafos)
+    blocks = textToBlocks(text);
+  }
   if (!blocks.length) return;
   e.preventDefault();
-  const p = curPage(), i = p.blocks.findIndex(x => x.id === t.dataset.blockInput), b = p.blocks[i];
-  const before = t.value.slice(0, t.selectionStart), after = t.value.slice(t.selectionEnd);
+  // Un solo párrafo: dentro del bloque, donde está el cursor
+  if (blocks.length === 1 && blocks[0].type === 'p') {
+    // Con los espacios de los bordes de lo copiado («palabra » + lo que sigue)
+    const lead = /^[ \t]*/.exec(text)[0], trail = /[ \t]*$/.exec(text)[0];
+    ed.setRangeText(lead + blocks[0].text + trail, ed.selectionStart, ed.selectionEnd, 'end');
+    return;
+  }
+  // Varios bloques: lo de antes del cursor se queda en este bloque, lo pegado detrás y lo de después al final
+  const before = ed.value.slice(0, ed.selectionStart), after = ed.value.slice(ed.selectionEnd);
   let insert = blocks;
-  if (!before.trim() && b.type === 'p') { Object.assign(b, { type: blocks[0].type, text: blocks[0].text }); insert = blocks.slice(1); }
+  if (!before.trim() && b.type === 'p') { const { id, ...first } = blocks[0]; Object.assign(b, first); insert = blocks.slice(1); }
   else b.text = before;
+  let last = insert.length ? insert[insert.length - 1] : b;
+  if (['hr', 'table', 'code', 'img'].includes(last.type)) { last = newBlock(); insert.push(last); }
   p.blocks.splice(i + 1, 0, ...insert);
-  const last = insert.length ? insert[insert.length - 1] : b;
   const caret = last.text.length;
   last.text += after;
   savePageSoon(p);
@@ -2149,7 +2303,12 @@ function notesHelpSheet() {
     ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('### ', 'Título pequeño'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('1. ', 'Lista numerada'),
       row('[] ', 'Casilla (<code>[x] </code> ya marcada)'), row('> ', 'Cita'), row('```', 'Código'), row('---', 'Separador'), row('| A | B |', 'Tabla (abajo cómo)')])}
     <h3 class="sub-h">Formato dentro del texto</h3>
-    ${table([row('**negrita**', '<b>negrita</b>'), row('*cursiva*', '<i>cursiva</i>'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
+    <p class="hint">Selecciona un texto para usar la barra de formato, o escríbelo tú: es Markdown, y mientras el cursor está dentro verás las marcas.</p>
+    ${table([row('**negrita**', '<b>negrita</b> · <kbd>Ctrl + B</kbd>'), row('*cursiva*', '<i>cursiva</i> · <kbd>Ctrl + I</kbd>'), row('<u>subrayado</u>', '<u>subrayado</u> · <kbd>Ctrl + U</kbd>'),
+      row('~~tachado~~', '<s>tachado</s> · <kbd>Ctrl + Mayús + S</kbd>'), row('`código`', '<code>código</code> · <kbd>Ctrl + E</kbd>'), row('==resaltado==', '<mark class="hl hl-yellow">resaltado</mark> · <kbd>Ctrl + Mayús + H</kbd>'),
+      row('<span style="color:red">rojo</span>', '<span class="tc tc-red">Texto en color</span> (desde la barra: botón A)'), row('<mark style="background:blue">azul</mark>', '<mark class="hl hl-blue">Fondo de color</mark>'),
+      row('[texto](https://…)', 'Enlace'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
+    <p class="hint">Al pegar desde Word, Google Docs, Notion o una web se conservan los títulos, listas, tablas, negritas, colores y enlaces.</p>
     <h3 class="sub-h">Tablas</h3>
     <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
 | :------- | :----: | ------: |
@@ -2327,7 +2486,10 @@ function renderSettings() {
       ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la tarjeta.', sw('study.showIntervals'))}
       ${setRow('Resaltar la nota sugerida', 'En tarjetas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
       ${setRow('Una nueva por nota', 'Si una nota genera varias tarjetas (p. ej. ida y vuelta), solo sale una nueva por sesión.', sw('study.burySiblings'))}
-      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la tarjeta qué teclas puedes usar.', sw('study.shortcuts'))}`, 's-session')}
+      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la tarjeta qué teclas puedes usar.', sw('study.shortcuts'))}
+      ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: izquierda «Otra vez», derecha «Bien», arriba «Fácil».', sw('study.swipe'))}
+      ${canVibrate() ? setRow('Vibración', 'Una vibración muy breve al responder y al trazar kanji o hanzi.', sw('study.haptics')) : ''}
+      ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`) : ''}`, 's-session')}
     ${setSec('volume-2', 'Voz', `
       ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la tarjeta.', sw('study.autoplay'))}
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
@@ -2945,7 +3107,7 @@ function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugInd
   drawPreview();
   if (matchMedia('(hover:hover)').matches) setTimeout(() => document.querySelector('.ef-input')?.focus(), 40);
 }
-function autoGrow(t) { t.style.height = 'auto'; t.style.height = Math.min(320, t.scrollHeight + 2) + 'px'; }
+function autoGrow(t) { if (t.tagName !== 'TEXTAREA') return; t.style.height = 'auto'; t.style.height = Math.min(320, t.scrollHeight + 2) + 'px'; }
 function setEditorType(id) {
   const old = getType(S.edit.typeId) || BUILTIN_TYPES[0], nt = getType(id) || BUILTIN_TYPES[0];
   readEditor();
@@ -3827,13 +3989,20 @@ document.addEventListener('click', async e => {
     const eb = e.target.closest('[data-edit-block]');
     const td = e.target.closest?.('.nb-tbl td, .nb-tbl th');
     if (eb && td && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock, { r: td.tagName === 'TH' ? 'h' : td.parentElement.rowIndex - 1, c: td.cellIndex });
-    if (eb && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock);
+    // Un enlace en un bloque que no se está editando se abre (no pasa a edición)
+    if (eb && e.target.closest('a[href]')) return;
+    if (eb && !getSelection()?.toString().trim()) {
+      // El cursor, donde se ha tocado (el texto pintado es el mismo Markdown con las marcas ocultas)
+      const o = eb.classList.contains('md') ? selOffsets(eb) : null;
+      return editBlock(eb.dataset.editBlock, o ? o.a : null);
+    }
     if (e.target.id === 'sheet') requestClose();
     else if (e.target.closest('.pv-card') && S.edit) { S.edit.pvSide = S.edit.pvSide === 'front' ? 'back' : 'front'; drawPreview(); }
     return;
   }
   const ds = b.dataset;
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
+  if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
   if (ds.stp !== undefined) { S.stats.period = Number(ds.stp); const y = scrollY; renderStats(); scrollTo(0, y); return; }
@@ -4031,6 +4200,7 @@ document.addEventListener('click', async e => {
     }
     case 'undo': return undo();
     case 'test-voice': return speak('Merhaba, nasılsın? こんにちは。', 'tr-TR');
+    case 'test-sound': return chime('good');
     case 'algo-reset': { S.prefs.algo.custom = { ...DEFAULT_ALGO }; prefChanged('algo.custom'); const y = scrollY; renderSettings(); scrollTo(0, y); return; }
     case 'backup': {
       const day = dateKey();
@@ -4172,6 +4342,7 @@ document.addEventListener('click', async e => {
     case 'intro': return showIntro();
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
+    case 'fmt-colors': return toggleColorMenu();
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
     case 'pick-type': return openTypePicker(true);

@@ -4,6 +4,7 @@
 // salen ya marcadas. Sin dependencias de la interfaz, así que se puede probar aparte.
 import { BUILTIN_TYPES, activeTemplates, summarize, baseLang } from './cardtypes.js';
 import { pageTitle, parseTable } from './pages.js';
+import { toPlain } from './inline.js';
 
 export const KINDS = {
   vocab: 'Vocabulario', def: 'Definición', term: 'Concepto', bold: 'Negrita', table: 'Tabla', match: 'Emparejar',
@@ -15,7 +16,7 @@ export const PRESELECT = 0.65;
 /* ---------------- Texto ---------------- */
 const IMG = /!\[[^\]\n]*\]\(img:[\w-]+\)/g;
 // Sin formato: negritas, cursivas, huecos e imágenes fuera (la furigana se queda)
-export const plainText = s => String(s ?? '').replace(IMG, '').replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1').replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2').replace(/\s+/g, ' ').trim();
+export const plainText = s => toPlain(String(s ?? '').replace(IMG, '')).replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1').replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2').replace(/\s+/g, ' ').trim();
 const norm = s => plainText(s).toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const words = s => plainText(s).split(/\s+/).filter(Boolean);
 const capFirst = s => s.charAt(0).toLocaleUpperCase() + s.slice(1);
@@ -43,6 +44,8 @@ export function sentences(text) {
 
 // Etiquetas que no son conceptos: «Nota: …», «Ejemplo: …»
 const LABELS = /^(nota|notas|ejemplo|ejemplos|ej|p\.?\s?ej|importante|ojo|recuerda|atención|cuidado|observación|obs|fuente|fuentes|ver|véase|véase también|ver también|artículo principal|consejo|truco|tip|pista|resumen|conclusión|idea|pregunta|respuesta|respuesta correcta|solución|figura|fig|tabla|imagen|foto|gráfico|mapa|documento|texto|actividad|ejercicio|example|examples|e\.g|note|warning|hint|see also|figure|source|beispiel|achtung|hinweis|örnek|not|dikkat|nb|ps|pd|código \d+|criterios de codificación)\.?$/i;
+// Prefijos de aviso en apuntes y manuales («Importante: …», «Recuerda: …»)
+export const CALLOUT_PRE = /^(?:importante|recuerda|recuerde|ojo|atenci[oó]n|nota|notas|aviso|cuidado|ten(?:er)?\s+en\s+cuenta|important|note|remember|warning)\s*[:.–—-]\s*/iu;
 // Palabras con las que no acaba un término (señal de que el corte está a mitad de frase)
 const DANGLING = /(?<![\p{L}])(de|del|la|las|el|los|y|o|que|en|a|con|por|para|un|una|the|of|and|or|to|in|a|an|der|die|das|und|oder|ve|ile)$/iu;
 const ARTICLE = /^(el|la|los|las|lo|un|una|unos|unas|the|a|an)\s/i;
@@ -88,6 +91,7 @@ function asNote(typeId, fields, isLangDeck) {
 /* ---------------- Preguntas ---------------- */
 // «La mitosis» → «la mitosis» (los nombres propios y siglas se quedan como están)
 const lowerSubject = s => (ARTICLE.test(s) ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
+const dePrep = s => (/^el\s/i.test(s) ? 'del ' + s.slice(3) : 'de ' + lowerSubject(s));
 const isProperName = s => !ARTICLE.test(s) && words(s).every(w => /^[\p{Lu}\d]/u.test(w) || /^(de|del|la|y|van|von)$/i.test(w));
 // Verbo de una definición → cómo se pregunta (y si la respuesta es el sujeto, como en «se llama»)
 const COPULAS = [
@@ -97,6 +101,11 @@ const COPULAS = [
   { re: /^(.+?)\s+significan?\s+(.+)$/i, ask: s => `¿Qué significa ${lowerSubject(s)}?` },
   { re: /^(.+?)\s+se\s+refieren?\s+a\s+(.+)$/i, ask: s => `¿A qué se refiere ${lowerSubject(s)}?` },
   { re: /^(.+?)\s+sirven?\s+para\s+(.+)$/i, ask: s => `¿Para qué sirve ${lowerSubject(s)}?` },
+  { re: /^(.+?)\s+tiene\s+(?:como\s+)?funci[oó]n\s+(.+)$/i, ask: s => `¿Cuál es la función ${dePrep(s)}?` },
+  { re: /^(.+?)\s+tienen\s+(?:como\s+)?funci[oó]n\s+(.+)$/i, ask: s => `¿Cuál es la función ${dePrep(s)}?` },
+  { re: /^(.+?)\s+tiene\s+como\s+objetivo\s+(.+)$/i, ask: s => `¿Cuál es el objetivo ${dePrep(s)}?` },
+  { re: /^(.+?)\s+tienen\s+como\s+objetivo\s+(.+)$/i, ask: s => `¿Cuál es el objetivo ${dePrep(s)}?` },
+  { re: /^(.+?)\s+se\s+(?:encarga|encargan)\s+de\s+(.+)$/i, ask: s => `¿De qué se encarga ${lowerSubject(s)}?` },
   { re: /^(.+?)\s+fue\s+(.+)$/i, ask: s => (isProperName(s) ? `¿Quién fue ${s}?` : `¿Qué fue ${lowerSubject(s)}?`) },
   { re: /^(.+?)\s+era\s+(.+)$/i, ask: s => (isProperName(s) ? `¿Quién era ${s}?` : `¿Qué era ${lowerSubject(s)}?`) },
   { re: /^(.+?)\s+fueron\s+(.+)$/i, ask: s => (isProperName(s) ? `¿Quiénes fueron ${s}?` : `¿Qué fueron ${lowerSubject(s)}?`) },
@@ -109,10 +118,10 @@ const COPULAS = [
   { re: /^(.+?)\s+(?:is|was)\s+(.+)$/i, ask: s => `What is ${s.replace(/^(The|A|An)\s/, m => m.toLowerCase())}?` },
   { re: /^(.+?)\s+are\s+(.+)$/i, ask: s => `What are ${s.replace(/^(The)\s/, 'the ')}?` },
 ];
-// Sujetos que no son un concepto: «Lo importante es…», «Esto es…», «Hoy es…»
-const VAGUE = /^(lo|esto|eso|aquello|esta|este|estas|estos|ese|esa|aquí|ahí|hoy|ayer|mañana|también|además|otra|otro|una\s+(?:ventaja|cosa|idea|forma)|el\s+problema|la\s+(?:idea|cosa|clave|razón)|it|this|that|there|here|todo|nada|algo|cada|mi|tu|su|sus|nuestro|nuestra|el\s+objetivo|la\s+respuesta|la\s+pregunta)(?![\p{L}\d])/iu;
+// Sujetos que no son un concepto: «Lo importante es…», «Esto es…», «Hoy es…», «Dicho proceso…»
+const VAGUE = /^(lo|esto|eso|aquello|esta|este|estas|estos|ese|esa|aquí|ahí|hoy|ayer|mañana|también|además|otra|otro|una\s+(?:ventaja|cosa|idea|forma)|el\s+problema|la\s+(?:idea|cosa|clave|razón)|it|this|that|there|here|todo|nada|algo|cada|mi|tu|su|sus|nuestro|nuestra|el\s+objetivo|la\s+respuesta|la\s+pregunta|dich[oas]|amb[oas]|(?:el|la|los|las)\s+mism[oas]|(?:este|esta|estos|estas)\s+[uú]ltim[oas])(?![\p{L}\d])/iu;
 const GENERIC_SUBJECT = /^(el|la|los|las|un|una|unos|unas)\s+(resultado|siguiente|primer[oa]?|segund[oa]|tercer[oa]?|últim[oa]|objetivo|razón|diferencia|mayoría|mayor\s+parte|problema|cosa|idea|clave|verdad|realidad|principal|forma|manera|caso|ejemplo|tipo|parte|consecuencia|causa|motivo|finalidad|tema|punto|hecho|cuestión|respuesta|pregunta|fin|base)\b|^(un[oa]|alguno|alguna|muchos|muchas|varios|varias|pocos|pocas|ambos|ambas)\s+de(?![\p{L}])/iu;
-const LEAD_PHRASE = /^(así\s+pues|de\s+hecho|por\s+tanto|por\s+ello|por\s+eso|sin\s+embargo|en\s+cambio|es\s+decir|por\s+ejemplo|en\s+general|en\s+resumen|en|para|según|durante|tras|desde|con|por|sin|además|también|así|hoy|actualmente|generalmente|normalmente|técnicamente|históricamente|finalmente|luego|entonces|pues|in|for|according|during|by|however|thus)(?![\p{L}\d])/iu;
+const LEAD_PHRASE = /^(así\s+pues|de\s+hecho|por\s+tanto|por\s+ello|por\s+eso|sin\s+embargo|en\s+cambio|es\s+decir|por\s+ejemplo|en\s+general|en\s+resumen|en\s+este\s+sentido|en\s+este\s+caso|en|para|según|durante|tras|desde|con|por|sin|además|también|así|hoy|actualmente|generalmente|normalmente|técnicamente|históricamente|finalmente|luego|entonces|pues|in|for|according|during|by|however|thus)(?![\p{L}\d])/iu;
 // «En biología, la mitosis» → «la mitosis» · «La cariocinesis (del griego…), mitosis astral» → «La cariocinesis»
 function subjectHead(raw) {
   let t = String(raw).replace(/^\s*(?:\d+(?:\.\d+)*\s*[.)\-–]+\s*|[a-z]\)\s+|[•\-–*]\s*)/i, '').trim();
@@ -152,6 +161,29 @@ function conceptCard(sp) {
     const plural = /^(llaman|denominan|conocen)/i.test(inv[1]);
     return { q: `¿Cómo se llama${plural ? 'n' : ''} ${inv[3].charAt(0).toLocaleLowerCase() + inv[3].slice(1)}?`, a: capFirst(inv[2].replace(/^[«"“]|[»"”]$/g, '')), score: 0.72 };
   }
+  // «La función de los ribosomas es la síntesis de proteínas…» / «El objetivo del proyecto es analizar…»
+  const func = /^(la\s+funci[oó]n|el\s+objetivo)(?:\s+principal)?\s+(de\s+|del\s+)(.{2,60}?)\s+es\s+(.+)$/i.exec(body);
+  if (func) {
+    const kind = func[1].toLowerCase().includes('objetivo') ? 'el objetivo' : 'la función';
+    const prep = func[2].trim().toLowerCase();
+    const entity = func[3].trim();
+    const rest = func[4].trim();
+    const subjCandidate = (prep === 'del' ? 'el ' : '') + entity;
+    const head = subjectHead(subjCandidate);
+    if (head && validSubject(head) && words(rest).length >= 2 && !/^(no|también|ya)\b/i.test(rest)) {
+      const qEntity = prep === 'del' ? `del ${head.replace(/^el\s+/i, '')}` : `de ${lowerSubject(head)}`;
+      return { q: `¿Cuál es ${kind} ${qEntity}?`, a: capFirst(trimAnswer(rest)), score: 0.7 };
+    }
+  }
+  const engFunc = /^(the\s+function|the\s+purpose|the\s+goal)\s+of\s+(.{2,60}?)\s+is\s+(.+)$/i.exec(body);
+  if (engFunc) {
+    const engKind = engFunc[1].trim().toLowerCase();
+    const head = subjectHead(engFunc[2].trim());
+    const rest = engFunc[3].trim();
+    if (head && validSubject(head) && words(rest).length >= 2) {
+      return { q: `What is ${engKind} of ${lowerSubject(head)}?`, a: capFirst(trimAnswer(rest)), score: 0.7 };
+    }
+  }
   for (const c of COPULAS) {
     const m = c.re.exec(body);
     if (!m) continue;
@@ -167,6 +199,63 @@ function conceptCard(sp) {
     if (!head || !validSubject(head) || /^(no|también|ya|muy|más|menos|tan)\b/i.test(rest) || words(rest).length < 3) return null;
     if (verb && COPULAR.has(verb) && !DEFINING.test(rest)) return null;
     return { q: c.ask(head), a: capFirst(trimAnswer(rest)), score: words(head).length <= 3 ? 0.7 : 0.62 };
+  }
+  return null;
+}
+/* ---------------- Acrónimos y siglas ---------------- */
+const ROMAN_NUMERAL = /^[IVXLCDM]+$/i;
+const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'e', 'en', 'o', 'u', 'a', 'al', 'por', 'para', 'of', 'and', 'the', 'in', 'for', 'to']);
+
+export function isAcronymPair(acrRaw, expRaw) {
+  const normStr = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const acr = normStr(acrRaw).trim().replace(/[^A-Za-z]/g, '').toUpperCase();
+  if (acr.length < 2 || acr.length > 8 || ROMAN_NUMERAL.test(acr)) return false;
+  const expWords = words(String(expRaw || '')).filter(w => !STOPWORDS.has(normStr(w).toLowerCase()));
+  if (expWords.length < 2 || expWords.length > 8) return false;
+  const initials = expWords.map(w => normStr(w)[0]?.toUpperCase() || '').join('');
+  if (initials === acr) return true;
+  if (acr[0] === initials[0]) {
+    let ai = 0;
+    const allText = normStr(expWords.join('')).toUpperCase();
+    for (let i = 0; i < allText.length && ai < acr.length; i++) {
+      if (allText[i] === acr[ai]) ai++;
+    }
+    if (ai === acr.length) return true;
+  }
+  return false;
+}
+
+export function acronymCard(sp) {
+  // 1) Expansión (SIGLA): «El ácido desoxirribonucleico (ADN) es…»
+  const m1 = /\(([A-ZÁÉÍÓÚÑ]{2,8})\)/u.exec(sp);
+  if (m1 && !ROMAN_NUMERAL.test(m1[1])) {
+    const acr = m1[1];
+    const beforeTokens = sp.slice(0, m1.index).trim().split(/\s+/);
+    for (let len = Math.min(beforeTokens.length, 7); len >= 2; len--) {
+      let cand = beforeTokens.slice(-len).join(' ').replace(/^[,;:.(«"“\-–—]+/, '').trim();
+      cand = cand.replace(/^(?:el|la|los|las|un|una|unos|unas|del?)\s+/i, '').trim();
+      if (isAcronymPair(acr, cand)) {
+        return { q: `¿Qué significan las siglas ${acr}?`, a: capFirst(cand), score: 0.75 };
+      }
+    }
+  }
+  // 2) SIGLA (Expansión): «El ADN (ácido desoxirribonucleico) es…»
+  const m2 = /\b([A-ZÁÉÍÓÚÑ]{2,8})\s*\(([^()]{4,70})\)/u.exec(sp);
+  if (m2 && !ROMAN_NUMERAL.test(m2[1])) {
+    const acr = m2[1];
+    let cand = m2[2].trim().replace(/^(?:el|la|los|las|un|una|unos|unas|del?)\s+/i, '').trim();
+    if (isAcronymPair(acr, cand)) {
+      return { q: `¿Qué significan las siglas ${acr}?`, a: capFirst(cand), score: 0.75 };
+    }
+  }
+  // 3) Enunciado explícito: «Las siglas ADN corresponden al ácido desoxirribonucleico»
+  const m3 = /^(?:las?\s+siglas?\s+)?([A-ZÁÉÍÓÚÑ]{2,8})\s+(?:significan?|corresponden?\s+(?:a|al)|son?\s+(?:las?\s+)?(?:siglas?|acr[oó]nimos?)\s+de)\s+([^,.;]{4,70})/iu.exec(sp);
+  if (m3 && !ROMAN_NUMERAL.test(m3[1])) {
+    const acr = m3[1];
+    let cand = m3[2].trim().replace(/^(?:el|la|los|las|un|una|unos|unas|del?|al)\s+/i, '').trim();
+    if (isAcronymPair(acr, cand)) {
+      return { q: `¿Qué significan las siglas ${acr}?`, a: capFirst(cand), score: 0.75 };
+    }
   }
   return null;
 }
@@ -192,7 +281,7 @@ function appositiveCard(sp) {
 const VERBISH = /(?<![\p{L}])(es|son|era|fue|ser|está|están|tiene|tienen|hay|puede|pueden|debe|deben|hace|hacen|existe|existen|se|que|cuando|porque|si|aunque|pero|is|are|was|be|has|have|can|which|that|because|when)(?![\p{L}])/iu;
 
 // Enunciados de ejercicios («Haz las actividades…», «Rodea con un círculo…»)
-const EXERCISE = /^(?:\d+\s*[.)-]+\s*-?\s*)?(haz|hacer|realiza|lee|leer|responde|contesta|completa|elabora|busca|observa|mira|explica|define|indica|señala|rodea|marca|subraya|escribe|copia|resume|piensa|relaciona|une|ordena|identifica|compara|justifica|analiza|comenta|calcula|dibuja|investiga|elige|selecciona|repasa|para repasar|empezamos)(?![\p{L}])/iu;
+const EXERCISE = /^(?:\d+\s*[.)-]+\s*-?\s*)?(haz|hacer|realiza|lee|leer|responde|contesta|completa|elabora|busca|observa|mira|explica|define|indica|señala|rodea|marca|subraya|escribe|copia|resume|piensa|relaciona|une|ordena|identifica|compara|justifica|analiza|comenta|calcula|dibuja|investiga|elige|selecciona|repasa|repasar|para repasar|empezamos)(?![\p{L}])/iu;
 const SAYS = /(?<![\p{L}])(comenta|afirma|dice|señala|explica|escribe|indica|sostiene|asegura|añade|recuerda|opina|cuenta|declara|says|writes|states|argues)$/iu;
 
 /* ---------------- Reglas ---------------- */
@@ -252,7 +341,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     const lvl = b.type === 'h1' ? 1 : b.type === 'h2' ? 2 : b.type === 'h3' ? 3 : 0;
     if (lvl) { while (stack.length && stack[stack.length - 1].lvl >= lvl) stack.pop(); stack.push({ lvl, text: plainText(b.text), id: b.id }); }
     headOf.set(b.id, stack.map(s => s.text));
-    if (b.type === 'callout') calloutIds.add(b.id);
+    if (b.type === 'callout' || CALLOUT_PRE.test(plainText(b.text))) calloutIds.add(b.id);
     // Lo que cuelga de «Referencias», «Bibliografía»… y el texto con direcciones web no da tarjetas
     if (stack.some(s => /^(referencias|bibliograf[ií]a|notas|notas y referencias|enlaces externos|véase también|fuentes|obras citadas|lecturas recomendadas|references|bibliography|notes|external links|see also|further reading)$/i.test(s.text.replace(/^\d+(\.\d+)*\s*/, '')))
       || /https?:\/\/|www\.|doi[:.]\s?10\.|PMID\s\d/i.test(b.text || '')) used.add(b.id);
@@ -435,7 +524,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     const DATE_TERM = /^(?:(?:en\s+)?(?:el\s+)?(?:año\s+)?\d{3,4}(?:\s*[-–]\s*\d{2,4})?|década\s+de\s+\d{4}|siglo\s+[IVXL]+(?:\s*[ad]\.\s?C\.?)?)$/i;
     const dt = /^(.{3,30}?)\s*[:–—-]\s+(.{15,240})$/.exec(plainText(text));
     if (dt && DATE_TERM.test(dt[1].trim())) { add('date', b.id, 'basic', { q: `${capFirst(dt[2].replace(/\.$/, ''))} — ¿cuándo?`, a: dt[1].trim(), n: '' }, dt[2].length <= 130 ? 0.66 : 0.55); continue; }
-    const def = splitDef(text) || boldLead(text);
+    const def = splitDef(text.replace(CALLOUT_PRE, '').trim()) || boldLead(text);
     if (def) {
       const termP = plainText(def.term), defP = plainText(def.def);
       const tw = words(termP).length, dw = words(defP).length;
@@ -459,7 +548,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     }
 
     // Frase a frase: concepto con verbo, negritas y fechas
-    for (const s of sentences(text)) {
+    for (const rawSentence of sentences(text)) {
+      const s = rawSentence.replace(CALLOUT_PRE, '').trim();
       const sp = plainText(s);
       if (sp.length < 12 || sp.length > 320) continue;
       // Negritas: un hueco por cada una (lo que el autor marcó como importante)
@@ -478,6 +568,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       }
       // Enunciados de ejercicios y frases que empiezan a medias (un trozo de otra) no dan tarjetas
       if (EXERCISE.test(sp) || /^\p{Ll}/u.test(sp) || /(?<![\p{L}])\p{Lu}{4,}\s+\p{Lu}{2,}(?![\p{L}])/u.test(sp)) continue;
+      const ac = acronymCard(sp);
+      if (ac) add('term', b.id, 'basic', { q: ac.q, a: ac.a, n: '' }, ac.score);
       const cc = conceptCard(sp);
       if (cc && add('term', b.id, 'basic', { q: cc.q, a: cc.a, n: '' }, cc.score)) continue;
       const ap = appositiveCard(sp);

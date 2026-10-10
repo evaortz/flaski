@@ -24,6 +24,9 @@
   --tag-purple-bg:#E8DEEE; --tag-purple:#412454;
   --tag-pink-bg:#F5E0E9;   --tag-pink:#4C2337;
 
+  /* Fondos de color del texto (resaltar), los de Notion */
+  --hl-gray:#F1F1EF; --hl-brown:#F4EEEE; --hl-orange:#FBECDD; --hl-yellow:#FBF3DB; --hl-green:#EDF3EC;
+  --hl-blue:#E7F3F8; --hl-purple:#F6F3F9; --hl-pink:#FAF1F5; --hl-red:#FDEBEC;
   /* Colores de mazos y carpetas (los de Notion) */
   --c-gray:#9B9A97; --c-brown:#9F6B53; --c-orange:#D9730D; --c-yellow:#CB912F; --c-green:#448361;
   --c-blue:#337EA9; --c-purple:#9065B0; --c-pink:#C14C8A; --c-red:#D44C47;
@@ -59,6 +62,8 @@
   --tag-pink-bg:#4E2C3C;   --tag-pink:#F7D1E2;
   --c-gray:#979A9B; --c-brown:#937264; --c-orange:#FFA344; --c-yellow:#FFDC49; --c-green:#4DAB9A;
   --c-blue:#529CCA; --c-purple:#9A6DD7; --c-pink:#E255A1; --c-red:#FF7369;
+  --hl-gray:#2F2F2F; --hl-brown:#4A3228; --hl-orange:#5C3B23; --hl-yellow:#564328; --hl-green:#243D30;
+  --hl-blue:#143A4E; --hl-purple:#3C2D49; --hl-pink:#4E2C3C; --hl-red:#522E2A;
   --d1:#529CCA; --d2:#4DAB9A; --d3:#FFA344; --d4:#9A6DD7; --d5:#FFDC49; --d6:#E255A1;
   --gh0:#2A2A2A; --gh1:#0E4429; --gh2:#006D32; --gh3:#26A641; --gh4:#39D353;
   --m0:#94A3B8; --m1:#F59E0B; --m2:#3B82F6; --m3:#22C55E;
@@ -82,6 +87,8 @@
   --tag-pink-bg:#4E2C3C;   --tag-pink:#F7D1E2;
   --c-gray:#979A9B; --c-brown:#937264; --c-orange:#FFA344; --c-yellow:#FFDC49; --c-green:#4DAB9A;
   --c-blue:#529CCA; --c-purple:#9A6DD7; --c-pink:#E255A1; --c-red:#FF7369;
+  --hl-gray:#2F2F2F; --hl-brown:#4A3228; --hl-orange:#5C3B23; --hl-yellow:#564328; --hl-green:#243D30;
+  --hl-blue:#143A4E; --hl-purple:#3C2D49; --hl-pink:#4E2C3C; --hl-red:#522E2A;
   --d1:#529CCA; --d2:#4DAB9A; --d3:#FFA344; --d4:#9A6DD7; --d5:#FFDC49; --d6:#E255A1;
   --gh0:#2A2A2A; --gh1:#0E4429; --gh2:#006D32; --gh3:#26A641; --gh4:#39D353;
   --m0:#94A3B8; --m1:#F59E0B; --m2:#3B82F6; --m3:#22C55E;
@@ -1287,3 +1294,56 @@ pre.nb-code{margin:0;font-size:14px;white-space:pre-wrap;line-height:1.55}
 .tbl-grid .tc:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--bg)}
 .tbl-hint{margin:4px 0 0}
 @media (max-width:620px){.tbl-tools button{padding:0 7px;font-size:12.5px}.tbl-hint{display:none}}
+
+/* ---------- Formato del texto (Markdown al estilo de Obsidian) ---------- */
+/* Los bloques se pintan con su Markdown entero; las marcas (**, <u>…) solo se ven donde está el cursor */
+.nb-text.md{white-space:pre-wrap}
+.nb-text.md:empty::before{content:attr(data-ph);color:var(--faint);pointer-events:none}
+.nb-text.md[contenteditable]{outline:none;caret-color:var(--fg)}
+.mk{display:none}
+.fm.on>.mk,.fm-ruby.on>ruby>.mk{display:inline;color:var(--faint);font-weight:400;font-style:normal;text-decoration:none;background:none}
+.fm-ruby.on>ruby{display:inline}
+.fm-ruby.on rt{display:inline;font-size:inherit;color:var(--muted)}
+.fm-img.on>.mk{font-family:var(--mono);font-size:.85em}
+.fm-code.on>.mk{font-family:var(--mono);font-size:.88em}
+.nb-text a,.front a,.answer a,.fld-t a{color:inherit;text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:2px}
+.nb-text a:hover{text-decoration-color:currentColor}
+.tc-default{color:var(--fg)}
+.tc-gray{color:var(--c-gray)} .tc-brown{color:var(--c-brown)} .tc-orange{color:var(--c-orange)} .tc-yellow{color:var(--c-yellow)} .tc-green{color:var(--c-green)}
+.tc-blue{color:var(--c-blue)} .tc-purple{color:var(--c-purple)} .tc-pink{color:var(--c-pink)} .tc-red{color:var(--c-red)}
+mark.hl{color:inherit;border-radius:3px;padding:0 1px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.hl-gray{background:var(--hl-gray)} .hl-brown{background:var(--hl-brown)} .hl-orange{background:var(--hl-orange)} .hl-yellow{background:var(--hl-yellow)} .hl-green{background:var(--hl-green)}
+.hl-blue{background:var(--hl-blue)} .hl-purple{background:var(--hl-purple)} .hl-pink{background:var(--hl-pink)} .hl-red{background:var(--hl-red)}
+/* Barra de lo seleccionado: formato + tarjetas. En pantallas grandes, flotando encima de la selección */
+.selbar.float{bottom:auto;transform:none}
+.fmt-btns{display:flex;align-items:center;gap:2px}
+.fmt-btns[hidden],.selbar-sep[hidden]{display:none}
+.fmt{display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:30px;height:30px;padding:0 6px;border:0;border-radius:6px;background:transparent;color:var(--fg);font:inherit;font-size:15px;line-height:1;cursor:pointer}
+.fmt:hover{background:var(--hover)}
+.fmt[aria-pressed="true"]{background:var(--press);color:var(--accent)}
+.fmt b{font-weight:700} .fmt i{font-family:Georgia,serif}
+.fmt-a{font-weight:600;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.fmt-color .lu{color:var(--muted)}
+.selbar-sep{width:1px;align-self:stretch;margin:2px 2px;background:var(--line)}
+.fmt-colors{position:fixed;z-index:16;width:244px;padding:8px 10px 10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(15,15,15,.16)}
+.fmt-colors[hidden]{display:none}
+.fmt-h{margin:4px 2px 6px;font-size:12px;font-weight:600;color:var(--muted)}
+.fmt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+.fmt-sw{height:34px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:15px;font-weight:600;cursor:pointer;color:var(--fg)}
+.fmt-sw:hover{border-color:var(--line-strong);box-shadow:0 0 0 2px var(--hover)}
+.fmt-sw:not(.fmt-bg),.fmt-bg.hl-default{background:var(--bg)}
+@media (max-width:699px){
+  .selbar{left:8px;right:8px;transform:none;overflow-x:auto;padding:6px 8px;gap:6px}
+  .fmt-colors{left:8px !important;right:8px;width:auto;top:auto !important;bottom:calc(132px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:420px){.selbar .small-btn span{display:none}}
+
+/* ---------- Deslizar la tarjeta para valorar (móvil) ---------- */
+.card.swipeable{position:relative;will-change:transform;user-select:none;-webkit-user-select:none}
+.card.swipeable[data-swipe]::after{content:attr(data-swipe-label);position:absolute;top:14px;padding:4px 12px;border-radius:6px;font-weight:700;font-size:15px;letter-spacing:.02em;border:2px solid currentColor;opacity:var(--swipe,0);pointer-events:none}
+.card.swipeable[data-swipe=left]::after{right:14px;color:var(--tag-red);background:var(--tag-red-bg);transform:rotate(8deg)}
+.card.swipeable[data-swipe=right]::after{left:14px;color:var(--tag-green);background:var(--tag-green-bg);transform:rotate(-8deg)}
+.card.swipeable[data-swipe=up]::after{left:50%;top:auto;bottom:14px;color:var(--tag-blue);background:var(--tag-blue-bg);transform:translateX(-50%)}
+.card.swipeable[data-swipe=left]{box-shadow:0 0 0 calc(var(--swipe,0) * 3px) var(--tag-red)}
+.card.swipeable[data-swipe=right]{box-shadow:0 0 0 calc(var(--swipe,0) * 3px) var(--tag-green)}
+.card.swipeable[data-swipe=up]{box-shadow:0 0 0 calc(var(--swipe,0) * 3px) var(--tag-blue)}

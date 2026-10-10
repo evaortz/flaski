@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestCards, sentences, looksSpanish, plainText } from '../../js/suggest.js';
+import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE } from '../../js/suggest.js';
 import { textToBlocks } from '../../js/pages.js';
 
 const run = (md, opts) => suggestCards({ title: '', blocks: textToBlocks(md) }, opts);
@@ -133,3 +133,78 @@ test('casos reales: cronologías como fechas; números de nota fuera de las resp
     ['def', 'Ribosoma', 'Los ribosomas son partículas visibles al microscopio electrónico. Están formados por ARN.'],
   ]);
 });
+
+test('siglas y acrónimos: detecta ADN, OMS, OTAN, PIB y rechaza números romanos', () => {
+  // Pruebas unitarias de isAcronymPair
+  assert.ok(isAcronymPair('ADN', 'ácido desoxirribonucleico'));
+  assert.ok(isAcronymPair('OMS', 'Organización Mundial de la Salud'));
+  assert.ok(isAcronymPair('OTAN', 'Organización del Tratado del Atlántico Norte'));
+  assert.ok(isAcronymPair('PIB', 'Producto Interior Bruto'));
+  assert.ok(isAcronymPair('TIC', 'Tecnologías de la Información y la Comunicación'));
+  assert.ok(!isAcronymPair('III', 'fase de mitosis'));
+  assert.ok(!isAcronymPair('XIX', 'siglo de las luces'));
+  assert.ok(!isAcronymPair('ABC', 'un gato negro'));
+
+  // Pruebas en textos reales mediante run
+  const r = run([
+    'El ácido desoxirribonucleico (ADN) es la molécula portadora de la información genética.',
+    'La Organización Mundial de la Salud (OMS) coordina las directrices sanitarias globales.',
+    'El PIB (Producto Interior Bruto) refleja el valor monetario de la producción de un país.',
+    'Las siglas ARN corresponden al ácido ribonucleico.',
+  ].join('\n\n'));
+
+  const siglas = r.filter(s => s.front.includes('siglas')).map(s => [s.front, s.back]);
+  assert.deepEqual(siglas, [
+    ['¿Qué significan las siglas ADN?', 'Ácido desoxirribonucleico'],
+    ['¿Qué significan las siglas OMS?', 'Organización Mundial de la Salud'],
+    ['¿Qué significan las siglas PIB?', 'Producto Interior Bruto'],
+    ['¿Qué significan las siglas ARN?', 'Ácido ribonucleico'],
+  ]);
+  assert.ok(siglas.length === 4);
+});
+
+test('conceptos funcionales y objetivos: función de X, objetivo de X, se encarga de', () => {
+  const r = run([
+    'La función de los ribosomas es sintetizar proteínas a partir de la información del ARN.',
+    'La función del núcleo celular es proteger y organizar el material genético.',
+    'El objetivo del ensayo clínico es determinar la eficacia del nuevo tratamiento.',
+    'El aparato de Golgi se encarga de transportar y empaquetar proteínas.',
+    'Las mitocondrias tienen como función generar energía química en forma de ATP.',
+  ].join('\n\n'));
+
+  assert.deepEqual(r.map(s => [s.front, s.back]), [
+    ['¿Cuál es la función de los ribosomas?', 'Sintetizar proteínas a partir de la información del ARN'],
+    ['¿Cuál es la función del núcleo celular?', 'Proteger y organizar el material genético'],
+    ['¿Cuál es el objetivo del ensayo clínico?', 'Determinar la eficacia del nuevo tratamiento'],
+    ['¿De qué se encarga el aparato de Golgi?', 'Transportar y empaquetar proteínas'],
+    ['¿Cuál es la función de las mitocondrias?', 'Generar energía química en forma de ATP'],
+  ]);
+});
+
+test('filtro anafórico y destacados: descarta «dicho proceso», «ambos», y potencia callouts', () => {
+  // Las oraciones anafóricas sin contexto no deben generar tarjetas vagas
+  const vagos = run([
+    'Dicho proceso es la base de la respiración celular en organismos aerobios.',
+    'Dicha estructura es fundamental para mantener la presión osmótica de la célula.',
+    'Estos últimos son producidos en el interior del citoplasma celular.',
+    'Ambos son mecanismos de transporte pasivo a través de la membrana.',
+    'El mismo es un elemento presente en la pared celular de los vegetales.',
+  ].join('\n\n'));
+  assert.equal(vagos.length, 0);
+
+  // Oraciones con locución introductoria deben extraer el sujeto real
+  const intro = run('En este sentido, la membrana plasmática es una bicapa lipídica que delimita la célula.');
+  assert.equal(intro.length, 1);
+  assert.equal(intro[0].front, '¿Qué es la membrana plasmática?');
+
+  // Destacados con prefijos tipo Importante / Recuerda deben recibir bonificación de score y seleccionarse
+  const callouts = run([
+    'Importante: La replicación del ADN es un proceso semiconservativo y bidireccional.',
+    'Recuerda: Los cloroplastos son los orgánulos encargados de llevar a cabo la fotosíntesis.',
+  ].join('\n\n'));
+  assert.equal(callouts.length, 2);
+  assert.ok(callouts.every(s => s.score >= 0.7 && s.selected));
+  assert.equal(callouts[0].front, '¿Qué es la replicación del ADN?');
+  assert.equal(callouts[1].front, '¿Qué son los cloroplastos?');
+});
+

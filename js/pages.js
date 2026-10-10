@@ -4,6 +4,7 @@
 //         · 'table' (tabla en Markdown) · 'img' (imagen: src = id, text = pie) · 'hr' (separador)
 // El id de un bloque no cambia al editarlo: las tarjetas vinculadas guardan (page_id, block_id).
 // Sin dependencias de la interfaz, así que se puede probar aparte.
+import { toPlain } from './inline.js';
 
 export const BLOCK_TYPES = ['p', 'h1', 'h2', 'h3', 'li', 'ol', 'todo', 'quote', 'callout', 'code', 'table', 'img', 'hr'];
 // Para el menú de bloques (/): nombre, para qué sirve, atajo al escribir y palabras con las que se busca
@@ -200,7 +201,7 @@ export function pageTitle(page) {
   const t = String(page?.title || '').trim();
   if (t) return t;
   const first = (page?.blocks || []).find(b => !['img', 'hr', 'code'].includes(b.type) && b.text.trim());
-  return first ? first.text.replace(/[*_{}[\]|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : 'Sin título';
+  return first ? toPlain(first.text).replace(/[*_{}[\]|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : 'Sin título';
 }
 
 // La página en Markdown (para descargarla o llevarla a otra app)
@@ -230,7 +231,7 @@ export function pageToMarkdown(page) {
 // Primer texto de la página que no es título (para la vista previa en la lista)
 export function pageSnippet(page, n = 110) {
   const b = (page?.blocks || []).find(x => x.text.trim() && ['p', 'li', 'ol', 'todo', 'quote', 'callout'].includes(x.type));
-  const s = b ? b.text.replace(/\*\*?|\{\{|\}\}|::[^}]*|\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() : '';
+  const s = b ? toPlain(b.text).replace(/\*\*?|\{\{|\}\}|::[^}]*|\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim() : '';
   return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 }
 

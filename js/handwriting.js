@@ -75,7 +75,7 @@ function writerFor(el, ch, lang, size, extra = {}) {
 }
 
 // Práctica trazo a trazo, carácter a carácter. Devuelve controles { peek(), stop() }.
-export function startQuiz(box, chars, lang, { size = 280, guide = false, onProgress, onDone }) {
+export function startQuiz(box, chars, lang, { size = 280, guide = false, onProgress, onDone, onStroke }) {
   let i = 0, mistakes = 0, writer = null, stopped = false;
   const next = () => {
     if (stopped) return;
@@ -86,6 +86,8 @@ export function startQuiz(box, chars, lang, { size = 280, guide = false, onProgr
     quiz();
   };
   const quiz = () => writer.quiz({
+    onCorrectStroke: () => onStroke?.(true),
+    onMistake: () => onStroke?.(false),
     onComplete: summary => { mistakes += summary.totalMistakes; i++; setTimeout(next, 450); },
   });
   next();

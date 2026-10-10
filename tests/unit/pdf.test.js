@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pdfToBlocks, pageLines, cleanTitle, pathSegments } from '../../js/pdf.js';
+import { pdfToBlocks, pageLines, cleanTitle, pathSegments, dehyphen } from '../../js/pdf.js';
 
 // Una línea de texto como la da pdf.js: varios trozos seguidos en la misma altura
 const W = 595, H = 842;
@@ -111,4 +111,13 @@ test('líneas dibujadas: rectángulos y líneas con su transformación; las curv
     argsArray: [null, [1, 0, 0, 1, 10, 20], [[OPS.rectangle], [0, 0, 100, 50]], null, null, [[OPS.moveTo, OPS.lineTo], [0, 0, 300, 0]], null, [[OPS.moveTo, OPS.curveTo, OPS.lineTo], [0, 0, 1, 1, 2, 2, 3, 3, 3, 90]], null],
   }, OPS);
   assert.deepEqual(segs, [{ x1: 10, y1: 20, x2: 110, y2: 20 }, { x1: 110, y1: 20, x2: 110, y2: 70 }, { x1: 10, y1: 70, x2: 110, y2: 70 }, { x1: 10, y1: 20, x2: 10, y2: 70 }, { x1: 3, y1: 3, x2: 3, y2: 90 }]);
+});
+
+test('dehyphen: unión de palabras partidas con guión suave, raya o guión ordinario', () => {
+  assert.equal(dehyphen('armo-', 'nía'), 'armonía');
+  assert.equal(dehyphen('respi\u00AD', 'ración'), 'respiración');
+  assert.equal(dehyphen('proto–', 'zoo'), 'protozoo');
+  assert.equal(dehyphen('divi—', 'sión'), 'división');
+  assert.equal(dehyphen('mitosis-', ' Fase'), 'mitosis- Fase');
+  assert.equal(dehyphen('texto normal', 'siguiente'), 'texto normal siguiente');
 });
