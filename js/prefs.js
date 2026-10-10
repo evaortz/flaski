@@ -41,8 +41,8 @@ export const ACCENTS = [
   { id: 'brown', label: 'Marrón' }, { id: 'gray', label: 'Grafito' },
 ];
 export const FONTS = [
-  { id: 'system', label: 'Sistema' }, { id: 'serif', label: 'Serif' },
-  { id: 'rounded', label: 'Redondeada' }, { id: 'legible', label: 'Muy legible (Atkinson Hyperlegible)', short: 'Legible' }, { id: 'mono', label: 'Monoespaciada', short: 'Mono' },
+  { id: 'system', label: 'Atkinson Hyperlegible (la de la app)', short: 'Legible' }, { id: 'native', label: 'La del dispositivo', short: 'Sistema' }, { id: 'serif', label: 'Serif' },
+  { id: 'rounded', label: 'Redondeada' }, { id: 'mono', label: 'Monoespaciada', short: 'Mono' },
 ];
 export const CARD_SIZES = [{ id: 's', label: 'S' }, { id: 'm', label: 'M' }, { id: 'l', label: 'L' }, { id: 'xl', label: 'XL' }];
 
@@ -89,7 +89,7 @@ const FONT_STACKS = {
   system: 'var(--font)',
   serif: 'ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif',
   rounded: 'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Nunito", "Segoe UI", sans-serif',
-  legible: 'var(--font-text)',
+  native: 'var(--font-native)',
   mono: 'var(--mono)',
 };
 const CARD_SCALE = { s: 0.85, m: 1, l: 1.2, xl: 1.45 };
