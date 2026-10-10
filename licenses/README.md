@@ -13,3 +13,4 @@ Flaski (licencia MIT) incluye o usa estos componentes:
 | [Lucide](https://lucide.dev) (`js/icons.js`, solo los iconos usados) | Iconos de la interfaz | ISC — `lucide-ISC.txt` |
 | [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Microsoft (`js/icons.js`, solo «fire», estilo Flat) | Icono de la racha en Inicio | MIT — `fluentui-emoji-MIT.txt` |
 | [emojibase-data](https://emojibase.dev) 17.0.0 (`data/emoji.json`, recortado) | Nombres en español de los emojis | MIT |
+| [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) del Braille Institute (`fonts/`, `css/fonts.css`) | Tipografía del texto corrido (apuntes, explicaciones) y opción para las tarjetas | SIL Open Font License 1.1 — `atkinson-hyperlegible-OFL.txt` |

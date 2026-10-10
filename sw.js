@@ -1,12 +1,14 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v51';
+const VERSION = 'flaski-v52';
 const STROKES = 'flaski-strokes-v1';
 const SHELL = [
   './',
   './index.html',
-  './css/app.css',
+  './css/app.css', './css/fonts.css',
+  './fonts/atkinson-400-latin.woff2', './fonts/atkinson-400-latin-ext.woff2', './fonts/atkinson-700-latin.woff2', './fonts/atkinson-700-latin-ext.woff2',
+  './fonts/atkinson-400-italic-latin.woff2', './fonts/atkinson-400-italic-latin-ext.woff2', './fonts/atkinson-700-italic-latin.woff2', './fonts/atkinson-700-italic-latin-ext.woff2',
   './js/app.js',
   './js/api.js',
   './js/srs.js',

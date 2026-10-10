@@ -1509,3 +1509,12 @@ a.wl:hover{text-decoration:underline}
 .nb:has(.nb-sec)>.nb-sugdot{display:none}
 .nb-h1>.nb-sugdot{top:18px}.nb-h2>.nb-sugdot{top:13px}
 .sug-x.iconbtn{border:0;background:transparent;box-shadow:none}
+
+/* ---------- Atkinson Hyperlegible para el texto corrido ----------
+   Los párrafos, listas, citas y tablas de los apuntes y los textos explicativos de la app.
+   Los títulos, botones, menús y etiquetas siguen con la letra del sistema. */
+:root{--font-text:"Atkinson Hyperlegible",var(--font)}
+.ff-legible{font-family:var(--font-text)}
+.pg-blocks .nb-text,.pg-blocks .nb-input,.pg-blocks .nb-tbl,.tbl-grid .tc,
+p,.hint,.help-list,.help-steps,.help-tbl td,.sug-tips,.snip,.desc,.sug-list .row .b,.sug-src{font-family:var(--font-text)}
+.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.nb-h1 .nb-input,.nb-h2 .nb-input,.nb-h3 .nb-input,.tbl-grid th .tc,.pg-blocks .nb-tbl th{font-family:var(--font)}
