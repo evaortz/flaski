@@ -456,7 +456,7 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await page.locator('[data-sug-save]').click();
   await expect(items.nth(0)).toContainText('¿Qué es la mitosis?');
   await items.nth(1).locator('[data-sug]').uncheck();
-  await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 sugerencias');
+  await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 tarjetas');
   await page.locator('[data-act="sug-create"]').click();
   await expect(page.locator('#toast')).toContainText('2 tarjetas creadas en «Biología»');
   await expect(page.locator('#pgBlocks .nb-cards')).toHaveCount(2);

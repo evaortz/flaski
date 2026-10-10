@@ -230,6 +230,13 @@ export function buildTable(run) {
   // Las celdas tienen que caer en las columnas (si no, es texto con huecos, no una tabla)
   const fits = multi.flatMap(l => l.cells).filter(c => cols.some(x => Math.abs(c.x - x) <= tol) || cols.some((x, i) => c.x > x && c.x < (cols[i + 1] ?? Infinity))).length;
   if (fits < multi.flatMap(l => l.cells).length * 0.85) return null;
+  // Texto justificado con huecos grandes no es una tabla: celdas cortas y que no acaban a mitad de frase
+  const all = multi.flatMap(l => l.cells), wordsOf = c => c.text.split(/\s+/).filter(Boolean).length;
+  if (all.reduce((n, c) => n + wordsOf(c), 0) / all.length > 6) return null;
+  if (all.filter(c => /[,;]$|(?<![\p{L}])(de|del|la|el|los|las|y|o|a|en|que|con|por|para|un|una)$/iu.test(c.text.trim())).length > all.length * 0.2) return null;
+  if (multi.length < 3 && cols.length < 3) return null;
+  // Las celdas de una tabla son cortas y no llevan enlaces (si no, son columnas de texto, como una bibliografía)
+  if (all.reduce((n, c) => n + c.text.length, 0) / all.length > 32 || all.some(c => c.text.length > 90 || /https?:|www\.|doi[:.]|PMID|ISSN|ISBN/i.test(c.text))) return null;
   const rows = [];
   let prevY = null;
   for (const l of run) {
@@ -294,7 +301,7 @@ export function pdfToBlocks(pages, { newBlock = (type, text, extra = {}) => ({ t
     const short = l.text.length < 120 && !/[.;,]$/.test(l.text);
     if (short && l.size >= body * 1.6) return 'h1';
     if (short && l.size >= body * 1.3) return 'h2';
-    if (short && (l.size >= body * 1.12 || (l.bold && l.text.length < 90 && !/:$/.test(l.text) && /\p{L}/u.test(l.text)))) return 'h3';
+    if (short && (l.size >= body * 1.12 || (l.bold && l.text.length < 90 && !/:$/.test(l.text) && /^[\p{Lu}\d¿¡]/u.test(l.text) && !/(?<![\p{L}])(de|del|la|las|el|los|y|o|a|en|que|con|por|para|un|una)$/iu.test(l.text)))) return 'h3';
     if (BULLET.test(l.text) && l.text.replace(BULLET, '').trim()) return 'li';
     if (NUMBERED.test(l.text) && l.text.length > 4) return 'ol';
     return 'p';

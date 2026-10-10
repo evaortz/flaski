@@ -86,3 +86,50 @@ test('no repite lo que ya es una tarjeta ni lo que sale dos veces', () => {
   assert.equal(run(md).length, 1);
   assert.equal(run(md, { existing: [{ front: 'Mitosis' }] }).length, 0);
 });
+
+test('casos reales (PDFs de Wikipedia y de examen): conceptos bien cortados', () => {
+  const r = run([
+    'Se llama cariocinesis a la formación de los dos núcleos con que concluye habitualmente la mitosis.',
+    'La cariocinesis (del griego cario = núcleo y cinesis = movimiento), mitosis astral o mitosis anfiastral, es la división del núcleo celular.',
+    'En biología, la mitosis es un proceso que ocurre en el núcleo de las células eucariotas.',
+    'Tras la duplicación, cada cromosoma consistirá en dos copias idénticas de la misma hebra de ADN, llamadas cromátidas hermanas.',
+    'La mitosis se completa casi siempre con la llamada citocinesis o división del citoplasma.',
+    'Así pues, es la unidad fisiológica de la vida.',
+    'Las células son capaces de dirigir su propia síntesis.',
+    'La diferenciación es a menudo parte del ciclo celular.',
+    'Técnicamente no es parte de la mitosis.',
+  ].join('\n\n'));
+  assert.deepEqual(r.map(s => [s.front, s.back]), [
+    ['¿Cómo se llama la formación de los dos núcleos con que concluye habitualmente la mitosis?', 'Cariocinesis'],
+    ['¿Qué es la cariocinesis?', 'La división del núcleo celular'],
+    ['¿Qué es la mitosis?', 'Un proceso que ocurre en el núcleo de las células eucariotas'],
+    ['¿Cómo se llaman las dos copias idénticas de la misma hebra de ADN?', 'Cromátidas hermanas'],
+  ]);
+});
+
+test('casos reales: apartados con su idea principal; títulos genéricos con contexto; sin bibliografía', () => {
+  const r = run('# Célula\n\n## Orgánulos\n\n### Definición\n\nSe define a la célula como la unidad morfológica y funcional de todo ser vivo.\n\n### Profase\n\nSe produce en ella la condensación del material genético.\n\n### Tipos celulares\n\nExisten dos grandes tipos celulares:\n\n## Referencias\n\nMcIntosh, J. Richard: «Mitosis» (https://cshperspectives.org). Cold Spring Harbor.');
+  assert.deepEqual(r.map(s => [s.kind, s.front]), [['section', 'Definición — Orgánulos'], ['section', 'Profase']]);
+});
+
+test('casos reales de examen: pregunta con su respuesta, saltando la línea para rellenar; opciones → opción múltiple; fichas con casillas fuera', () => {
+  const r = run([
+    '¿Cuáles son los tres poderes, según la teoría de la división de poderes?', '___________________, ___________________, y ____________________', 'Respuesta correcta:', 'Legislativo – Ejecutivo – Judicial',
+    '¿Quién propuso la división de poderes?', '1. Voltaire.\n2. Montesquieu.\n3. Kant.', 'Respuesta correcta: Montesquieu.',
+    '| Hecho | Relación |\n| --- | --- |\n| Malas cosechas | ☐ fue causa de |\n| Deudas | ☐ fue consecuencia de |',
+  ].join('\n\n'));
+  assert.deepEqual(r.map(s => [s.kind, s.typeId, s.front, s.back]), [
+    ['qa', 'basic', '¿Cuáles son los tres poderes, según la teoría de la división de poderes?', 'Legislativo, Ejecutivo, Judicial'],
+    ['qa', 'choice', '¿Quién propuso la división de poderes?', 'Montesquieu'],
+  ]);
+  assert.equal(r[1].fields.w, 'Voltaire; Kant');
+});
+
+test('casos reales: cronologías como fechas; números de nota fuera de las respuestas', () => {
+  const r = run('- 1831: Robert Brown describió el núcleo celular.\n- Década de 1830: Theodor Schwann estudió la célula animal.\n\nRibosoma: Los ribosomas son partículas visibles al microscopio electrónico.15 Están formados por ARN.');
+  assert.deepEqual(r.map(s => [s.kind, s.front, s.back]), [
+    ['date', 'Robert Brown describió el núcleo celular — ¿cuándo?', '1831'],
+    ['date', 'Theodor Schwann estudió la célula animal — ¿cuándo?', 'Década de 1830'],
+    ['def', 'Ribosoma', 'Los ribosomas son partículas visibles al microscopio electrónico. Están formados por ARN.'],
+  ]);
+});
