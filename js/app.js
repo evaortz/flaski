@@ -20,6 +20,7 @@ import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
 import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
 import { readPdf, pdfToBlocks } from './pdf.js';
+import { suggestCards, KINDS } from './suggest.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
 import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
 import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
@@ -1545,6 +1546,7 @@ function renderPage() {
   main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
       <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
       ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}
+      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone tarjetas a partir de este apunte">${icon('sparkles', { size: 15 })} <span>Sugerir tarjetas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
     <div class="pg-head">
@@ -1556,7 +1558,7 @@ function renderPage() {
       ${prop('layers', 'Mazo', `<select id="pgDeck" class="prop-select" aria-label="Mazo donde van las tarjetas de este apunte"><option value="">Sin mazo</option>${deckOptions(p.deck_id)}</select>`)}
       ${prop('folder', 'Carpeta', folderSelect('pgFolder', pageFolder(p) || '', null, 'Sin carpeta').replace('<select ', '<select class="prop-select" aria-label="Carpeta" '))}
       ${prop('tag', 'Etiquetas', `${tagChips(p.tags || [])}<button type="button" class="link prop-add" data-act="page-tags">${(p.tags || []).length ? 'Editar' : 'Añadir'}</button>`)}
-      ${total ? '' : prop('notebook-text', 'Tarjetas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una</span>')}
+      ${total ? '' : prop('notebook-text', 'Tarjetas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
     </div>
     ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${p.blocks.map(b => blockHTML(b, cards.get(b.id))).join('')}</div>
@@ -1904,7 +1906,11 @@ async function importPdf(file) {
     if (!String(target.title || '').trim()) target.title = title || r.title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim();
     savePageSoon(target, 0);
     closeSheet();
-    if (S.view === 'page' && S.pageId === target.id) { renderPage(); if (!empty) document.querySelector(`[data-block="${blocks[0].id}"]`)?.scrollIntoView({ block: 'start' }); }
+    if (S.view === 'page' && S.pageId === target.id) {
+      renderPage();
+      if (!empty) document.querySelector(`[data-block="${blocks[0].id}"]`)?.scrollIntoView({ block: 'start' });
+      if (suggestFor(target, target.deck_id || '').length) openSuggestions();
+    }
     toast(scanned === r.pages.length ? 'El PDF está escaneado: sus páginas se han guardado como imágenes'
       : `${empty ? 'Apunte creado' : 'Añadido al apunte'} a partir de ${plural(r.pages.length, 'página', 'páginas')}${r.truncated ? ` (de ${r.total}: solo se importan las ${r.pages.length} primeras)` : ''}`);
   } catch (e) {
@@ -3683,6 +3689,15 @@ document.addEventListener('click', async e => {
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
+  if (ds.sugEdit !== undefined) { readSugEdit(); S.sug.edit = +ds.sugEdit; drawSuggestions(); document.querySelector('.sug-in')?.focus(); return; }
+  if (ds.sugSave !== undefined) { readSugEdit(); return drawSuggestions(); }
+  if (ds.sugKind) {
+    const g = S.sug, all = [...new Set(g.list.map(x => x.kind))];
+    if (!g.kinds) g.kinds = new Set(all);
+    g.kinds.has(ds.sugKind) ? g.kinds.delete(ds.sugKind) : g.kinds.add(ds.sugKind);
+    if (!g.kinds.size || g.kinds.size === all.length) g.kinds = null;
+    const y = $('#sheetBody').scrollTop; drawSuggestions(); $('#sheetBody').scrollTop = y; return;
+  }
   if (ds.blockType) return chooseBlockType(ds.blockType);
   if (ds.todo || ds.calloutIcon) {
     const p = curPage(), blk = p?.blocks.find(x => x.id === (ds.todo || ds.calloutIcon));
@@ -3934,6 +3949,7 @@ document.addEventListener('click', async e => {
     case 'save-page-icon': { const p = curPage(); p.icon = readIcon(); savePageSoon(p); closeSheet(); return renderPage(); }
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
+        <li><button class="row-link" data-act="suggest-cards">${icon('sparkles', { size: 20 })}<span><b>Sugerir tarjetas</b><small>Propone tarjetas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
         <li><button class="row-link" data-act="import-pdf">${icon('file-text', { size: 20 })}<span><b>Importar PDF</b><small>${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'Su contenido se añade al final de este apunte' : 'Lo convierte en este apunte: títulos, párrafos, listas y tablas'}</small></span></button></li>
         <li><button class="row-link" data-act="page-md">${icon('download', { size: 20 })}<span><b>Descargar como Markdown</b><small>Para guardarlo o abrirlo en otra aplicación</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
@@ -3990,6 +4006,14 @@ document.addEventListener('click', async e => {
     case 'share': return shareSheet();
     case 'import': return $('#importFile').click();
     case 'add-anki': return addAnki(e.target.closest('button'));
+    case 'suggest-cards': closeSheet(); return openSuggestions();
+    case 'sug-create': return createSuggested(e.target.closest('button'));
+    case 'sug-all': {
+      readSugEdit();
+      const all = S.sug.list.every(x => x.selected);
+      S.sug.list.forEach(x => { if (!S.sug.kinds || S.sug.kinds.has(x.kind)) x.selected = !all; });
+      const y = $('#sheetBody').scrollTop; drawSuggestions(); $('#sheetBody').scrollTop = y; return;
+    }
     case 'sort-check': { const so = S.session?.st?.sort; if (so) { so.checked = true; reveal(); } return; }
     case 'occ-pick': { const f = await pickImage(); return f && occSetImage(f); }
     case 'occ-clear': { const { m } = occFields(); if (m) { m.value = ''; occRedraw(); } return; }
@@ -4192,6 +4216,20 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', async e => {
+  if (e.target.matches?.('[data-sug]')) {
+    const sgi = S.sug?.list[+e.target.dataset.sug];
+    if (sgi) { sgi.selected = e.target.checked; e.target.closest('.sug')?.classList.toggle('on', sgi.selected); }
+    const n = S.sug.list.filter(x => x.selected).length, btn = document.querySelector('[data-act="sug-create"]');
+    if (btn) { btn.disabled = !n; btn.textContent = `Crear ${plural(n, 'sugerencia', 'sugerencias')}`; }
+    return;
+  }
+  if (e.target.id === 'sugDeck') {
+    // Otro mazo puede cambiar los tipos (los de idiomas) y lo que ya está como tarjeta
+    S.sug.deckId = e.target.value;
+    S.sug.list = suggestFor(S.pages.get(S.sug.pageId), S.sug.deckId === 'new' ? '' : S.sug.deckId);
+    S.sug.kinds = null;
+    return drawSuggestions();
+  }
   if (e.target.id === 'frShare') {
     const on = e.target.checked;
     try { await api.social.setShare(on); S.friends.me.share = on; toast(on ? 'Tus amigos ven tu actividad' : 'Tu actividad ya no se comparte'); }
@@ -4284,6 +4322,114 @@ document.addEventListener('keydown', e => {
   else if (!ses.revealed && (mode === 'choice' || mode === 'clozechoice') && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
   else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
 });
+
+/* ===================== sugerir tarjetas ===================== */
+// Lo que ya hay como tarjeta (para no proponerlo otra vez): las de este apunte y las del mazo elegido
+function suggestFor(p, deckId) {
+  const existing = cardList().filter(c => c.page_id === p.id || (deckId && c.deck_id === deckId));
+  return suggestCards(p, { lang: deckId ? deckLang(deckId) : '', native: nativeLang(), existing });
+}
+function openSuggestions() {
+  const p = curPage();
+  if (!p) return;
+  const open = document.querySelector('[data-block-input]');
+  if (open) commitBlockEl(open);
+  const deckId = p.deck_id && S.decks.has(p.deck_id) ? p.deck_id : '';
+  S.sug = { pageId: p.id, deckId: deckId || (S.decks.size ? [...S.decks.values()].find(d => !d.archived)?.id || '' : 'new'), list: [], kinds: null, edit: null };
+  S.sug.list = suggestFor(p, S.sug.deckId === 'new' ? '' : S.sug.deckId);
+  drawSuggestions();
+}
+function drawSuggestions() {
+  const g = S.sug, p = S.pages.get(g?.pageId);
+  if (!g || !p) return;
+  const list = g.list, shown = list.filter(s => !g.kinds || g.kinds.has(s.kind));
+  const nSel = list.filter(s => s.selected).length;
+  const kinds = [...new Set(list.map(s => s.kind))];
+  const count = k => list.filter(s => s.kind === k).length;
+  const deckSel = `<select id="sugDeck" aria-label="Mazo donde se crean">${[...S.decks.values()].filter(d => !d.archived).map(d => `<option value="${d.id}" ${d.id === g.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+    <option value="new" ${g.deckId === 'new' ? 'selected' : ''}>+ Mazo nuevo: «${esc(pageTitle(p).slice(0, 60))}»</option></select>`;
+  // Agrupadas por apartado de los apuntes
+  const bySection = new Map();
+  for (const s of shown) { if (!bySection.has(s.section)) bySection.set(s.section, []); bySection.get(s.section).push(s); }
+  const editable = s => s.typeId === 'basic' || s.typeId === 'cloze';
+  const item = s => {
+    const i = list.indexOf(s);
+    if (g.edit === i) {
+      const f = s.typeId === 'cloze'
+        ? `<label>Frase con hueco</label><textarea class="sug-in" data-sug-field="x" rows="2">${esc(s.fields.x)}</textarea>`
+        : `<label>Anverso</label><textarea class="sug-in" data-sug-field="q" rows="2">${esc(s.fields.q)}</textarea><label>Reverso</label><textarea class="sug-in" data-sug-field="a" rows="3">${esc(s.fields.a)}</textarea>`;
+      return `<li class="sug sug-editing">${f}<div class="btnrow"><span class="spacer"></span><button type="button" class="primary small-btn" data-sug-save="${i}">Listo</button></div></li>`;
+    }
+    return `<li class="sug${s.selected ? ' on' : ''}"><label class="sug-check"><input type="checkbox" data-sug="${i}" ${s.selected ? 'checked' : ''} aria-label="Crear esta tarjeta"></label>
+      <div class="sug-body"><span class="sug-kind k-${s.kind}">${esc(s.label)}${s.cards > 1 ? ` · ${s.cards} tarjetas` : ''}</span>
+        <div class="sug-front">${fmt(s.front)}</div><div class="sug-back">${fmt(s.back)}</div></div>
+      ${editable(s) ? `<button type="button" class="iconbtn" data-sug-edit="${i}" aria-label="Retocar" title="Retocar">${icon('pencil', { size: 15 })}</button>` : ''}</li>`;
+  };
+  const body = !list.length
+    ? `<div class="sug-empty"><p><b>No he encontrado nada claro que convertir en tarjetas.</b></p>
+        <p class="muted">Las sugerencias salen de cómo están escritos los apuntes. Prueba a:</p>
+        <ul class="muted"><li>escribir definiciones así: <code>Mitosis: división de una célula…</code></li><li>poner en <b>negrita</b> lo importante</li>
+        <li>usar tablas y listas con un título encima («Fases de…», «Las causas son:»)</li></ul>
+        <p class="muted">También puedes seleccionar cualquier texto del apunte y pulsar «Crear tarjeta».</p></div>`
+    : `<div class="sug-filters" role="group" aria-label="Filtrar por tipo">${kinds.map(k => `<button type="button" class="chip-btn" data-sug-kind="${k}" aria-pressed="${!g.kinds || g.kinds.has(k)}">${esc(KINDS[k])} <span>${count(k)}</span></button>`).join('')}</div>
+       ${[...bySection].map(([sec, items]) => `<h3 class="sub-h">${esc(sec)}</h3><ul class="sug-list">${items.map(item).join('')}</ul>`).join('')}`;
+  openSheet(`<div class="sug-wrap">
+    <header class="ed-top"><button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
+      <div class="ed-title"><span>Tarjetas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div><span></span></header>
+    <div class="sug-main">
+      <p class="muted small">Las he sacado de la estructura de tus apuntes: definiciones, negritas, tablas, listas con título, fechas… Las más claras ya están marcadas. Revisa, quita las que no quieras y créalas.</p>
+      ${list.length ? `<div class="sug-deck"><label for="sugDeck">Crear en</label>${deckSel}</div>` : ''}
+      ${body}
+    </div>
+    ${list.length ? `<footer class="ed-foot"><button type="button" class="link" data-act="sug-all">${nSel === list.length ? 'Quitar todas' : 'Marcar todas'}</button><span class="spacer"></span>
+      <button type="button" class="primary" data-act="sug-create" ${nSel ? '' : 'disabled'}>Crear ${plural(nSel, 'sugerencia', 'sugerencias')}</button></footer>` : ''}
+  </div>`, { full: true });
+}
+function readSugEdit() {
+  const g = S.sug;
+  if (!g || g.edit == null) return;
+  const s = g.list[g.edit];
+  document.querySelectorAll('[data-sug-field]').forEach(t => { s.fields[t.dataset.sugField] = t.value; });
+  // Vista previa al día con lo retocado
+  const type = getType(s.typeId), active = activeTemplates(type, s.fields);
+  if (active.length) { const sum = summarize(type, active[0], s.fields); s.front = sum.front; s.back = sum.back; s.cards = active.length; }
+  else s.selected = false;
+  g.edit = null;
+}
+async function createSuggested(btn) {
+  const g = S.sug, p = S.pages.get(g?.pageId);
+  if (!g || !p) return;
+  readSugEdit();
+  const picked = g.list.filter(s => s.selected);
+  if (!picked.length) return;
+  btn.disabled = true; btn.textContent = 'Creando…';
+  try {
+    let deckId = g.deckId;
+    if (deckId === 'new') {
+      const deck = await api.createDeck({ owner: S.uid, name: pageTitle(p).slice(0, 80) || 'Apuntes', description: '', source: 'apuntes', folder_id: p.folder_id || null });
+      S.decks.set(deck.id, { tags: [], ...deck });
+      deckId = deck.id;
+    }
+    const base = Date.now() / 1000, rows = [];
+    for (const [i, s] of picked.entries()) {
+      const type = typeIn(getType(s.typeId), deckId);
+      const note = api.newId();
+      for (const t of activeTemplates(type, s.fields)) {
+        const sum = summarize(type, t, s.fields);
+        rows.push({ deck_id: deckId, owner: S.uid, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000),
+          position: base + i / 1000 + rows.length / 1e6, note_id: note, type_id: s.typeId, template: t.id, fields: s.fields, hint: '', tags: [], page_id: p.id, block_id: s.blockId });
+      }
+    }
+    const made = await api.createCards(rows);
+    for (const c of made) S.cards.set(c.id, c);
+    if (!p.deck_id) { p.deck_id = deckId; savePageSoon(p, 0); }
+    migrateDeckLangs();
+    S.sug = null;
+    closeSheet();
+    toast(`${plural(made.length, 'tarjeta creada', 'tarjetas creadas')} en «${S.decks.get(deckId)?.name || 'el mazo'}»`);
+    if (S.view === 'page') renderPage();
+  } catch (e) { btn.disabled = false; btn.textContent = 'Crear'; fail(e); }
+}
 
 /* ===================== amigos ===================== */
 // Se cargan aparte de lo demás (no retrasan la app) y se refrescan como mucho una vez por minuto

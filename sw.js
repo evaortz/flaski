@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v40';
+const VERSION = 'flaski-v41';
 const STROKES = 'flaski-strokes-v1';
 const SHELL = [
   './',
@@ -31,6 +31,7 @@ const SHELL = [
   './js/anki.js',
   './js/friends.js',
   './js/fsrs.js',
+  './js/suggest.js',
   './js/pdf.js',
   './js/zip.js',
   './js/sqlite.js',

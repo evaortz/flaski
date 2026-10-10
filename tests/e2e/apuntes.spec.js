@@ -353,6 +353,9 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   const chooser = page.waitForEvent('filechooser');
   await page.locator('#sheetBody [data-act="import-pdf"]').click();
   await (await chooser).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
+  // Después de importar se ofrecen las tarjetas sugeridas
+  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await page.locator('#sheetBody [data-act="close-sheet"]').first().click();
   await expect(page.locator('#pgTitle')).toHaveValue('Los casos del turco');
   const blocks = page.locator('#pgBlocks .nb');
   await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(1);
@@ -371,7 +374,49 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   const chooser2 = page.waitForEvent('filechooser');
   await page.locator('#sheetBody [data-act="import-pdf"]').click();
   await (await chooser2).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
+  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await page.locator('#sheetBody [data-act="close-sheet"]').first().click();
   await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(2);
   await expect(blocks).toHaveCount(15);   // lo añadido va encabezado por el título del PDF
   await expect(blocks.nth(7)).toHaveText('Los casos del turco');
+});
+
+test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean enlazadas a su parte del apunte', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Biología');
+  await newPage(page, 'La célula');
+  await page.locator('#pgDeck').selectOption({ label: 'Biología' });
+  await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
+  await page.locator('[data-block-input]').evaluate((t, v) => { t.value = v; t.dispatchEvent(new Event('input', { bubbles: true })); }, 'x');
+  await page.keyboard.press('Escape');
+  // Pegar unos apuntes con definición, negrita, pasos y una frase sin nada que preguntar
+  await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
+  await page.locator('[data-block-input]').fill('');
+  await page.evaluate(() => {
+    const t = document.querySelector('[data-block-input]');
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'Mitosis: división de una célula en dos células hijas.\n\nLa **membrana** protege la célula.\n\n## Fases de la mitosis\n\n1. Profase\n2. Metafase\n3. Anafase\n\nMe gusta mucho este tema.');
+    t.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await page.keyboard.press('Escape');
+  await page.locator('[data-act="suggest-cards"]').first().click();
+  const items = page.locator('.sug');
+  await expect(items).toHaveCount(3);
+  await expect(page.locator('.sug.on')).toHaveCount(3);
+  await expect(items.nth(0)).toContainText('Mitosis');
+  await expect(items.nth(1)).toContainText('La […] protege la célula.');
+  await expect(items.nth(2)).toContainText('Ordena: fases de la mitosis');
+  // Retocar la primera y quitar la segunda
+  await items.nth(0).locator('[data-sug-edit]').click();
+  await page.locator('[data-sug-field="q"]').fill('¿Qué es la mitosis?');
+  await page.locator('[data-sug-save]').click();
+  await expect(items.nth(0)).toContainText('¿Qué es la mitosis?');
+  await items.nth(1).locator('[data-sug]').uncheck();
+  await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 sugerencias');
+  await page.locator('[data-act="sug-create"]').click();
+  await expect(page.locator('#toast')).toContainText('2 tarjetas creadas en «Biología»');
+  await expect(page.locator('#pgBlocks .nb-cards')).toHaveCount(2);
+  // Al pedirlas otra vez, ya no propone lo que es tarjeta
+  await page.locator('[data-act="suggest-cards"]').first().click();
+  await expect(page.locator('.sug')).toHaveCount(1);
 });
