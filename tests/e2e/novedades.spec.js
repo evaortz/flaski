@@ -18,7 +18,20 @@ test.describe('al entrar', () => {
     await expect(news.locator('h2')).toHaveText('Ocho tipos de tarjeta nuevos');
     await page.keyboard.press('Escape');
     await expect(news).toHaveCount(0);
+    // Ya vistas: no vuelven a salir al entrar
+    await page.reload();
+    await expect(page.locator('#main .spin')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    await expect(news).toHaveCount(0);
   });
+});
+
+test('desde Ajustes → Ver las últimas novedades', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Perfil');
+  await page.locator('[data-nav="settings"]').click();
+  await page.locator('.set-news').click();
+  await expect(page.locator('.ob.news h1')).toHaveText('Novedades en Flaski');
 });
 
 test('desde Perfil → Novedades', async ({ page }) => {

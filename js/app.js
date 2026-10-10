@@ -3602,7 +3602,7 @@ function renderSettings() {
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
   rowSeq = 0; tocLock = null;
-  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1></div>
+  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sparkles', { size: 14 })} Ver las últimas novedades</button></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
     <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
     ${setSec('palette', 'Apariencia', `
@@ -5131,7 +5131,7 @@ document.addEventListener('click', async e => {
       e.preventDefault();
       if (!wl.closest('[data-block-input]') || e.ctrlKey || e.metaKey) return openWiki(wl.dataset.wiki);
     }
-    const toc = e.target.closest('[data-toc]');
+    const toc = e.target.closest('#pgToc [data-toc]');
     if (toc) { e.preventDefault(); S.tocOpen = false; updateToc(); return gotoBlock(toc.dataset.toc); }
     // Mayús+clic en un bloque: selecciona desde el que se estaba editando (o el último seleccionado) hasta él
     const nbk = S.view === 'page' && e.shiftKey && e.target.closest('#pgBlocks .nb');

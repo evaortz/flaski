@@ -5,8 +5,8 @@ import { icon } from './icons.js';
 
 // Cambia NEWS_VERSION en cada versión con novedades: a quien no las haya visto se le enseñan al entrar
 export const NEWS_VERSION = '2026-10';
-// Mientras se revisan, salen siempre (ponlo a false para que salgan una sola vez por versión)
-export const NEWS_ALWAYS = true;
+// true: salen siempre (para revisarlas); false: una sola vez por versión
+export const NEWS_ALWAYS = false;
 
 const SLIDES = [
   { id: 'intro' },
