@@ -1549,3 +1549,5 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 /* La tabla sin editar: se nota que se puede tocar para editarla */
 .nb-table:not(:has(.tbl-ed)) .nb-tbl{cursor:pointer}
 .nb-table:not(:has(.tbl-ed)):hover::after{content:'Toca para editar';position:absolute;right:38px;top:4px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted);font-size:12px;pointer-events:none}
+/* General Sans también en las cifras y rótulos de los paneles (actividad, racha, meta, estadísticas, amigos) */
+.hero-num,.chart-h,.streaks,.goal-h,.kpi,.kpis,.st-head,.st-legend,.fr-streak,.rk-streak,.ax,.mt-legend,.hm-legend,.hm-days,.fc-val,.st-chart text{font-family:var(--font-head)}
