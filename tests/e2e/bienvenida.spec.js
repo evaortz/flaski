@@ -27,7 +27,7 @@ test('sale la primera vez, se recorre y crea un mazo del idioma elegido', async 
   // No vuelve a salir
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await expect(page.locator('.ob')).toHaveCount(0);
+  await expect(page.locator('.ob:not(.news)')).toHaveCount(0);   // (las novedades sí pueden salir)
 });
 
 test('saltar, elegir un mazo de ejemplo de ese idioma', async ({ page }) => {

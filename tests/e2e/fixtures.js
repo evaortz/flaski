@@ -13,7 +13,7 @@ export const test = base.extend({
   // salvo en las que la prueban (test.use({ intro: true })).
   intro: [false, { option: true }],
   page: async ({ page, intro }, use) => {
-    if (!intro) await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); } catch {} });
+    if (!intro) await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } catch {} });
     await page.route('**/js/config.js', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     // Nada de red externa (trazos de kanji, etc.)
     await page.route('https://cdn.jsdelivr.net/**', route => route.abort());

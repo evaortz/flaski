@@ -7,7 +7,7 @@ const PORT = 8124;
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'capturas.spec.js',
+  testMatch: ['capturas.spec.js', 'novedades.spec.js'],
   workers: 1,
   reporter: [['list']],
   use: {

@@ -18,6 +18,7 @@ import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, for
 import { isRetryable } from './outbox.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
 import { openOnboarding } from './onboarding.js';
+import { openNews, NEWS_VERSION, NEWS_ALWAYS } from './news.js';
 import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
 import { readPdf, pdfToBlocks } from './pdf.js';
 import { suggestCards, PRESELECT, writingTips } from './suggest.js';
@@ -354,6 +355,7 @@ async function onSignedIn(session) {
     if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
     maybeIntro();
+    maybeNews();
   } catch (e) {
     S.loading = false;
     main.innerHTML = `<div class="panel"><h2>No se pudieron cargar tus datos</h2><p>${esc(errMsg(e))}</p><button class="primary" data-act="reload">Reintentar</button></div>`;
@@ -389,6 +391,18 @@ const isDark = () => {
   const t = document.documentElement.dataset.theme;
   return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
 };
+// Novedades de la versión: al entrar, a quien aún no las ha visto (no a quien acaba de llegar: a ese, la bienvenida)
+const NEWS_KEY = 'flaski-news-seen';
+function maybeNews() {
+  let seen = '';
+  try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
+  const newcomer = !introDone() && S.decks.size === 0 && S.pages.size === 0;
+  if (newcomer || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
+  showNews();
+}
+function showNews() {
+  openNews({ dark: isDark, onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } } });
+}
 async function showIntro() {
   if (document.querySelector('.ob')) return;
   let examples = S.builtin;
@@ -2667,46 +2681,35 @@ function tableEditorHTML(b, t) {
   const al = i => (t.align[i] ? ` style="text-align:${t.align[i]}"` : '');
   // Cada celda, un cuadro de texto que crece con lo escrito (y parte las líneas largas, como al verla)
   const cell = (v, r, c) => `<textarea class="tc" rows="1" data-r="${r}" data-c="${c}" aria-label="${r === 'h' ? `Cabecera, columna ${c + 1}` : `Fila ${+r + 1}, columna ${c + 1}`}"${al(c)} spellcheck="true" placeholder="${r === 'h' ? `Columna ${c + 1}` : ''}">${esc(v)}</textarea>`;
+  // Como en una hoja de cálculo: el número de cada fila (y su menú) a la izquierda, y el menú de cada columna en su cabecera
+  const rowBtn = (r, label, title) => `<button type="button" class="tbl-rown" data-tblmenu="row" data-r="${r}" title="${title}" aria-label="${title}">${label}</button>`;
   return `<div class="tbl-ed" data-table-ed="${b.id}">
     <div class="tbl-tools" role="toolbar" aria-label="Tabla">
-      <span class="tbl-size muted small">${plural(t.rows.length, 'fila', 'filas')} · ${plural(n, 'columna', 'columnas')}</span>
+      <button type="button" data-tbl="row-below" title="Añadir una fila debajo de la celda donde estás">${icon('plus', { size: 14 })} Fila</button>
+      <button type="button" data-tbl="col-right" title="Añadir una columna a la derecha de la celda donde estás">${icon('plus', { size: 14 })} Columna</button>
       <span class="spacer"></span>
-      <button type="button" data-tbl="raw" title="Escribir la tabla como texto (Markdown)">${icon('code', { size: 14 })} <span>Como texto</span></button>
+      <button type="button" data-tbl="raw" title="Escribir la tabla como texto (Markdown)" aria-label="Como texto">${icon('code', { size: 14 })} <span>Como texto</span></button>
       <button type="button" data-tbl="delete" class="danger" title="Quitar la tabla" aria-label="Quitar la tabla">${icon('trash-2', { size: 14 })}</button>
       <button type="button" data-tbl="done" class="tbl-done">Listo</button>
     </div>
     <div class="tbl-box">
-      <div class="nb-tablewrap"><table class="nb-tbl tbl-grid"><thead><tr>${t.head.map((v, c) => `<th>${cell(v, 'h', c)}</th>`).join('')}</tr></thead>
-        <tbody>${t.rows.map((r, ri) => `<tr>${Array.from({ length: n }, (_, c) => `<td>${cell(r[c] ?? '', ri, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-      <button type="button" class="tbl-add tbl-addcol" data-tbl="col-end" title="Añadir una columna al final" aria-label="Añadir una columna">${icon('plus', { size: 14 })}</button>
+      <div class="nb-tablewrap"><table class="nb-tbl tbl-grid">
+        <thead><tr><th class="tbl-gut">${rowBtn('h', icon('ellipsis', { size: 13 }), 'Opciones de la cabecera')}</th>${t.head.map((v, c) => `<th><div class="tbl-hcell">${cell(v, 'h', c)}<button type="button" class="tbl-colbtn" data-tblmenu="col" data-c="${c}" title="Opciones de la columna ${c + 1}: alinear, ordenar, insertar, borrar…" aria-label="Opciones de la columna ${c + 1}">${icon('chevron-down', { size: 14 })}</button></div></th>`).join('')}</tr></thead>
+        <tbody>${t.rows.map((r, ri) => `<tr><td class="tbl-gut">${rowBtn(ri, ri + 1, `Fila ${ri + 1}: insertar, mover, duplicar o borrar`)}</td>${Array.from({ length: n }, (_, c) => `<td>${cell(r[c] ?? '', ri, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <button type="button" class="tbl-add tbl-addcol" data-tbl="col-end" title="Añadir una columna al final" aria-label="Añadir una columna al final">${icon('plus', { size: 14 })}</button>
     </div>
-    <button type="button" class="tbl-add tbl-addrow" data-tbl="row-end" title="Añadir una fila al final" aria-label="Añadir una fila">${icon('plus', { size: 14 })}</button>
-    <button type="button" class="tbl-h tbl-hcol" data-tblmenu="col" aria-label="Opciones de la columna" title="Opciones de la columna" hidden>${icon('ellipsis', { size: 14 })}</button>
-    <button type="button" class="tbl-h tbl-hrow" data-tblmenu="row" aria-label="Opciones de la fila" title="Opciones de la fila" hidden>${icon('grip-vertical', { size: 14 })}</button>
-    <p class="hint tbl-hint">${kb('Tab')} celda siguiente · ${kb('Enter')} fila de abajo · ${kb('Ctrl+Enter')} salir · Puedes pegar celdas de Excel o Google Sheets</p>
+    <button type="button" class="tbl-add tbl-addrow" data-tbl="row-end" title="Añadir una fila al final">${icon('plus', { size: 14 })} Añadir fila</button>
+    <p class="hint tbl-hint">Toca un número de fila o la flecha de una columna para ver sus opciones · ${kb('Tab')} celda siguiente · ${kb('Enter')} fila de abajo · Puedes pegar celdas de Excel o Google Sheets</p>
   </div>`;
 }
-// Las asas de la fila y la columna de la celda donde se está (o sobre la que pasa el ratón)
+// La fila y la columna de la celda donde se está, marcadas en el número de fila y en la cabecera
 function placeTblHandles(cellEl) {
-  const ed = cellEl?.closest('[data-table-ed]');
-  if (!ed) return;
-  const box = ed.getBoundingClientRect(), cr = cellEl.getBoundingClientRect();
-  const tr = cellEl.closest('tr').getBoundingClientRect(), wrap = ed.querySelector('.nb-tablewrap').getBoundingClientRect();
-  const hc = ed.querySelector('.tbl-hcol'), hr = ed.querySelector('.tbl-hrow');
-  const inp = cellEl.querySelector('.tc');
-  const visible = cr.right > wrap.left + 8 && cr.left < wrap.right - 8;
-  hc.hidden = !visible;
-  hc.dataset.c = inp.dataset.c;
-  hc.style.left = `${cr.left - box.left + cr.width / 2 - 14}px`;
-  hc.style.top = `${ed.querySelector('thead').getBoundingClientRect().top - box.top - 11}px`;
-  hr.hidden = false;
-  hr.dataset.r = inp.dataset.r;
-  hr.style.top = `${tr.top - box.top + tr.height / 2 - 12}px`;
-  hr.style.left = `${wrap.left - box.left - 10}px`;
-  ed.querySelectorAll('.tbl-grid .is-col, .tbl-grid .is-row').forEach(x => x.classList.remove('is-col', 'is-row'));
+  const ed = cellEl?.closest('[data-table-ed]'), inp = cellEl?.querySelector('.tc');
+  if (!ed || !inp) return;
+  ed.querySelectorAll('.tbl-rown.cur, .tbl-colbtn.cur').forEach(x => x.classList.remove('cur'));
+  ed.querySelector(`.tbl-rown[data-r="${inp.dataset.r}"]`)?.classList.add('cur');
+  ed.querySelector(`.tbl-colbtn[data-c="${inp.dataset.c}"]`)?.classList.add('cur');
 }
-document.addEventListener('mouseover', e => { const c = e.target.closest?.('.tbl-grid td, .tbl-grid th'); if (c && !S.tblMenu) placeTblHandles(c); });
-document.addEventListener('scroll', e => { if (e.target.classList?.contains('nb-tablewrap')) { const f = e.target.querySelector('.tc:focus'); if (f) placeTblHandles(f.parentElement); } }, true);
 // Menú de una fila o una columna
 function openTblMenu(btn) {
   const ed = btn.closest('[data-table-ed]'), kind = btn.dataset.tblmenu;
@@ -2747,7 +2750,7 @@ function closeTblMenu() {
   document.querySelectorAll('.tbl-grid .is-col, .tbl-grid .is-row').forEach(x => x.classList.remove('is-col', 'is-row'));
 }
 document.addEventListener('pointerdown', e => {
-  if (e.target.closest?.('#tblMenu, .tbl-h, .tbl-add')) { e.preventDefault(); return; }
+  if (e.target.closest?.('#tblMenu, .tbl-rown, .tbl-colbtn, .tbl-add')) { e.preventDefault(); return; }
   closeTblMenu();
 });
 const tableEd = id => document.querySelector(`[data-table-ed="${id}"]`);
@@ -3112,7 +3115,7 @@ function exportSheet() {
     <ul class="list linklist">
       ${opt('docx', 'file-text', 'Word (.docx)', 'Con títulos, listas, tablas, colores e imágenes. Se abre en Word, Google Docs o Pages')}
       ${opt('pdf', 'download', 'PDF', 'Se abre la ventana de imprimir: elige «Guardar como PDF»')}
-      ${opt('md', 'code', `Markdown${imgs ? ' (.zip con las imágenes)' : ' (.md)'}`, 'Para Obsidian, Notion, Typora… Conserva el formato y los enlaces [[ ]]')}
+      ${opt('md', 'code', `Markdown${imgs ? ' (.zip con las imágenes)' : ' (.md)'}`, 'Para abrirlo en otras aplicaciones de notas. Conserva el formato y los enlaces [[ ]]')}
       ${opt('html', 'link', 'Página web (.html)', 'Un solo archivo con todo dentro, para verlo en cualquier navegador')}
     </ul>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
@@ -3323,7 +3326,7 @@ function helpContent() {
       ${step(icon('undo-2', { size: 16 }), 'Deshaz lo que sea', `${kb('Ctrl+Z')} o la flecha de arriba deshacen cualquier cambio del apunte, también borrar o mover bloques.`)}
       ${step(icon('search', { size: 16 }), 'Encuentra', `${kb('Ctrl+F')} o la lupa buscan en el apunte. Con dos títulos o más tienes también un <b>índice</b>.`)}
     </ol>`),
-    formato: sec('formato', 'Formato del texto', `<p class="hint">Usa la barra que aparece al seleccionar texto, o escribe las marcas tú mismo (es Markdown, como en Obsidian). Mientras el cursor está dentro de un texto con formato verás sus marcas; al salir, solo el formato.</p>
+    formato: sec('formato', 'Formato del texto', `<p class="hint">Usa la barra que aparece al seleccionar texto, o escribe las marcas tú mismo (se guarda en Markdown). Mientras el cursor está dentro de un texto con formato verás sus marcas; al salir, solo el formato.</p>
       ${table(['Escribe', 'Se ve', 'Atajo'], [
         row(c('**negrita**'), '<b>negrita</b>', kb('Ctrl+B')),
         row(c('*cursiva*'), '<i>cursiva</i>', kb('Ctrl+I')),
@@ -3385,7 +3388,7 @@ function helpContent() {
         ['Texto en Markdown', 'Al pegarlo, cada línea se convierte en su bloque (títulos, listas, tablas…).'],
         ['Un archivo', 'Menú ⋯ del apunte → <b>Importar…</b>: <b>PDF</b> (con sus tablas; las páginas escaneadas, como imágenes), <b>Word</b> (.docx, con formato e imágenes), <b>Markdown</b>, <b>HTML</b> o <b>CSV</b> (como tabla). Se añade al final del apunte.'],
         ['Muchos a la vez', 'En la lista de Apuntes → <b>Importar</b>: un apunte nuevo por archivo. También un <b>.zip</b> exportado de Notion u Obsidian (con sus imágenes).'],
-        ['Hacia otra app', 'Menú ⋯ → <b>Exportar…</b>: <b>Word</b>, <b>PDF</b> (desde la ventana de imprimir), <b>Markdown</b> (con sus imágenes; se abre bien en Obsidian) o <b>página web</b>. O <b>Copiar como texto</b>.'],
+        ['Hacia otra app', 'Menú ⋯ → <b>Exportar…</b>: <b>Word</b>, <b>PDF</b> (desde la ventana de imprimir), <b>Markdown</b> (con sus imágenes) o <b>página web</b>. O <b>Copiar como texto</b>.'],
         ['Todos tus apuntes', 'En la lista de Apuntes → <b>Exportar</b>: un .zip con todos en Markdown, por carpetas y con sus imágenes.'],
       ])}`),
     teclado: sec('teclado', 'Atajos de teclado', `<h4 class="help-sub">Al escribir</h4>
@@ -3491,6 +3494,7 @@ function renderProfile() {
       <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, mazo y tipo de tarjeta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
+      <li><button class="row-link" data-act="news">${icon('sparkles', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
     </ul>
     <div class="panel"><form data-form="profile">
@@ -5498,6 +5502,7 @@ document.addEventListener('click', async e => {
     case 'page-copy-md': { const ok = await copyText(pageToMarkdown(curPage()), 'Apunte copiado'); if (!ok) toast('No se ha podido copiar'); return closeSheet(); }
     case 'notes-help': return notesHelpSheet();
     case 'intro': return showIntro();
+    case 'news': return showNews();
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
     case 'fmt-colors': return toggleColorMenu();

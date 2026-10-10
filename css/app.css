@@ -1517,3 +1517,35 @@ a.wl:hover{text-decoration:underline}
 :root{--font-head:"General Sans",var(--font)}
 h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.nb-h1 .nb-input,.nb-h2 .nb-input,.nb-h3 .nb-input,
 .ed-title > span,.help-h,.toc-h,.ob-mark,.brand .name,.brand .mark{font-family:var(--font-head);letter-spacing:-.005em}
+/* Novedades (mismo diseño que la bienvenida) */
+.news .ob-mark{color:var(--bg)}
+.news-list li{padding:0;background:none}
+.news-jump{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--soft);color:var(--muted);font:inherit;font-size:15px;line-height:1.35;text-align:left;cursor:pointer}
+.news-jump:hover{background:var(--hover)}
+.news-jump b{color:var(--fg);font-weight:600}
+.news-jump .lu{flex:none;color:var(--fg)}
+.news-jump .chev{margin-left:auto;color:var(--faint)}
+@media (min-width:900px){
+  .news .ob-body:not(.ob-welcome){flex-direction:row;gap:56px}
+  .news .ob-body:not(.ob-welcome) .ob-phone{width:min(300px,calc((100dvh - 190px) * 390 / 760))}
+  .news .ob-body:not(.ob-welcome) .ob-copy{text-align:left;max-width:440px}
+  .news .ob-copy h2{font-size:28px}
+}
+/* Editor de tablas, como una hoja de cálculo: números de fila y menú en cada cabecera, siempre a la vista */
+.tbl-ed{padding-left:0}
+.tbl-tools button:not(.tbl-done):not(.danger){color:var(--fg)}
+.tbl-grid th.tbl-gut,.tbl-grid td.tbl-gut{width:34px;min-width:34px;padding:0;background:var(--soft);vertical-align:middle;text-align:center}
+.tbl-rown{display:grid;place-items:center;width:100%;min-height:36px;padding:0;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;cursor:pointer}
+.tbl-rown:hover,.tbl-colbtn:hover{background:var(--hover);color:var(--fg)}
+.tbl-rown.cur,.tbl-colbtn.cur{color:var(--accent);font-weight:700}
+.tbl-hcell{display:flex;align-items:flex-start}
+.tbl-hcell .tc{flex:1;min-width:96px}
+.tbl-colbtn{flex:none;display:grid;place-items:center;width:26px;min-height:36px;padding:0;border:0;border-radius:0;background:transparent;color:var(--faint);cursor:pointer}
+.tbl-add{opacity:1;color:var(--muted);border:1px dashed var(--line)}
+.tbl-add:hover{border-color:var(--line-strong);background:var(--hover);color:var(--fg)}
+.tbl-addcol{width:28px;border-radius:6px}
+.tbl-addrow{display:flex;align-items:center;justify-content:center;gap:6px;height:30px;margin-top:6px;font:inherit;font-size:13.5px}
+.tbl-hint{font-size:12.5px;color:var(--muted)}
+/* La tabla sin editar: se nota que se puede tocar para editarla */
+.nb-table:not(:has(.tbl-ed)) .nb-tbl{cursor:pointer}
+.nb-table:not(:has(.tbl-ed)):hover::after{content:'Toca para editar';position:absolute;right:38px;top:4px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted);font-size:12px;pointer-events:none}

@@ -79,7 +79,7 @@ test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de 
   await expect(page.locator('.tbl-grid tbody tr')).toHaveCount(3);
   // Columna nueva a la derecha (menú de la columna) y pegar dos filas desde una hoja de cálculo
   await cell(0, 1).click();
-  await page.locator('.tbl-hcol').click();
+  await page.locator('.tbl-colbtn.cur').click();
   await page.locator('#tblMenu [data-tbl="col-right"]').click();
   await expect(cell(0, 2)).toBeFocused();
   await page.evaluate(() => {
@@ -90,15 +90,15 @@ test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de 
   await cell('h', 2).fill('Ejemplo');
   // Quitar la fila vacía del final (menú de la fila)
   await cell(2, 0).click();
-  await page.locator('.tbl-hrow').click();
+  await page.locator('.tbl-rown.cur').click();
   await page.locator('#tblMenu [data-tbl="row-del"]').click();
   await expect(page.locator('.tbl-grid tbody tr')).toHaveCount(2);
   // Ordenar por la primera columna
   await cell(0, 0).click();
-  await page.locator('.tbl-hcol').click();
+  await page.locator('.tbl-colbtn.cur').click();
   await page.locator('#tblMenu [data-tbl="sort-asc"]').click();
   await expect(cell(0, 0)).toHaveValue('Ablativo');
-  await page.locator('.tbl-hcol').click();
+  await page.locator('.tbl-colbtn.cur').click();
   await page.locator('#tblMenu [data-tbl="sort-desc"]').click();
   await expect(cell(0, 0)).toHaveValue('Locativo');
   await page.locator('[data-tbl="done"]').click();
