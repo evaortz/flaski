@@ -58,22 +58,66 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await expect(block(page, 3)).toHaveClass('nb nb-p');
 });
 
-test('tablas en Markdown: se escriben como texto y se ven como tabla', async ({ page }) => {
+test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de una hoja de cálculo) y se guardan', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Tabla');
   await addBlock(page, 'table');
+  const cell = (r, c) => page.locator(`.tc[data-r="${r}"][data-c="${c}"]`);
+  await expect(cell('h', 0)).toBeFocused();
+  await page.keyboard.type('Caso');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Sufijo');
+  await page.keyboard.press('Tab');                 // a la primera fila
+  await page.keyboard.type('Locativo');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('-de | -da');            // una barra dentro de la celda
+  await page.keyboard.press('Enter');               // fila de abajo
+  await page.keyboard.type('-den');
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.type('Ablativo');
+  await page.keyboard.press('Enter');               // última fila: crea otra
+  await expect(page.locator('.tbl-grid tbody tr')).toHaveCount(3);
+  // Columna nueva a la derecha y pegar dos filas desde una hoja de cálculo
+  await cell(0, 1).click();
+  await page.locator('[data-tbl="col-add"]').click();
+  await expect(cell(0, 2)).toBeFocused();
+  await page.evaluate(() => {
+    const dt = new DataTransfer(); dt.setData('text/plain', 'evde\nevden\n');
+    document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await expect(cell(1, 2)).toHaveValue('evden');
+  await cell('h', 2).fill('Ejemplo');
+  // Quitar la fila vacía del final
+  await cell(2, 0).click();
+  await page.locator('[data-tbl="row-del"]').click();
+  await page.locator('[data-tbl="done"]').click();
+  const table = page.locator('#pgBlocks table');
+  await expect(table.locator('th')).toHaveText(['Caso', 'Sufijo', 'Ejemplo']);
+  await expect(table.locator('tbody tr')).toHaveCount(2);
+  await expect(table.locator('tbody tr').first().locator('td')).toHaveText(['Locativo', '-de | -da', 'evde']);
+  // Tocar una celda la vuelve a abrir en esa celda; y sigue así al recargar
+  await table.locator('tbody tr').nth(1).locator('td').nth(1).click();
+  await expect(cell(1, 1)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await nav(page, 'Apuntes');
+  await page.getByText('Tabla').first().click();
+  await expect(page.locator('#pgBlocks table tbody tr').nth(1).locator('td')).toHaveText(['Ablativo', '-den', 'evden']);
+});
+
+test('tablas como texto: sigue pudiendo escribirse en Markdown', async ({ page }) => {
+  await openApp(page);
+  await newPage(page, 'Tabla');
+  await addBlock(page, 'table');
+  await page.locator('[data-tbl="raw"]').click();
   const t = page.locator('[data-block-input]');
   await t.fill('| Caso | Sufijo |\n| --- | :---: |\n| Locativo | -de |');
-  await page.keyboard.press('End');
   await t.press('Control+End');
   await page.keyboard.press('Enter');           // fila nueva con sus celdas
   await expect(t).toHaveValue('| Caso | Sufijo |\n| --- | :---: |\n| Locativo | -de |\n|  |  |');
-  await page.keyboard.type('Dativo');
   await page.keyboard.press('Escape');
-  const table = page.locator('#pgBlocks table');
-  await expect(table.locator('th')).toHaveText(['Caso', 'Sufijo']);
-  await expect(table.locator('tbody tr')).toHaveCount(2);
-  await expect(table.locator('tbody tr').nth(1).locator('td').first()).toHaveText('Dativo');
+  await expect(page.locator('#pgBlocks table th')).toHaveText(['Caso', 'Sufijo']);
   // Pegar texto con una tabla en un párrafo también la crea
   await addBlock(page, 'p');
   await page.locator('[data-block-input]').fill('| A | B |\n|---|---|\n| 1 | 2 |');

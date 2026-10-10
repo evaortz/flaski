@@ -50,6 +50,20 @@ export function parseTable(text) {
   const rows = lines.slice(2).map(l => { const r = cells(l); while (r.length < head.length) r.push(''); return r.slice(0, head.length); });
   return { head, align: head.map((_, i) => align[i] || ''), rows };
 }
+// { head, align, rows } → tabla en Markdown (lo que se guarda). Las barras dentro de una celda van como «\|».
+export function tableToMarkdown({ head, align = [], rows = [] }) {
+  const n = Math.max(1, head.length, ...rows.map(r => r.length));
+  const cell = v => String(v ?? '').replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
+  const line = r => `| ${Array.from({ length: n }, (_, i) => cell(r[i])).join(' | ')} |`;
+  const sep = Array.from({ length: n }, (_, i) => ({ left: ':---', center: ':---:', right: '---:' }[align[i]] || '---'));
+  return [line(head), `| ${sep.join(' | ')} |`, ...rows.map(line)].join('\n');
+}
+// Texto copiado de una hoja de cálculo (columnas con tabulador, filas por línea) → filas de celdas
+export function gridFromPaste(text) {
+  const t = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+  if (!t.includes('\t') && !t.includes('\n')) return null;
+  return t.split('\n').map(l => l.split('\t').map(c => c.trim()));
+}
 
 export function blockId() {
   return 'b' + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 7);

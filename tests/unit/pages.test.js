@@ -101,3 +101,16 @@ test('título de la página', () => {
   assert.equal(pageTitle({ title: '', blocks: [newBlock('p', ''), newBlock('p', 'El **locativo**')] }), 'El locativo');
   assert.equal(pageTitle({ title: '', blocks: [] }), 'Sin título');
 });
+
+test('tablas: de Markdown a celdas y vuelta, con alineación y barras dentro de una celda; pegar desde una hoja de cálculo', async () => {
+  const { tableToMarkdown, gridFromPaste } = await import('../../js/pages.js');
+  const md = String.raw`| Caso | Sufijo |
+| :--- | :---: |
+| Locativo | -de \| -da |`;
+  const t = parseTable(md);
+  assert.deepEqual(t.rows, [['Locativo', '-de | -da']]);
+  assert.equal(tableToMarkdown(t), md);
+  assert.equal(tableToMarkdown({ head: ['A'], rows: [['1', '2']] }), '| A |  |\n| --- | --- |\n| 1 | 2 |');
+  assert.deepEqual(gridFromPaste('a\tb\nc\td\n'), [['a', 'b'], ['c', 'd']]);
+  assert.equal(gridFromPaste('solo texto'), null);
+});

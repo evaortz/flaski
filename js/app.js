@@ -23,7 +23,7 @@ import { readPdf, pdfToBlocks } from './pdf.js';
 import { suggestCards, KINDS } from './suggest.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from './anki.js';
 import { addImage, storeImage, imageType, newImageId, flushUploads, hydrate, imgToken, imageIdsOf, exportImages, importImages, setRemote as setImageRemote, stripImages, IMG_RE } from './media.js';
-import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
+import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 
 const $ = s => document.querySelector(s);
 const main = $('#main');
@@ -1588,6 +1588,12 @@ function editBlock(id, caret = null) {
   if (NO_TEXT.includes(curPage()?.blocks.find(x => x.id === id)?.type)) return;
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
+  const openTbl = document.querySelector('[data-table-ed]');
+  if (openTbl && openTbl.dataset.tableEd !== id) commitTable(openTbl.dataset.tableEd);
+  if (curPage()?.blocks.find(x => x.id === id)?.type === 'table') return openTbl?.dataset.tableEd === id ? null : editTable(id, typeof caret === 'object' ? caret : null);
+  return editBlockRaw(id, caret);
+}
+function editBlockRaw(id, caret = null) {
   const b = curPage()?.blocks.find(x => x.id === id);
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
   if (!b || !el) return;
@@ -1619,7 +1625,7 @@ function retypeBlock(b, type, text = '', extra = {}) {
   closeBlockMenu();
   if (type === 'img') { b.text = ''; savePageSoon(p); redrawBlocks(); return pickImage().then(f => f && addImageBlock(f, b.id)); }
   Object.assign(b, { type, text }, extra);
-  if (type === 'table' && !text) b.text = TABLE_TEMPLATE;
+  if (type === 'table' && !text) b.text = tableToMarkdown(TBL_EMPTY());
   if (type === 'todo' && b.checked == null) b.checked = false;
   if (type === 'callout' && !b.icon) b.icon = '💡';
   savePageSoon(p);
@@ -1629,7 +1635,7 @@ function retypeBlock(b, type, text = '', extra = {}) {
     if (!next || NO_TEXT.includes(next.type)) { next = newBlock(); p.blocks.splice(i + 1, 0, next); }
     return redrawBlocks(next.id, 0);
   }
-  redrawBlocks(b.id, type === 'table' ? 2 : b.text.length);
+  redrawBlocks(b.id, type === 'table' ? { r: 'h', c: 0 } : b.text.length);
 }
 // Las tarjetas de un bloque que desaparece pasan al bloque donde se ha juntado
 function moveCards(fromBlock, toBlock) {
@@ -1742,10 +1748,18 @@ document.addEventListener('selectionchange', () => {
   if (bar) bar.hidden = !S.pageSel;
 });
 // Que pulsar la barra no quite la selección ni cierre el bloque que se está editando
-document.addEventListener('pointerdown', e => { if (e.target.closest?.('#selBar')) e.preventDefault(); });
+document.addEventListener('pointerdown', e => { if (e.target.closest?.('#selBar, .tbl-tools')) e.preventDefault(); });
+// Al salir de la cuadrícula (a otra parte de la página), la tabla se guarda y se ve con formato
+document.addEventListener('focusout', e => {
+  const ed = e.target.closest?.('[data-table-ed]');
+  if (!ed || repainting) return;
+  setTimeout(() => { if (ed.isConnected && !ed.contains(document.activeElement)) commitTable(ed.dataset.tableEd); }, 0);
+});
+document.addEventListener('focusin', e => { if (e.target.matches?.('.tc')) { S.tblFocus = { r: e.target.dataset.r, c: +e.target.dataset.c }; const a = $('#tblAlign'); if (a) a.title = `Alinear la columna donde estás (ahora: ${{ '': 'izquierda', left: 'izquierda', center: 'centrada', right: 'derecha' }[tblAlign.get(e.target.closest('[data-table-ed]').dataset.tableEd)?.[S.tblFocus.c] || '']})`; } });
 document.addEventListener('focusout', e => { if (!repainting && e.target.matches?.('[data-block-input]') && e.target.isConnected) commitBlockEl(e.target); });
 document.addEventListener('paste', e => {
   const t = e.target;
+  if (t.matches?.('.tc')) return tablePaste(e);
   // Una imagen pegada: en un campo del editor, dentro del campo; en unos apuntes, como bloque nuevo
   const img = imageFile(e.clipboardData);
   if (img && document.querySelector('.ef-occ') && !t.matches?.('.ef-input')) { e.preventDefault(); return occSetImage(img); }
@@ -1770,6 +1784,182 @@ document.addEventListener('paste', e => {
   savePageSoon(p);
   redrawBlocks(last.id, caret);
 });
+/* ---------- Editor de tablas: una cuadrícula en la que se escribe en cada celda ---------- */
+// Por debajo se guarda en Markdown (b.text); «Editar como texto» sigue disponible para quien lo prefiera.
+const TBL_EMPTY = () => ({ head: ['', ''], align: ['', ''], rows: [['', ''], ['', '']] });
+function tableModel(b) {
+  const t = parseTable(b.text);
+  if (t) return t;
+  return String(b.text || '').trim() ? null : TBL_EMPTY();
+}
+function tableEditorHTML(b, t) {
+  const n = t.head.length;
+  const al = i => (t.align[i] ? ` style="text-align:${t.align[i]}"` : '');
+  const cell = (v, r, c) => `<input class="tc" data-r="${r}" data-c="${c}" value="${esc(v)}" aria-label="${r === 'h' ? `Cabecera, columna ${c + 1}` : `Fila ${+r + 1}, columna ${c + 1}`}"${al(c)} spellcheck="true">`;
+  const alignIcon = { '': 'Izquierda', left: 'Izquierda', center: 'Centrada', right: 'Derecha' };
+  return `<div class="tbl-ed" data-table-ed="${b.id}">
+    <div class="tbl-tools" role="toolbar" aria-label="Tabla">
+      <button type="button" data-tbl="row-add" title="Añadir una fila debajo de la actual">${icon('plus', { size: 14 })} Fila</button>
+      <button type="button" data-tbl="col-add" title="Añadir una columna a la derecha de la actual">${icon('plus', { size: 14 })} Columna</button>
+      <span class="tbl-sep" aria-hidden="true"></span>
+      <button type="button" data-tbl="row-del" title="Quitar la fila donde estás">Quitar fila</button>
+      <button type="button" data-tbl="col-del" title="Quitar la columna donde estás">Quitar columna</button>
+      <button type="button" data-tbl="align" id="tblAlign" title="Alinear la columna donde estás (ahora: ${alignIcon[t.align[S.tblFocus?.c ?? 0] || ''].toLowerCase()})">Alinear</button>
+      <span class="spacer"></span>
+      <button type="button" data-tbl="raw" title="Escribir la tabla como texto (Markdown)">Como texto</button>
+      <button type="button" data-tbl="delete" class="danger" title="Quitar la tabla">${icon('trash-2', { size: 14 })}</button>
+      <button type="button" data-tbl="done" class="tbl-done">Listo</button>
+    </div>
+    <div class="nb-tablewrap"><table class="nb-tbl tbl-grid"><thead><tr>${t.head.map((v, c) => `<th>${cell(v, 'h', c)}</th>`).join('')}</tr></thead>
+      <tbody>${t.rows.map((r, ri) => `<tr>${Array.from({ length: n }, (_, c) => `<td>${cell(r[c] ?? '', ri, c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <p class="hint tbl-hint">Tab: celda siguiente · Enter: fila de abajo · Puedes pegar celdas copiadas de Excel o Google Sheets</p>
+  </div>`;
+}
+const tableEd = id => document.querySelector(`[data-table-ed="${id}"]`);
+// La cuadrícula tal como está en pantalla → { head, align, rows }
+function readGrid(ed, align) {
+  const head = [], rows = [];
+  ed.querySelectorAll('.tc').forEach(inp => {
+    const r = inp.dataset.r, c = +inp.dataset.c;
+    if (r === 'h') head[c] = inp.value; else { (rows[+r] ||= [])[c] = inp.value; }
+  });
+  return { head, align: head.map((_, i) => align?.[i] || ''), rows };
+}
+let tblAlign = new Map();   // alineación de cada tabla mientras se edita
+function editTable(id, focus = null) {
+  const p = curPage(), b = p?.blocks.find(x => x.id === id);
+  const el = document.querySelector(`[data-block="${id}"] .nb-text`);
+  if (!b || !el) return;
+  const t = tableModel(b);
+  if (!t) return editBlockRaw(id);   // texto que aún no es una tabla: como texto
+  tblAlign.set(id, t.align);
+  S.tblFocus = focus || S.tblFocus || { r: 'h', c: 0 };
+  el.outerHTML = tableEditorHTML(b, t);
+  tblFocusCell(id, S.tblFocus);
+}
+function tblFocusCell(id, { r, c }) {
+  const ed = tableEd(id);
+  const inp = ed?.querySelector(`.tc[data-r="${r}"][data-c="${c}"]`) || ed?.querySelector('.tc');
+  if (inp) { inp.focus(); inp.setSelectionRange?.(inp.value.length, inp.value.length); }
+}
+function saveGrid(id) {
+  const p = curPage(), b = p?.blocks.find(x => x.id === id), ed = tableEd(id);
+  if (!b || !ed) return null;
+  const t = readGrid(ed, tblAlign.get(id));
+  const md = tableToMarkdown(t);
+  if (md !== b.text) { b.text = md; savePageSoon(p); }
+  return t;
+}
+// Cambiar la forma de la tabla (filas, columnas, alineación) y volver a pintarla
+function reshapeTable(id, fn) {
+  const t = saveGrid(id);
+  if (!t) return;
+  const f = { ...(S.tblFocus || { r: 'h', c: 0 }) };
+  fn(t, f);
+  tblAlign.set(id, t.align);
+  const p = curPage(), b = p.blocks.find(x => x.id === id);
+  b.text = tableToMarkdown(t); savePageSoon(p);
+  repaint(() => { tableEd(id).outerHTML = tableEditorHTML(b, t); });
+  S.tblFocus = f;
+  tblFocusCell(id, f);
+}
+function tableAction(id, act) {
+  const n = () => readGrid(tableEd(id)).head.length;
+  if (act === 'row-add') return reshapeTable(id, (t, f) => { const at = f.r === 'h' ? 0 : +f.r + 1; t.rows.splice(at, 0, Array(t.head.length).fill('')); f.r = at; });
+  if (act === 'col-add') return reshapeTable(id, (t, f) => { const at = f.c + 1; t.head.splice(at, 0, ''); t.align.splice(at, 0, ''); t.rows.forEach(r => r.splice(at, 0, '')); f.c = at; });
+  if (act === 'row-del') return reshapeTable(id, (t, f) => {
+    if (f.r === 'h') { if (!t.rows.length) return toast('La tabla necesita al menos la cabecera'); t.head = t.rows.shift(); f.r = 'h'; return; }
+    t.rows.splice(+f.r, 1); f.r = t.rows.length ? Math.min(+f.r, t.rows.length - 1) : 'h';
+  });
+  if (act === 'col-del') {
+    if (n() <= 1) return toast('La tabla necesita al menos una columna');
+    return reshapeTable(id, (t, f) => { t.head.splice(f.c, 1); t.align.splice(f.c, 1); t.rows.forEach(r => r.splice(f.c, 1)); f.c = Math.min(f.c, t.head.length - 1); });
+  }
+  if (act === 'align') return reshapeTable(id, (t, f) => { const order = ['', 'center', 'right']; t.align[f.c] = order[(order.indexOf(t.align[f.c] === 'left' ? '' : t.align[f.c] || '') + 1) % 3]; });
+  if (act === 'raw') { commitTable(id); return editBlockRaw(id); }
+  if (act === 'done') return commitTable(id);
+  if (act === 'delete') {
+    const p = curPage(), i = p.blocks.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const next = p.blocks[i + 1] || p.blocks[i - 1];
+    if (next) moveCards(id, next.id);
+    p.blocks.splice(i, 1);
+    if (!p.blocks.length) p.blocks.push(newBlock());
+    savePageSoon(p);
+    redrawBlocks();
+    return toast('Tabla quitada');
+  }
+}
+// Terminar de editar: se guarda y se ve la tabla con formato
+function commitTable(id, redraw = true) {
+  saveGrid(id);
+  tblAlign.delete(id);
+  const p = curPage(), b = p?.blocks.find(x => x.id === id), ed = tableEd(id);
+  if (!b || !ed) return;
+  if (redraw) repaint(() => { ed.closest('.nb').outerHTML = blockHTML(b, pageCards(p.id).get(b.id)); });
+}
+// Teclas dentro de una celda
+function tableKey(e) {
+  const inp = e.target, ed = inp.closest('[data-table-ed]'), id = ed.dataset.tableEd;
+  const r = inp.dataset.r, c = +inp.dataset.c, t = readGrid(ed), n = t.head.length, last = t.rows.length - 1;
+  const go = (rr, cc) => { S.tblFocus = { r: rr, c: cc }; tblFocusCell(id, S.tblFocus); };
+  const ri = r === 'h' ? -1 : +r;
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (e.shiftKey) { if (c > 0) return go(r, c - 1); if (ri >= 0) return go(ri === 0 ? 'h' : ri - 1, n - 1); return; }
+    if (c < n - 1) return go(r, c + 1);
+    if (ri < last) return go(ri + 1, 0);
+    S.tblFocus = { r: ri, c };
+    return reshapeTable(id, (tt, f) => { tt.rows.push(Array(n).fill('')); f.r = tt.rows.length - 1; f.c = 0; });
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    // Salir de la tabla y seguir escribiendo debajo
+    e.preventDefault();
+    commitTable(id);
+    const p = curPage(), i = p.blocks.findIndex(x => x.id === id), nb = newBlock();
+    p.blocks.splice(i + 1, 0, nb); savePageSoon(p);
+    return redrawBlocks(nb.id, 0);
+  }
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    if (ri < last) return go(ri + 1, c);
+    S.tblFocus = { r: ri, c };
+    return reshapeTable(id, (tt, f) => { tt.rows.push(Array(n).fill('')); f.r = tt.rows.length - 1; });
+  }
+  if (e.key === 'ArrowDown' && ri < last) { e.preventDefault(); return go(ri + 1, c); }
+  if (e.key === 'ArrowUp' && ri >= 0) { e.preventDefault(); return go(ri === 0 ? 'h' : ri - 1, c); }
+  if (e.key === 'Escape') { e.preventDefault(); return commitTable(id); }
+}
+// Pegar celdas de una hoja de cálculo: rellenan desde la celda actual y amplían la tabla si hace falta
+function tablePaste(e) {
+  const inp = e.target, ed = inp.closest('[data-table-ed]'), id = ed.dataset.tableEd;
+  const text = e.clipboardData?.getData('text/plain') || '';
+  if (isTableText(text)) {
+    e.preventDefault();
+    const t = parseTable(text);
+    S.tblFocus = { r: 'h', c: 0 };
+    return reshapeTable(id, tt => Object.assign(tt, t));
+  }
+  const grid = gridFromPaste(text);
+  if (!grid) return;
+  e.preventDefault();
+  const r0 = inp.dataset.r === 'h' ? -1 : +inp.dataset.r, c0 = +inp.dataset.c;
+  S.tblFocus = { r: inp.dataset.r, c: c0 };
+  reshapeTable(id, (t, f) => {
+    const width = Math.max(t.head.length, c0 + Math.max(...grid.map(g => g.length)));
+    while (t.head.length < width) { t.head.push(''); t.align.push(''); }
+    t.rows.forEach(r => { while (r.length < width) r.push(''); });
+    grid.forEach((g, k) => {
+      const ri = r0 + k;
+      const row = ri < 0 ? t.head : (t.rows[ri] ||= Array(width).fill(''));
+      g.forEach((v, j) => { row[c0 + j] = v; });
+    });
+    for (let i = 0; i < t.rows.length; i++) t.rows[i] ||= Array(width).fill('');
+    const lastR = r0 + grid.length - 1;
+    f.r = lastR < 0 ? 'h' : lastR; f.c = c0 + grid.at(-1).length - 1;
+  });
+}
+
 /* ---------- Menú de bloques (/ o «+ Bloque») ---------- */
 const GLYPH = { p: 'Aa', h1: 'H1', h2: 'H2', h3: 'H3', li: '•', ol: '1.', todo: '☐', quote: '❝', callout: '💡', code: '{ }', table: '▦', hr: '—' };
 const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -1964,7 +2154,7 @@ function notesHelpSheet() {
     <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
 | :------- | :----: | ------: |
 | Locativo |  -de   |    evde |</pre>
-    <p class="hint">La segunda línea separa la cabecera: <code>:---</code> alinea a la izquierda, <code>:---:</code> al centro y <code>---:</code> a la derecha. Para poner una barra dentro de una celda: <code>\\|</code>. El botón «+ Tabla» crea una para rellenar.</p>
+    <p class="hint">Lo más fácil: «+ Bloque» → Tabla, y escribe en cada celda (Tab pasa a la siguiente; puedes pegar celdas de Excel o Google Sheets). Si prefieres escribirla como texto, usa «Editar como texto»: la segunda línea separa la cabecera; <code>:---</code> alinea a la izquierda, <code>:---:</code> al centro y <code>---:</code> a la derecha.</p>
     <h3 class="sub-h">Teclas</h3>
     ${table([
       key('Enter', 'Bloque nuevo (en una tabla, fila nueva; en un código, salto de línea; en un punto vacío, termina la lista)'),
@@ -3629,6 +3819,8 @@ document.addEventListener('click', async e => {
     if (rb) { rb.classList.toggle('peek'); return; }
     // Tocar un bloque de los apuntes lo pone en edición (salvo que se esté seleccionando texto)
     const eb = e.target.closest('[data-edit-block]');
+    const td = e.target.closest?.('.nb-tbl td, .nb-tbl th');
+    if (eb && td && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock, { r: td.tagName === 'TH' ? 'h' : td.parentElement.rowIndex - 1, c: td.cellIndex });
     if (eb && !getSelection()?.toString().trim()) return editBlock(eb.dataset.editBlock);
     if (e.target.id === 'sheet') requestClose();
     else if (e.target.closest('.pv-card') && S.edit) { S.edit.pvSide = S.edit.pvSide === 'front' ? 'back' : 'front'; drawPreview(); }
@@ -3689,6 +3881,7 @@ document.addEventListener('click', async e => {
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
+  if (ds.tbl) return tableAction(b.closest('[data-table-ed]').dataset.tableEd, ds.tbl);
   if (ds.sugEdit !== undefined) { readSugEdit(); S.sug.edit = +ds.sugEdit; drawSuggestions(); document.querySelector('.sug-in')?.focus(); return; }
   if (ds.sugSave !== undefined) { readSugEdit(); return drawSuggestions(); }
   if (ds.sugKind) {
@@ -4165,6 +4358,7 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
+  if (e.target.matches?.('.tc')) return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd);
   if (e.target.matches?.('[data-block-input]')) {
     const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
     // «# », «- », «1. », «[] », «> »… al principio de un párrafo cambian el tipo de bloque
@@ -4301,6 +4495,7 @@ $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]
 
 document.addEventListener('keydown', e => {
   if (e.target.matches?.('[data-block-input]')) return blockKey(e);
+  if (e.target.matches?.('.tc')) return tableKey(e);
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
     // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero
