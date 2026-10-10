@@ -1423,3 +1423,31 @@ a.wl{color:var(--accent);text-decoration:none;cursor:pointer}
 a.wl:hover{text-decoration:underline}
 .pg-links{margin-top:28px}
 .pg-links[hidden]{display:none}
+
+/* ---------- Ayuda de los apuntes ---------- */
+.help{display:flex;flex-direction:column;gap:12px}
+.help [hidden]{display:none !important}
+.help-search{display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted)}
+.help-search input{flex:1;min-width:0;height:38px;border:0;background:transparent;box-shadow:none;padding:0;font-size:15px;color:var(--fg)}
+.help-search input:focus{outline:none;box-shadow:none}
+.help-search:focus-within{border-color:var(--line-strong)}
+.help-tabs{display:flex;gap:3px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto;scrollbar-width:none}
+.help-tabs::-webkit-scrollbar{display:none}
+.help-tabs button{flex:1 0 auto;min-height:32px;padding:0 12px;border:0;border-radius:4px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:500;white-space:nowrap;cursor:pointer}
+.help-tabs button[aria-selected="true"]{background:var(--bg);color:var(--fg);box-shadow:0 1px 2px rgba(15,15,15,.1)}
+.help-tabs.is-search button{opacity:.5}
+.help-body{display:flex;flex-direction:column;gap:18px}
+.help-sec{display:flex;flex-direction:column;gap:10px}
+.help-h{margin:0;font-size:16px;font-weight:600}
+.help-sub{margin:8px 0 0;font-size:13px;font-weight:600;color:var(--muted);text-transform:none}
+.help-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;font-size:14.5px;line-height:1.5}
+.help-step{display:flex;gap:12px;align-items:flex-start}
+.help-ic{flex:none;width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:14px;font-weight:600}
+.help-tbl td.help-key{white-space:nowrap;color:var(--muted);font-size:13px}
+.help-tbl td{line-height:1.5}
+.help-tbl td:first-child code{white-space:nowrap}
+.help-step kbd,.help .hint kbd,.help-list kbd{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--bg)}
+.help-link{color:var(--accent);text-decoration:none;pointer-events:none}
+.help a.wl{pointer-events:none}
+@media (max-width:520px){.help-tbl td:first-child{white-space:normal}.help-tbl td:first-child code{white-space:normal;word-break:break-word}}
+.kc{white-space:nowrap}

@@ -202,6 +202,16 @@ test('la guía de formato y atajos de los apuntes', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Formato y atajos' })).toBeVisible();
   await expect(page.locator('#sheetBody')).toContainText('Mayús + Enter');
   await expect(page.locator('#sheetBody .help-pre')).toContainText('| :------- | :----: |');
+  // Por pestañas: se empieza por lo básico
+  await expect(page.locator('[data-help-sec="basico"]')).toBeVisible();
+  await expect(page.locator('[data-help-sec="teclado"]')).toBeHidden();
+  await page.locator('[data-help-tab="teclado"]').click();
+  await expect(page.locator('[data-help-sec="teclado"]')).toContainText('Duplicar');
+  // El buscador filtra entre todos los apartados
+  await page.locator('#helpQ').fill('tachado');
+  await expect(page.locator('#helpBody .help-item:visible')).toHaveCount(2);
+  await page.locator('#helpQ').fill('xyzw');
+  await expect(page.locator('.help-none')).toBeVisible();
 });
 
 async function pastePage(page, text) {

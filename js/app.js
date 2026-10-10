@@ -2999,57 +2999,169 @@ function cardFromSelection(kind) {
   cardForm(null, { deckId, prefill, source: { page_id: p.id, block_id: b.id } });
 }
 // Formato y atajos de los apuntes: todo lo que se puede escribir y hacer, con ejemplos
-function notesHelpSheet() {
-  const row = (code, what) => `<tr><td><code>${esc(code)}</code></td><td>${what}</td></tr>`;
-  const key = (k, what) => `<tr><td><kbd>${k}</kbd></td><td>${what}</td></tr>`;
-  const table = (rows, head = ['Escribe', 'Para']) => `<table class="help-tbl"><thead><tr><th>${head[0]}</th><th>${head[1]}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
-  openSheet(`<h2>Formato y atajos</h2>
-    <p class="muted small">Toca cualquier parte para escribir en ella; al salir se ve con formato. Se guarda solo.</p>
-    <h3 class="sub-h">Bloques (al principio de una línea)</h3>
-    <p class="hint">Escribe <code>/</code> en una línea vacía (o pulsa «+ Bloque») para elegir entre todos los tipos: también destacados, imágenes y separadores.</p>
-    ${table([row('# ', 'Título'), row('## ', 'Subtítulo'), row('### ', 'Título pequeño'), row('- ', 'Punto de una lista (también <code>* </code>)'), row('1. ', 'Lista numerada'),
-      row('[] ', 'Casilla (<code>[x] </code> ya marcada)'), row('> ', 'Cita'), row('```', 'Código'), row('---', 'Separador'), row('| A | B |', 'Tabla (abajo cómo)')])}
-    <h3 class="sub-h">Formato dentro del texto</h3>
-    <p class="hint">Selecciona un texto para usar la barra de formato, o escríbelo tú: es Markdown, y mientras el cursor está dentro verás las marcas.</p>
-    ${table([row('**negrita**', '<b>negrita</b> · <kbd>Ctrl + B</kbd>'), row('*cursiva*', '<i>cursiva</i> · <kbd>Ctrl + I</kbd>'), row('<u>subrayado</u>', '<u>subrayado</u> · <kbd>Ctrl + U</kbd>'),
-      row('~~tachado~~', '<s>tachado</s> · <kbd>Ctrl + Mayús + S</kbd>'), row('`código`', '<code>código</code> · <kbd>Ctrl + E</kbd>'), row('==resaltado==', '<mark class="hl hl-yellow">resaltado</mark> · <kbd>Ctrl + Mayús + H</kbd>'),
-      row('<span style="color:red">rojo</span>', '<span class="tc tc-red">Texto en color</span> (desde la barra: botón A)'), row('<mark style="background:blue">azul</mark>', '<mark class="hl hl-blue">Fondo de color</mark>'),
-      row('[texto](https://…)', 'Enlace'), row('漢字[かんじ]', 'Furigana sobre el kanji: <ruby>漢字<rt>かんじ</rt></ruby>')])}
-    <p class="hint">Al pegar desde Word, Google Docs, Notion o una web se conservan los títulos, listas, tablas, negritas, colores y enlaces.</p>
-    <h3 class="sub-h">Tablas</h3>
-    <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
+/* ---------- Ayuda de los apuntes: «Formato y atajos» ---------- */
+// Pestañas (lo básico, formato, bloques, teclado, tarjetas) y un buscador que filtra entre todo.
+// Las teclas se escriben como en el teclado de cada uno: Ctrl/Alt en Windows, ⌘/⌥ en Mac.
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgentData?.platform || navigator.platform || navigator.userAgent);
+function kb(spec) {
+  const name = k => (IS_MAC ? { Ctrl: '⌘', Alt: '⌥', Mayús: '⇧' }[k] || k : k);
+  return spec.split(' o ').map(alt => `<span class="kc">${alt.split('+').map(k => `<kbd>${esc(name(k.trim()))}</kbd>`).join(' + ')}</span>`).join(' o ');
+}
+const HELP_TABS = [['basico', 'Lo básico'], ['formato', 'Formato'], ['bloques', 'Bloques'], ['teclado', 'Teclado'], ['tarjetas', 'Tarjetas']];
+function helpContent() {
+  const c = s => `<code>${esc(s)}</code>`;
+  // Una fila: lo de la izquierda (lo que se escribe, una tecla…), qué hace y, si hay, su atajo
+  const row = (left, what, extra = '') => `<tr class="help-item"><td>${left}</td><td>${what}</td>${extra !== null ? `<td class="help-key">${extra}</td>` : ''}</tr>`;
+  const table = (head, rows) => `<table class="help-tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  const two = (head, rows) => table(head, rows.map(([l, w]) => row(l, w, null)));
+  const step = (ic, title, text) => `<li class="help-item help-step"><span class="help-ic" aria-hidden="true">${ic}</span><span><b>${title}</b><br>${text}</span></li>`;
+  const sec = (id, title, body) => `<section class="help-sec" data-help-sec="${id}"><h3 class="help-h">${title}</h3>${body}</section>`;
+  return {
+    basico: sec('basico', 'Empezar en un minuto', `<ol class="help-steps">
+      ${step(icon('pencil', { size: 16 }), 'Escribe', 'Toca cualquier parte del apunte y escribe. Se guarda solo: arriba verás «Guardado».')}
+      ${step(icon('plus', { size: 16 }), 'Un bloque por idea', `Cada párrafo, título o punto de una lista es un <b>bloque</b>. ${kb('Enter')} crea el siguiente.`)}
+      ${step('/', 'Elige el tipo de bloque', `Escribe ${c('/')} en una línea vacía (o pulsa «+ Bloque») y elige: título, lista, casilla, tabla, imagen…`)}
+      ${step('<b>B</b>', 'Da formato', 'Selecciona un texto y usa la barra que aparece: negrita, cursiva, subrayado, color…')}
+      ${step(icon('grip-vertical', { size: 16 }), 'Mueve y organiza', 'El asa ⋮⋮ a la izquierda de cada bloque: arrástrala para moverlo o tócala para ver sus opciones. En el móvil aparece en el bloque que estás editando.')}
+      ${step(icon('notebook-text', { size: 16 }), 'Convierte en tarjetas', 'Selecciona lo importante y pulsa <b>Crear tarjeta</b>, o deja que <b>Sugerir tarjetas</b> te proponga las suyas.')}
+      ${step(icon('undo-2', { size: 16 }), 'Deshaz lo que sea', `${kb('Ctrl+Z')} o la flecha de arriba deshacen cualquier cambio del apunte, también borrar o mover bloques.`)}
+      ${step(icon('search', { size: 16 }), 'Encuentra', `${kb('Ctrl+F')} o la lupa buscan en el apunte. Con dos títulos o más tienes también un <b>índice</b>.`)}
+    </ol>`),
+    formato: sec('formato', 'Formato del texto', `<p class="hint">Usa la barra que aparece al seleccionar texto, o escribe las marcas tú mismo (es Markdown, como en Obsidian). Mientras el cursor está dentro de un texto con formato verás sus marcas; al salir, solo el formato.</p>
+      ${table(['Escribe', 'Se ve', 'Atajo'], [
+        row(c('**negrita**'), '<b>negrita</b>', kb('Ctrl+B')),
+        row(c('*cursiva*'), '<i>cursiva</i>', kb('Ctrl+I')),
+        row(c('<u>subrayado</u>'), '<u>subrayado</u>', kb('Ctrl+U')),
+        row(c('~~tachado~~'), '<s>tachado</s>', kb('Ctrl+Mayús+S')),
+        row(c('`código`'), '<code>código</code>', kb('Ctrl+E')),
+        row(c('==resaltado=='), '<mark class="hl hl-yellow">resaltado</mark>', kb('Ctrl+Mayús+H')),
+        row(c('<span style="color:red">…</span>'), '<span class="tc tc-red">Texto en color</span>', 'Barra → <b>A</b>'),
+        row(c('<mark style="background:blue">…</mark>'), '<mark class="hl hl-blue">Fondo de color</mark>', 'Barra → <b>A</b>'),
+        row(c('[texto](https://…)'), '<a href="#" class="help-link">texto</a> (abre la web)', ''),
+        row(c('[[Otro apunte]]'), '<a href="#" class="wl">Otro apunte</a> (abre ese apunte)', kb('[[')),
+        row(c('漢字[かんじ]'), 'Furigana: <ruby>漢字<rt>かんじ</rt></ruby>', ''),
+        row(c('\\*'), 'Un asterisco tal cual (sin formato)', ''),
+      ])}
+      <p class="hint">Sin texto seleccionado, un atajo da formato a la palabra donde está el cursor. Pulsar otra vez el mismo botón lo quita.</p>
+      <h4 class="help-sub">Al escribir</h4>
+      ${two(['Escribe', 'Pasa'], [
+        [c('(  [  {  "  «'), 'Se cierran solos; si escribes el cierre, se salta el que ya estaba.'],
+        ['Texto seleccionado + ' + c('*  _  ~  =  `  (  [  "'), 'Envuelve lo seleccionado: <code>palabra</code> → <code>*palabra*</code>'],
+        [c('[['), 'Muestra tus apuntes para enlazar uno. Si escribes un título que no existe, se crea al abrir el enlace.'],
+      ])}`),
+    bloques: sec('bloques', 'Tipos de bloque', `<p class="hint">Escribe esto al principio de una línea vacía, o elige el tipo con ${c('/')} o «+ Bloque». Para cambiar el tipo de un bloque que ya existe, tócale el asa ⋮⋮ → <b>Convertir en</b>.</p>
+      ${two(['Escribe', 'Para'], [
+        [c('# '), 'Título'], [c('## '), 'Subtítulo'], [c('### '), 'Título pequeño'],
+        [c('- ') + ' o ' + c('* '), 'Punto de una lista'], [c('1. '), 'Lista numerada'],
+        [c('[] ') + ' o ' + c('[x] '), 'Casilla (vacía o ya marcada)'], [c('> '), 'Cita'], [c('```'), 'Código (se escribe tal cual)'], [c('---'), 'Separador'],
+        [c('/'), 'Todos los tipos: también <b>destacado</b> (con icono), <b>tabla</b> e <b>imagen</b>'],
+      ])}
+      <h4 class="help-sub">Organizar</h4>
+      ${two(['Con', 'Puedes'], [
+        ['Asa ⋮⋮', 'Arrastrar el bloque a otro sitio. Con un toque: convertir, duplicar, mover, sangría, plegar o borrar.'],
+        [kb('Tab'), 'Meter un punto dentro del de arriba (sangría), en listas, casillas y párrafos. ' + kb('Mayús+Tab') + ' lo saca.'],
+        ['Flecha junto a un título', 'Plegar o desplegar todo lo que cuelga de él. Se queda así guardado.'],
+        [kb('Esc'), 'Seleccionar el bloque. Con ' + kb('Mayús') + ' + clic, o arrastrando el ratón por varios, seleccionas más: puedes moverlos, convertirlos, copiarlos o borrarlos a la vez.'],
+        ['Índice', 'Con dos títulos o más: a la derecha en pantallas grandes, o con el botón ' + icon('list', { size: 14 }) + ' de arriba.'],
+        ['«Enlazado desde»', 'Al pie del apunte, los otros apuntes que lo enlazan con ' + c('[[ ]]') + '. Si cambias el título, sus enlaces se actualizan solos.'],
+      ])}
+      <h4 class="help-sub">Tablas</h4>
+      <p class="hint">«+ Bloque» → <b>Tabla</b>, y escribe en cada celda: ${kb('Tab')} pasa a la siguiente y ${kb('Enter')} a la de abajo. Puedes pegar celdas copiadas de Excel o Google Sheets. Arriba tienes botones para añadir o quitar filas y columnas.</p>
+      <p class="hint">Si prefieres escribirla como texto (<b>Como texto</b>): la segunda línea separa la cabecera, y ${c(':---')} alinea a la izquierda, ${c(':---:')} al centro y ${c('---:')} a la derecha.</p>
+      <pre class="help-pre">| Caso     | Sufijo | Ejemplo |
 | :------- | :----: | ------: |
 | Locativo |  -de   |    evde |</pre>
-    <p class="hint">Lo más fácil: «+ Bloque» → Tabla, y escribe en cada celda (Tab pasa a la siguiente; puedes pegar celdas de Excel o Google Sheets). Si prefieres escribirla como texto, usa «Editar como texto»: la segunda línea separa la cabecera; <code>:---</code> alinea a la izquierda, <code>:---:</code> al centro y <code>---:</code> a la derecha.</p>
-    <h3 class="sub-h">Teclas</h3>
-    ${table([
-      key('Enter', 'Bloque nuevo (en una tabla, fila nueva; en un código, salto de línea; en un punto vacío, termina la lista)'),
-      key('Mayús + Enter', 'Salto de línea dentro del mismo bloque'),
-      key('Retroceso', 'Al principio de un bloque: lo junta con el anterior (en un título o lista, lo vuelve párrafo)'),
-      key('↑ ↓', 'Al principio o al final de un bloque: pasa al anterior o al siguiente'),
-      key('Ctrl + Enter', 'En una tabla o un código: sale de él y crea un bloque debajo'),
-      key('Ctrl + Z', 'Deshacer (en todo el apunte: lo escrito, bloques borrados, movidos…) · <kbd>Ctrl + Mayús + Z</kbd> rehacer'),
-      key('Tab', 'En una lista, casilla o párrafo: sangría (<kbd>Mayús + Tab</kbd> la quita)'),
-      key('Alt + ↑ ↓', 'Mover el bloque arriba o abajo (también arrastrando su asa ⋮⋮)'),
-      key('Ctrl + D', 'Duplicar el bloque'),
-      key('Esc', 'Selecciona el bloque: luego <kbd>Mayús</kbd> + clic o flechas para seleccionar más, <kbd>Supr</kbd> para borrar, <kbd>Ctrl + C</kbd> para copiar'),
-      key('Ctrl + F', 'Buscar en el apunte (<kbd>Ctrl + H</kbd> para reemplazar)'),
-      key('[[', 'Enlazar a otro apunte (si no existe, se crea al abrir el enlace)'),
-    ], ['Tecla', 'Hace'])}
-    <h3 class="sub-h">Tarjetas desde los apuntes</h3>
-    <ul class="help-list">
-      <li>Selecciona un trozo de texto y pulsa <b>Crear tarjeta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: <code>Ev{{de}}yim</code>).</li>
-      <li>La tarjeta queda unida a esa parte. Al estudiarla, <b>Ver en los apuntes</b> te trae aquí.</li>
-      <li>Arriba eliges el <b>mazo</b> donde van las tarjetas de este apunte.</li>
-      <li>El número a la derecha de cada parte es cuántas tarjetas salen de ella; tócalo para verlas.</li>
-    </ul>
-    <h3 class="sub-h">Cómo llevas cada parte</h3>
-    <ul class="help-list help-st">${STATUS.map(s => `<li><span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${s.label}</span> ${{ ok: 'las has repasado y no toca todavía', due: 'toca repasar alguna', weak: 'has fallado alguna hace poco o muchas veces', new: 'hay alguna que aún no has estudiado' }[s.id]}</li>`).join('')}</ul>
-    <p class="hint">En cada título, <b>Estudiar</b> repasa solo ese apartado (el título y lo que hay debajo). Arriba, <b>Estudiar este apunte</b> los repasa todos.</p>
-    <h3 class="sub-h">Pegar</h3>
-    <p class="hint">Si pegas varias líneas, se convierten en bloques: títulos, listas, tablas y párrafos. En «Apuntes» → <b>Pegar apuntes</b> puedes traer unos apuntes enteros de Word, Notion o Google Docs.</p>
-    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>`);
+      <h4 class="help-sub">Imágenes</h4>
+      <p class="hint">Pega una imagen (${kb('Ctrl+V')}), arrástrala al apunte o elige <b>Imagen</b> con ${c('/')}. Debajo puedes escribirle un pie.</p>
+      <h4 class="help-sub">Traer y llevar apuntes</h4>
+      ${two(['Desde', 'Pasa'], [
+        ['Word, Google Docs, Notion, una web…', 'Al pegar se conservan los títulos, listas, tablas, negritas, colores y enlaces, cada cosa en su bloque.'],
+        ['Texto en Markdown', 'Al pegarlo, cada línea se convierte en su bloque (títulos, listas, tablas…).'],
+        ['Un PDF', 'Menú ⋯ → <b>Importar PDF</b>: títulos, párrafos, listas y tablas; las páginas escaneadas, como imágenes.'],
+        ['Hacia otra app', 'Menú ⋯ → <b>Descargar como Markdown</b> o <b>Copiar como texto</b> (se abre bien en Obsidian).'],
+      ])}`),
+    teclado: sec('teclado', 'Atajos de teclado', `<h4 class="help-sub">Al escribir</h4>
+      ${two(['Tecla', 'Hace'], [
+        [kb('Enter'), 'Bloque nuevo. En una lista, otro punto; en un punto vacío, termina la lista (o sube un nivel).'],
+        [kb('Mayús+Enter'), 'Salto de línea dentro del mismo bloque'],
+        [kb('Retroceso'), 'Al principio de un bloque: quita la sangría, lo vuelve párrafo o lo junta con el de arriba'],
+        [kb('↑') + ' ' + kb('↓'), 'Al principio o al final de un bloque: pasa al anterior o al siguiente'],
+        [kb('Tab') + ' / ' + kb('Mayús+Tab'), 'Sangría: meter o sacar un nivel'],
+        [kb('Ctrl+Enter'), 'En una tabla o un código: sale de él y crea un bloque debajo'],
+        [kb('Esc'), 'Deja de escribir y selecciona el bloque (otro ' + kb('Esc') + ' quita la selección)'],
+      ])}
+      <h4 class="help-sub">Formato</h4>
+      ${two(['Tecla', 'Hace'], [
+        [kb('Ctrl+B'), 'Negrita'], [kb('Ctrl+I'), 'Cursiva'], [kb('Ctrl+U'), 'Subrayado'], [kb('Ctrl+Mayús+S'), 'Tachado'],
+        [kb('Ctrl+E'), 'Código'], [kb('Ctrl+Mayús+H'), 'Resaltar en amarillo'],
+      ])}
+      <h4 class="help-sub">Bloques</h4>
+      ${two(['Tecla', 'Hace'], [
+        [kb('Alt+↑') + ' ' + kb('Alt+↓'), 'Mover el bloque (o los seleccionados) arriba o abajo'],
+        [kb('Ctrl+D'), 'Duplicar'],
+        [kb('Mayús') + ' + clic', 'Seleccionar desde el bloque actual hasta el que tocas'],
+        [kb('Mayús+↑') + ' ' + kb('Mayús+↓'), 'Con bloques seleccionados: seleccionar más'],
+        [kb('Ctrl+A'), 'Todo el bloque; pulsado otra vez, todos los bloques'],
+        [kb('Supr') + ' o ' + kb('Retroceso'), 'Con bloques seleccionados: borrarlos'],
+        [kb('Ctrl+C') + ' ' + kb('Ctrl+X'), 'Con bloques seleccionados: copiarlos o cortarlos (al pegarlos vuelven a ser los mismos bloques)'],
+        [kb('Enter'), 'Con un bloque seleccionado: volver a escribir en él'],
+      ])}
+      <h4 class="help-sub">El apunte</h4>
+      ${two(['Tecla', 'Hace'], [
+        [kb('Ctrl+Z'), 'Deshacer (cualquier cambio del apunte)'],
+        [kb('Ctrl+Mayús+Z') + ' o ' + kb('Ctrl+Y'), 'Rehacer'],
+        [kb('Ctrl+F'), 'Buscar en el apunte (sin importar mayúsculas ni tildes). ' + kb('Enter') + ' / ' + kb('Mayús+Enter') + ': siguiente / anterior'],
+        [kb('Ctrl+H'), 'Buscar y reemplazar'],
+      ])}`),
+    tarjetas: sec('tarjetas', 'Tarjetas desde los apuntes', `<ul class="help-list">
+        <li class="help-item">Selecciona un trozo de texto y pulsa <b>Crear tarjeta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: ${c('Ev{{de}}yim')}).</li>
+        <li class="help-item"><b>Sugerir tarjetas</b> (arriba) propone tarjetas a partir de las definiciones, negritas, tablas y listas del apunte. Las revisas y creas las que quieras.</li>
+        <li class="help-item">Cada tarjeta queda unida a su parte del apunte. Al estudiarla, <b>Ver en los apuntes</b> te trae justo ahí.</li>
+        <li class="help-item">Arriba, en <b>Mazo</b>, eliges dónde van las tarjetas de este apunte.</li>
+        <li class="help-item">El número a la derecha de un bloque es cuántas tarjetas salen de él; tócalo para verlas.</li>
+      </ul>
+      <h4 class="help-sub">Cómo llevas cada parte</h4>
+      <ul class="help-list help-st">${STATUS.map(s => `<li class="help-item"><span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${s.label}</span> ${{ ok: 'las has repasado y aún no toca', due: 'toca repasar alguna', weak: 'has fallado alguna hace poco o muchas veces', new: 'hay alguna que aún no has estudiado' }[s.id]}</li>`).join('')}</ul>
+      <p class="hint">En cada título, <b>Estudiar</b> repasa solo ese apartado (el título y lo que cuelga de él). Arriba, <b>Estudiar este apunte</b> los repasa todos.</p>`),
+  };
 }
+function notesHelpSheet() {
+  const tab = S.helpTab || 'basico', body = helpContent();
+  openSheet(`<div class="help">
+    <h2>Formato y atajos</h2>
+    <div class="help-search">${icon('search', { size: 16 })}<input id="helpQ" type="text" placeholder="Buscar: negrita, mover, tabla, deshacer…" aria-label="Buscar en la ayuda" autocomplete="off"></div>
+    <div class="help-tabs" role="tablist" aria-label="Apartados">${HELP_TABS.map(([id, label]) => `<button type="button" role="tab" data-help-tab="${id}" aria-selected="${id === tab}">${label}</button>`).join('')}</div>
+    <div class="help-body" id="helpBody">${HELP_TABS.map(([id]) => body[id].replace('class="help-sec"', `class="help-sec"${id === tab ? '' : ' hidden'}`)).join('')}
+      <p class="muted help-none" hidden>Nada coincide con la búsqueda.</p></div>
+    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div></div>`);
+}
+function showHelpTab(id) {
+  S.helpTab = id;
+  const q = $('#helpQ');
+  if (q) q.value = '';
+  filterHelp('');
+  document.querySelectorAll('[data-help-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.helpTab === id)));
+  document.querySelectorAll('[data-help-sec]').forEach(s => { s.hidden = s.dataset.helpSec !== id; });
+  $('#helpBody')?.scrollTo?.(0, 0);
+}
+// Buscar: se ven todos los apartados, solo con lo que coincide
+function filterHelp(q) {
+  const f = fold(q.trim());
+  document.querySelectorAll('[data-help-sec]').forEach(sec => {
+    if (!f) { sec.hidden = sec.dataset.helpSec !== (S.helpTab || 'basico'); sec.querySelectorAll('.help-item, .hint, .help-sub, .help-pre, table').forEach(x => { x.hidden = false; }); return; }
+    let any = false;
+    sec.querySelectorAll('.help-item, .hint').forEach(it => { const ok = fold(it.textContent).includes(f); it.hidden = !ok; any ||= ok; });
+    sec.querySelectorAll('table').forEach(t => { t.hidden = ![...t.querySelectorAll('.help-item')].some(x => !x.hidden); });
+    sec.querySelectorAll('.help-pre').forEach(x => { x.hidden = true; });
+    // Cada subapartado, solo si tiene algo que coincide debajo
+    sec.querySelectorAll('.help-sub').forEach(x => { const n = x.nextElementSibling; x.hidden = !n || n.hidden || (n.matches('table, ul, ol') && ![...n.querySelectorAll('.help-item')].some(i => !i.hidden)); });
+    sec.hidden = !any;
+  });
+  document.querySelector('.help-tabs')?.classList.toggle('is-search', !!f);
+  const none = document.querySelector('.help-none');
+  if (none) none.hidden = !f || [...document.querySelectorAll('[data-help-sec]')].some(s => !s.hidden);
+}
+document.addEventListener('input', e => { if (e.target.id === 'helpQ') filterHelp(e.target.value); });
 function blockCardsSheet(blockId) {
   const list = cardList().filter(c => c.page_id === S.pageId && c.block_id === blockId);
   openSheet(`<h2>Tarjetas de esta parte</h2>
@@ -4735,6 +4847,7 @@ document.addEventListener('click', async e => {
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
+  if (ds.helpTab) return showHelpTab(ds.helpTab);
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
