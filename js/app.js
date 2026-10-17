@@ -7,7 +7,7 @@ import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, 
 import { statsView, drawStats } from './stats.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmap, forecast, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { heatmapView, HM_PERIODS, reviewsChart, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -547,10 +547,7 @@ function renderHome() {
   const hello = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
   const H = S.prefs.home;
   const st = streaks(S.log);
-  const hm = heatmap(S.log);
   const mt = maturity(cardList(), S.progress);
-  const fcDays = H.forecastDays || 14;
-  const upcoming = [...S.progress.values()].filter(p => p.due < startOfDay() + fcDays * DAY).length;
   // Meta diaria (Ajustes → Estudio diario): respuestas de hoy frente a la meta
   const doneToday = S.log[dateKey(Date.now())] || 0;
   const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
@@ -567,33 +564,50 @@ function renderHome() {
     </section>
     ${homeFriendsHTML()}
     ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
-      <div class="chart-h"><h2 id="h-act">Actividad</h2><span>${hm.total.toLocaleString('es-ES')} ${hm.total === 1 ? 'repaso' : 'repasos'} en el último año</span></div>
+      <div class="chart-h"><h2 id="h-act">Actividad</h2>${seg('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
       <div class="streaks">
         <span class="streak-cur">${icon('fire', { size: 18, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
         <span><b>${st.best}</b> mejor racha</span>
-        <span><b>${hm.active}</b> ${hm.active === 1 ? 'día' : 'días'} estudiando</span>
+        <span id="hmSum"></span>
       </div>
-      ${hm.html}
+      <div id="hmHost" class="hm-host"></div>
     </section>` : ''}
-    ${H.forecast ? `<section class="chart-card" aria-labelledby="h-fc">
-      <div class="chart-h"><h2 id="h-fc">Próximos ${fcDays} días</h2><span>${upcoming} ${upcoming === 1 ? 'repaso' : 'repasos'}</span></div>
-      <div class="fc-wrap" id="fcWrap"></div>
-    </section>` : ''}
-    ${H.maturity ? `<section class="chart-card" aria-labelledby="h-mt">
-      <div class="chart-h"><h2 id="h-mt">Tus tarjetas</h2><span>${mt.pct} % consolidadas</span></div>
-      ${mt.html}
+    ${H.forecast || H.maturity ? `<section class="chart-card rv-card" aria-labelledby="h-rv">
+      ${H.forecast ? `<div class="chart-h"><h2 id="h-rv">Tus repasos</h2>${seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
+      <p class="rv-sum" id="rvSum"></p>
+      <div class="rv-keys" id="rvKeys" role="group" aria-label="Qué se ve"></div>
+      <div class="rv-wrap" id="rvWrap"></div>` : `<div class="chart-h"><h2 id="h-rv">Tus tarjetas</h2></div>`}
+      ${H.maturity ? `<div class="rv-mt">${H.forecast ? `<div class="rv-mt-h"><b>Tus tarjetas</b><span>${mt.pct} % consolidadas</span></div>` : ''}${mt.html}</div>` : ''}
     </section>` : ''}
     ${H.decks ? `<div class="section-h"><h2>Tus mazos</h2></div>
     <ul class="list">${decks}</ul>` : ''}`;
-  drawForecast();
-  scrollChartsToEnd(main);
+  drawHeatmap();
+  drawReviews();
 }
-function drawForecast() {
-  const el = $('#fcWrap');
-  if (el) el.innerHTML = forecast(S.progress, Math.max(240, Math.floor(el.clientWidth)), S.prefs.home.forecastDays || 14);
+// Calendario de actividad: el periodo elegido (al cambiarlo, los cuadrados se recolocan con una transición)
+function drawHeatmap() {
+  const host = $('#hmHost');
+  if (!host) return;
+  const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth));
+  const sum = $('#hmSum');
+  if (sum) sum.innerHTML = `<b>${r.active}</b> ${r.active === 1 ? 'día' : 'días'} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
+  scrollChartsToEnd(host);
 }
+// Tus repasos: los próximos días por estado de las tarjetas, y el total
+function drawReviews() {
+  const el = $('#rvWrap');
+  if (!el) return;
+  const all = counts('all'), hidden = S.rvHidden || new Set(), days = S.prefs.home.forecastDays || 14;
+  const r = reviewsChart({ cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, hidden });
+  el.innerHTML = r.svg;
+  const sum = $('#rvSum');
+  if (sum) sum.innerHTML = r.total ? `<b>${plural(r.total, 'tarjeta', 'tarjetas')}</b> en ${days === 90 ? 'los próximos 3 meses' : `los próximos ${days} días`}${r.peak.n ? ` · el día con más, ${r.peak.label} (${r.peak.n})` : ''}` : 'Nada previsto en estos días';
+  const keys = $('#rvKeys');
+  if (keys) keys.innerHTML = RV_SERIES.map(s => `<button type="button" class="rv-key rv-${s.key}" data-rv="${s.key}" aria-pressed="${!hidden.has(s.key)}" title="${hidden.has(s.key) ? 'Mostrar' : 'Ocultar'} ${s.label.toLowerCase()}"><i aria-hidden="true"></i>${s.label} <span>${r.sums[s.key].toLocaleString('es-ES')}</span></button>`).join('');
+}
+
 let resizeT;
-window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') drawForecast(); if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') { drawHeatmap(); drawReviews(); } if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -3636,8 +3650,8 @@ function renderSettings() {
     ${setSec('house', 'Inicio', `
       ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
       ${setRow('Previsión', 'Gráfico con los repasos de los próximos días.', sw('home.forecast'))}
-      ${setRow('Días de previsión', 'Cuántos días abarca el gráfico de previsión.', seg('home.forecastDays', [[7, '7'], [14, '14'], [30, '30']]), { id: 'row-fcdays', off: !P.home.forecast })}
-      ${setRow('Estado de las tarjetas', 'Barra con nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
+      ${setRow('Periodo de la previsión', 'Cuántos días abarca (también se cambia en el propio gráfico).', seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
+      ${setRow('Estado de las tarjetas', 'Debajo de la previsión: nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
       ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}
       ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
@@ -3698,6 +3712,9 @@ function prefChanged(path) {
   if (path === 'study.rate') { setBaseRate(S.prefs.study.rate); const o = $('#rateOut'); if (o) o.textContent = Math.round(S.prefs.study.rate * 100) + ' %'; }
   if (path.startsWith('algo.')) { const pv = $('#algoPv'); if (pv) pv.textContent = algoPreview(algoFor(S.prefs, null)); const ro = $('#retOut'); if (ro) ro.textContent = Math.round(S.prefs.algo.retention * 100) + ' %'; }
   if (path === 'home.forecast') $('#row-fcdays')?.classList.toggle('is-off', !S.prefs.home.forecast);
+  // Los periodos de los gráficos de Inicio: se redibujan en el sitio (el calendario, con su transición)
+  if (path === 'home.activityPeriod' && S.view === 'home') drawHeatmap();
+  if (path === 'home.forecastDays' && S.view === 'home') drawReviews();
   savePrefsSoon();
 }
 // Copia v2: lo mismo en los dos modos y con los identificadores originales, para que al restaurar
@@ -5167,6 +5184,7 @@ document.addEventListener('click', async e => {
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
+  if (ds.rv) { S.rvHidden ||= new Set(); S.rvHidden.has(ds.rv) ? S.rvHidden.delete(ds.rv) : S.rvHidden.add(ds.rv); return drawReviews(); }
   if (ds.stp !== undefined) { S.stats.period = Number(ds.stp); const y = scrollY; renderStats(); scrollTo(0, y); return; }
   if (ds.stfc) { S.stats.fcDays = Number(ds.stfc); const y = scrollY; renderStats(); scrollTo(0, y); return; }
   if (ds.v !== undefined && b.parentElement?.dataset.seg) {

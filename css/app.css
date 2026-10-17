@@ -1552,3 +1552,49 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 /* General Sans también en las cifras y rótulos de los paneles (actividad, racha, meta, estadísticas, amigos) */
 .hero-num,.chart-h,.streaks,.goal-h,.kpi,.kpis,.st-head,.st-legend,.fr-streak,.rk-streak,.ax,.mt-legend,.hm-legend,.hm-days,.fc-val,.st-chart text{font-family:var(--font-head)}
 .set-news{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:13.5px}
+
+/* ---------- Actividad: colores del tema, periodos y transición de los cuadrados ---------- */
+:root{--hm0:var(--soft);--hm1:color-mix(in srgb,var(--accent) 28%,var(--bg));--hm2:color-mix(in srgb,var(--accent) 50%,var(--bg));--hm3:color-mix(in srgb,var(--accent) 75%,var(--bg));--hm4:var(--accent)}
+.hm{fill:var(--hm0)}.hm.l1{fill:var(--hm1)}.hm.l2{fill:var(--hm2)}.hm.l3{fill:var(--hm3)}.hm.l4{fill:var(--hm4)}
+.hm-key{background:var(--hm0)}.hm-key.l1{background:var(--hm1)}.hm-key.l2{background:var(--hm2)}.hm-key.l3{background:var(--hm3)}.hm-key.l4{background:var(--hm4)}
+.hm-host .hm{transition:x .55s cubic-bezier(.3,.7,.2,1),y .55s cubic-bezier(.3,.7,.2,1),width .55s cubic-bezier(.3,.7,.2,1),height .55s cubic-bezier(.3,.7,.2,1),rx .55s,opacity .35s,fill .3s}
+.hm-host .hm.is-out{opacity:0;pointer-events:none}
+.hm-host .hm-svg,.hm-host .hm-days{transition:width .55s cubic-bezier(.3,.7,.2,1),height .55s cubic-bezier(.3,.7,.2,1);overflow:hidden}
+.hm-host .hm-wrap{container-type:normal}
+.hm-host .hm-scroll{overflow-x:auto}
+.hm-host .hm-months text{animation:hmFade .5s ease}
+@keyframes hmFade{from{opacity:0}to{opacity:1}}
+.chart-h{align-items:center}
+.chart-seg{flex:none}
+.chart-seg .seg-b{min-height:28px;padding:0 10px;font-size:12.5px}
+@media (max-width:480px){.chart-h{flex-wrap:wrap}.chart-seg{width:100%}.chart-seg .seg-b{flex:1}}
+/* ---------- Tus repasos: líneas suaves por estado, el total con su área ---------- */
+.rv-sum{margin:-4px 0 0;font-size:13.5px;color:var(--muted)}
+.rv-sum b{color:var(--fg);font-weight:600}
+.rv-keys{display:flex;flex-wrap:wrap;gap:6px}
+.rv-key{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:99px;background:var(--bg);color:var(--fg);font:inherit;font-family:var(--font-head);font-size:12.5px;cursor:pointer;transition:opacity .15s,background-color .15s}
+.rv-key i{width:10px;height:10px;border-radius:3px;background:var(--rv-c)}
+.rv-key span{color:var(--muted);font-variant-numeric:tabular-nums}
+.rv-key[aria-pressed="false"]{opacity:.45}
+.rv-key[aria-pressed="false"] i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--rv-c)}
+.rv-key:hover{background:var(--hover)}
+.rv-tot{--rv-c:var(--accent)}.rv-m0{--rv-c:var(--m0)}.rv-m1{--rv-c:var(--m1)}.rv-m2{--rv-c:var(--m2)}.rv-m3{--rv-c:var(--m3)}
+.rv-wrap{min-height:210px}
+.rv-svg{display:block;overflow:visible}
+.rv-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.rv-grid.rv-base{stroke:var(--line-strong);stroke-dasharray:none}
+.rv-line{fill:none;stroke:var(--rv-c);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:rvDraw .8s cubic-bezier(.3,.7,.2,1) forwards}
+.rv-line.rv-tot{stroke-width:3.2}
+.rv-area{fill:url(#rvFill);opacity:0;animation:rvFade .8s .15s ease forwards}
+.rv-stop1{stop-color:var(--accent);stop-opacity:.28}.rv-stop2{stop-color:var(--accent);stop-opacity:0}
+.rv-dot{fill:var(--bg);stroke:var(--rv-c);stroke-width:2;opacity:0;animation:rvFade .3s ease forwards}
+.rv-dot.rv-tot{stroke-width:2.6}
+.rv-hit.is-hot{fill:color-mix(in srgb,var(--fg) 6%,transparent)}
+@keyframes rvDraw{to{stroke-dashoffset:0}}
+@keyframes rvFade{to{opacity:1}}
+.rv-mt{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.rv-mt-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--font-head);font-size:14px}
+.rv-mt-h span{font-size:13px;color:var(--muted)}
+.chart-tip small{display:block;margin-top:3px;font-size:12px;color:var(--muted);max-width:260px}
+.chart-tip small[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.hm-host .hm,.hm-host .hm-svg{transition:none}.rv-line,.rv-area,.rv-dot{animation:none;stroke-dashoffset:0;opacity:1}}
