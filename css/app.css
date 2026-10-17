@@ -1598,3 +1598,24 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .chart-tip small{display:block;margin-top:3px;font-size:12px;color:var(--muted);max-width:260px}
 .chart-tip small[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.hm-host .hm,.hm-host .hm-svg{transition:none}.rv-line,.rv-area,.rv-dot{animation:none;stroke-dashoffset:0;opacity:1}}
+/* Tu ritmo: lo estudiado (línea continua con área), lo que toca (discontinua), nuevas y aciertos */
+.hm-host .hm-wrap{justify-content:center}
+.rv-done{--rv-c:var(--accent)}.rv-due{--rv-c:var(--accent)}.rv-acc{--rv-c:var(--m3)}.rv-new{--rv-c:var(--m0)}
+.rv-key.rv-due i{background:repeating-linear-gradient(90deg,var(--rv-c) 0 3px,transparent 3px 5px);border-radius:2px;height:3px}
+.rv-key.rv-new i{background:repeating-linear-gradient(90deg,var(--rv-c) 0 3px,transparent 3px 5px);border-radius:2px;height:3px}
+.rv-key.rv-done i,.rv-key.rv-acc i{height:3px;border-radius:2px}
+.rv-key[aria-pressed="false"] i{background:var(--line);box-shadow:none}
+.rv-line.rv-done{stroke-width:3}
+.rv-line.rv-acc{stroke-width:2}
+.rv-dash{stroke-dasharray:6 5;stroke-dashoffset:0;animation:rvFade .6s .35s ease both;opacity:0}
+.rv-line.rv-due{stroke-width:2.6}
+.rv-line.rv-new{stroke-width:1.8}
+.rv-area-done{fill:url(#rvFill)}
+.rv-area-due{fill:url(#rvFillDue);animation-delay:.4s}
+.rv-stop-due{stop-color:var(--accent)}
+.rv-stop1.rv-stop-due{stop-opacity:.12}
+.rv-future{fill:color-mix(in srgb,var(--fg) 2.5%,transparent)}
+.rv-today{stroke:var(--fg);stroke-width:1;stroke-dasharray:2 3;opacity:.45}
+.rv-ax-acc{fill:var(--m3)}
+.rv-acc-pt{fill:var(--m3)}
+.hm-host .hm-scroll{flex:0 1 auto}

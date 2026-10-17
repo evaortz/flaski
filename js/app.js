@@ -7,7 +7,7 @@ import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, 
 import { statsView, drawStats } from './stats.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmapView, HM_PERIODS, reviewsChart, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { heatmapView, HM_PERIODS, rhythmChart, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -573,7 +573,7 @@ function renderHome() {
       <div id="hmHost" class="hm-host"></div>
     </section>` : ''}
     ${H.forecast || H.maturity ? `<section class="chart-card rv-card" aria-labelledby="h-rv">
-      ${H.forecast ? `<div class="chart-h"><h2 id="h-rv">Tus repasos</h2>${seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
+      ${H.forecast ? `<div class="chart-h"><h2 id="h-rv">Tu ritmo</h2>${seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
       <p class="rv-sum" id="rvSum"></p>
       <div class="rv-keys" id="rvKeys" role="group" aria-label="Qué se ve"></div>
       <div class="rv-wrap" id="rvWrap"></div>` : `<div class="chart-h"><h2 id="h-rv">Tus tarjetas</h2></div>`}
@@ -593,17 +593,26 @@ function drawHeatmap() {
   if (sum) sum.innerHTML = `<b>${r.active}</b> ${r.active === 1 ? 'día' : 'días'} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
   scrollChartsToEnd(host);
 }
-// Tus repasos: los próximos días por estado de las tarjetas, y el total
+// Tu ritmo: lo estudiado los últimos días (con los aciertos) y lo que toca los próximos
 function drawReviews() {
   const el = $('#rvWrap');
   if (!el) return;
   const all = counts('all'), hidden = S.rvHidden || new Set(), days = S.prefs.home.forecastDays || 14;
-  const r = reviewsChart({ cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, hidden });
+  const r = rhythmChart({ events: S.events, log: S.log, cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, hidden });
   el.innerHTML = r.svg;
+  const st = r.stats, n = x => x.toLocaleString('es-ES');
   const sum = $('#rvSum');
-  if (sum) sum.innerHTML = r.total ? `<b>${plural(r.total, 'tarjeta', 'tarjetas')}</b> en ${days === 90 ? 'los próximos 3 meses' : `los próximos ${days} días`}${r.peak.n ? ` · el día con más, ${r.peak.label} (${r.peak.n})` : ''}` : 'Nada previsto en estos días';
+  if (sum) {
+    sum.innerHTML = [
+      st.today ? `Hoy llevas <b>${plural(st.today, 'repaso', 'repasos')}</b>` : 'Hoy aún no has estudiado',
+      `has estudiado ${st.daysWith} de los últimos ${r.past + 1} días`,
+      st.busiest ? `lo más cargado viene ${st.busiest.label === 'hoy' ? '<b>hoy</b>' : `el <b>${st.busiest.label}</b>`} (${n(st.busiest.n)})` : 'nada pendiente en los próximos días',
+    ].join(' · ');
+  }
+  const val = { done: `${n(st.avg)}/día`, acc: st.acc == null ? '—' : `${st.acc} %`, due: n(st.dueNext), new: n(st.newNext) };
+  const tip = { done: `Media de repasos al día (últimos ${r.past + 1} días)`, acc: 'Aciertos en este periodo', due: `Por repasar en los próximos ${r.future} días`, new: `Nuevas que entrarán en los próximos ${r.future} días` };
   const keys = $('#rvKeys');
-  if (keys) keys.innerHTML = RV_SERIES.map(s => `<button type="button" class="rv-key rv-${s.key}" data-rv="${s.key}" aria-pressed="${!hidden.has(s.key)}" title="${hidden.has(s.key) ? 'Mostrar' : 'Ocultar'} ${s.label.toLowerCase()}"><i aria-hidden="true"></i>${s.label} <span>${r.sums[s.key].toLocaleString('es-ES')}</span></button>`).join('');
+  if (keys) keys.innerHTML = RV_SERIES.map(s => `<button type="button" class="rv-key rv-${s.key}" data-rv="${s.key}" aria-pressed="${!hidden.has(s.key)}" title="${tip[s.key]} · toca para ${hidden.has(s.key) ? 'mostrarla' : 'ocultarla'}"><i aria-hidden="true"></i>${s.label} <span>${val[s.key]}</span></button>`).join('');
 }
 
 let resizeT;
@@ -3649,8 +3658,8 @@ function renderSettings() {
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
     ${setSec('house', 'Inicio', `
       ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
-      ${setRow('Previsión', 'Gráfico con los repasos de los próximos días.', sw('home.forecast'))}
-      ${setRow('Periodo de la previsión', 'Cuántos días abarca (también se cambia en el propio gráfico).', seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
+      ${setRow('Tu ritmo', 'Lo que has estudiado, tus aciertos y lo que te toca los próximos días.', sw('home.forecast'))}
+      ${setRow('Periodo de «Tu ritmo»', 'Cuántos días antes y después de hoy (también se cambia en el propio gráfico).', seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
       ${setRow('Estado de las tarjetas', 'Debajo de la previsión: nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
       ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}
       ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}

@@ -84,10 +84,10 @@ const HM_WEEKS = 53, HM_TOP = 18, HM_LEFT = 28;
 // Las celdas llenan el ancho; si quedan muy anchas (periodos cortos), son rectángulos de altura limitada
 function hmGeom(weeks, width) {
   const avail = Math.max(180, width - HM_LEFT);
-  const sx = Math.max(10, Math.floor((avail + 3) / weeks));
-  const gap = sx >= 40 ? 6 : sx >= 22 ? 4 : 3;
-  const cw = sx - gap, ch = Math.min(cw, weeks <= 5 ? 30 : weeks <= 13 ? 24 : 20);
-  const sy = ch + gap;
+  // Siempre cuadrados: llenan el ancho, pero en los periodos cortos con un tamaño máximo (y centrados)
+  const sx = Math.max(10, Math.min(weeks <= 5 ? 46 : weeks <= 13 ? 34 : 60, Math.floor((avail + 3) / weeks)));
+  const gap = sx >= 36 ? 6 : sx >= 22 ? 4 : 3;
+  const cw = sx - gap, ch = cw, sy = sx;
   return { sx, sy, gap, cw, ch, W: weeks * sx - gap, H: HM_TOP + 7 * sy - gap };
 }
 // Pinta (la primera vez) o recoloca (las siguientes) el calendario en el contenedor; devuelve { total, active }
@@ -149,13 +149,7 @@ export function heatmapView(host, log, periodId, width) {
   return { total, active, text: p.text };
 }
 
-/* ---------------- Tus repasos: los próximos días, por estado de las tarjetas ----------------
-   Líneas suaves (una por estado: nuevas, aprendiendo, jóvenes, consolidadas) y el total con su área. */
-export const RV_PERIODS = [{ d: 7, label: '7 días' }, { d: 14, label: '14 días' }, { d: 30, label: '30 días' }, { d: 90, label: '3 meses' }];
-export const RV_SERIES = [
-  { key: 'tot', label: 'Total' },
-  { key: 'm1', label: 'Aprendiendo' }, { key: 'm2', label: 'Jóvenes' }, { key: 'm3', label: 'Consolidadas' }, { key: 'm0', label: 'Nuevas' },
-];
+/* ---------------- Tu ritmo ---------------- */
 // Una curva suave que pasa por todos los puntos sin pasarse (monótona: nunca baja de 0 entre dos días)
 function smooth(pts) {
   if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : '';
@@ -176,65 +170,108 @@ function smooth(pts) {
   return path;
 }
 const niceMax = v => { if (v <= 4) return 4; const p = 10 ** Math.floor(Math.log10(v)), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; };
-// cards, progress; days; width; newToday (nuevas que aún caben hoy); newPerDay; hidden (Set de series ocultas)
-export function reviewsChart({ cards, progress, days = 14, width = 600, newToday = 0, newPerDay = 0, hidden = new Set() }) {
+// Tu ritmo: a la izquierda de «hoy», lo que has estudiado cada día (y tu % de aciertos); a la derecha,
+// lo que te toca repasar y las nuevas que irán entrando. Líneas suaves, sin puntos.
+export const RV_PERIODS = [{ d: 14, label: '2 semanas' }, { d: 30, label: '1 mes' }, { d: 90, label: '3 meses' }];
+export const RV_SERIES = [
+  { key: 'done', label: 'Estudiadas' },
+  { key: 'acc', label: 'Aciertos' },
+  { key: 'due', label: 'Por repasar' },
+  { key: 'new', label: 'Nuevas' },
+];
+// events: respuestas ({ t, grade, ms }); log: repasos por día (por si faltan respuestas de días antiguos)
+export function rhythmChart({ events = [], log = {}, cards = [], progress = new Map(), days = 14, width = 600, newToday = 0, newPerDay = 0, hidden = new Set() }) {
+  days = RV_PERIODS.some(p => p.d === days) ? days : 14;
   const now = Date.now(), today = startOfDay(now);
-  const S = Object.fromEntries(RV_SERIES.map(s => [s.key, new Array(days).fill(0)]));
+  const past = Math.floor(days / 2), future = days - past;          // días antes de hoy · hoy y los siguientes
+  const N = past + future, at = i => startOfDay(today + (i - past) * DAY + DAY / 2);
+  const done = new Array(N).fill(null), acc = new Array(N).fill(null), ms = new Array(N).fill(0), due = new Array(N).fill(null), nw = new Array(N).fill(null);
+  // Lo estudiado: por respuestas (con aciertos y tiempo); si no las hay, por el registro diario
+  const byDay = new Map();
+  for (const e of events) {
+    if (!(e.grade >= 1) || !Number.isFinite(e.t) || e.t < at(0) || e.t > now) continue;
+    const k = dateKey(e.t), x = byDay.get(k) || { n: 0, ok: 0, ms: 0 };
+    x.n++; if (e.grade > 1) x.ok++; x.ms += e.ms || 0;
+    byDay.set(k, x);
+  }
+  for (let i = 0; i <= past; i++) {
+    const k = dateKey(at(i)), x = byDay.get(k);
+    done[i] = Math.max(x?.n || 0, log[k] || 0);
+    acc[i] = x?.n ? Math.round((x.ok / x.n) * 100) : null;
+    ms[i] = x?.ms || 0;
+  }
+  // Lo que toca: hoy (con las atrasadas) y los días siguientes
+  for (let i = past; i < N; i++) { due[i] = 0; nw[i] = 0; }
   for (const c of cards) {
     const p = progress.get(c.id);
     if (!p) continue;
-    const i = p.due <= now ? 0 : Math.round((startOfDay(p.due) - today) / DAY);
-    if (i < 0 || i >= days) continue;
-    S[!p.reps || p.interval < 1 ? 'm1' : p.interval < 21 ? 'm2' : 'm3'][i]++;
+    const j = p.due <= now ? 0 : Math.round((startOfDay(p.due) - today) / DAY);
+    if (j >= 0 && j < future) due[past + j]++;
   }
-  // Las nuevas que irán entrando: las que caben hoy y luego las del límite diario, mientras queden
   let pool = cards.filter(c => !progress.has(c.id)).length;
-  for (let i = 0; i < days && pool > 0; i++) { const k = Math.min(pool, i === 0 ? newToday : newPerDay); S.m0[i] = k; pool -= k; }
-  for (let i = 0; i < days; i++) S.tot[i] = S.m0[i] + S.m1[i] + S.m2[i] + S.m3[i];
-  const H = 210, PADT = 14, PADB = 26, PADL = 34, PADR = 10, plotH = H - PADT - PADB, plotW = Math.max(120, width - PADL - PADR);
-  const visible = RV_SERIES.filter(s => !hidden.has(s.key));
-  const top = niceMax(Math.max(1, ...visible.flatMap(s => S[s.key])));
-  const X = i => PADL + (days === 1 ? plotW / 2 : (i / (days - 1)) * plotW), Y = v => PADT + plotH - (v / top) * plotH;
-  // Rejilla y ejes
+  for (let j = 0; j < future && pool > 0; j++) { const k = Math.min(pool, j === 0 ? newToday : newPerDay); nw[past + j] = k; pool -= k; }
+
+  const H = 220, PADT = 22, PADB = 26, PADL = 34, PADR = 40, plotH = H - PADT - PADB, plotW = Math.max(140, width - PADL - PADR);
+  const counts = [['done', done], ['due', due], ['new', nw]].filter(([k]) => !hidden.has(k)).flatMap(([, a]) => a.filter(v => v != null));
+  const top = niceMax(Math.max(1, ...counts));
+  const X = i => PADL + (i / (N - 1)) * plotW, Y = v => PADT + plotH - (v / top) * plotH, YP = v => PADT + plotH - (v / 100) * plotH;
   let grid = '';
   for (let k = 0; k <= 4; k++) {
-    const v = (top / 4) * k, y = Y(v);
-    grid += `<line class="rv-grid${k === 0 ? ' rv-base' : ''}" x1="${PADL}" x2="${PADL + plotW}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line><text class="ax" x="${PADL - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${nf.format(Math.round(v * 10) / 10)}</text>`;
+    const y = Y((top / 4) * k);
+    grid += `<line class="rv-grid${k === 0 ? ' rv-base' : ''}" x1="${PADL}" x2="${PADL + plotW}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line><text class="ax" x="${PADL - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${nf.format(Math.round((top / 4) * k * 10) / 10)}</text>`;
+    if (!hidden.has('acc')) grid += `<text class="ax rv-ax-acc" x="${PADL + plotW + 8}" y="${(YP(25 * k) + 3.5).toFixed(1)}">${25 * k} %</text>`;
   }
-  const every = days <= 7 ? 1 : days <= 14 ? 2 : days <= 30 ? 5 : 15;
+  // Fechas: hoy siempre, y algunas más a los lados
+  const every = N <= 14 ? 2 : N <= 30 ? 5 : 15;
   let labels = '';
-  for (let i = 0; i < days; i++) {
-    if (i % every) continue;
-    const t = startOfDay(today + i * DAY + DAY / 2), dt = new Date(t);
-    const lab = i === 0 ? 'hoy' : days > 30 ? `${dt.getDate()} ${MONTHS[dt.getMonth()]}` : String(dt.getDate());
-    labels += `<text class="ax${i === 0 ? ' ax-strong' : ''}" x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
+  for (let i = 0; i < N; i++) {
+    if (i !== past && ((i - past) % every || Math.abs(i - past) < every * 0.6)) continue;
+    const d = new Date(at(i));
+    const lab = i === past ? 'hoy' : N > 30 ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : String(d.getDate());
+    labels += `<text class="ax${i === past ? ' ax-strong' : ''}" x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
   }
-  // Las series: el total con su área, y una línea por estado
-  const dots = days <= 30;
-  let series = '';
-  for (const s of [...RV_SERIES].reverse()) {
-    if (hidden.has(s.key)) continue;
-    const pts = S[s.key].map((v, i) => [X(i), Y(v)]);
-    const d = smooth(pts);
-    if (s.key === 'tot') series += `<path class="rv-area" d="${d} L${X(days - 1).toFixed(1)},${Y(0)} L${X(0).toFixed(1)},${Y(0)} Z"></path>`;
-    series += `<path class="rv-line rv-${s.key}" d="${d}" pathLength="1"></path>`;
-    if (dots) series += pts.map(([x, y], i) => `<circle class="rv-dot rv-${s.key}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${s.key === 'tot' ? 4 : 2.6}" style="animation-delay:${(i / days) * 0.5}s"></circle>`).join('');
+  // Las líneas, cada una en su tramo: lo estudiado hasta hoy y lo que toca desde hoy
+  const line = (arr, y = Y) => { const pts = []; arr.forEach((v, i) => { if (v != null) pts.push([X(i), y(v)]); }); return pts; };
+  const area = (pts, cls) => (pts.length > 1 ? `<path class="rv-area ${cls}" d="${smooth(pts)} L${pts[pts.length - 1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z"></path>` : '');
+  const xt = X(past);
+  let series = `<rect class="rv-future" x="${xt.toFixed(1)}" y="${PADT}" width="${(PADL + plotW - xt).toFixed(1)}" height="${plotH}"></rect>`;
+  series += `<line class="rv-today" x1="${xt.toFixed(1)}" x2="${xt.toFixed(1)}" y1="${PADT - 8}" y2="${PADT + plotH}"></line>`;
+  if (!hidden.has('done')) { const p = line(done); series += area(p, 'rv-area-done') + (p.length > 1 ? `<path class="rv-line rv-done" d="${smooth(p)}" pathLength="1"></path>` : ''); }
+  if (!hidden.has('due')) { const p = line(due); series += area(p, 'rv-area-due') + (p.length > 1 ? `<path class="rv-line rv-due rv-dash" d="${smooth(p)}"></path>` : ''); }
+  if (!hidden.has('new') && nw.some(v => v)) { const p = line(nw); if (p.length > 1) series += `<path class="rv-line rv-new rv-dash" d="${smooth(p)}"></path>`; }
+  if (!hidden.has('acc')) {
+    // Los aciertos, solo donde hubo respuestas (los días sin estudiar parten la línea)
+    let run = [];
+    const flush = () => { if (run.length > 1) series += `<path class="rv-line rv-acc" d="${smooth(run)}" pathLength="1"></path>`; else if (run.length === 1) series += `<circle class="rv-acc-pt" cx="${run[0][0].toFixed(1)}" cy="${run[0][1].toFixed(1)}" r="2.5"></circle>`; run = []; };
+    acc.forEach((v, i) => { if (v == null) flush(); else run.push([X(i), YP(v)]); });
+    flush();
   }
-  // Zonas sensibles: cada día, con todo lo que toca
-  const slot = days === 1 ? plotW : plotW / (days - 1);
+  // Cada día, con su detalle
+  const slot = plotW / (N - 1);
   let hits = '';
-  for (let i = 0; i < days; i++) {
-    const t = startOfDay(today + i * DAY + DAY / 2);
-    const detail = RV_SERIES.slice(1).filter(s => S[s.key][i]).map(s => `${s.label}: ${nf.format(S[s.key][i])}`).join(' · ');
-    hits += `<rect class="hit rv-hit" x="${(X(i) - slot / 2).toFixed(1)}" y="${PADT}" width="${slot.toFixed(1)}" height="${plotH}" tabindex="0"
-      data-tip-v="${plural(S.tot[i], 'tarjeta', 'tarjetas')}" data-tip-l="${i === 0 ? 'Hoy (incluye atrasadas)' : fmtDate(t)}" ${detail ? `data-tip-x="${detail}"` : ''}></rect>`;
+  for (let i = 0; i < N; i++) {
+    let v, x;
+    if (i < past) { v = plural(done[i], 'repaso', 'repasos'); x = [acc[i] != null ? `${acc[i]} % de aciertos` : '', ms[i] ? `${Math.max(1, Math.round(ms[i] / 60000))} min` : ''].filter(Boolean).join(' · '); }
+    else if (i === past) { v = plural(done[i], 'repaso hecho', 'repasos hechos'); x = [`Quedan ${nf.format(due[i])} por repasar${nw[i] ? ` y ${nf.format(nw[i])} nuevas` : ''}`, acc[i] != null ? `${acc[i]} % de aciertos` : ''].filter(Boolean).join(' · '); }
+    else { v = `${nf.format(due[i])} por repasar`; x = nw[i] ? `y ${plural(nw[i], 'nueva', 'nuevas')}` : ''; }
+    hits += `<rect class="hit rv-hit" x="${(X(i) - slot / 2).toFixed(1)}" y="${PADT}" width="${slot.toFixed(1)}" height="${plotH}" tabindex="0" data-tip-v="${v}" data-tip-l="${i === past ? 'Hoy' : fmtDate(at(i))}"${x ? ` data-tip-x="${x}"` : ''}></rect>`;
   }
-  const total = S.tot.reduce((a, b) => a + b, 0), peak = S.tot.indexOf(Math.max(...S.tot));
+  // Cifras para la leyenda y el resumen
+  const studied = done.slice(0, past + 1);   // con hoy
+  const okN = [...byDay.values()].reduce((a, x) => a + x.ok, 0), allN = [...byDay.values()].reduce((a, x) => a + x.n, 0);
+  const dueNext = due.slice(past).reduce((a, b) => a + (b || 0), 0), newNext = nw.slice(past).reduce((a, b) => a + (b || 0), 0);
+  let busiest = past;
+  for (let i = past; i < N; i++) if (due[i] > due[busiest]) busiest = i;
   return {
-    total, peak: { i: peak, n: S.tot[peak], label: peak === 0 ? 'hoy' : fmtDate(startOfDay(today + peak * DAY + DAY / 2)) },
-    sums: Object.fromEntries(RV_SERIES.map(s => [s.key, S[s.key].reduce((a, b) => a + b, 0)])),
-    svg: `<svg class="rv-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="Previsión: ${plural(total, 'tarjeta', 'tarjetas')} en los próximos ${days} días">
-      <defs><linearGradient id="rvFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="rv-stop1"></stop><stop offset="100%" class="rv-stop2"></stop></linearGradient></defs>
+    past, future,
+    stats: {
+      avg: Math.round(studied.reduce((a, b) => a + b, 0) / studied.length), today: done[past],
+      daysWith: studied.filter(v => v > 0).length, acc: allN ? Math.round((okN / allN) * 100) : null, dueNext, newNext,
+      busiest: due[busiest] ? { n: due[busiest], label: busiest === past ? 'hoy' : fmtDate(at(busiest)) } : null,
+    },
+    svg: `<svg class="rv-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="Lo que has estudiado los últimos ${past} días y lo que te toca los próximos ${future}">
+      <defs><linearGradient id="rvFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="rv-stop1"></stop><stop offset="100%" class="rv-stop2"></stop></linearGradient>
+      <linearGradient id="rvFillDue" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="rv-stop1 rv-stop-due"></stop><stop offset="100%" class="rv-stop2 rv-stop-due"></stop></linearGradient></defs>
       ${grid}${series}${hits}${labels}</svg>`,
   };
 }
