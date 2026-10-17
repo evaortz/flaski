@@ -180,7 +180,7 @@ export const RV_SERIES = [
   { key: 'new', label: 'Nuevas' },
 ];
 // events: respuestas ({ t, grade, ms }); log: repasos por día (por si faltan respuestas de días antiguos)
-export function rhythmChart({ events = [], log = {}, cards = [], progress = new Map(), days = 14, width = 600, newToday = 0, newPerDay = 0, hidden = new Set() }) {
+export function rhythmChart({ events = [], log = {}, cards = [], progress = new Map(), days = 14, width = 600, newToday = 0, newPerDay = 0, goal = 0, hidden = new Set() }) {
   days = RV_PERIODS.some(p => p.d === days) ? days : 14;
   const now = Date.now(), today = startOfDay(now);
   const past = Math.floor(days / 2), future = days - past;          // días antes de hoy · hoy y los siguientes
@@ -211,8 +211,20 @@ export function rhythmChart({ events = [], log = {}, cards = [], progress = new 
   let pool = cards.filter(c => !progress.has(c.id)).length;
   for (let j = 0; j < future && pool > 0; j++) { const k = Math.min(pool, j === 0 ? newToday : newPerDay); nw[past + j] = k; pool -= k; }
 
-  const H = 220, PADT = 22, PADB = 26, PADL = 34, PADR = 40, plotH = H - PADT - PADB, plotW = Math.max(140, width - PADL - PADR);
-  const counts = [['done', done], ['due', due], ['new', nw]].filter(([k]) => !hidden.has(k)).flatMap(([, a]) => a.filter(v => v != null));
+  // En «3 meses», las líneas con la media de varios días (si no, salen como dientes de sierra)
+  const win = N > 30 ? 5 : 1;
+  const ma = arr => (win === 1 ? arr : arr.map((v, i) => {
+    if (v == null) return null;
+    const xs = arr.slice(Math.max(0, i - (win >> 1)), i + (win >> 1) + 1).filter(x => x != null);
+    return xs.reduce((a, b) => a + b, 0) / xs.length;
+  }));
+  const sDone = ma(done), sDue = ma(due), sNew = ma(nw), sAcc = ma(acc);
+  // Hoy, tal cual (para que la línea llegue a lo que llevas hoy)
+  sDone[past] = done[past]; sDue[past] = due[past]; sNew[past] = nw[past]; sAcc[past] = acc[past];
+  const sTop = sDue.map((v, i) => (v == null ? null : v + (hidden.has('new') ? 0 : sNew[i] || 0)));   // lo que toca, con las nuevas encima
+
+  const H = 230, PADT = 26, PADB = 26, PADL = 34, PADR = 40, plotH = H - PADT - PADB, plotW = Math.max(140, width - PADL - PADR);
+  const counts = [...(hidden.has('done') ? [] : done), ...(hidden.has('due') ? (hidden.has('new') ? [] : nw) : sTop.map((v, i) => (v == null ? null : Math.max(v, (due[i] || 0) + (hidden.has('new') ? 0 : nw[i] || 0))))), goal || 0].filter(v => v != null);
   const top = niceMax(Math.max(1, ...counts));
   const X = i => PADL + (i / (N - 1)) * plotW, Y = v => PADT + plotH - (v / top) * plotH, YP = v => PADT + plotH - (v / 100) * plotH;
   let grid = '';
@@ -230,50 +242,88 @@ export function rhythmChart({ events = [], log = {}, cards = [], progress = new 
     const lab = i === past ? 'hoy' : N > 30 ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : String(d.getDate());
     labels += `<text class="ax${i === past ? ' ax-strong' : ''}" x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
   }
-  // Las líneas, cada una en su tramo: lo estudiado hasta hoy y lo que toca desde hoy
-  const line = (arr, y = Y) => { const pts = []; arr.forEach((v, i) => { if (v != null) pts.push([X(i), y(v)]); }); return pts; };
-  const area = (pts, cls) => (pts.length > 1 ? `<path class="rv-area ${cls}" d="${smooth(pts)} L${pts[pts.length - 1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z"></path>` : '');
+  const pts = (arr, y = Y) => { const out = []; arr.forEach((v, i) => { if (v != null) out.push([X(i), y(v)]); }); return out; };
+  const back = p => smooth([...p].reverse()).replace(/^M/, 'L');   // la misma curva, de vuelta (para cerrar un área entre dos líneas)
   const xt = X(past);
   let series = `<rect class="rv-future" x="${xt.toFixed(1)}" y="${PADT}" width="${(PADL + plotW - xt).toFixed(1)}" height="${plotH}"></rect>`;
-  series += `<line class="rv-today" x1="${xt.toFixed(1)}" x2="${xt.toFixed(1)}" y1="${PADT - 8}" y2="${PADT + plotH}"></line>`;
-  if (!hidden.has('done')) { const p = line(done); series += area(p, 'rv-area-done') + (p.length > 1 ? `<path class="rv-line rv-done" d="${smooth(p)}" pathLength="1"></path>` : ''); }
-  if (!hidden.has('due')) { const p = line(due); series += area(p, 'rv-area-due') + (p.length > 1 ? `<path class="rv-line rv-due rv-dash" d="${smooth(p)}"></path>` : ''); }
-  if (!hidden.has('new') && nw.some(v => v)) { const p = line(nw); if (p.length > 1) series += `<path class="rv-line rv-new rv-dash" d="${smooth(p)}"></path>`; }
+  series += `<line class="rv-today" x1="${xt.toFixed(1)}" x2="${xt.toFixed(1)}" y1="${PADT - 6}" y2="${PADT + plotH}"></line>`;
+  // Lo que toca: los repasos (área) y las nuevas apiladas encima
+  const pDue = pts(sDue), pTop = pts(sTop), base = pDue.map(([x]) => [x, Y(0)]);
+  if (!hidden.has('due') && pDue.length > 1) series += `<path class="rv-area rv-area-due" d="${smooth(pDue)} ${back(base)} Z"></path>`;
+  if (!hidden.has('new') && nw.some(v => v) && pTop.length > 1) {
+    const lower = hidden.has('due') ? base : pDue, upper = hidden.has('due') ? pts(sNew) : pTop;
+    series += `<path class="rv-area rv-area-new" d="${smooth(upper)} ${back(lower)} Z"></path><path class="rv-line rv-new rv-dash" d="${smooth(upper)}"></path>`;
+  }
+  if (!hidden.has('due') && pDue.length > 1) series += `<path class="rv-line rv-due rv-dash" d="${smooth(pDue)}"></path>`;
+  // Lo estudiado: línea con su área
+  const pDone = pts(sDone);
+  if (!hidden.has('done') && pDone.length > 1) series += `<path class="rv-area rv-area-done" d="${smooth(pDone)} ${back(pDone.map(([x]) => [x, Y(0)]))} Z"></path><path class="rv-line rv-done" d="${smooth(pDone)}" pathLength="1"></path>`;
+  // Los aciertos, solo donde hubo respuestas (los días sin estudiar parten la línea)
   if (!hidden.has('acc')) {
-    // Los aciertos, solo donde hubo respuestas (los días sin estudiar parten la línea)
     let run = [];
     const flush = () => { if (run.length > 1) series += `<path class="rv-line rv-acc" d="${smooth(run)}" pathLength="1"></path>`; else if (run.length === 1) series += `<circle class="rv-acc-pt" cx="${run[0][0].toFixed(1)}" cy="${run[0][1].toFixed(1)}" r="2.5"></circle>`; run = []; };
-    acc.forEach((v, i) => { if (v == null) flush(); else run.push([X(i), YP(v)]); });
+    sAcc.forEach((v, i) => { if (v == null) flush(); else run.push([X(i), YP(v)]); });
     flush();
   }
-  // Cada día, con su detalle
+  // Tu meta diaria (Ajustes → Estudio diario), como referencia
+  let notes = '';
+  if (goal > 0 && goal <= top) notes += `<line class="rv-goal" x1="${PADL}" x2="${PADL + plotW}" y1="${Y(goal).toFixed(1)}" y2="${Y(goal).toFixed(1)}"></line><text class="ax rv-goal-l" x="${PADL + 4}" y="${(Y(goal) - 4).toFixed(1)}">meta · ${nf.format(goal)}</text>`;
+  // Cifras sobre el gráfico: lo de hoy y el día más cargado de los que vienen
+  let busiest = past;
+  for (let i = past; i < N; i++) if ((due[i] || 0) + (nw[i] || 0) > (due[busiest] || 0) + (nw[busiest] || 0)) busiest = i;
+  const load = i => (due[i] || 0) + (hidden.has('new') ? 0 : nw[i] || 0);
+  if (!hidden.has('done') && done[past]) notes += `<circle class="rv-mark rv-done" cx="${xt.toFixed(1)}" cy="${Y(done[past]).toFixed(1)}" r="4"></circle><text class="rv-note" x="${(xt - 7).toFixed(1)}" y="${(Y(done[past]) - 8).toFixed(1)}" text-anchor="end">${nf.format(done[past])}</text>`;
+  if (!hidden.has('due') && win === 1 && busiest > past && load(busiest)) notes += `<text class="rv-note rv-note-due" x="${X(busiest).toFixed(1)}" y="${(Y(load(busiest)) - 8).toFixed(1)}" text-anchor="middle">${nf.format(load(busiest))}</text>`;
+  // Al pasar por un día: una línea vertical y un punto en cada serie (con su detalle en el tooltip)
   const slot = plotW / (N - 1);
   let hits = '';
   for (let i = 0; i < N; i++) {
     let v, x;
     if (i < past) { v = plural(done[i], 'repaso', 'repasos'); x = [acc[i] != null ? `${acc[i]} % de aciertos` : '', ms[i] ? `${Math.max(1, Math.round(ms[i] / 60000))} min` : ''].filter(Boolean).join(' · '); }
     else if (i === past) { v = plural(done[i], 'repaso hecho', 'repasos hechos'); x = [`Quedan ${nf.format(due[i])} por repasar${nw[i] ? ` y ${nf.format(nw[i])} nuevas` : ''}`, acc[i] != null ? `${acc[i]} % de aciertos` : ''].filter(Boolean).join(' · '); }
-    else { v = `${nf.format(due[i])} por repasar`; x = nw[i] ? `y ${plural(nw[i], 'nueva', 'nuevas')}` : ''; }
-    hits += `<rect class="hit rv-hit" x="${(X(i) - slot / 2).toFixed(1)}" y="${PADT}" width="${slot.toFixed(1)}" height="${plotH}" tabindex="0" data-tip-v="${v}" data-tip-l="${i === past ? 'Hoy' : fmtDate(at(i))}"${x ? ` data-tip-x="${x}"` : ''}></rect>`;
+    else { v = `${nf.format(due[i] + (nw[i] || 0))} en total`; x = `${nf.format(due[i])} por repasar${nw[i] ? ` y ${plural(nw[i], 'nueva', 'nuevas')}` : ''}`; }
+    hits += `<rect class="hit rv-hit" data-i="${i}" x="${(X(i) - slot / 2).toFixed(1)}" y="${PADT}" width="${slot.toFixed(1)}" height="${plotH}" tabindex="0" data-tip-v="${v}" data-tip-l="${i === past ? 'Hoy' : fmtDate(at(i))}"${x ? ` data-tip-x="${x}"` : ''}></rect>`;
   }
+  const yy = (arr, f) => arr.map(v => (v == null ? null : +f(v).toFixed(1)));
+  const hover = { x: Array.from({ length: N }, (_, i) => +X(i).toFixed(1)), t: PADT, b: PADT + plotH,
+    done: hidden.has('done') ? [] : yy(sDone, Y), acc: hidden.has('acc') ? [] : yy(sAcc, YP), due: hidden.has('due') ? [] : yy(sDue, Y), new: hidden.has('new') ? [] : yy(hidden.has('due') ? sNew : sTop, Y) };
   // Cifras para la leyenda y el resumen
   const studied = done.slice(0, past + 1);   // con hoy
   const okN = [...byDay.values()].reduce((a, x) => a + x.ok, 0), allN = [...byDay.values()].reduce((a, x) => a + x.n, 0);
   const dueNext = due.slice(past).reduce((a, b) => a + (b || 0), 0), newNext = nw.slice(past).reduce((a, b) => a + (b || 0), 0);
-  let busiest = past;
-  for (let i = past; i < N; i++) if (due[i] > due[busiest]) busiest = i;
   return {
     past, future,
     stats: {
-      avg: Math.round(studied.reduce((a, b) => a + b, 0) / studied.length), today: done[past],
+      avg: studied.reduce((a, b) => a + b, 0) / studied.length, today: done[past],
       daysWith: studied.filter(v => v > 0).length, acc: allN ? Math.round((okN / allN) * 100) : null, dueNext, newNext,
-      busiest: due[busiest] ? { n: due[busiest], label: busiest === past ? 'hoy' : fmtDate(at(busiest)) } : null,
+      busiest: load(busiest) ? { n: load(busiest), label: busiest === past ? 'hoy' : fmtDate(at(busiest)) } : null,
     },
-    svg: `<svg class="rv-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="Lo que has estudiado los últimos ${past} días y lo que te toca los próximos ${future}">
+    svg: `<svg class="rv-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" data-hover='${JSON.stringify(hover)}' aria-label="Lo que has estudiado los últimos ${past} días y lo que te toca los próximos ${future}">
       <defs><linearGradient id="rvFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="rv-stop1"></stop><stop offset="100%" class="rv-stop2"></stop></linearGradient>
       <linearGradient id="rvFillDue" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" class="rv-stop1 rv-stop-due"></stop><stop offset="100%" class="rv-stop2 rv-stop-due"></stop></linearGradient></defs>
-      ${grid}${series}${hits}${labels}</svg>`,
+      ${grid}${series}${notes}<g class="rv-hover"><line class="rv-hv-line"></line>${['due', 'new', 'acc', 'done'].map(k => `<circle class="rv-hv rv-${k}" data-s="${k}" r="4.5"></circle>`).join('')}</g>${hits}${labels}</svg>`,
   };
+}
+// La línea vertical y los puntos del día por el que se pasa (en «Tu ritmo»)
+export function initRhythmHover() {
+  const show = hit => {
+    const svg = hit.closest('svg'), g = svg?.querySelector('.rv-hover');
+    if (!g) return;
+    const d = svg._hv || (svg._hv = JSON.parse(svg.dataset.hover || '{}')), i = +hit.dataset.i, x = d.x[i];
+    const ln = g.querySelector('.rv-hv-line');
+    ln.setAttribute('x1', x); ln.setAttribute('x2', x); ln.setAttribute('y1', d.t); ln.setAttribute('y2', d.b);
+    for (const c of g.querySelectorAll('.rv-hv')) {
+      const y = d[c.dataset.s]?.[i];
+      c.style.display = y == null ? 'none' : '';
+      if (y != null) { c.setAttribute('cx', x); c.setAttribute('cy', y); }
+    }
+    g.classList.add('on');
+  };
+  const hide = svg => { svg?.querySelector('.rv-hover')?.classList.remove('on'); };
+  document.addEventListener('pointerover', e => { const h = e.target.closest?.('.rv-hit'); if (h) show(h); });
+  document.addEventListener('focusin', e => { const h = e.target.closest?.('.rv-hit'); if (h) show(h); });
+  document.addEventListener('pointerout', e => { const h = e.target.closest?.('.rv-hit'); if (h && !e.relatedTarget?.closest?.('.rv-hit')) hide(h.closest('svg')); });
+  document.addEventListener('focusout', e => { const h = e.target.closest?.('.rv-hit'); if (h) hide(h.closest('svg')); });
 }
 
 /* ---------------- Estado de tus tarjetas ----------------

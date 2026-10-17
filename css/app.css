@@ -1619,3 +1619,13 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .rv-ax-acc{fill:var(--m3)}
 .rv-acc-pt{fill:var(--m3)}
 .hm-host .hm-scroll{flex:0 1 auto}
+.rv-area-new{fill:color-mix(in srgb,var(--m0) 18%,transparent);opacity:0;animation:rvFade .8s .45s ease forwards}
+.rv-goal{stroke:var(--m1);stroke-width:1.2;stroke-dasharray:4 4;opacity:.8}
+.rv-goal-l{fill:var(--m1);font-weight:600}
+.rv-note{font-family:var(--font-head);font-size:11.5px;font-weight:700;fill:var(--fg);opacity:0;animation:rvFade .4s .7s ease forwards}
+.rv-note-due{fill:var(--muted)}
+.rv-mark{fill:var(--bg);stroke:var(--rv-c);stroke-width:2.5;opacity:0;animation:rvFade .4s .7s ease forwards}
+.rv-hover{display:none}.rv-hover.on{display:inline}
+.rv-hv-line{stroke:var(--fg);stroke-width:1;opacity:.25;pointer-events:none}
+.rv-hv{fill:var(--bg);stroke:var(--rv-c);stroke-width:2.5;pointer-events:none}
+.rv-hit.is-hot{fill:transparent}

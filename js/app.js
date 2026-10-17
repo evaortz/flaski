@@ -7,7 +7,7 @@ import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, 
 import { statsView, drawStats } from './stats.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmapView, HM_PERIODS, rhythmChart, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { heatmapView, HM_PERIODS, rhythmChart, initRhythmHover, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -598,7 +598,7 @@ function drawReviews() {
   const el = $('#rvWrap');
   if (!el) return;
   const all = counts('all'), hidden = S.rvHidden || new Set(), days = S.prefs.home.forecastDays || 14;
-  const r = rhythmChart({ events: S.events, log: S.log, cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, hidden });
+  const r = rhythmChart({ events: S.events, log: S.log, cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, goal: S.prefs.home.goal || 0, hidden });
   el.innerHTML = r.svg;
   const st = r.stats, n = x => x.toLocaleString('es-ES');
   const sum = $('#rvSum');
@@ -609,7 +609,7 @@ function drawReviews() {
       st.busiest ? `lo más cargado viene ${st.busiest.label === 'hoy' ? '<b>hoy</b>' : `el <b>${st.busiest.label}</b>`} (${n(st.busiest.n)})` : 'nada pendiente en los próximos días',
     ].join(' · ');
   }
-  const val = { done: `${n(st.avg)}/día`, acc: st.acc == null ? '—' : `${st.acc} %`, due: n(st.dueNext), new: n(st.newNext) };
+  const val = { done: `${st.avg.toLocaleString('es-ES', { maximumFractionDigits: st.avg < 10 ? 1 : 0 })}/día`, acc: st.acc == null ? '—' : `${st.acc} %`, due: n(st.dueNext), new: n(st.newNext) };
   const tip = { done: `Media de repasos al día (últimos ${r.past + 1} días)`, acc: 'Aciertos en este periodo', due: `Por repasar en los próximos ${r.future} días`, new: `Nuevas que entrarán en los próximos ${r.future} días` };
   const keys = $('#rvKeys');
   if (keys) keys.innerHTML = RV_SERIES.map(s => `<button type="button" class="rv-key rv-${s.key}" data-rv="${s.key}" aria-pressed="${!hidden.has(s.key)}" title="${tip[s.key]} · toca para ${hidden.has(s.key) ? 'mostrarla' : 'ocultarla'}"><i aria-hidden="true"></i>${s.label} <span>${val[s.key]}</span></button>`).join('');
@@ -6302,6 +6302,7 @@ function inviteSheet(code) {
   document.title = APP_NAME;
   applySavedLook();
   initChartTips();
+initRhythmHover();
   loadOrgPrefs();
   $('#appName').textContent = APP_NAME;
   const m = location.hash.match(/^#d-([0-9a-f-]{36})$/i);

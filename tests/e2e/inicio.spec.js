@@ -46,5 +46,6 @@ test('tu ritmo: lo estudiado y lo que toca, periodos y leyenda para ocultar lín
   await page.locator('#rvWrap .rv-hit').nth(45).hover();
   await expect(page.locator('.chart-tip')).toContainText('Hoy');
   await expect(page.locator('.chart-tip')).toContainText('4 repasos hechos');
+  await expect(page.locator('#rvWrap .rv-hover.on .rv-hv-line')).toHaveCount(1);   // la línea del día por el que se pasa
   await expect(page.locator('.rv-mt .mt-legend')).toContainText('Consolidadas');
 });
