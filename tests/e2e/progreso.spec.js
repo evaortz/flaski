@@ -49,6 +49,7 @@ test('actividad: la racha grande y, al pasar por un día, la cabecera lo cuenta'
   const card = page.locator('section[aria-labelledby="h-act"]');
   await expect(card.locator('.lv-of')).toContainText('de racha');
   await expect(card.locator('#hmSum')).toContainText('Mejor racha');
+  await expect(card.locator('#hmSum .st-freeze')).toContainText('Comodín');
   await card.locator('[data-v="m1"]').click();
   await expect(card.locator('#hmSum')).toContainText('el último mes');
   await card.locator('rect.hm-today').focus();

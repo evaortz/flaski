@@ -9,26 +9,50 @@ const fmtDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()]} ${
 const nf = new Intl.NumberFormat('es-ES');
 const plural = (n, one, many) => `${nf.format(n)} ${n === 1 ? one : many}`;
 
-/* ---------------- Rachas ---------------- */
-export function streaks(log) {
-  let current = 0, t = startOfDay();
-  if (!(log[dateKey(t)] > 0)) t -= DAY;            // si hoy aún no has estudiado, cuenta desde ayer
-  while (log[dateKey(t)] > 0) { current++; t -= DAY; }
-  const days = Object.keys(log).filter(k => log[k] > 0).sort();
-  let best = 0, run = 0, prev = null;
-  for (const k of days) {
-    const ms = new Date(k + 'T12:00:00').getTime();
-    run = prev !== null && Math.round((ms - prev) / DAY) === 1 ? run + 1 : 1;
-    best = Math.max(best, run);
-    prev = ms;
+/* ---------------- Rachas, con un comodín por semana ----------------
+   Si un día no estudias, la racha no se rompe mientras tengas el comodín de esa semana (de lunes a domingo):
+   ese día queda «congelado» (no suma, pero no corta). Solo vale para un día suelto: el anterior tiene que
+   ser de estudio. No se guarda nada: se deduce del registro, y lo mismo hacen streak_of (supabase/schema.sql)
+   y la función de los avisos, para que la racha sea la misma en todas partes. */
+const prevDay = t => startOfDay(t - DAY / 2);
+// El lunes de la semana de un día (como clave AAAA-MM-DD)
+export function weekOf(t) {
+  let m = startOfDay(t);
+  for (let k = (new Date(m).getDay() + 6) % 7; k > 0; k--) m = prevDay(m);
+  return dateKey(m);
+}
+export function streaks(log, now = Date.now()) {
+  const today = startOfDay(now), on = t => log[dateKey(t)] > 0;
+  const frozen = new Set();
+  // La actual, hacia atrás desde hoy (si hoy aún no has estudiado, cuenta desde ayer)
+  let current = 0, t = on(today) ? today : prevDay(today);
+  const used = new Map();   // semana → día congelado
+  for (;;) {
+    if (on(t)) { current++; t = prevDay(t); continue; }
+    if (t < today && on(prevDay(t)) && !used.has(weekOf(t))) { used.set(weekOf(t), dateKey(t)); frozen.add(dateKey(t)); t = prevDay(t); continue; }
+    break;
   }
-  return { current, best: Math.max(best, current) };
+  if (!current) { frozen.clear(); used.clear(); }
+  // La mejor, hacia delante por todo el historial (con la misma regla)
+  const days = Object.keys(log).filter(k => log[k] > 0).sort();
+  let best = 0, run = 0, last = null, weeks = new Set();
+  for (const k of days) {
+    const d = new Date(k + 'T12:00:00').getTime();
+    const gap = last == null ? 0 : Math.round((d - last) / DAY);
+    if (gap === 1) run++;
+    else if (gap === 2 && !weeks.has(weekOf(d - DAY))) { weeks.add(weekOf(d - DAY)); frozen.add(dateKey(d - DAY)); run++; }
+    else { run = 1; weeks = new Set(); }
+    best = Math.max(best, run);
+    last = d;
+  }
+  const week = weekOf(today);
+  return { current, best: Math.max(best, current), frozen, freeze: { available: !used.has(week), usedOn: used.get(week) || null } };
 }
 
 /* ---------------- Actividad (calendario tipo GitHub) ----------------
    Una columna por semana (de lunes a domingo), un cuadrado por día.
    El color indica cuántos repasos hiciste ese día, en 5 niveles. */
-export function heatmap(log, weeks = 53) {
+export function heatmap(log, weeks = 53, frozen = new Set()) {
   const CELL = 11, GAP = 3, STEP = CELL + GAP, LEFT = 0, TOP = 18;
   const today = startOfDay();
   const dow = (new Date(today).getDay() + 6) % 7;     // 0 = lunes
@@ -48,8 +72,9 @@ export function heatmap(log, weeks = 53) {
       const n = log[dateKey(t)] || 0;
       total += n; if (n) active++;
       const x = LEFT + w * STEP, y = TOP + d * STEP;
-      cells += `<rect class="hm l${level(n)}${t === today ? ' hm-today' : ''}" x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2.5"
-        data-tip-v="${plural(n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(t)}"></rect>`;
+      const fz = !n && frozen.has(dateKey(t));
+      cells += `<rect class="hm l${level(n)}${t === today ? ' hm-today' : ''}${fz ? ' hm-frozen' : ''}" x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="2.5"
+        data-tip-v="${plural(n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(t)}"${fz ? ' data-tip-x="Comodín: la racha siguió"' : ''}></rect>`;
       if (d === 0) {
         const m = new Date(t).getMonth();
         if (m !== lastMonth && w < weeks - 1) {
@@ -91,7 +116,7 @@ function hmGeom(weeks, width) {
   return { sx, sy, gap, cw, ch, W: weeks * sx - gap, H: HM_TOP + 7 * sy - gap };
 }
 // Pinta (la primera vez) o recoloca (las siguientes) el calendario en el contenedor; devuelve { total, active }
-export function heatmapView(host, log, periodId, width) {
+export function heatmapView(host, log, periodId, width, frozen = new Set()) {
   const p = HM_PERIODS.find(x => x.id === periodId) || HM_PERIODS[3];
   const today = startOfDay();
   const dow = (new Date(today).getDay() + 6) % 7;
@@ -123,7 +148,9 @@ export function heatmapView(host, log, periodId, width) {
   const rects = svg.querySelectorAll('rect.hm');
   days.forEach((x, i) => {
     const r = rects[i], q = pos(x);
-    r.setAttribute('class', `hm l${level(x.n)}${x.t === today ? ' hm-today' : ''}${q.on ? '' : ' is-out'}`);
+    const fz = !x.n && frozen.has(dateKey(x.t));
+    r.setAttribute('class', `hm l${level(x.n)}${x.t === today ? ' hm-today' : ''}${fz ? ' hm-frozen' : ''}${q.on ? '' : ' is-out'}`);
+    if (fz) r.setAttribute('data-tip-x', 'Comodín: la racha siguió'); else r.removeAttribute('data-tip-x');
     // Como atributo (para cualquier navegador) y como estilo (para que se anime)
     for (const [k, v] of [['x', q.on ? q.x : q.x - 40], ['y', q.y], ['width', g.cw], ['height', g.ch], ['rx', rx]]) { r.setAttribute(k, v); r.style.setProperty(k, `${v}px`); }
     r.setAttribute('tabindex', q.on ? '0' : '-1');

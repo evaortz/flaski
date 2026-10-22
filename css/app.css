@@ -1694,3 +1694,7 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .push-ask-t{display:flex;flex-direction:column;gap:2px;font-size:14px}
 .push-ask-t span{color:var(--muted)}
 .push-ask .btnrow{grid-column:2;margin-top:6px}
+/* Comodín de la racha: el día congelado, con un borde discontinuo en el color del tema */
+.hm.hm-frozen{fill:var(--bg);stroke:var(--accent);stroke-width:1.2;stroke-dasharray:2 1.5}
+.st-freeze{display:inline-flex;align-items:center;gap:4px}
+.st-freeze .lu{color:var(--accent)}

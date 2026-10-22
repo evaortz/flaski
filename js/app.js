@@ -612,13 +612,18 @@ function renderHome() {
   drawHeatmap();
   drawProgress();
 }
+// «mar 14» a partir de una clave AAAA-MM-DD
+const fmtDay = k => { const d = new Date(k + 'T12:00:00'); return `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}`; };
 // Calendario de actividad: el periodo elegido (al cambiarlo, los cuadrados se recolocan con una transición)
 function drawHeatmap() {
   const host = $('#hmHost');
   if (!host) return;
-  const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth));
+  const st = streaks(S.log);
+  const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth), st.frozen);
   const sum = $('#hmSum');
-  if (sum) sum.innerHTML = `Mejor racha: ${plural(streaks(S.log).best, 'día', 'días')} · ${plural(r.active, 'día', 'días')} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
+  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js)
+  const fz = st.freeze.available ? 'Comodín de la semana disponible' : `Comodín usado el ${fmtDay(st.freeze.usedOn)}`;
+  if (sum) sum.innerHTML = `<span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span> · Mejor racha: ${plural(st.best, 'día', 'días')} · ${plural(r.active, 'día', 'días')} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
   scrollChartsToEnd(host);
 }
 // Tu progreso: cuántas tarjetas te sabes cada día del periodo y lo que te queda por aprender

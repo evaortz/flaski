@@ -2,7 +2,7 @@
 // statsView() calcula los datos y devuelve el HTML; drawStats() pinta los gráficos
 // que dependen del ancho de la pantalla. Lo que señalas lo cuenta la cabecera de cada tarjeta (data-tip-*).
 import { DAY, startOfDay, dateKey, GRADES } from './srs.js';
-import { heatmap, progressSeries, progressView } from './charts.js';
+import { heatmap, streaks, progressSeries, progressView } from './charts.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const nf = new Intl.NumberFormat('es-ES');
@@ -175,7 +175,7 @@ export function statsView(ctx, f) {
       <span class="hb-track"><span class="hb-bar${i ? '' : ' hb-top'}" style="width:${Math.max(2, (x.n / maxDeck) * 100)}%" tabindex="0" data-tip-v="${plural(x.n, 'respuesta', 'respuestas')}" data-tip-l="${escA(ctx.deckName(id))}" data-tip-x="${pct(x.ok, x.n)} % de aciertos · ${fmtDuration(x.ms)}"></span></span>
       <span class="hb-num">${nf.format(x.n)}</span></li>`).join('');
 
-  const hm = heatmap(D.log);
+  const hm = heatmap(D.log, 53, streaks(D.log).frozen);
   // Las que más se te resisten, con una barra fina según sus fallos
   const maxHard = Math.max(1, ...D.hard.map(h => h.lapses + h.miss));
   const hardHTML = D.hard.length ? `<ul class="list hard-list">${D.hard.map(({ c, p, lapses, miss }) => `<li><button class="row" data-card="${c.id}">

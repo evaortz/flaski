@@ -59,14 +59,21 @@ async function userState(uid: string, day: string, mins: number, now: Date) {
   const { data: log } = await sb.from('review_log').select('day, count').eq('user_id', uid).gt('count', 0).order('day', { ascending: false }).limit(400);
   const days = new Set((log ?? []).map(r => String(r.day)));
   const studied = days.has(day);
+  // La racha, con el comodín de la semana (la misma regla que streaks() en js/charts.js)
+  const monday = (k: string) => { const t = new Date(k + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+  const used = new Set<string>();
   let streak = 0, d = studied ? day : prevDay(day);
-  while (days.has(d)) { streak++; d = prevDay(d); }
-  return { due: count ?? 0, studied, streak };
+  for (;;) {
+    if (days.has(d)) { streak++; d = prevDay(d); continue; }
+    if (d < day && days.has(prevDay(d)) && !used.has(monday(d))) { used.add(monday(d)); d = prevDay(d); continue; }
+    break;
+  }
+  return { due: count ?? 0, studied, streak, freeze: streak > 0 && !used.has(monday(day)) };
 }
-function message({ due, studied, streak }: { due: number; studied: boolean; streak: number }) {
+function message({ due, studied, streak, freeze }: { due: number; studied: boolean; streak: number; freeze: boolean }) {
   if (due > 0 && studied) return { title: `Te ${due === 1 ? 'queda' : 'quedan'} ${n(due, 'tarjeta', 'tarjetas')}`, body: 'Aún tienes repasos pendientes para hoy.' };
   if (due > 0) return { title: `Te ${due === 1 ? 'toca' : 'tocan'} ${n(due, 'tarjeta', 'tarjetas')}`, body: streak > 0 ? `Repásalas y sigues con tu racha de ${n(streak, 'día', 'días')}.` : 'Con unos minutos lo dejas al día.' };
-  if (streak > 0 && !studied) return { title: `Tu racha de ${n(streak, 'día', 'días')}`, body: 'Hoy no te toca repasar, pero con unas pocas nuevas la mantienes.' };
+  if (streak > 0 && !studied) return { title: `Tu racha de ${n(streak, 'día', 'días')}`, body: freeze ? 'Hoy no te toca repasar. Si no estudias, gastarás el comodín de la semana.' : 'Hoy no te toca repasar, pero con unas pocas nuevas la mantienes.' };
   return null;
 }
 

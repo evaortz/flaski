@@ -458,11 +458,19 @@ $$;
 -- Racha de una persona: días seguidos con repasos hasta hoy (o hasta ayer, si hoy aún no ha estudiado)
 create or replace function public.streak_of(p_user uuid, p_today date)
 returns int language plpgsql stable security definer set search_path = public as $$
-declare d date := p_today; n int := 0;
+-- Con el comodín de la semana: un día suelto sin estudiar (con el anterior de estudio) no corta la racha,
+-- uno por semana de lunes a domingo. La misma regla que streaks() en js/charts.js.
+declare d date := p_today; n int := 0; used date[] := '{}';
 begin
   if not exists (select 1 from review_log where user_id = p_user and day = d and count > 0) then d := d - 1; end if;
-  while exists (select 1 from review_log where user_id = p_user and day = d and count > 0) loop
-    n := n + 1; d := d - 1;
+  loop
+    if exists (select 1 from review_log where user_id = p_user and day = d and count > 0) then
+      n := n + 1; d := d - 1;
+    elsif d < p_today and exists (select 1 from review_log where user_id = p_user and day = d - 1 and count > 0)
+      and not (date_trunc('week', d)::date = any (used)) then
+      used := used || date_trunc('week', d)::date; d := d - 1;
+    else exit;
+    end if;
   end loop;
   return n;
 end;
