@@ -1,4 +1,4 @@
-// Gráficos del panel: actividad tipo GitHub, tu progreso y estado de las tarjetas.
+// Gráficos del panel: actividad tipo GitHub y tu progreso.
 // Cada función devuelve HTML/SVG como texto. El tooltip se gestiona con un único
 // manejador (initChartTips) que lee los atributos data-tip-* de cada marca.
 import { DAY, startOfDay, dateKey } from './srs.js';
@@ -423,34 +423,6 @@ export function liveReset(b) {
   ['.lv-day', '.lv-n', '.lv-of', '.lv-sub'].forEach((q, k) => { const p = b.querySelector(q); if (p) p.innerHTML = b._def[k]; });
   b._def = null;
   b.classList.remove('is-live');
-}
-
-/* ---------------- Estado de tus tarjetas ----------------
-   Barra apilada por madurez: nuevas → aprendiendo → jóvenes → consolidadas. */
-export function maturity(cards, progress) {
-  const groups = [
-    { key: 'm0', label: 'Nuevas', hint: 'aún sin estudiar', n: 0 },
-    { key: 'm1', label: 'Aprendiendo', hint: 'vistas hoy o falladas', n: 0 },
-    { key: 'm2', label: 'Jóvenes', hint: 'intervalo de menos de 3 semanas', n: 0 },
-    { key: 'm3', label: 'Consolidadas', hint: 'intervalo de 3 semanas o más', n: 0 },
-  ];
-  for (const c of cards) {
-    const p = progress.get(c.id);
-    if (!p) groups[0].n++;
-    else if (!p.reps || p.interval < 1) groups[1].n++;
-    else if (p.interval < 21) groups[2].n++;
-    else groups[3].n++;
-  }
-  const total = cards.length || 1;
-  const segs = groups.filter(g => g.n).map(g =>
-    `<span class="mt-seg ${g.key}" style="flex-grow:${g.n}" tabindex="0" data-tip-v="${plural(g.n, 'tarjeta', 'tarjetas')} · ${Math.round((g.n / total) * 100)} %" data-tip-l="${g.label}: ${g.hint}"></span>`).join('');
-  const legend = groups.map(g =>
-    `<li><span class="mt-key ${g.key}"></span><span class="mt-lab">${g.label}</span><span class="mt-num">${nf.format(g.n)}</span></li>`).join('');
-  const mature = groups[3].n;
-  return {
-    pct: Math.round((mature / total) * 100),
-    html: `<div class="mt-bar" role="img" aria-label="${groups.map(g => `${g.label}: ${g.n}`).join(', ')}">${segs || '<span class="mt-seg m0" style="flex-grow:1"></span>'}</div><ul class="mt-legend">${legend}</ul>`,
-  };
 }
 
 /* ---------------- Tooltip compartido ---------------- */

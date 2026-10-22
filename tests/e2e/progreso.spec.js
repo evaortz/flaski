@@ -58,3 +58,27 @@ test('actividad: la racha grande y, al pasar por un día, la cabecera lo cuenta'
   await card.locator('rect.hm-today').blur();
   await expect(card.locator('.lv-of')).toContainText('de racha');
 });
+
+test('estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera cuenta lo que señalas', async ({ page }, info) => {
+  await seedHistory(page);
+  await openApp(page);
+  await page.goto('/#stats');
+  await page.locator('#nav').getByRole('button', { name: 'Perfil' }).click();
+  await page.locator('[data-nav="stats"]').click();
+  await page.locator('[data-stp="90"]').click();
+  const rev = page.locator('section[aria-labelledby="st-rev"]');
+  await expect(rev.locator('.lv-of')).toHaveText('respuestas');
+  await expect(rev.locator('.st-svg .grid')).toHaveCount(0);                 // sin rejilla
+  await expect(rev.locator('.st-bar.bar-strong')).toHaveCount(1);            // hoy, en tono oscuro
+  const total = await rev.locator('.lv-n').textContent();
+  await rev.locator('.hit').last().focus();
+  await expect(rev.locator('.lv-day')).toContainText(' · ');
+  await expect(rev.locator('.lv-n')).not.toHaveText(total);
+  await rev.locator('.hit').last().blur();
+  await expect(rev.locator('.lv-n')).toHaveText(total);
+  await expect(page.locator('#stPg .lv-k')).toContainText('Tu progreso');
+  await expect(page.locator('section[aria-labelledby="st-hour"] .lv-of')).toHaveText('tu mejor hora');
+  await expect(page.locator('section[aria-labelledby="st-ivl"] .lv-sub')).toContainText('La mitad de tus tarjetas');
+  await expect(page.locator('.hard-bar').first()).toBeVisible();
+  if (process.env.SHOT) await page.screenshot({ path: `${process.env.SHOT}/stats-${info.project.name}.png`, fullPage: true });
+});

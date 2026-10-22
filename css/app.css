@@ -209,15 +209,7 @@ main > .section-h:first-child h1 + *{align-self:center}
 .fc-val{font-size:11px;font-weight:600;fill:var(--fg)}
 
 /* Madurez */
-.mt-bar{display:flex;gap:2px;height:12px;border-radius:99px;overflow:hidden;background:var(--soft)}
-.mt-seg{min-width:4px;height:100%;outline:none;transition:filter .15s}
-.mt-seg.is-hot,.mt-seg:focus-visible{filter:brightness(.9)}
 .m0{background:var(--m0)}.m1{background:var(--m1)}.m2{background:var(--m2)}.m3{background:var(--m3)}
-.mt-legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 16px}
-.mt-legend li{display:flex;align-items:center;gap:6px;font-size:13.5px;min-width:0}
-.mt-key{width:8px;height:8px;border-radius:50%;flex:none}
-.mt-lab{color:var(--muted)}
-.mt-num{font-weight:600;font-variant-numeric:tabular-nums}
 
 /* Tooltip de los gráficos */
 .chart-tip{position:fixed;left:0;top:0;z-index:40;pointer-events:none;background:var(--surface);color:var(--fg);border:1px solid var(--tip-border);border-radius:8px;padding:8px 12px;
@@ -1550,7 +1542,7 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .nb-table:not(:has(.tbl-ed)) .nb-tbl{cursor:pointer}
 .nb-table:not(:has(.tbl-ed)):hover::after{content:'Toca para editar';position:absolute;right:38px;top:4px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--muted);font-size:12px;pointer-events:none}
 /* General Sans también en las cifras y rótulos de los paneles (actividad, racha, meta, estadísticas, amigos) */
-.hero-num,.chart-h,.streaks,.goal-h,.kpi,.kpis,.st-head,.st-legend,.fr-streak,.rk-streak,.ax,.mt-legend,.hm-legend,.hm-days,.fc-val,.st-chart text{font-family:var(--font-head)}
+.hero-num,.chart-h,.streaks,.goal-h,.kpi,.kpis,.st-head,.st-legend,.fr-streak,.rk-streak,.ax,.hm-legend,.hm-days,.fc-val,.st-chart text{font-family:var(--font-head)}
 .set-news{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:13.5px}
 
 /* ---------- Actividad: colores del tema, periodos y transición de los cuadrados ---------- */
@@ -1594,7 +1586,7 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .seg.seg-text .seg-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .lv .hm-legend{display:none}
 /* Tu progreso: franjas apiladas en tonos del color del tema y, rayado, lo que falta por aprender */
-.pg-card{--pg-bg:var(--bg);--pg3:var(--accent);--pg2:color-mix(in srgb,var(--accent) 58%,var(--pg-bg));--pg1:color-mix(in srgb,var(--accent) 26%,var(--pg-bg));--pg-ink:color-mix(in srgb,var(--accent) 70%,var(--fg))}
+.pg-card{--pg-bg:var(--bg);--pg3:var(--t3);--pg2:var(--t2);--pg1:var(--t1);--pg-ink:var(--t-ink)}
 .st-card .pg-card,.st-card.pg-card{--pg-bg:var(--surface)}
 .pg-svg{display:block;overflow:visible;touch-action:pan-y;font-family:var(--font-head)}
 .pg-b3{fill:var(--pg3)}.pg-b2{fill:var(--pg2)}.pg-b1{fill:var(--pg1)}
@@ -1616,3 +1608,50 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .pg-hit:focus-visible{stroke:var(--line-strong);stroke-dasharray:2 3}
 .pg-svg .ax{font-size:11px;fill:var(--muted)}
 .pg-next{margin:10px 0 0;font-family:var(--font-head);font-size:13px;color:var(--muted)}
+/* ---------- Un solo color en todos los gráficos: el del tema, en tonos (claro = contexto, oscuro = lo importante) ---------- */
+:root{--t1:color-mix(in srgb,var(--accent) 26%,var(--bg));--t2:color-mix(in srgb,var(--accent) 58%,var(--bg));--t3:var(--accent);--t-ink:color-mix(in srgb,var(--accent) 70%,var(--fg));
+  --tg1:color-mix(in srgb,var(--accent) 20%,var(--bg));--tg2:color-mix(in srgb,var(--accent) 44%,var(--bg));--tg3:color-mix(in srgb,var(--accent) 72%,var(--bg));--tg4:var(--accent)}
+.t-g1{background:var(--tg1)}.t-g2{background:var(--tg2)}.t-g3{background:var(--tg3)}.t-g4{background:var(--tg4)}
+/* Estadísticas */
+.st-filters .seg.seg-text{gap:16px}
+.kpis{gap:18px 16px}
+.kpi{background:none;padding:0;border-radius:0}
+.kpi b{font-size:28px;font-weight:600}
+.kpi-sp{display:block;width:100%;height:24px;margin-top:6px;overflow:visible}
+.sp-l{fill:none;stroke:var(--t3);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+.sp-b{fill:var(--t1)}.sp-hi{fill:var(--t3)}
+.st-card.lv{gap:0}
+.st-card .lv-sub{margin-bottom:10px}
+.st-svg{overflow:visible}
+.st-svg .st-bar{fill:var(--t1);opacity:1;transition:fill .15s}
+.st-svg .st-bar.bar-strong{fill:var(--t3)}
+.bar-g:hover .st-bar:not(.bar-strong),.bar-g:has(.hit.is-hot) .st-bar:not(.bar-strong),.bar-g:focus-within .st-bar:not(.bar-strong){fill:var(--t2)}
+.st-zero{fill:var(--line-strong)}
+.st-base{stroke:var(--line-strong);stroke-width:1}
+.st-ref{stroke:var(--line-strong);stroke-dasharray:2 3;opacity:.7}
+.st-svg .ax-strong{fill:var(--fg);font-weight:600}
+.st-svg .hit{fill:transparent;outline:none}
+.st-svg .hit:focus-visible{fill:color-mix(in srgb,var(--fg) 5%,transparent)}
+.st-svg .hit.is-hot{fill:color-mix(in srgb,var(--fg) 4%,transparent)}
+.ln{stroke:var(--t-ink);stroke-width:1.5;stroke-linecap:round}
+.ar-area{fill:var(--t1);opacity:.75}
+.ar-line{fill:none;stroke:var(--t3);stroke-width:1.5;stroke-linejoin:round}
+.ar-anim{animation:arFade .6s ease both}
+@keyframes arFade{from{opacity:0}}
+.ar-mark{stroke:var(--t3);stroke-dasharray:2 2;opacity:.55}
+.ar-dot{fill:var(--t3);stroke:var(--bg);stroke-width:2}
+.ar-mark-t{fill:var(--t-ink)}
+.acc-lab{font-size:12px;fill:var(--t-ink);font-variant-numeric:tabular-nums}
+.st-chart-sm{min-height:56px;margin-top:8px}
+.bs-bar{height:10px;border-radius:2px}
+.bs-seg.t-g1{background:var(--tg1)}.bs-seg.t-g2{background:var(--tg2)}.bs-seg.t-g3{background:var(--tg3)}.bs-seg.t-g4{background:var(--tg4)}
+.bs-key{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:12px 0 0;font-family:var(--font-head);font-size:12.5px;color:var(--muted)}
+.bs-key i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.bs-key-r{margin-left:auto}
+.hbars{gap:12px}
+.hb-track{height:6px;border-radius:2px}
+.hb-bar{background:var(--t2);opacity:1;border-radius:2px}
+.hb-bar.hb-top{background:var(--t3)}
+.hard-meta{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.hard-bar{flex:none;width:52px;height:4px;border-radius:2px;background:linear-gradient(var(--t3),var(--t3)) 0 0/var(--w) 100% no-repeat,var(--soft)}
+.st-card .hm-today{stroke:var(--fg)}
