@@ -12,4 +12,4 @@ export const APP_NAME = 'Flaski';
 
 // Clave pública VAPID para el recordatorio diario con notificaciones (vacía = desactivado).
 // Ver supabase/functions/recordatorio/README.md
-export const VAPID_PUBLIC_KEY = '';
+export const VAPID_PUBLIC_KEY = 'BFlNfV4yk7l02sTuimyBvivsAAVmzi_YXs8sFqe3DVp1Cvtr5UzS9SAvtNGEh1PsgdnV52qQm0cAhzXJglbZ8gQ';
