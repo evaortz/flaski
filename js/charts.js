@@ -110,7 +110,7 @@ const HM_WEEKS = 53, HM_TOP = 18, HM_LEFT = 28;
 function hmGeom(weeks, width) {
   const avail = Math.max(180, width - HM_LEFT);
   // Siempre cuadrados: llenan el ancho, pero en los periodos cortos con un tamaño máximo (y centrados)
-  const sx = Math.max(10, Math.min(weeks <= 5 ? 46 : weeks <= 13 ? 34 : 60, Math.floor((avail + 3) / weeks)));
+  const sx = Math.max(6, Math.min(weeks <= 5 ? 46 : weeks <= 13 ? 34 : 60, Math.floor((avail + 3) / weeks)));
   const gap = sx >= 36 ? 6 : sx >= 22 ? 4 : 3;
   const cw = sx - gap, ch = cw, sy = sx;
   return { sx, sy, gap, cw, ch, W: weeks * sx - gap, H: HM_TOP + 7 * sy - gap };
@@ -136,13 +136,13 @@ export function heatmapView(host, log, periodId, width, frozen = new Set()) {
     const k = x.w - firstShown, on = k >= 0;
     return { x: k * g.sx, y: HM_TOP + x.d * g.sy, on };
   };
-  const rx = Math.max(2.5, Math.min(g.cw, g.ch) / 4.5);
+  const rx = Math.max(1, Math.min(g.cw, g.ch) / 4);
   let svg = host.querySelector('.hm-svg');
   if (!svg) {
     host.innerHTML = `<div class="hm-wrap"><svg class="hm-days" aria-hidden="true"></svg>
       <div class="hm-scroll" data-scroll-end><svg class="hm-svg" role="img">${days.map(x => `<rect class="hm${x.t === today ? ' hm-today' : ''}" data-k="${x.w * 7 + x.d}"
         data-tip-v="${plural(x.n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(x.t)}"></rect>`).join('')}<g class="hm-months"></g></svg></div></div>
-      <div class="hm-legend"><span>Menos</span>${[0, 1, 2, 3, 4].map(l => `<span class="hm-key l${l}"></span>`).join('')}<span>Más</span></div>`;
+      <div class="hm-legend"><span>Menos</span>${[0, 1, 2, 3, 4].map(l => `<span class="hm-key l${l}"></span>`).join('')}<span>Más</span><span class="hm-key hm-key-fz"></span><span>comodín</span></div>`;
     svg = host.querySelector('.hm-svg');
   }
   const rects = svg.querySelectorAll('rect.hm');
@@ -295,6 +295,8 @@ function pgSub(s, i) {
 }
 const pgOf = (x, past) => `de ${plural(x.total, 'tarjeta', 'tarjetas')} ${known(x) === 1 ? (past ? 'te la sabías' : 'te la sabes') : (past ? 'te las sabías' : 'te las sabes')}`;
 
+// Ancho útil de un contenedor (sin su relleno)
+export const innerW = el => { const cs = getComputedStyle(el); return Math.floor(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)); };
 // Pinta el gráfico (con su cabecera) en el contenedor. opts: { series, width, title, tabs, next, deckName, animate }
 export function progressView(host, { series: s, width = 600, title = 'Tu progreso', tabs = '', next = '', deckName = () => '', animate = true }) {
   const N = s.length, last = s[N - 1];

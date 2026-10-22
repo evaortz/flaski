@@ -38,7 +38,7 @@ async function wipeLocal(page) {
   await nav(page, 'Perfil');
   await page.locator('[data-act="ask-reset-local"]').click();
   await page.locator('[data-act="reset-local"]').click();
-  await expect(page.locator('#main')).toContainText('0 tarjetas en 0 mazos');
+  await expect(page.locator('.pf-num')).toHaveText(['0tarjetas', '0mazos', '0empezadas', '0consolidadas']);
 }
 async function restore(page, data) {
   await nav(page, 'Perfil');
@@ -65,7 +65,9 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await expect(page.locator('#main .spin')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('1');          // 1 nueva pendiente, la otra ya estudiada
   await nav(page, 'Perfil');
-  await expect(page.locator('#main')).toContainText('2 tarjetas en 1 mazo · 1 empezadas');
+  await expect(page.locator('.pf-num').nth(0)).toHaveText('2tarjetas');
+  await expect(page.locator('.pf-num').nth(1)).toHaveText('1mazo');
+  await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
 test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir', async ({ page }) => {
@@ -88,7 +90,8 @@ test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir
   await page.locator('#sheetBody').getByRole('button', { name: 'Entendido' }).click();
 
   await nav(page, 'Perfil');
-  await expect(page.locator('#main')).toContainText('1 tarjeta en 1 mazo · 1 empezadas');
+  await expect(page.locator('.pf-num').nth(0)).toHaveText('1tarjeta');
+  await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
 test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', async ({ page }) => {

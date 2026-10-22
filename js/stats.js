@@ -2,7 +2,7 @@
 // statsView() calcula los datos y devuelve el HTML; drawStats() pinta los gráficos
 // que dependen del ancho de la pantalla. Lo que señalas lo cuenta la cabecera de cada tarjeta (data-tip-*).
 import { DAY, startOfDay, dateKey, GRADES } from './srs.js';
-import { heatmap, streaks, progressSeries, progressView } from './charts.js';
+import { heatmap, streaks, progressSeries, progressView, innerW } from './charts.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const nf = new Intl.NumberFormat('es-ES');
@@ -350,7 +350,7 @@ export function drawStats(root, D, { animate: anim = false } = {}) {
   const pg = root.querySelector('#stPg');
   if (pg) {
     const period = D.f.period === 0 ? 'all' : D.f.period <= 30 ? 'm1' : D.f.period <= 90 ? 'm3' : 'y1';
-    progressView(pg, { series: progressSeries({ events: D.allEvs, cards: D.cards, progress: D.prog, period }), width: Math.max(280, Math.floor(pg.clientWidth - 32)), title: 'Tu progreso', animate: anim, deckName: D.deckName });
+    progressView(pg, { series: progressSeries({ events: D.allEvs, cards: D.cards, progress: D.prog, period }), width: Math.max(280, innerW(pg)), title: 'Tu progreso', animate: anim, deckName: D.deckName });
     pg.querySelector('.lv-k').id = 'st-pg';
   }
 }

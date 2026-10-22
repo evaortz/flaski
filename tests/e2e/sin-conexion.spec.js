@@ -19,9 +19,9 @@ test('estudiar sin conexión: los cambios esperan y se envían al volver la red'
   srv.reachable = true;
   await context.setOffline(false);
   await expect(page.locator('#net')).toBeHidden();
-  expect(sent(srv, 'progress')).toHaveLength(2);
-  expect(sent(srv, 'review_events')).toHaveLength(2);
-  expect(sent(srv, 'bump_review_log')).toHaveLength(2);
+  await expect.poll(() => sent(srv, 'progress').length).toBe(2);
+  await expect.poll(() => sent(srv, 'review_events').length).toBe(2);
+  await expect.poll(() => sent(srv, 'bump_review_log').length).toBe(2);
 });
 
 test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al reconectar', async ({ page }) => {

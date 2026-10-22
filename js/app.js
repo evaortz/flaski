@@ -9,7 +9,7 @@ import { pushBlocker, BLOCKER_TEXT, syncPush } from './push.js';
 import { STATES, deckState, folderState, shares, allocate, examFloors, examStatus, daysTo, childrenOf, weightOf, folderKey, urgencyWeight } from './plan.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmapView, HM_PERIODS, progressSeries, progressView, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { heatmapView, HM_PERIODS, progressSeries, progressView, innerW, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -53,7 +53,7 @@ const S = {
   view: 'home', deckId: null, folderId: null, session: null,
   extra: (() => { try { return JSON.parse(localStorage.getItem('flaski-extra') || 'null'); } catch { return null; } })(),   // «10 nuevas más» de hoy
   // Opciones de la vista «Mis mazos» (se recuerdan en este navegador)
-  org: { query: '', tagIds: [], sort: 'manual', layout: 'list', archived: false },
+  org: { query: '', tagIds: [], sort: 'manual', layout: 'grid', archived: false },
   cardQuery: '', exploreQuery: '',
   pub: null, builtin: null,   // cachés de Explorar
   authMode: 'signin', recovery: false, loading: true,
@@ -262,6 +262,8 @@ function render() {
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   document.body.classList.toggle('in-study', authed && S.view === 'study');
+  document.body.dataset.view = S.view;
+  if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]')) {
     const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && ['deck', 'plan'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -271,6 +273,14 @@ function render() {
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus tarjetas…</p></div>'; return; }
   ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
+}
+
+// Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
+function navMe() {
+  const el = $('#navMe');
+  if (!el) return;
+  const who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]) || 'Tú', st = streaks(S.log).current;
+  el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon('fire', { size: 13 })} ${plural(st, 'día', 'días')}</span></span>`;
 }
 
 /* ===================== sin configurar ===================== */
@@ -590,6 +600,7 @@ function renderHome() {
   const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${H.goal}" aria-valuenow="${Math.min(doneToday, H.goal)}"><span style="width:${Math.min(100, Math.round((doneToday / H.goal) * 100))}%"></span></div></div>` : '';
   main.innerHTML = `
+    <div class="home-l">
     <section class="hero" aria-label="Hoy">
       <h1 class="hero-hi">${hello}${S.name ? ', ' + esc(S.name) : ''}${avail ? ', tienes' : ''}</h1>
       <div class="hero-row">
@@ -606,6 +617,8 @@ function renderHome() {
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${goal}
     </section>
+    </div>
+    <div class="home-r">
     ${pushAskHTML()}
     ${homeFriendsHTML()}
     ${H.activity ? `<section class="chart-card lv" data-live aria-labelledby="h-act">
@@ -615,8 +628,9 @@ function renderHome() {
       <div id="hmHost" class="hm-host"></div>
     </section>` : ''}
     ${H.forecast ? '<section class="chart-card lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
-    ${H.decks ? `<div class="section-h"><h2>Tus mazos</h2></div>
-    <ul class="list">${decks}</ul>` : ''}`;
+    </div>
+    ${H.decks ? `<div class="home-decks"><div class="section-h"><h2>Tus mazos</h2><button class="link small" data-nav="decks">ver todos</button></div>
+    <ul class="list">${decks}</ul></div>` : ''}`;
   drawHeatmap();
   drawProgress();
 }
@@ -642,7 +656,7 @@ function drawProgress({ animate = true } = {}) {
   const focused = host.contains(document.activeElement) && document.activeElement.dataset.v;
   progressView(host, {
     series: progressSeries({ events: S.events, cards, progress: S.progress, period }),
-    width: Math.max(280, Math.floor(host.clientWidth - 32)), title: 'Tu progreso', animate,
+    width: Math.max(280, innerW(host)), title: 'Tu progreso', animate,
     tabs: tabs('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])),
     next: cards.length ? nextLine(cards, S.progress) : '', deckName: id => S.decks.get(id)?.name || '',
   });
@@ -1012,6 +1026,12 @@ function buildSession(scope) {
   }
   return q;
 }
+// La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
+function segBar(ses) {
+  const total = ses.done + ses.queue.length, pct = Math.round(100 * ses.done / Math.max(1, total));
+  if (total > 60 || total < 2) return `<div class="bar"><span style="width:${pct}%"></span></div>`;
+  return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${ses.done}">${Array.from({ length: total }, (_, i) => `<i${i < ses.done ? ' class="on"' : ''}></i>`).join('')}</div>`;
+}
 function startSession(scope = 'all') {
   const queue = buildSession(scope);
   if (!queue.length) { toast('No hay tarjetas pendientes aquí'); return; }
@@ -1051,7 +1071,8 @@ function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
   const pct = Math.round(100 * ses.done / Math.max(1, ses.done + ses.queue.length));
-  const bar = `<div class="studybar"><button class="link" data-act="exit">← Salir</button><span class="where">${esc(scopeName(ses.scope))}</span><span class="left">${ses.queue.length} quedan</span></div><div class="bar"><span style="width:${pct}%"></span></div>`;
+  // Arriba: salir (un círculo), de qué es la sesión y cuántas quedan; debajo, la barra de progreso
+  const bar = `<div class="studybar"><button class="sb-back" data-act="exit" aria-label="Salir de la sesión">${icon('chevron-left', { size: 18 })}</button><span class="sb-info"><span class="where">${esc(scopeName(ses.scope))}</span><span class="left">${ses.queue.length} quedan</span></span></div>${segBar(ses)}`;
   if (!ses.queue.length) {
     const t = ses.tally;
     main.innerHTML = `${bar}<div class="done"><h2>¡Sesión terminada!</h2><p class="muted">Has repasado ${ses.done} tarjetas.</p>${capNote(counts(ses.scope))}
@@ -1225,32 +1246,42 @@ function renderDecks() {
   }
   decks = sortDecks(decks, o.sort, stats);
 
-  const folderRows = folders.map(f => {
-    const fc = counts('folder:' + f.id);
-    const inside = decksInFolder(S.decks, S.folders, f.id).filter(d => !d.archived).length;
-    const sub = descendants(S.folders, f.id), np = [...S.pages.values()].filter(p => sub.has(p.folder_id)).length;
-    return `<li><button class="deck folder" data-folder="${f.id}">${folderIcon(f)}
-      <span class="info"><span class="dname">${esc(f.name)}</span><span class="meta">${plural(inside, 'mazo', 'mazos')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span></span>
-      <span class="go">›</span></button></li>`;
-  }).join('');
-
   const where = d => {
     if (!filtering || !deckFolder(d)) return '';
     return folderPath(S.folders, d.folder_id).map(f => f.name).join(' / ') + ' · ';
   };
+  // Lo que toca de un mazo, a mano: «9 hoy», «al día» o «vacío»
+  const dueHand = c => (c.due + c.newToday ? `${c.due + c.newToday} hoy` : c.total ? 'al día' : 'vacío');
+  const deckCard = (d, mini = false) => {
+    const c = stats.get(d.id), pend = c.due + c.newToday, pct = c.total ? Math.round((c.mature / c.total) * 100) : 0;
+    const ic = d.icon ? `<span class="dc-ic dc-emoji" aria-hidden="true">${esc(d.icon)}</span>` : `<span class="dc-ic" aria-hidden="true">${deckGlyph(d)}</span>`;
+    const body = `${ic}<span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
+        ${!mini && d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
+        <span class="dc-foot"><span class="dc-due${pend ? ' on' : ''}">${dueHand(c)}</span><span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${planMeta(d)}</span></span>
+        ${c.total ? `<span class="mini" aria-label="${pct} % consolidadas"><span style="width:${pct}%"></span></span>` : ''}`;
+    if (mini) return `<li><button class="deck dcard dcard-mini" data-open="${d.id}">${body}</button></li>`;
+    return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck dcard${c.total ? '' : ' dcard-empty'}" data-open="${d.id}">${body}</button><button class="row-more tile-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
+  };
+  // Carpetas: una tarjeta del color del tema con sus primeros mazos dentro
+  const folderRows = folders.map(f => {
+    const fc = counts('folder:' + f.id);
+    const all = decksInFolder(S.decks, S.folders, f.id).filter(d => !d.archived);
+    const sub = descendants(S.folders, f.id), np = [...S.pages.values()].filter(p => sub.has(p.folder_id)).length;
+    const top = sortDecks(all, 'due', stats).slice(0, 4);
+    return `<li class="fcard folder">
+      <span class="fcard-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 84 })}</span>
+      <span class="fcard-k">carpeta</span>
+      <button class="fcard-name" data-folder="${f.id}">${esc(f.name)}</button>
+      <span class="fcard-meta">${plural(all.length, 'mazo', 'mazos')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span>
+      ${top.length ? `<ul class="fcard-grid">${top.map(d => deckCard(d, true)).join('')}</ul>` : ''}
+      <button class="fcard-go" data-folder="${f.id}">${all.length ? `Ver ${all.length === 1 ? 'el mazo' : `los ${all.length} mazos`}` : 'Abrir la carpeta'}<span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 16 })}</span></button>
+    </li>`;
+  }).join('');
+
   const deckRows = decks.map(d => {
+    if (o.layout === 'grid') return deckCard(d);
     const c = stats.get(d.id);
     const pend = c.due + c.newToday;
-    const pct = c.total ? Math.round((c.mature / c.total) * 100) : 0;
-    if (o.layout === 'grid') {
-      return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="row-more tile-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta">${MOVE_ICON}</button><button class="tile" data-open="${d.id}">
-        <span class="tile-top">${deckIcon(d, true)}${d.pinned ? PIN_ICON : ''}</span>
-        <span class="dname">${esc(d.name)}</span>
-        <span class="tags">${tagChips(d.tags)}</span>
-        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · <b>${pend}</b> hoy` : ''}${planMeta(d)}</span>
-        <span class="mini" aria-label="${pct} % consolidadas"><span style="width:${pct}%"></span></span>
-      </button></li>`;
-    }
     return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck" data-open="${d.id}">${deckIcon(d)}
       <span class="info"><span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
         ${d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
@@ -1259,7 +1290,7 @@ function renderDecks() {
   }).join('');
 
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
-    `<button class="fchip" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}"><span class="tdot" style="background:var(--tag-${t.color || 'gray'}-bg);border-color:var(--tag-${t.color || 'gray'})"></span>${esc(t.name)}</button>`).join('');
+    `<button class="fchip" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
 
   let studyBtn = '';
   if (!filtering && folder) {
@@ -1276,37 +1307,63 @@ function renderDecks() {
   const empty = filtering ? 'No hay mazos que coincidan con el filtro.'
     : folder ? 'Esta carpeta está vacía. Crea un mazo aquí o pulsa «Añadir mazos aquí».'
     : 'Aún no tienes mazos. Crea uno o busca alguno en Explorar.';
+  // «Empieza por aquí»: el mazo con más pendientes, con una nota a mano que lo señala
+  const scope = filtering ? [] : folder ? decksInFolder(S.decks, S.folders, folder.id).filter(d => !d.archived) : [...S.decks.values()].filter(d => !d.archived);
+  const first = scope.length < 5 ? null : sortDecks(scope, 'due', stats).find(d => stats.get(d.id).due + stats.get(d.id).newToday > 0);
+  const fs1 = first && stats.get(first.id), fsN = first ? fs1.due + fs1.newToday : 0;
+  const feat = first ? `<div class="feat-row">
+      <button class="feat-info" data-open="${first.id}"><b>${esc(first.name)}</b><span>${fs1.due} por repasar · ${fs1.newToday} nuevas · ${plural(fs1.total, 'tarjeta', 'tarjetas')} en total${deckFolder(first) && !folder ? ` · ${esc(S.folders.get(first.folder_id).name)}` : ''}</span></button>
+      <button class="pill-tint" data-start="${first.id}">Estudiar</button></div>` : '';
+  const note = first ? `<div class="hand-note" aria-hidden="true"><span>empieza por aquí,<br>${plural(fsN, 'pendiente', 'pendientes')}</span>${ARROW}</div>` : '';
 
   main.innerHTML = `
     ${folder && !filtering ? crumbs(folder.id) : ''}
-    <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-folder">Editar carpeta</button>' : ''}</div>
-    <div class="btnrow">
-      ${studyBtn}
-      <button class="${studyBtn ? 'ghost' : 'primary'}" data-act="new-deck">+ Mazo</button>
-      ${folder && !filtering ? '<button class="ghost" data-act="add-decks-here">+ Añadir mazos aquí</button>' : ''}
-      <button class="ghost" data-act="new-folder">+ Carpeta</button>
-      <button class="ghost" data-nav="plan">Plan de estudio</button>
-      <button class="ghost" data-act="import">Importar</button>
-      <button class="ghost" data-act="paste">Pegar</button>
-    </div>
-    ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar un mazo encima de una carpeta.</p>' : ''}
+    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1><button class="add-round" data-act="new-deck" aria-label="Nuevo mazo">${icon('plus', { size: 20 })}</button></div>${note}</div>
+    ${feat}
+    ${studyBtn || (folder && !filtering) ? `<div class="btnrow">${studyBtn}${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-folder">Editar carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir mazos aquí</button>' : ''}</div>` : ''}
     <div class="toolbar">
       <input id="deckSearch" type="search" placeholder="Buscar en todos los mazos" aria-label="Buscar mazos" value="${esc(o.query)}">
-      <select id="deckSort" aria-label="Ordenar">${SORTS.map(x => `<option value="${x.id}" ${x.id === o.sort ? 'selected' : ''}>${x.label}</option>`).join('')}</select>
-      <div class="seg-icons" role="group" aria-label="Vista">
+      <div class="seg-icons round" role="group" aria-label="Vista">
+        <button data-layout="grid" aria-pressed="${o.layout === 'grid'}" aria-label="Tarjetas">${GRID_ICON}</button>
         <button data-layout="list" aria-pressed="${o.layout === 'list'}" aria-label="Lista">${LIST_ICON}</button>
-        <button data-layout="grid" aria-pressed="${o.layout === 'grid'}" aria-label="Cuadrícula">${GRID_ICON}</button>
       </div>
     </div>
-    <div class="filters">
+    <div class="filters chips-scroll">
+      <button class="fchip" data-act="clear-filters" aria-pressed="${!filtering}">Todo</button>
       ${tagFilter}
-      <button class="fchip" data-act="toggle-archived" aria-pressed="${o.archived}">Archivados</button>
-      <button class="fchip fchip-ghost" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>
-      ${filtering ? '<button class="link" data-act="clear-filters">Quitar filtros</button>' : ''}
     </div>
-    ${folderRows ? `<ul class="list">${folderRows}</ul>` : ''}
-    ${deckRows ? `<ul class="${o.layout === 'grid' ? 'grid' : 'list'}">${deckRows}</ul>` : folderRows ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}`;
+    <div class="org-bar">
+      <label class="sort-inline">Orden: <select id="deckSort" aria-label="Ordenar">${SORTS.map(x => `<option value="${x.id}" ${x.id === o.sort ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label>
+      <button class="link" data-act="toggle-archived" aria-pressed="${o.archived}">${o.archived ? 'Ver los activos' : 'Archivados'}</button>
+    </div>
+    <div class="btnrow btnrow-sm">
+      <button class="ghost small-btn" data-act="new-folder">+ Carpeta</button>
+      <button class="ghost small-btn" data-nav="plan">Plan de estudio</button>
+      <button class="ghost small-btn" data-act="import">Importar</button>
+      <button class="ghost small-btn" data-act="paste">Pegar</button>
+    </div>
+    ${folderRows ? `<ul class="fcards">${folderRows}</ul>` : ''}
+    ${folderRows && deckRows ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta</span></div>' : ''}
+    ${deckRows ? `<ul class="${o.layout === 'grid' ? 'dcards' : 'list'}">${deckRows}</ul>` : folderRows ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
+    ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar un mazo encima de una carpeta.</p>' : ''}
+    <button class="link manage-tags" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>`;
 }
+// El dibujo de un mazo sin emoji: según de qué parece que va
+const GLYPHS = {
+  vocab: 'M4 6c5-1 11-1 16 0 .5 3 .5 6 0 9-4 .6-7 .6-10 .4L6 19l.4-3.7c-1.2-.2-2-.4-2.4-.7-.4-3-.4-6 0-8.6zM8 9.5h8M8 12.5h5',
+  grammar: 'M5 9h4a2.5 2.5 0 1 1 5 0h4v4a2.5 2.5 0 1 1 0 5v2H5v-5a2.5 2.5 0 1 0 0-5z',
+  verb: 'M4 17c3-6 8-9 15-10M15 4l4 3-3 4M4 21h8',
+  cards: 'M5 7h13a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM8 4h11a1 1 0 0 1 1 1v11',
+};
+function deckGlyph(d) {
+  const n = (d.name || '').toLowerCase();
+  const k = /verb|pasado|presente|futuro|conjug|imperativ/.test(n) ? 'verb'
+    : /gram|caso|acusativ|dativ|genitiv|armon|mutaci|sufij|declin|artícul|pronombre/.test(n) ? 'grammar'
+    : deckLang(d.id) || /vocab|palabra|léxico/.test(n) ? 'vocab' : 'cards';
+  return `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${GLYPHS[k]}"/></svg>`;
+}
+// Flecha dibujada a mano (para las notas que señalan algo)
+const ARROW = '<svg width="70" height="46" viewBox="0 0 70 46" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M60 4C58 24 40 36 12 40"/><path d="M20 32l-8 8 10 4"/></svg>';
 function statusChip(id) {
   const p = S.progress.get(id);
   if (!p) return '<span class="chip">Nueva</span>';
@@ -1557,39 +1614,50 @@ function renderNotes() {
       : (a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
   const folders = filtering ? [] : [...S.folders.values()].filter(f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null) === here)
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  // Carpetas: una tarjeta de línea discontinua con su nombre a mano
   const folderRows = folders.map(f => {
     const inside = descendants(S.folders, f.id);
     const np = [...S.pages.values()].filter(p => inside.has(pageFolder(p))).length;
     const nd = [...S.decks.values()].filter(d => !d.archived && inside.has(d.folder_id)).length;
-    return `<li><button class="deck folder" data-nfolder="${f.id}">${folderIcon(f)}
-      <span class="info"><span class="dname">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes'}${nd ? ` · ${plural(nd, 'mazo', 'mazos')}` : ''}</span></span>
-      <span class="go">›</span></button></li>`;
+    return `<li><button class="nfolder folder" data-nfolder="${f.id}"><span class="nfolder-ic" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 40 })}</span>
+      <span class="nfolder-t"><span class="nfolder-name">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes todavía'}${nd ? ` · ${plural(nd, 'mazo', 'mazos')}` : ''}</span></span>
+      <span class="nfolder-go">${np ? 'Abrir' : 'Escribir'}</span></button></li>`;
   }).join('');
+  // Cada apunte, una tarjeta: título, el principio del texto y, abajo, la fecha y sus tarjetas
   const pageRows = pages.map(p => {
     const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards), snip = pageSnippet(p);
     const where = filtering && pageFolder(p) ? `${folderPath(S.folders, p.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '';
-    return `<li><button class="deck note-row" data-page="${p.id}"><span class="icon">${p.icon ? esc(p.icon) : icon('file-text', { size: 20 })}</span>
-      <span class="info"><span class="dname">${esc(pageTitle(p))}</span>
-        ${snip ? `<span class="snip">${esc(snip)}</span>` : ''}
-        <span class="meta">${(p.tags || []).length ? `<span class="tags">${tagChips(p.tags)}</span>` : ''}${where}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'tarjeta', 'tarjetas')}</span> · ` : ''}Editado ${shortDate(p.updated_at)}</span></span></button></li>`;
+    return `<li><button class="deck note-row ncard" data-page="${p.id}">
+      <span class="dname">${p.icon ? `<span class="icon" aria-hidden="true">${esc(p.icon)}</span> ` : ''}${esc(pageTitle(p))}</span>
+      <span class="snip${snip ? '' : ' snip-empty'}">${snip ? esc(snip) : 'vacío'}</span>
+      ${(p.tags || []).length ? `<span class="tags">${tagChips(p.tags)}</span>` : ''}
+      <span class="meta">${where}${shortDate(p.updated_at)}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'tarjeta', 'tarjetas')}</span>` : ''}</span></button></li>`;
   }).join('');
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
-    `<button class="fchip" data-ntag="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}"><span class="tdot" style="background:var(--tag-${t.color || 'gray'}-bg);border-color:var(--tag-${t.color || 'gray'})"></span>${esc(t.name)}</button>`).join('');
+    `<button class="fchip" data-ntag="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
   const title = filtering ? 'Resultados' : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Apuntes';
   const empty = filtering ? '<p class="muted">Ningún apunte coincide con la búsqueda o las etiquetas.</p>'
     : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
     : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
        <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
        <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button></div>`;
+  // «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
+  const last = !filtering && !folder && S.pages.size >= 5 ? [...S.pages.values()].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0] : null;
+  const feat = last ? `<div class="feat-row">
+      <button class="feat-info" data-page="${last.id}"><b>${esc(pageTitle(last))}</b><span>editado el ${shortDate(last.updated_at)}${pageSnippet(last) ? ` · ${esc(pageSnippet(last).slice(0, 60))}` : ''}</span></button>
+      <button class="pill-tint" data-page="${last.id}">Seguir</button></div>` : '';
+  const has = S.pages.size || S.folders.size;
   main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
-    <div class="section-h"><h1>${title}</h1>${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button>' : ''}</div>
+    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1>${has ? `<button class="add-round" data-act="new-page" aria-label="Nuevo apunte">${icon('plus', { size: 20 })}</button>` : ''}</div>${last ? `<div class="hand-note" aria-hidden="true"><span>lo dejaste aquí,<br>¿sigues?</span>${ARROW}</div>` : ''}</div>
+    ${feat}
+    ${folder && !filtering ? '<div class="btnrow"><button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button></div>' : ''}
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${S.pages.size || S.folders.size ? `<div class="btnrow"><button class="primary" data-act="new-page">${icon('plus', { size: 16 })} Nuevo apunte</button><button class="ghost" data-act="new-folder" title="Nueva carpeta">${icon('folder', { size: 16 })} Carpeta</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button><button class="ghost" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">${icon('download', { size: 16 })} Exportar</button></div>
-    <div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}">
-      <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    ${tagFilter ? `<div class="filters">${tagFilter}${filtering ? '<button class="link" data-act="clear-nfilters">Quitar filtros</button>' : ''}</div>` : ''}` : ''}
-    ${folderRows ? `<ul class="list">${folderRows}</ul>` : ''}
-    ${pageRows ? `<ul class="list notes-list">${pageRows}</ul>` : folderRows ? '' : `<div class="empty notes-empty">${empty}</div>`}`;
+    ${has ? `<div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}"></div>
+    ${tagFilter ? `<div class="filters chips-scroll"><button class="fchip" data-act="clear-nfilters" aria-pressed="${!o.tagIds.length}">Todo</button>${tagFilter}</div>` : ''}
+    <div class="org-bar"><label class="sort-inline">Orden: <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    <div class="btnrow btnrow-sm"><button class="ghost small-btn" data-act="new-folder" title="Nueva carpeta">+ Carpeta</button><button class="ghost small-btn" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">Importar</button><button class="ghost small-btn" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">Exportar</button></div>` : ''}
+    ${pageRows ? `<ul class="list notes-list ncards">${pageRows}</ul>` : folderRows ? '' : `<div class="empty notes-empty">${empty}</div>`}
+    ${folderRows ? `<ul class="nfolders">${folderRows}</ul>` : ''}`;
 }
 
 const BLOCK_PH = 'Escribe algo… («# » título, «- » lista)';
@@ -3563,8 +3631,12 @@ function renderProfile() {
   const total = S.cards.size;
   let learned = 0;
   for (const p of S.progress.values()) if (p.interval >= 21) learned++;
+  const st = streaks(S.log), who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]);
+  const num = (n, l) => `<div class="pf-num"><b>${n}</b><span>${l}</span></div>`;
   main.innerHTML = `<h1>Perfil</h1>
-    <p class="muted">${total} ${total === 1 ? 'tarjeta' : 'tarjetas'} en ${S.decks.size} ${S.decks.size === 1 ? 'mazo' : 'mazos'} · ${S.progress.size} empezadas · ${learned} consolidadas</p>
+    <div class="pf-head"><span class="pf-av" aria-hidden="true">${esc((who || '?').trim().charAt(0).toUpperCase())}</span>
+      <div class="pf-who"><b>${esc(who)}</b><span>${icon('fire', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha</span></div></div>
+    <div class="pf-nums">${num(total, total === 1 ? 'tarjeta' : 'tarjetas')}${num(S.decks.size, S.decks.size === 1 ? 'mazo' : 'mazos')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
     <ul class="list linklist">
       <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
@@ -3572,17 +3644,16 @@ function renderProfile() {
       <li><button class="row-link" data-act="news">${icon('sparkles', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
     </ul>
-    <div class="panel"><form data-form="profile">
-      <label for="p-name" style="margin-top:0">Tu nombre (lo ven quienes usan tus mazos compartidos)</label>
-      <input id="p-name" maxlength="40" value="${esc(S.name)}">
-      <button class="primary" type="submit" style="margin-top:12px">Guardar nombre</button></form></div>
+    <form class="pf-sec" data-form="profile">
+      <label for="p-name" class="pf-h">Tu nombre<small>Lo ven quienes usan tus mazos compartidos</small></label>
+      <div class="pf-row"><input id="p-name" maxlength="40" value="${esc(S.name)}"><button class="pill-tint" type="submit" aria-label="Guardar nombre">Guardar</button></div></form>
     ${api.mode === 'local'
-      ? `<div class="panel"><p class="small muted">Estás en <b>modo local</b>: no hay cuenta y todo se guarda en este navegador.</p>
+      ? `<div class="pf-sec"><span class="pf-h">Cuenta</span><p class="small muted">Estás en <b>modo local</b>: no hay cuenta y todo se guarda en este navegador.</p>
           <div class="btnrow"><button class="ghost danger" data-act="ask-reset-local">Borrar datos locales</button></div></div>`
-      : `<div class="panel"><p class="small muted">Has entrado como <b>${esc(S.email)}</b></p>
-          <div class="btnrow"><button class="ghost" data-act="change-pass">Cambiar contraseña</button><button class="ghost danger" data-act="signout">Cerrar sesión</button></div></div>`}
-    <p class="muted small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
-    <p class="muted small">Flaski es software libre. Consejo: en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p>`;
+      : `<div class="pf-sec"><span class="pf-h">Cuenta</span><p class="small muted">Has entrado como <b>${esc(S.email)}</b></p>
+          <div class="btnrow"><button class="pill-tint" data-act="change-pass">Cambiar contraseña</button><button class="ghost danger" data-act="signout">Cerrar sesión</button></div></div>`}
+    <div class="pf-foot"><p class="muted small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
+    <p class="muted small">Flaski es software libre. <span class="hand-inline">Consejo:</span> en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p></div>`;
 }
 
 /* ===================== estadísticas ===================== */
