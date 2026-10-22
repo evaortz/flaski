@@ -1,4 +1,4 @@
-// Gráficos de Inicio: el calendario con periodos (en el color del tema) y «Tus repasos»
+// Gráficos de Inicio: el calendario con periodos (en el color del tema) («Tu progreso» está en progreso.spec.js)
 import { test, expect, openApp, nav, addBuiltinDeck, answer } from './fixtures.js';
 
 test('calendario de actividad: cambiar de periodo recoloca los cuadrados y se recuerda', async ({ page }) => {
@@ -23,29 +23,4 @@ test('calendario de actividad: cambiar de periodo recoloca los cuadrados y se re
   // Se recuerda
   await nav(page, 'Mis mazos'); await nav(page, 'Estudiar');
   await expect(page.locator('[data-seg="home.activityPeriod"] [data-v="m1"]')).toHaveAttribute('aria-pressed', 'true');
-});
-
-test('tu ritmo: lo estudiado y lo que toca, periodos y leyenda para ocultar líneas', async ({ page }) => {
-  await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
-  await page.locator('#main [data-start]').click();
-  for (let i = 0; i < 4; i++) await answer(page, i ? 3 : 1);
-  await page.locator('.studybar [data-act="exit"]').click();
-  await nav(page, 'Estudiar');
-  await expect(page.locator('#rvSum')).toContainText('Hoy llevas 4 repasos');
-  await expect(page.locator('#rvWrap .rv-line.rv-done')).toHaveCount(1);
-  await expect(page.locator('#rvWrap .rv-line.rv-due')).toHaveCount(1);
-  await expect(page.locator('#rvKeys [data-rv="acc"] span')).toHaveText('75 %');
-  await expect(page.locator('#rvWrap circle.rv-dot')).toHaveCount(0);      // sin puntos: solo las líneas
-  await page.locator('[data-seg="home.forecastDays"] [data-v="90"]').click();
-  await expect(page.locator('#rvSum')).toContainText('de los últimos 46 días');
-  await page.locator('#rvKeys [data-rv="due"]').click();
-  await expect(page.locator('#rvWrap .rv-line.rv-due')).toHaveCount(0);
-  await expect(page.locator('#rvKeys [data-rv="due"]')).toHaveAttribute('aria-pressed', 'false');
-  // El detalle de hoy, al pasar por encima
-  await page.locator('#rvWrap .rv-hit').nth(45).hover();
-  await expect(page.locator('.chart-tip')).toContainText('Hoy');
-  await expect(page.locator('.chart-tip')).toContainText('4 repasos hechos');
-  await expect(page.locator('#rvWrap .rv-hover.on .rv-hv-line')).toHaveCount(1);   // la línea del día por el que se pasa
-  await expect(page.locator('.rv-mt .mt-legend')).toContainText('Consolidadas');
 });

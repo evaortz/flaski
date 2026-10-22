@@ -7,7 +7,7 @@ import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, 
 import { statsView, drawStats } from './stats.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmapView, HM_PERIODS, rhythmChart, initRhythmHover, RV_PERIODS, RV_SERIES, maturity, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { heatmapView, HM_PERIODS, progressSeries, progressView, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, STUDY, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -547,7 +547,6 @@ function renderHome() {
   const hello = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
   const H = S.prefs.home;
   const st = streaks(S.log);
-  const mt = maturity(cardList(), S.progress);
   // Meta diaria (Ajustes → Estudio diario): respuestas de hoy frente a la meta
   const doneToday = S.log[dateKey(Date.now())] || 0;
   const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
@@ -563,26 +562,17 @@ function renderHome() {
       ${goal}
     </section>
     ${homeFriendsHTML()}
-    ${H.activity ? `<section class="chart-card" aria-labelledby="h-act">
-      <div class="chart-h"><h2 id="h-act">Actividad</h2>${seg('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
-      <div class="streaks">
-        <span class="streak-cur">${icon('fire', { size: 18, cls: 'flame' })}<b>${st.current}</b> ${st.current === 1 ? 'día' : 'días'} de racha</span>
-        <span><b>${st.best}</b> mejor racha</span>
-        <span id="hmSum"></span>
-      </div>
+    ${H.activity ? `<section class="chart-card lv" data-live aria-labelledby="h-act">
+      <div class="lv-h"><h2 class="lv-k" id="h-act">Actividad<span class="lv-day"></span></h2>${tabs('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.short]))}</div>
+      <div class="lv-big"><b class="lv-n">${st.current}</b><span class="lv-of">${st.current === 1 ? 'día' : 'días'} de racha${st.current ? ` ${icon('fire', { size: 16, cls: 'flame' })}` : ''}</span></div>
+      <p class="lv-sub" id="hmSum"></p>
       <div id="hmHost" class="hm-host"></div>
     </section>` : ''}
-    ${H.forecast || H.maturity ? `<section class="chart-card rv-card" aria-labelledby="h-rv">
-      ${H.forecast ? `<div class="chart-h"><h2 id="h-rv">Tu ritmo</h2>${seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])).replace('class="seg"', 'class="seg seg-sm chart-seg" aria-label="Periodo"')}</div>
-      <p class="rv-sum" id="rvSum"></p>
-      <div class="rv-keys" id="rvKeys" role="group" aria-label="Qué se ve"></div>
-      <div class="rv-wrap" id="rvWrap"></div>` : `<div class="chart-h"><h2 id="h-rv">Tus tarjetas</h2></div>`}
-      ${H.maturity ? `<div class="rv-mt">${H.forecast ? `<div class="rv-mt-h"><b>Tus tarjetas</b><span>${mt.pct} % consolidadas</span></div>` : ''}${mt.html}</div>` : ''}
-    </section>` : ''}
+    ${H.forecast ? '<section class="chart-card lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
     ${H.decks ? `<div class="section-h"><h2>Tus mazos</h2></div>
     <ul class="list">${decks}</ul>` : ''}`;
   drawHeatmap();
-  drawReviews();
+  drawProgress();
 }
 // Calendario de actividad: el periodo elegido (al cambiarlo, los cuadrados se recolocan con una transición)
 function drawHeatmap() {
@@ -590,33 +580,26 @@ function drawHeatmap() {
   if (!host) return;
   const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth));
   const sum = $('#hmSum');
-  if (sum) sum.innerHTML = `<b>${r.active}</b> ${r.active === 1 ? 'día' : 'días'} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
+  if (sum) sum.innerHTML = `Mejor racha: ${plural(streaks(S.log).best, 'día', 'días')} · ${plural(r.active, 'día', 'días')} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
   scrollChartsToEnd(host);
 }
-// Tu ritmo: lo estudiado los últimos días (con los aciertos) y lo que toca los próximos
-function drawReviews() {
-  const el = $('#rvWrap');
-  if (!el) return;
-  const all = counts('all'), hidden = S.rvHidden || new Set(), days = S.prefs.home.forecastDays || 14;
-  const r = rhythmChart({ events: S.events, log: S.log, cards: cardList(), progress: S.progress, days, width: Math.max(260, Math.floor(el.clientWidth)), newToday: all.newToday, newPerDay: S.newPerDay, goal: S.prefs.home.goal || 0, hidden });
-  el.innerHTML = r.svg;
-  const st = r.stats, n = x => x.toLocaleString('es-ES');
-  const sum = $('#rvSum');
-  if (sum) {
-    sum.innerHTML = [
-      st.today ? `Hoy llevas <b>${plural(st.today, 'repaso', 'repasos')}</b>` : 'Hoy aún no has estudiado',
-      `has estudiado ${st.daysWith} de los últimos ${r.past + 1} días`,
-      st.busiest ? `lo más cargado viene ${st.busiest.label === 'hoy' ? '<b>hoy</b>' : `el <b>${st.busiest.label}</b>`} (${n(st.busiest.n)})` : 'nada pendiente en los próximos días',
-    ].join(' · ');
-  }
-  const val = { done: `${st.avg.toLocaleString('es-ES', { maximumFractionDigits: st.avg < 10 ? 1 : 0 })}/día`, acc: st.acc == null ? '—' : `${st.acc} %`, due: n(st.dueNext), new: n(st.newNext) };
-  const tip = { done: `Media de repasos al día (últimos ${r.past + 1} días)`, acc: 'Aciertos en este periodo', due: `Por repasar en los próximos ${r.future} días`, new: `Nuevas que entrarán en los próximos ${r.future} días` };
-  const keys = $('#rvKeys');
-  if (keys) keys.innerHTML = RV_SERIES.map(s => `<button type="button" class="rv-key rv-${s.key}" data-rv="${s.key}" aria-pressed="${!hidden.has(s.key)}" title="${tip[s.key]} · toca para ${hidden.has(s.key) ? 'mostrarla' : 'ocultarla'}"><i aria-hidden="true"></i>${s.label} <span>${val[s.key]}</span></button>`).join('');
+// Tu progreso: cuántas tarjetas te sabes cada día del periodo y lo que te queda por aprender
+function drawProgress({ animate = true } = {}) {
+  const host = $('#pgHost');
+  if (!host) return;
+  const cards = cardList(), period = S.prefs.home.progressPeriod || 'm3';
+  const focused = host.contains(document.activeElement) && document.activeElement.dataset.v;
+  progressView(host, {
+    series: progressSeries({ events: S.events, cards, progress: S.progress, period }),
+    width: Math.max(280, Math.floor(host.clientWidth - 32)), title: 'Tu progreso', animate,
+    tabs: tabs('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])),
+    next: cards.length ? nextLine(cards, S.progress) : '', deckName: id => S.decks.get(id)?.name || '',
+  });
+  if (focused) host.querySelector(`[data-v="${focused}"]`)?.focus();
 }
 
 let resizeT;
-window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') { drawHeatmap(); drawReviews(); } if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') { drawHeatmap(); drawProgress({ animate: false }); } if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -3597,6 +3580,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // Controles reutilizables (todos guardan solos al cambiar)
 const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
+// Periodos de un gráfico: pestañas de texto subrayadas
+const tabs = (path, opts) => seg(path, opts).replace('class="seg"', 'class="seg seg-text" aria-label="Periodo"');
 const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" role="switch" data-pref="${path}" ${cur ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label>`;
 const numIn = (path, { min = 0, max = 9999, step = 1, unit = '', cur = getPref(path), id = '' } = {}) =>
   `<span class="num"><input type="number" ${id ? `id="${id}"` : ''} data-pref="${path}" data-num min="${min}" max="${max}" step="${step}" inputmode="decimal" value="${cur}">${unit ? `<span>${unit}</span>` : ''}</span>`;
@@ -3658,9 +3643,8 @@ function renderSettings() {
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
     ${setSec('house', 'Inicio', `
       ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
-      ${setRow('Tu ritmo', 'Lo que has estudiado, tus aciertos y lo que te toca los próximos días.', sw('home.forecast'))}
-      ${setRow('Periodo de «Tu ritmo»', 'Cuántos días antes y después de hoy (también se cambia en el propio gráfico).', seg('home.forecastDays', RV_PERIODS.map(p => [p.d, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
-      ${setRow('Estado de las tarjetas', 'Debajo de la previsión: nuevas, aprendiendo, jóvenes y consolidadas.', sw('home.maturity'))}
+      ${setRow('Tu progreso', 'Cuántas tarjetas te sabes, cómo ha ido creciendo y lo que te toca los próximos días.', sw('home.forecast'))}
+      ${setRow('Periodo de «Tu progreso»', 'Lo que abarca el gráfico (también se cambia en el propio gráfico).', seg('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
       ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}
       ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
@@ -3723,7 +3707,7 @@ function prefChanged(path) {
   if (path === 'home.forecast') $('#row-fcdays')?.classList.toggle('is-off', !S.prefs.home.forecast);
   // Los periodos de los gráficos de Inicio: se redibujan en el sitio (el calendario, con su transición)
   if (path === 'home.activityPeriod' && S.view === 'home') drawHeatmap();
-  if (path === 'home.forecastDays' && S.view === 'home') drawReviews();
+  if (path === 'home.progressPeriod' && S.view === 'home') drawProgress();
   savePrefsSoon();
 }
 // Copia v2: lo mismo en los dos modos y con los identificadores originales, para que al restaurar
@@ -5193,7 +5177,6 @@ document.addEventListener('click', async e => {
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
-  if (ds.rv) { S.rvHidden ||= new Set(); S.rvHidden.has(ds.rv) ? S.rvHidden.delete(ds.rv) : S.rvHidden.add(ds.rv); return drawReviews(); }
   if (ds.stp !== undefined) { S.stats.period = Number(ds.stp); const y = scrollY; renderStats(); scrollTo(0, y); return; }
   if (ds.stfc) { S.stats.fcDays = Number(ds.stfc); const y = scrollY; renderStats(); scrollTo(0, y); return; }
   if (ds.v !== undefined && b.parentElement?.dataset.seg) {
@@ -6302,7 +6285,7 @@ function inviteSheet(code) {
   document.title = APP_NAME;
   applySavedLook();
   initChartTips();
-initRhythmHover();
+initProgressHover();
   loadOrgPrefs();
   $('#appName').textContent = APP_NAME;
   const m = location.hash.match(/^#d-([0-9a-f-]{36})$/i);

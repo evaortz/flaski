@@ -1568,64 +1568,51 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .chart-seg{flex:none}
 .chart-seg .seg-b{min-height:28px;padding:0 10px;font-size:12.5px}
 @media (max-width:480px){.chart-h{flex-wrap:wrap}.chart-seg{width:100%}.chart-seg .seg-b{flex:1}}
-/* ---------- Tus repasos: líneas suaves por estado, el total con su área ---------- */
-.rv-sum{margin:-4px 0 0;font-size:13.5px;color:var(--muted)}
-.rv-sum b{color:var(--fg);font-weight:600}
-.rv-keys{display:flex;flex-wrap:wrap;gap:6px}
-.rv-key{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:99px;background:var(--bg);color:var(--fg);font:inherit;font-family:var(--font-head);font-size:12.5px;cursor:pointer;transition:opacity .15s,background-color .15s}
-.rv-key i{width:10px;height:10px;border-radius:3px;background:var(--rv-c)}
-.rv-key span{color:var(--muted);font-variant-numeric:tabular-nums}
-.rv-key[aria-pressed="false"]{opacity:.45}
-.rv-key[aria-pressed="false"] i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--rv-c)}
-.rv-key:hover{background:var(--hover)}
-.rv-tot{--rv-c:var(--accent)}.rv-m0{--rv-c:var(--m0)}.rv-m1{--rv-c:var(--m1)}.rv-m2{--rv-c:var(--m2)}.rv-m3{--rv-c:var(--m3)}
-.rv-wrap{min-height:210px}
-.rv-svg{display:block;overflow:visible}
-.rv-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
-.rv-grid.rv-base{stroke:var(--line-strong);stroke-dasharray:none}
-.rv-line{fill:none;stroke:var(--rv-c);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:rvDraw .8s cubic-bezier(.3,.7,.2,1) forwards}
-.rv-line.rv-tot{stroke-width:3.2}
-.rv-area{fill:url(#rvFill);opacity:0;animation:rvFade .8s .15s ease forwards}
-.rv-stop1{stop-color:var(--accent);stop-opacity:.28}.rv-stop2{stop-color:var(--accent);stop-opacity:0}
-.rv-dot{fill:var(--bg);stroke:var(--rv-c);stroke-width:2;opacity:0;animation:rvFade .3s ease forwards}
-.rv-dot.rv-tot{stroke-width:2.6}
-.rv-hit.is-hot{fill:color-mix(in srgb,var(--fg) 6%,transparent)}
 @keyframes rvDraw{to{stroke-dashoffset:0}}
 @keyframes rvFade{to{opacity:1}}
-.rv-mt{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
-.rv-mt-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--font-head);font-size:14px}
-.rv-mt-h span{font-size:13px;color:var(--muted)}
 .chart-tip small{display:block;margin-top:3px;font-size:12px;color:var(--muted);max-width:260px}
 .chart-tip small[hidden]{display:none}
-@media (prefers-reduced-motion:reduce){.hm-host .hm,.hm-host .hm-svg{transition:none}.rv-line,.rv-area,.rv-dot{animation:none;stroke-dashoffset:0;opacity:1}}
-/* Tu ritmo: lo estudiado (línea continua con área), lo que toca (discontinua), nuevas y aciertos */
+@media (prefers-reduced-motion:reduce){.hm-host .hm,.hm-host .hm-svg{transition:none}.pg-anim{animation:none}}
 .hm-host .hm-wrap{justify-content:center}
-.rv-done{--rv-c:var(--accent)}.rv-due{--rv-c:var(--accent)}.rv-acc{--rv-c:var(--m3)}.rv-new{--rv-c:var(--m0)}
-.rv-key.rv-due i{background:repeating-linear-gradient(90deg,var(--rv-c) 0 3px,transparent 3px 5px);border-radius:2px;height:3px}
-.rv-key.rv-new i{background:repeating-linear-gradient(90deg,var(--rv-c) 0 3px,transparent 3px 5px);border-radius:2px;height:3px}
-.rv-key.rv-done i,.rv-key.rv-acc i{height:3px;border-radius:2px}
-.rv-key[aria-pressed="false"] i{background:var(--line);box-shadow:none}
-.rv-line.rv-done{stroke-width:3}
-.rv-line.rv-acc{stroke-width:2}
-.rv-dash{stroke-dasharray:6 5;stroke-dashoffset:0;animation:rvFade .6s .35s ease both;opacity:0}
-.rv-line.rv-due{stroke-width:2.6}
-.rv-line.rv-new{stroke-width:1.8}
-.rv-area-done{fill:url(#rvFill)}
-.rv-area-due{fill:url(#rvFillDue);animation-delay:.4s}
-.rv-stop-due{stop-color:var(--accent)}
-.rv-stop1.rv-stop-due{stop-opacity:.12}
-.rv-future{fill:color-mix(in srgb,var(--fg) 2.5%,transparent)}
-.rv-today{stroke:var(--fg);stroke-width:1;stroke-dasharray:2 3;opacity:.45}
-.rv-ax-acc{fill:var(--m3)}
-.rv-acc-pt{fill:var(--m3)}
 .hm-host .hm-scroll{flex:0 1 auto}
-.rv-area-new{fill:color-mix(in srgb,var(--m0) 18%,transparent);opacity:0;animation:rvFade .8s .45s ease forwards}
-.rv-goal{stroke:var(--m1);stroke-width:1.2;stroke-dasharray:4 4;opacity:.8}
-.rv-goal-l{fill:var(--m1);font-weight:600}
-.rv-note{font-family:var(--font-head);font-size:11.5px;font-weight:700;fill:var(--fg);opacity:0;animation:rvFade .4s .7s ease forwards}
-.rv-note-due{fill:var(--muted)}
-.rv-mark{fill:var(--bg);stroke:var(--rv-c);stroke-width:2.5;opacity:0;animation:rvFade .4s .7s ease forwards}
-.rv-hover{display:none}.rv-hover.on{display:inline}
-.rv-hv-line{stroke:var(--fg);stroke-width:1;opacity:.25;pointer-events:none}
-.rv-hv{fill:var(--bg);stroke:var(--rv-c);stroke-width:2.5;pointer-events:none}
-.rv-hit.is-hot{fill:transparent}
+/* ---------- Gráficos con cabecera viva: la cifra grande cuenta lo que señalas ---------- */
+.lv{gap:0}
+.lv-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.lv-k{margin:0;font-family:var(--font-head);font-size:13.5px;font-weight:500;color:var(--muted)}
+.lv-day{font-variant-numeric:tabular-nums}
+.lv-big{display:flex;align-items:baseline;gap:4px 8px;flex-wrap:wrap;margin-top:2px;font-family:var(--font-head)}
+.lv-n{font-size:34px;font-weight:600;line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--fg)}
+.lv-of{font-size:15px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+.lv-of .flame{color:var(--accent)}
+.lv-sub{margin:2px 0 12px;min-height:1.4em;font-family:var(--font-head);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.lv-sub b,.pg-next b{color:var(--fg);font-weight:600}
+.lv-up{color:color-mix(in srgb,#1F9D6B 85%,var(--fg))}.lv-dn{color:color-mix(in srgb,#E03E3E 85%,var(--fg))}
+/* Periodos como pestañas de texto subrayadas */
+.seg.seg-text{display:inline-flex;flex-wrap:nowrap;background:none;border:0;padding:0;gap:14px;border-radius:0}
+.seg.seg-text .seg-b{min-height:26px;padding:0 0 2px;background:none;box-shadow:none;border-radius:0;font-family:var(--font-head);font-size:12.5px;color:var(--muted)}
+.seg.seg-text .seg-b[aria-pressed="true"]{color:var(--fg);box-shadow:inset 0 -1.5px 0 currentColor}
+.seg.seg-text .seg-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lv .hm-legend{display:none}
+/* Tu progreso: franjas apiladas en tonos del color del tema y, rayado, lo que falta por aprender */
+.pg-card{--pg-bg:var(--bg);--pg3:var(--accent);--pg2:color-mix(in srgb,var(--accent) 58%,var(--pg-bg));--pg1:color-mix(in srgb,var(--accent) 26%,var(--pg-bg));--pg-ink:color-mix(in srgb,var(--accent) 70%,var(--fg))}
+.st-card .pg-card,.st-card.pg-card{--pg-bg:var(--surface)}
+.pg-svg{display:block;overflow:visible;touch-action:pan-y;font-family:var(--font-head)}
+.pg-b3{fill:var(--pg3)}.pg-b2{fill:var(--pg2)}.pg-b1{fill:var(--pg1)}
+.pg-rest{opacity:.75}.pg-hx{stroke:var(--line-strong);stroke-width:1}
+.pg-sep{fill:none;stroke:var(--pg-bg);stroke-width:1.25}
+.pg-tot{fill:none;stroke:var(--line-strong);stroke-width:1}
+.pg-base{stroke:var(--line-strong);stroke-width:1}
+.pg-anim{animation:pgRise .9s cubic-bezier(.2,.7,.2,1)}
+@keyframes pgRise{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.pg-lab{font-size:12px;fill:var(--pg-ink)}.pg-lab-rest{fill:var(--muted)}
+.pg-lab-n{fill:var(--muted);font-variant-numeric:tabular-nums}
+.pg-note{font-size:11px;fill:var(--muted)}
+.pg-pin{fill:var(--muted)}.pg-pin-k{fill:var(--pg-bg);stroke:var(--pg-ink);stroke-width:1.5}
+.pg-dot{fill:var(--pg3);stroke:var(--pg-bg);stroke-width:2}
+.pg-cur{stroke:var(--fg);stroke-width:1;opacity:0}
+.pg-cd{opacity:0}
+.pg-svg.is-hover .pg-cur{opacity:.25}.pg-svg.is-hover .pg-cd{opacity:1}.pg-svg.is-hover .pg-now{opacity:0}
+.pg-hit{fill:transparent;cursor:crosshair;outline:none}
+.pg-hit:focus-visible{stroke:var(--line-strong);stroke-dasharray:2 3}
+.pg-svg .ax{font-size:11px;fill:var(--muted)}
+.pg-next{margin:10px 0 0;font-family:var(--font-head);font-size:13px;color:var(--muted)}
