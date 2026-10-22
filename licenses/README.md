@@ -13,5 +13,7 @@ Flaski (licencia MIT) incluye o usa estos componentes:
 | [Lucide](https://lucide.dev) (`js/icons.js`, solo los iconos usados) | Iconos de la interfaz | ISC — `lucide-ISC.txt` |
 | [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Microsoft (`js/icons.js`, solo «fire», estilo Flat) | Icono de la racha en Inicio | MIT — `fluentui-emoji-MIT.txt` |
 | [emojibase-data](https://emojibase.dev) 17.0.0 (`data/emoji.json`, recortado) | Nombres en español de los emojis | MIT |
-| [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) del Braille Institute (`fonts/`, `css/fonts.css`) | Tipografía del texto corrido (apuntes, explicaciones) y opción para las tarjetas | SIL Open Font License 1.1 — `atkinson-hyperlegible-OFL.txt` |
-| [General Sans](https://www.fontshare.com/fonts/general-sans) de Indian Type Foundry (`fonts/general-sans-*`, `css/fonts.css`) | Tipografía de los títulos | ITF Free Font License (uso personal y comercial gratuito) — https://www.fontshare.com/licenses/itf-ffl |
+| [Inter](https://rsms.me/inter/) de Rasmus Andersson (`fonts/inter-*`, `css/fonts.css`) | Tipografía de toda la app | SIL Open Font License 1.1 — `inter-OFL.txt` |
+| [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) del Braille Institute (`fonts/`, `css/fonts.css`) | Opción de letra para las tarjetas («Legible») | SIL Open Font License 1.1 — `atkinson-hyperlegible-OFL.txt` |
+| [General Sans](https://www.fontshare.com/fonts/general-sans) de Indian Type Foundry (`fonts/general-sans-*`, `css/fonts.css`) | Ya no se usa en la interfaz (sustituida por Inter) | ITF Free Font License (uso personal y comercial gratuito) — https://www.fontshare.com/licenses/itf-ffl |
+| [Gochi Hand](https://fonts.google.com/specimen/Gochi+Hand) de Juan Pablo del Peral (`fonts/gochi-hand-400-latin.woff2`, `css/fonts.css`) | Letra «a mano» de las cifras grandes y los títulos | SIL Open Font License 1.1 — `gochi-hand-OFL.txt` |

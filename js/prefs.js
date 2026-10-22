@@ -43,7 +43,7 @@ export const ACCENTS = [
   { id: 'brown', label: 'Marrón' }, { id: 'gray', label: 'Grafito' },
 ];
 export const FONTS = [
-  { id: 'system', label: 'Atkinson Hyperlegible (la de la app)', short: 'Legible' }, { id: 'native', label: 'La del dispositivo', short: 'Sistema' }, { id: 'serif', label: 'Serif' },
+  { id: 'system', label: 'Inter (la de la app)', short: 'Inter' }, { id: 'legible', label: 'Atkinson Hyperlegible, pensada para leerse sin esfuerzo', short: 'Legible' }, { id: 'native', label: 'La del dispositivo', short: 'Sistema' }, { id: 'serif', label: 'Serif' },
   { id: 'rounded', label: 'Redondeada' }, { id: 'mono', label: 'Monoespaciada', short: 'Mono' },
 ];
 export const CARD_SIZES = [{ id: 's', label: 'S' }, { id: 'm', label: 'M' }, { id: 'l', label: 'L' }, { id: 'xl', label: 'XL' }];
@@ -92,6 +92,7 @@ export function algoFor(prefs, deck) {
 
 const FONT_STACKS = {
   system: 'var(--font)',
+  legible: '"Atkinson Hyperlegible", var(--font)',
   serif: 'ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif',
   rounded: 'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Nunito", "Segoe UI", sans-serif',
   native: 'var(--font-native)',

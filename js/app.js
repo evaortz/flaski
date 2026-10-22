@@ -261,6 +261,7 @@ function render() {
   const authed = !!S.uid && !S.recovery;
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
+  document.body.classList.toggle('in-study', authed && S.view === 'study');
   for (const b of document.querySelectorAll('[data-nav]')) {
     const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && ['deck', 'plan'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -589,12 +590,19 @@ function renderHome() {
   const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${H.goal}" aria-valuenow="${Math.min(doneToday, H.goal)}"><span style="width:${Math.min(100, Math.round((doneToday / H.goal) * 100))}%"></span></div></div>` : '';
   main.innerHTML = `
-    <h1>${hello}${S.name ? ', ' + esc(S.name) : ''}</h1>
     <section class="hero" aria-label="Hoy">
+      <h1 class="hero-hi">${hello}${S.name ? ', ' + esc(S.name) : ''}${avail ? ', tienes' : ''}</h1>
+      <div class="hero-row">
+        <div class="hero-num">${avail}</div>
+        <div class="hero-side">
+          <span class="hero-word">${avail ? (avail === 1 ? 'tarjeta!' : 'tarjetas!') : 'al día'}</span>
+          <span class="hero-band">para hoy</span>
+          ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}</span>` : ''}
+        </div>
+      </div>
       ${avail
-        ? `<div class="hero-num">${avail}</div><p class="muted">${avail === 1 ? 'tarjeta' : 'tarjetas'} para hoy · ${all.due} por repasar y ${all.newToday} ${all.newToday === 1 ? 'nueva' : 'nuevas'}</p>
-           <button class="primary big" data-start="all">Empezar a estudiar</button>${capNote(all)}`
-        : `<div class="hero-num">0</div><p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
+        ? `<button class="primary big hero-go" data-start="all">Empezar a estudiar</button>${capNote(all)}`
+        : `<p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${goal}
     </section>
