@@ -30,6 +30,7 @@ export const DEFAULT_PREFS = {
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
+  plan: { nodes: {} },     // plan de estudio: estado, foco y examen de cada mazo y carpeta (ver plan.js)
   remind: { on: false, time: '20:00', cheers: false },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
 };
@@ -74,6 +75,9 @@ export function mergePrefs(base, saved) {
 export const loadPrefs = saved => {
   const p = mergePrefs(DEFAULT_PREFS, saved || {});
   if (saved && Object.keys(saved).length && !saved.algo?.preset) p.algo.preset = 'standard';
+  // Las claves del plan son ids de mazos y carpetas: mergePrefs solo conserva las que ya existen
+  const nodes = saved?.plan?.nodes;
+  p.plan.nodes = nodes && typeof nodes === 'object' && !Array.isArray(nodes) ? { ...nodes } : {};
   return p;
 };
 

@@ -6,6 +6,7 @@ import { schedule, fmtWhen, startOfDay, dateKey, DAY, GRADES, ALGO_PRESETS, DEFA
 import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from './prefs.js';
 import { statsView, drawStats } from './stats.js';
 import { pushBlocker, BLOCKER_TEXT, syncPush } from './push.js';
+import { STATES, deckState, folderState, shares, allocate, examFloors, examStatus, daysTo, childrenOf, weightOf, folderKey, urgencyWeight } from './plan.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmapView, HM_PERIODS, progressSeries, progressView, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
@@ -125,10 +126,12 @@ function tagChips(ids = []) {
     .map(t => `<span class="tag" style="--tag-bg:var(--tag-${t.color || 'gray'}-bg);--tag-fg:var(--tag-${t.color || 'gray'})">${esc(t.name)}</span>`).join('');
 }
 // Ámbito de estudio: 'all', un id de mazo, o 'folder:<id>' / 'tag:<id>'
+// Lo que está en pausa (Plan de estudio) no entra, salvo si estudias ese mazo en concreto
 function scopeDecks(scope = 'all') {
-  const active = [...S.decks.values()].filter(d => !d.archived);
+  const live = d => !d.archived && stateOf(d) !== 'paused';
+  const active = [...S.decks.values()].filter(live);
   if (scope === 'all') return new Set(active.map(d => d.id));
-  if (scope.startsWith('folder:')) return new Set(decksInFolder(S.decks, S.folders, scope.slice(7)).filter(d => !d.archived).map(d => d.id));
+  if (scope.startsWith('folder:')) return new Set(decksInFolder(S.decks, S.folders, scope.slice(7)).filter(live).map(d => d.id));
   if (scope.startsWith('tag:')) { const t = scope.slice(4); return new Set(active.filter(d => (d.tags || []).includes(t)).map(d => d.id)); }
   return new Set([scope]);
 }
@@ -208,10 +211,42 @@ function counts(scope = 'all') {
     const p = S.progress.get(c.id);
     if (!p) { fresh++; freshBy.set(c.deck_id, (freshBy.get(c.deck_id) || 0) + 1); } else { if (p.due <= now) due++; if (p.interval >= 21) mature++; }
   }
-  let capped = 0;
-  for (const [d, n] of freshBy) capped += Math.min(n, deckNewLeft(d));
+  let newToday = 0;
+  for (const n of newPlan(scope).values()) newToday += n;
   // dueAll: todas las que tocan; due: las que caben hoy en el límite de repasos (Ajustes → Estudio diario)
-  return { due: Math.min(due, reviewsLeft()), dueAll: due, fresh, total, mature, newToday: Math.min(capped, newLeft()) };
+  return { due: Math.min(due, reviewsLeft()), dueAll: due, fresh, total, mature, newToday };
+}
+
+/* ===================== plan de estudio ===================== */
+// Estado (activo, solo repasos, en pausa), foco y examen de cada mazo y carpeta: ver plan.js
+const planNodes = () => S.prefs.plan.nodes;
+const stateOf = d => (d ? deckState(d, S.folders, planNodes()) : 'active');
+const STATE_META = { reviews: ' · solo repasos', paused: ' · en pausa' };
+const planMeta = d => STATE_META[stateOf(d)] || '';
+// Nuevas que le quedan a cada mazo (las que aún no has visto)
+function freshByDeck(test = () => true) {
+  const m = new Map();
+  for (const c of S.cards.values()) if (!S.progress.has(c.id) && test(c)) m.set(c.deck_id, (m.get(c.deck_id) || 0) + 1);
+  return m;
+}
+// Reparto de las nuevas en un ámbito: Map mazo → cuántas. Hoy (lo que queda de hoy) o un día cualquiera
+// (steady: para enseñar «≈ 6 nuevas al día» en el plan). Solo de los mazos activos, según el foco, y
+// primero el ritmo que piden los exámenes.
+function newPlan(scope = 'all', { steady = false } = {}) {
+  const inScope = scopeTest(scope), fresh = freshByDeck(inScope), avail = new Map(), remaining = new Map();
+  for (const [id, n] of fresh) {
+    const d = S.decks.get(id);
+    if (!d || stateOf(d) !== 'active') continue;
+    const own = d.options?.newPerDay;
+    const lim = steady ? (own === null || own === undefined || own === '' ? Infinity : Number(own)) : deckNewLeft(id);
+    remaining.set(id, n); avail.set(id, Math.min(n, lim));
+  }
+  const ok = d => (avail.get(d.id) || 0) > 0;
+  const sh = shares(S.decks, S.folders, planNodes(), ok);
+  for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. un mazo archivado que estudias a propósito
+  const floors = new Map();
+  for (const [id, f] of examFloors(S.decks, S.folders, planNodes(), remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
+  return allocate(steady ? S.newPerDay : newLeft(), sh, avail, floors);
 }
 
 /* ===================== navegación ===================== */
@@ -227,14 +262,14 @@ function render() {
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   for (const b of document.querySelectorAll('[data-nav]')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && S.view === 'deck') || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && ['deck', 'plan'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus tarjetas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
 }
 
 /* ===================== sin configurar ===================== */
@@ -541,7 +576,7 @@ function renderHome() {
   const decks = sortDecks([...S.decks.values()].filter(d => !d.archived), 'due', homeStats).map(d => {
     const c = homeStats.get(d.id); const n = c.due + c.newToday;
     return `<li><button class="deck" data-start="${d.id}" ${n ? '' : 'disabled'}>${deckIcon(d)}
-      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''} · ${c.newToday} nuevas · ${c.total} en total</span></span>
+      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''} · ${c.newToday} nuevas · ${c.total} en total${planMeta(d)}</span></span>
       <span class="go">${n ? 'Estudiar' : c.total ? 'Al día' : 'Vacío'}</span></button></li>`;
   }).join('');
   const h = new Date().getHours();
@@ -921,21 +956,38 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 function buildSession(scope) {
   const P = S.prefs.study, inScope = scopeTest(scope), now = Date.now();
   const pool = cardList().filter(inScope);
-  const due = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
-    .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due).map(c => c.id).slice(0, reviewsLeft());
+  let dueCards = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
+    .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due);
+  // Con tope de repasos: el tope se reparte según el foco de cada mazo (de cada uno, las más atrasadas)
+  const cap = reviewsLeft();
+  if (dueCards.length > cap) {
+    const byDeck = new Map();
+    for (const c of dueCards) byDeck.set(c.deck_id, (byDeck.get(c.deck_id) || 0) + 1);
+    const sh = shares(S.decks, S.folders, planNodes(), d => byDeck.has(d.id));
+    for (const id of byDeck.keys()) if (!sh.has(id)) sh.set(id, 1);
+    const q = allocate(cap, sh, byDeck), used = new Map();
+    dueCards = dueCards.filter(c => { const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
+  }
+  const due = dueCards.map(c => c.id);
   let fresh = pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position);
   if (P.newOrder === 'random') shuffle(fresh);
-  // Tarjetas hermanas (misma nota): solo una nueva por sesión, para no ver la respuesta en la otra.
-  // Los límites se aplican después, para que las hermanas descartadas no gasten hueco.
-  const seenNotes = new Set(), perDeck = new Map();
-  let left = newLeft();
-  fresh = fresh.filter(c => {
-    if (left <= 0) return false;
-    if (P.burySiblings && c.note_id) { if (seenNotes.has(c.note_id)) return false; seenNotes.add(c.note_id); }
+  // Cuántas de cada mazo: el plan de estudio (solo mazos activos, según el foco y los exámenes).
+  // Tarjetas hermanas (misma nota): solo una nueva por sesión, para no ver la respuesta en la otra;
+  // se descartan antes de contar, para que no gasten hueco.
+  const quota = newPlan(scope), seenNotes = new Set(), perDeck = new Map();
+  const byDeck = new Map();
+  for (const c of fresh) {
     const used = perDeck.get(c.deck_id) || 0;
-    if (used >= deckNewLeft(c.deck_id)) return false;
-    perDeck.set(c.deck_id, used + 1); left--; return true;
-  }).map(c => c.id);
+    if (used >= (quota.get(c.deck_id) || 0)) continue;
+    if (P.burySiblings && c.note_id) { if (seenNotes.has(c.note_id)) continue; seenNotes.add(c.note_id); }
+    perDeck.set(c.deck_id, used + 1);
+    if (!byDeck.has(c.deck_id)) byDeck.set(c.deck_id, []);
+    byDeck.get(c.deck_id).push(c.id);
+  }
+  // Intercaladas: una de cada mazo por turno
+  fresh = [];
+  const lists = [...byDeck.values()];
+  for (let k = 0; lists.some(l => k < l.length); k++) for (const l of lists) if (k < l.length) fresh.push(l[k]);
   if (P.mix === 'reviewsFirst') return [...due, ...fresh];
   if (P.mix === 'newFirst') return [...fresh, ...due];
   const q = []; let i = 0, j = 0;
@@ -1180,14 +1232,14 @@ function renderDecks() {
         <span class="tile-top">${deckIcon(d, true)}${d.pinned ? PIN_ICON : ''}</span>
         <span class="dname">${esc(d.name)}</span>
         <span class="tags">${tagChips(d.tags)}</span>
-        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · <b>${pend}</b> hoy` : ''}</span>
+        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · <b>${pend}</b> hoy` : ''}${planMeta(d)}</span>
         <span class="mini" aria-label="${pct} % consolidadas"><span style="width:${pct}%"></span></span>
       </button></li>`;
     }
     return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck" data-open="${d.id}">${deckIcon(d)}
       <span class="info"><span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
         ${d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
-        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · ${pend} para hoy` : ''}${d.is_public ? ' · compartido' : ''}${d.archived ? ' · archivado' : ''}</span></span>
+        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · ${pend} para hoy` : ''}${planMeta(d)}${d.is_public ? ' · compartido' : ''}${d.archived ? ' · archivado' : ''}</span></span>
       </button><button class="row-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
   }).join('');
 
@@ -1218,6 +1270,7 @@ function renderDecks() {
       <button class="${studyBtn ? 'ghost' : 'primary'}" data-act="new-deck">+ Mazo</button>
       ${folder && !filtering ? '<button class="ghost" data-act="add-decks-here">+ Añadir mazos aquí</button>' : ''}
       <button class="ghost" data-act="new-folder">+ Carpeta</button>
+      <button class="ghost" data-nav="plan">Plan de estudio</button>
       <button class="ghost" data-act="import">Importar</button>
       <button class="ghost" data-act="paste">Pegar</button>
     </div>
@@ -3549,6 +3602,103 @@ function renderStats() {
   scrollChartsToEnd(main);
 }
 
+/* ===================== plan de estudio (pantalla) ===================== */
+// Un árbol con tus carpetas y mazos: de cada uno, su estado, su foco (el % frente a sus hermanos), las
+// nuevas al día que le tocan y su fecha de examen, con un aviso si a ese ritmo no llegas.
+const planOpen = new Set();   // filas desplegadas (se conservan al repintar)
+const planNode = key => planNodes()[key] || (planNodes()[key] = {});
+function setPlanNode(key, fields) {
+  const n = planNode(key);
+  for (const [k, v] of Object.entries(fields)) { if (v === '' || v === 'active') delete n[k]; else n[k] = v; }
+  if (!Object.keys(n).length) delete planNodes()[key];
+  savePrefsSoon();
+  renderPlan();
+}
+// Hermanos de una fila (las claves de su grupo): para que los % sumen 100 al mover uno
+function planSiblings(key) {
+  const N = planNodes(), S2 = S.folders;
+  const parent = key.startsWith('f:') ? (S2.get(key.slice(2))?.parent_id || null) : (S.decks.get(key)?.folder_id || null);
+  const fid = parent && S2.has(parent) ? parent : null;
+  const k = childrenOf(fid, S.decks, S2);
+  return [...k.folders.map(f => folderKey(f.id)), ...k.decks.map(d => d.id)];
+}
+function setPlanWeight(key, pct) {
+  const sib = planSiblings(key), others = sib.filter(k => k !== key);
+  const sum = others.reduce((a, k) => a + weightOf(planNodes(), k), 0);
+  const rest = Math.max(0, 100 - pct);
+  for (const k of others) planNode(k).weight = sum ? (weightOf(planNodes(), k) / sum) * rest : rest / others.length;
+  planNode(key).weight = pct;
+  savePrefsSoon();
+  renderPlan();
+}
+function planUrgent() {
+  const N = planNodes();
+  const exams = new Map();   // clave → examen más cercano (el suyo o el de algo de dentro)
+  const near = (a, b) => (!a ? b : !b ? a : a < b ? a : b);
+  for (const d of S.decks.values()) {
+    if (d.archived) continue;
+    let e = N[d.id]?.exam || '';
+    exams.set(d.id, near(exams.get(d.id), e));
+    let f = d.folder_id; const seen = new Set();
+    while (f && S.folders.has(f) && !seen.has(f)) { seen.add(f); e = near(e, N[folderKey(f)]?.exam || ''); exams.set(folderKey(f), near(exams.get(folderKey(f)), e)); f = S.folders.get(f).parent_id; }
+  }
+  for (const f of S.folders.values()) if (N[folderKey(f.id)]?.exam) exams.set(folderKey(f.id), near(exams.get(folderKey(f.id)), N[folderKey(f.id)].exam));
+  let any = false;
+  for (const [k, e] of exams) { const w = urgencyWeight(e); if (w > 1) any = true; planNode(k).weight = w; }
+  if (!any) { for (const n of Object.values(N)) delete n.weight; toast('Pon alguna fecha de examen para priorizar lo urgente'); }
+  else toast('Más foco para lo que tiene el examen más cerca');
+  savePrefsSoon();
+  renderPlan();
+}
+function renderPlan() {
+  const N = planNodes(), now = Date.now();
+  const perDay = newPlan('all', { steady: true }), remaining = freshByDeck(c => S.decks.get(c.deck_id) && !S.decks.get(c.deck_id).archived);
+  const today = counts('all').newToday;
+  const sumIn = (fid, m) => decksInFolder(S.decks, S.folders, fid).filter(d => !d.archived).reduce((a, d) => a + (m.get(d.id) || 0), 0);
+  const examText = d => (d == null ? '' : d < 0 ? 'el examen ya pasó' : d === 0 ? 'examen hoy' : d === 1 ? 'examen mañana' : `examen en ${d} días`);
+  function row(key, depth) {
+    const isF = key.startsWith('f:'), f = isF ? S.folders.get(key.slice(2)) : null, d = isF ? null : S.decks.get(key);
+    const own = N[key] || {}, eff = isF ? folderState(f.id, S.folders, N) : stateOf(d);
+    const inherited = eff !== (own.state || 'active');
+    const sib = planSiblings(key), sw = sib.reduce((a, k) => a + weightOf(N, k), 0);
+    const pct = sw ? Math.round((weightOf(N, key) / sw) * 100) : 0;
+    const daily = isF ? sumIn(f.id, perDay) : perDay.get(key) || 0;
+    const left = isF ? sumIn(f.id, remaining) : remaining.get(key) || 0;
+    const ex = examStatus(key, { decks: S.decks, folders: S.folders, nodes: N, remaining, perDay, now });
+    const label = STATES.find(s => s.id === eff).label;
+    const meta = [label, sib.length > 1 ? `${pct} %` : '', eff === 'active' ? (daily ? `≈ ${plural(daily, 'nueva', 'nuevas')} al día` : left ? 'hoy sin nuevas' : 'sin nuevas pendientes') : '', examText(ex?.days)].filter(Boolean).join(' · ');
+    const warn = ex && ex.late && eff !== 'paused' ? (ex.days <= 0
+      ? `<p class="pl-warn">${icon('alert-triangle', { size: 14 })} El examen ya pasó. Si lo terminaste, ponlo en «Solo repasos» para no olvidarlo.</p>`
+      : `<p class="pl-warn">${icon('alert-triangle', { size: 14 })} Así no te da tiempo: quedan ${plural(ex.left, 'nueva', 'nuevas')} y harían falta unas ${ex.need} al día (ahora le tocan ${ex.per}). Súbele el foco o el número de nuevas al día en Ajustes.</p>`) : '';
+    const name = isF ? `${folderIcon(f)}<span class="pl-name">${esc(f.name)}</span>` : `${deckIcon(d)}<span class="pl-name">${esc(d.name)}</span>`;
+    const kids = isF ? (() => { const k = childrenOf(f.id, S.decks, S.folders); return [...k.folders.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(x => folderKey(x.id)), ...k.decks.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(x => x.id)]; })() : [];
+    return `<details class="pl-row${isF ? ' pl-folder' : ''}${eff !== 'active' ? ' pl-' + eff : ''}" data-plkey="${key}" ${planOpen.has(key) ? 'open' : ''}>
+      <summary><span class="pl-head">${name}<span class="pl-meta">${meta}</span></span>${icon('chevron-down', { size: 16, cls: 'pl-chev' })}</summary>
+      <div class="pl-body">
+        <div class="pl-field"><span class="pl-lab">Estado</span><div class="seg seg-sm" role="group" aria-label="Estado de ${esc(isF ? f.name : d.name)}" data-plstate="${key}">${STATES.map(s => `<button type="button" class="seg-b" data-v="${s.id}" aria-pressed="${(own.state || 'active') === s.id}" title="${s.hint}">${s.label}</button>`).join('')}</div>
+          ${inherited ? `<p class="hint">Ahora manda su carpeta: está ${eff === 'paused' ? 'en pausa' : 'en «solo repasos»'}.</p>` : `<p class="hint">${STATES.find(s => s.id === (own.state || 'active')).hint}</p>`}</div>
+        <div class="pl-field"><span class="pl-lab">Foco</span>${sib.length > 1
+          ? `<span class="range"><input type="range" min="0" max="100" step="5" value="${pct}" data-plw="${key}" aria-label="Foco de ${esc(isF ? f.name : d.name)}"><output>${pct} %</output></span>
+             <p class="hint">${depth ? (isF ? 'De las nuevas de su carpeta, la parte para esta subcarpeta' : 'De las nuevas de su carpeta, la parte para este mazo') : (isF ? 'De las nuevas de cada día, la parte para esta carpeta' : 'De las nuevas de cada día, la parte para este mazo')}${eff === 'active' ? `: ≈ ${plural(daily, 'nueva', 'nuevas')} al día.` : '.'}</p>`
+          : `<p class="hint">Es lo único a su nivel: se lleva todo el foco${eff === 'active' ? ` (≈ ${plural(daily, 'nueva', 'nuevas')} al día)` : ''}.</p>`}</div>
+        <div class="pl-field"><span class="pl-lab">Examen</span><span class="btnrow"><input type="date" data-plexam="${key}" value="${own.exam || ''}" aria-label="Fecha de examen">${own.exam ? `<button type="button" class="link small" data-plclear="${key}">Quitar</button>` : ''}</span>
+          <p class="hint">${ex ? `${examText(ex.days).replace(/^./, c => c.toUpperCase())}${ex.days > 0 ? ` · quedan ${plural(ex.left, 'nueva', 'nuevas')}` : ''}.` : 'Con fecha, le damos el ritmo justo para verlo todo antes.'}</p>${warn}</div>
+      </div>
+      ${kids.length ? `<div class="pl-kids">${kids.map(k => row(k, depth + 1)).join('')}</div>` : ''}
+    </details>`;
+  }
+  const top = childrenOf(null, S.decks, S.folders);
+  const keys = [...top.folders.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(f => folderKey(f.id)), ...top.decks.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(d => d.id)];
+  const y = scrollY;
+  main.innerHTML = `<div class="section-h"><h1>Plan de estudio</h1></div>
+    <p class="muted pl-lead">Decide qué estudias ahora y cuánto foco le das a cada cosa. Con tu plan, hoy te ${today === 1 ? 'toca' : 'tocan'} <b>${plural(today, 'nueva', 'nuevas')}</b> de las ${S.newPerDay} al día que tienes en Ajustes. Los repasos de todo lo que no está en pausa salen siempre, para que no se te olvide lo que ya sabes.</p>
+    <div class="btnrow"><button type="button" class="ghost" data-act="plan-equal">Repartir por igual</button><button type="button" class="ghost" data-act="plan-urgent">Prioridad a lo urgente</button></div>
+    ${keys.length ? `<div class="pl-tree">${keys.map(k => row(k, 0)).join('')}</div>` : '<div class="empty"><p class="muted">Aún no tienes mazos. Crea uno o busca alguno en Explorar.</p></div>'}`;
+  for (const el of main.querySelectorAll('.pl-row')) el.addEventListener('toggle', () => { el.open ? planOpen.add(el.dataset.plkey) : planOpen.delete(el.dataset.plkey); });
+  for (const r of main.querySelectorAll('[data-plw]')) r.addEventListener('input', () => { r.nextElementSibling.textContent = r.value + ' %'; });
+  if (S.view === 'plan') scrollTo(0, y);
+}
+
 /* ===================== ajustes ===================== */
 const getPref = path => path.split('.').reduce((o, k) => o?.[k], S.prefs);
 function setPref(path, v) {
@@ -3653,6 +3803,7 @@ function renderSettings() {
       <div class="look-pv" aria-label="Vista previa de una tarjeta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
         <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
     ${setSec('gauge', 'Estudio diario', `
+      ${setRow('Plan de estudio', 'Qué mazos estudias ahora, cuánto foco le das a cada uno y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
       ${setRow('Tarjetas nuevas al día', 'Entre 10 y 20 va bien. Cada mazo puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
       ${setRow('Meta diaria', 'Respuestas al día. Aparece como barra de progreso en Inicio. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
@@ -5200,6 +5351,8 @@ document.addEventListener('click', async e => {
     return;
   }
   const ds = b.dataset;
+  if (b.parentElement?.dataset.plstate && ds.v) return setPlanNode(b.parentElement.dataset.plstate, { state: ds.v });
+  if (ds.plclear) return setPlanNode(ds.plclear, { exam: '' });
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
@@ -5581,6 +5734,11 @@ document.addEventListener('click', async e => {
       ta.focus(); ta.selectionStart = ta.selectionEnd = z + 4; readEditor(); return drawPreview();
     }
     case 'save-tags': return saveTagsSheet();
+    case 'plan-equal': {
+      for (const n of Object.values(planNodes())) delete n.weight;
+      savePrefsSoon(); toast('Foco repartido por igual'); return renderPlan();
+    }
+    case 'plan-urgent': return planUrgent();
     case 'toggle-archived': S.org.archived = !S.org.archived; return renderDecks();
     case 'clear-filters': Object.assign(S.org, { query: '', tagIds: [], archived: false }); return renderDecks();
     case 'add-tag-inline': {
@@ -5811,6 +5969,8 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', async e => {
+  if (e.target.dataset.plw) return setPlanWeight(e.target.dataset.plw, Number(e.target.value));
+  if (e.target.dataset.plexam !== undefined && e.target.dataset.plexam) return setPlanNode(e.target.dataset.plexam, { exam: e.target.value || '' });
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);
   if (e.target.id === 'remindAt') { if (!S.prefs.remind.on) { S.prefs.remind.time = e.target.value; return savePrefsSoon(); } return setRemind('time', e.target.value); }

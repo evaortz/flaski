@@ -1,6 +1,6 @@
 # 05 · Estado actual y pendientes
 
-Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión del service worker: `flaski-v66`;
+Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión del service worker: `flaski-v67`;
 `NEWS_VERSION = '2026-10'`.
 
 ## Lo hecho, por áreas (historial reciente, de más nuevo a más viejo)
@@ -91,7 +91,7 @@ Lo que se planeó:
   **Verificar con la persona usuaria si queda algo** (p. ej. conflictos de edición de mazos/apuntes entre dispositivos,
   o crear/editar sin conexión, que el README aún describe como no disponible).
 
-### f) Planificar el estudio: activar/desactivar mazos y repartir el foco
+### f) Planificar el estudio: activar/desactivar mazos y repartir el foco — HECHO (pantalla «Plan de estudio», js/plan.js)
 - Poder desactivar mazos (y carpetas) para que no entren en el estudio, sin borrarlos ni archivarlos.
 - Dar a cada carpeta un porcentaje de foco y, dentro de cada carpeta, un porcentaje a cada mazo; el reparto decide
   cuántas nuevas (y en qué proporción los repasos) salen de cada uno al estudiar «Todo».
