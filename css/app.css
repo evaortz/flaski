@@ -1688,3 +1688,9 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .pl-paused > summary .pl-name{color:var(--muted)}
 .pl-paused > summary .icon,.pl-paused > summary .ficon{opacity:.5}
 @media (max-width:480px){.pl-kids{padding-left:10px}}
+/* Tarjeta de Inicio para permitir los avisos */
+.push-ask{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;align-items:start;padding:14px 16px;border:1px solid var(--line);border-radius:10px}
+.push-ask > .lu{color:var(--accent);margin-top:2px}
+.push-ask-t{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.push-ask-t span{color:var(--muted)}
+.push-ask .btnrow{grid-column:2;margin-top:6px}

@@ -31,7 +31,7 @@ export const DEFAULT_PREFS = {
     cardAlign: 'center',    // 'center' | 'left'
   },
   plan: { nodes: {} },     // plan de estudio: estado, foco y examen de cada mazo y carpeta (ver plan.js)
-  remind: { on: false, time: '20:00', cheers: false },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
+  remind: { on: true, time: '20:00', cheers: true },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
 };
 

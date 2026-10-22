@@ -392,6 +392,7 @@ async function onSignedIn(session) {
     render();
     maybeIntro();
     maybeNews();
+    pushAutoSync();
   } catch (e) {
     S.loading = false;
     main.innerHTML = `<div class="panel"><h2>No se pudieron cargar tus datos</h2><p>${esc(errMsg(e))}</p><button class="primary" data-act="reload">Reintentar</button></div>`;
@@ -597,6 +598,7 @@ function renderHome() {
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${goal}
     </section>
+    ${pushAskHTML()}
     ${homeFriendsHTML()}
     ${H.activity ? `<section class="chart-card lv" data-live aria-labelledby="h-act">
       <div class="lv-h"><h2 class="lv-k" id="h-act">Actividad<span class="lv-day"></span></h2>${tabs('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.short]))}</div>
@@ -3765,7 +3767,36 @@ function remindRows() {
   return `${setRow('Recordatorio diario', 'Un aviso en este dispositivo, aunque la app esté cerrada, si te toca repasar o vas a perder la racha. Si ya lo tienes todo hecho, no avisa.', box('remindOn', R.on))}
     ${setRow('Hora del aviso', 'A esta hora, cada día.', `<select id="remindAt" aria-label="Hora del aviso">${times.map(t => `<option ${t === R.time ? 'selected' : ''}>${t}</option>`).join('')}</select>`, { id: 'row-remind', off: !R.on || !!why })}
     ${api.social ? setRow('Cuando alguien te anime', 'Un aviso cuando un amigo te mande ánimos.', box('remindCheers', R.cheers)) : ''}
-    <p class="hint set-note" id="remindMsg" role="status">${why ? BLOCKER_TEXT[why] : ''}</p>`;
+    <p class="hint set-note" id="remindMsg" role="status">${why ? BLOCKER_TEXT[why] : pushPending() ? 'Falta permitir las notificaciones en este dispositivo. <button type="button" class="link" data-act="push-allow">Permitir</button>' : ''}</p>`;
+}
+// Los avisos vienen activados: si en este dispositivo aún no se han permitido, Inicio lo pide con una
+// tarjeta (el permiso solo se puede pedir al tocar un botón); si ya lo están, se suscribe solo al entrar
+const PUSH_ASK = 'flaski-push-ask';
+const pushWanted = () => S.prefs.remind.on || S.prefs.remind.cheers;
+const pushPending = () => !!api.push && pushWanted() && !remindBlock() && Notification.permission === 'default';
+function pushAskHTML() {
+  if (!pushPending()) return '';
+  try { if (localStorage.getItem(PUSH_ASK) === 'no') return ''; } catch { /* sin almacenamiento */ }
+  const R = S.prefs.remind, what = [R.on && `te recordamos repasar a las ${R.time}`, R.cheers && api.social && 'te avisamos cuando alguien te anime'].filter(Boolean).join(' y ');
+  return `<section class="push-ask" id="pushAsk" aria-labelledby="pushAskH">${icon('bell', { size: 20 })}
+    <div class="push-ask-t"><b id="pushAskH">Activa los avisos</b><span>${what.charAt(0).toUpperCase() + what.slice(1)}. Puedes cambiarlo en Ajustes → Avisos.</span></div>
+    <div class="btnrow"><button type="button" class="primary small-btn" data-act="push-allow">Activar</button><button type="button" class="ghost small-btn" data-act="push-later">Ahora no</button></div></section>`;
+}
+function pushAutoSync() {
+  const R = S.prefs.remind;
+  if (api.push && pushWanted() && !remindBlock() && Notification.permission === 'granted') syncPush({ daily: R.on, cheers: R.cheers, time: R.time }, api.push).catch(() => {});
+}
+async function pushAllow() {
+  const R = S.prefs.remind;
+  try {
+    await syncPush({ daily: R.on, cheers: R.cheers, time: R.time }, api.push);
+    toast('Avisos activados');
+  } catch (err) {
+    toast(err.message === 'denied' ? 'Has bloqueado las notificaciones: puedes permitirlas en los ajustes del navegador.' : 'Sin permiso no podemos avisarte. Puedes activarlo cuando quieras en Ajustes → Avisos.');
+  }
+  try { localStorage.setItem(PUSH_ASK, 'no'); } catch { /* sin almacenamiento */ }
+  $('#pushAsk')?.remove();
+  if (S.view === 'settings') { const y = scrollY; renderSettings(); scrollTo(0, y); }
 }
 // Aplica un cambio (key: 'on' | 'cheers' | 'time'); si falla, lo deja como estaba
 async function setRemind(key, value) {
@@ -5775,6 +5806,8 @@ document.addEventListener('click', async e => {
       return (await copyText(url, 'Enlace copiado')) || toast(url);
     }
     case 'fr-accept-invite': closeSheet(); return addFriend(ds.code);
+    case 'push-allow': return pushAllow();
+    case 'push-later': { try { localStorage.setItem(PUSH_ASK, 'no'); } catch { /* sin almacenamiento */ } $('#pushAsk')?.remove(); return; }
     case 'cheers-seen': {
       const ids = (S.friends?.cheers || []).map(c => c.id);
       S.friends.cheers = [];
