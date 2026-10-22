@@ -51,7 +51,8 @@ export const addEvents = impl.addEvents;
 export const mergeLog = impl.mergeLog;
 export const offline = impl.offline || null;   // cola de cambios pendientes (solo en la nube)
 export const imageStore = impl.imageStore || null;
-export const social = impl.social || null;         // amigos (solo con cuenta)   // imágenes en la nube (sin cuenta, solo en el navegador)
+export const social = impl.social || null;         // amigos (solo con cuenta)
+export const push = impl.push || null;             // recordatorio diario con notificaciones (solo con cuenta)
 
 export function newId() {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID();

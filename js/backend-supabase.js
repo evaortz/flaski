@@ -324,3 +324,10 @@ export async function createPage(fields) {
 export async function deletePage(id) {
   check(await sb.from('pages').delete().eq('id', id));
 }
+
+/* ---------------- Recordatorio diario (Web Push) ----------------
+   Una fila por dispositivo suscrito, con la hora a la que avisar (ver js/push.js). */
+export const push = {
+  save: async row => check(await sb.from('push_subs').upsert(row, { onConflict: 'endpoint' })),
+  remove: async endpoint => check(await sb.from('push_subs').delete().eq('endpoint', endpoint)),
+};

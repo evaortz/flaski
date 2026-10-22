@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v65';
+const VERSION = 'flaski-v66';
 const STROKES = 'flaski-strokes-v1';
 const SHELL = [
   './',
@@ -11,7 +11,7 @@ const SHELL = [
   './fonts/atkinson-400-italic-latin.woff2', './fonts/atkinson-400-italic-latin-ext.woff2', './fonts/atkinson-700-italic-latin.woff2', './fonts/atkinson-700-italic-latin-ext.woff2',
   './fonts/general-sans-500.woff2', './fonts/general-sans-600.woff2', './fonts/general-sans-700.woff2',
   './js/app.js',
-  './js/api.js',
+  './js/api.js', './js/push.js',
   './js/srs.js',
   './js/prefs.js',
   './js/stats.js',
@@ -96,4 +96,23 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))
   );
+});
+
+// Recordatorio diario: el aviso llega aunque la app esté cerrada (ver js/push.js)
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Flaski', {
+    body: d.body || 'Tienes tarjetas por repasar.', tag: d.tag || 'flaski', renotify: false,
+    icon: './icons/icon-192.png', badge: './icons/icon-192.png', data: { url: d.url || './' },
+  }));
+});
+// Al tocar el aviso: la app, si ya está abierta; si no, se abre
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    const open = list.find(c => c.url.startsWith(self.registration.scope));
+    return open ? open.focus() : self.clients.openWindow(url);
+  }));
 });

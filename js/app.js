@@ -5,6 +5,7 @@ import { toRow, progressCols } from './rows.js';
 import { schedule, fmtWhen, startOfDay, dateKey, DAY, GRADES, ALGO_PRESETS, DEFAULT_ALGO } from './srs.js';
 import { DEFAULT_PREFS, loadPrefs, algoFor, applyLook, applySavedLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from './prefs.js';
 import { statsView, drawStats } from './stats.js';
+import { pushBlocker, BLOCKER_TEXT, syncPush } from './push.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
 import { heatmapView, HM_PERIODS, progressSeries, progressView, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
@@ -3594,7 +3595,7 @@ const setRow = (label, hint, control, { id = '', off = false } = {}) => {
   return `<div class="set-row${off ? ' is-off' : ''}"${id ? ` id="${id}"` : ''}><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
 };
 const setSec = (ic, title, body, id = '') => `<section class="set-sec"${id ? ` id="${id}"` : ''}><h2>${icon(ic, { size: 18 })} ${title}</h2><div class="set-body">${body}</div></section>`;
-const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Inicio'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
+const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Inicio'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
 
 // Simulación: intervalos de una tarjeta que aciertas siempre con «Bien»
 function algoPreview(A) {
@@ -3602,6 +3603,35 @@ function algoPreview(A) {
   for (let i = 0; i < 7; i++) { p = schedule(p, 3, t, A); out.push(p.interval); t = p.due; }
   const f = d => d < 1 ? 'hoy' : d < 31 ? `${d} d` : d < 365 ? `${Math.round(d / 30)} mes` : `${(d / 365).toFixed(1).replace('.', ',')} años`;
   return out.map(f).join(' → ');
+}
+// Avisos: el recordatorio diario (a tu hora, si te toca repasar o vas a perder la racha) y cuando alguien
+// te anima. Se guardan en este dispositivo (ver js/push.js)
+const remindBlock = () => pushBlocker({ cloud: !!api.push });
+function remindRows() {
+  const R = S.prefs.remind, why = remindBlock(), times = [];
+  for (let h = 6; h <= 23; h++) for (const m of ['00', '30']) times.push(`${String(h).padStart(2, '0')}:${m}`);
+  if (!times.includes(R.time)) times.push(R.time);
+  const box = (id, on) => `<label class="switch"><input type="checkbox" role="switch" id="${id}" ${on && !why ? 'checked' : ''} ${why ? 'disabled' : ''}><span class="slider" aria-hidden="true"></span></label>`;
+  return `${setRow('Recordatorio diario', 'Un aviso en este dispositivo, aunque la app esté cerrada, si te toca repasar o vas a perder la racha. Si ya lo tienes todo hecho, no avisa.', box('remindOn', R.on))}
+    ${setRow('Hora del aviso', 'A esta hora, cada día.', `<select id="remindAt" aria-label="Hora del aviso">${times.map(t => `<option ${t === R.time ? 'selected' : ''}>${t}</option>`).join('')}</select>`, { id: 'row-remind', off: !R.on || !!why })}
+    ${api.social ? setRow('Cuando alguien te anime', 'Un aviso cuando un amigo te mande ánimos.', box('remindCheers', R.cheers)) : ''}
+    <p class="hint set-note" id="remindMsg" role="status">${why ? BLOCKER_TEXT[why] : ''}</p>`;
+}
+// Aplica un cambio (key: 'on' | 'cheers' | 'time'); si falla, lo deja como estaba
+async function setRemind(key, value) {
+  const R = S.prefs.remind, before = R[key], say = t => { const m = $('#remindMsg'); if (m) m.textContent = t; };
+  R[key] = value;
+  try {
+    await syncPush({ daily: R.on, cheers: R.cheers, time: R.time }, api.push);
+    say(key === 'cheers' ? (value ? 'Te avisaremos cuando alguien te anime.' : '') : R.on ? `Te avisaremos a las ${R.time} si tienes algo pendiente.` : '');
+  } catch (err) {
+    R[key] = before;
+    const box = $(key === 'on' ? '#remindOn' : key === 'cheers' ? '#remindCheers' : '#remindAt');
+    if (box) box.type === 'checkbox' ? (box.checked = before) : (box.value = before);
+    say(err.message === 'denied' ? BLOCKER_TEXT.denied : err.message === 'dismissed' ? 'Hace falta que permitas las notificaciones para avisarte.' : 'No se ha podido guardar. Inténtalo de nuevo.');
+  }
+  savePrefsSoon();
+  $('#row-remind')?.classList.toggle('is-off', !R.on);
 }
 // Orden: primero lo que más se cambia (apariencia, estudio diario); al final lo avanzado (ritmo) y los datos
 function renderSettings() {
@@ -3629,6 +3659,7 @@ function renderSettings() {
       ${setRow('Orden de las nuevas', 'En qué orden salen las tarjetas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en el mazo'], ['random', 'Al azar']]))}
       ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
       ${setRow('Tu idioma', 'En los mazos de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
+    ${setSec('bell', 'Avisos', remindRows(), 's-remind')}
     ${setSec('layers', 'Durante la sesión', `
       ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
       ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la tarjeta.', sw('study.showIntervals'))}
@@ -5780,6 +5811,9 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', async e => {
+  if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
+  if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);
+  if (e.target.id === 'remindAt') { if (!S.prefs.remind.on) { S.prefs.remind.time = e.target.value; return savePrefsSoon(); } return setRemind('time', e.target.value); }
   if (e.target.matches?.('[data-sug]')) {
     const sgi = S.sug?.list[+e.target.dataset.sug];
     if (sgi) { sgi.selected = e.target.checked; e.target.closest('.sug')?.classList.toggle('on', sgi.selected); }

@@ -9,3 +9,7 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_Nm9rFu8bisfMYRtfCUskAA_9rA7vMHR
 
 // Nombre de la app (aparece en la cabecera)
 export const APP_NAME = 'Flaski';
+
+// Clave pública VAPID para el recordatorio diario con notificaciones (vacía = desactivado).
+// Ver supabase/functions/recordatorio/README.md
+export const VAPID_PUBLIC_KEY = '';

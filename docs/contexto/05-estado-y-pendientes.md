@@ -1,6 +1,6 @@
 # 05 · Estado actual y pendientes
 
-Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión del service worker: `flaski-v64`;
+Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión del service worker: `flaski-v66`;
 `NEWS_VERSION = '2026-10'`.
 
 ## Lo hecho, por áreas (historial reciente, de más nuevo a más viejo)
@@ -54,7 +54,7 @@ Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión de
   reconstruido con el `ivl` de `review_events`, anotaciones «+60 de Biología» y «llegas a 100», cabecera viva).
 - Al terminar: pruebas (`inicio.spec.js`), subir `VERSION` del SW, valorar pantalla de novedades y capturas.
 
-### b) Rehacer todos los gráficos de Estadísticas con el estilo nuevo (`js/stats.js`)
+### b) Rehacer todos los gráficos de Estadísticas con el estilo nuevo (`js/stats.js`) — HECHO (commit c13842b)
 - **KPIs** con mini sparklines.
 - **Respuestas por día**: barras con hoy en tono oscuro y el resto claro.
 - **Botones** (Otra vez/Difícil/Bien/Fácil) en tonos del acento, no en colores distintos.
@@ -67,7 +67,11 @@ Actualizado el 2026-10-22. Para el detalle: `git log --oneline -40`. Versión de
 - **«Las que más se te resisten»**: lista con barra fina.
 - Todo con cabecera viva (sin tooltips flotantes), sin rejilla ni eje Y, pestañas de periodo subrayadas.
 
-### c) Recordatorio diario con notificaciones Web Push
+### c) Avisos con notificaciones Web Push — HECHO en código; falta configurarlo en Supabase
+- Pasos en `supabase/functions/recordatorio/README.md` (tabla, claves VAPID, desplegar la función, pg_cron y webhook de `cheers`).
+- Ajustes → Avisos: recordatorio diario (con hora) y «Cuando alguien te anime». Código: `js/push.js`, `sw.js` (push y notificationclick).
+
+Lo que se planeó:
 - Tabla en Supabase para las suscripciones (endpoint, claves, hora y zona horaria, usuario) con RLS.
 - Edge Function que envía los avisos + `pg_cron` para lanzarla periódicamente; claves **VAPID** (la privada como
   secreto de Supabase, nunca en el repo; la pública en el cliente).

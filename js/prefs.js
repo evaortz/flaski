@@ -30,6 +30,7 @@ export const DEFAULT_PREFS = {
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
+  remind: { on: false, time: '20:00', cheers: false },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
 };
 

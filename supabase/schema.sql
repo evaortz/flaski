@@ -516,3 +516,27 @@ grant execute on function public.my_social(), public.set_share(boolean), public.
 -- El algoritmo FSRS guarda de cada tarjeta su estabilidad (días) y su dificultad (1 a 10)
 alter table public.progress add column if not exists stability  real;
 alter table public.progress add column if not exists difficulty real;
+
+-- ---------- Recordatorio diario con notificaciones (versión 10) ----------
+-- Una fila por dispositivo suscrito: a dónde mandar el aviso (endpoint y claves del navegador),
+-- a qué hora (en su zona horaria) y el último día que se mandó. La función «recordatorio»
+-- (supabase/functions/recordatorio) la lee con la clave de servicio cada 15 minutos.
+create table if not exists public.push_subs (
+  endpoint   text primary key,
+  user_id    uuid not null default auth.uid() references auth.users on delete cascade,
+  p256dh     text not null,
+  auth       text not null,
+  hour       smallint not null default 20 check (hour between 0 and 23),
+  minute     smallint not null default 0 check (minute in (0, 15, 30, 45)),
+  tz         text not null default 'Europe/Madrid',
+  last_sent  date,
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subs_user_idx on public.push_subs (user_id);
+alter table public.push_subs enable row level security;
+drop policy if exists "mis avisos" on public.push_subs;
+create policy "mis avisos" on public.push_subs
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- Qué avisos quiere cada dispositivo: el recordatorio diario y/o cuando alguien le anima
+alter table public.push_subs add column if not exists daily  boolean not null default true;
+alter table public.push_subs add column if not exists cheers boolean not null default false;
