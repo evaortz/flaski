@@ -8,7 +8,8 @@ import { $, main, S, esc, cardList, deckIcon, deckName, capNote, counts, planMet
 import { plural } from './mazos.js';
 import { H } from './apuntes.js';
 import { statsData, tabs, pushAskHTML } from './perfil.js';
-import { go, homeFriendsHTML } from '../app.js';
+import { homeFriendsHTML } from './amigos.js';
+import { go } from '../app.js';
 
 /* ===================== inicio ===================== */
 export function renderHome() {

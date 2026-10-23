@@ -17,7 +17,8 @@ import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js
 import { newPage } from './apuntes.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
-import { go, render, loadFriends, inviteSheet } from '../app.js';
+import { loadFriends, inviteSheet } from './amigos.js';
+import { go, render } from '../app.js';
 
 /* ===================== sin configurar ===================== */
 function renderSetup() {

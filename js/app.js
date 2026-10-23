@@ -7,17 +7,17 @@ import { APP_NAME } from './config.js';
 import { initProgressHover, streaks, initChartTips } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
-import { LANGS, orderTokens, checkTyped, blankType, copyType, nextId, baseLang, parsePairs, checkNumber } from './cardtypes.js';
+import { orderTokens, checkTyped, blankType, copyType, nextId, parsePairs, checkNumber } from './cardtypes.js';
 import { speak, setBaseRate } from './tts.js';
 import { loadSnapshot, deleteSnapshot, lastUser, forgetUser } from './snapshot.js';
 import { parsePasted } from './notes.js';
-import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
+import { formatCode, parseInvite } from './friends.js';
 import { PRESELECT } from './suggest.js';
 import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, errMsg, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
@@ -26,6 +26,7 @@ import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pa
 import { pageCards, savePageSoon, noteCrumbs, pageFolder, renderNotes, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, formatSelection, syncBlock, placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, notesHelpSheet, showHelpTab, blockCardsSheet, setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/apuntes.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
 /* ===================== navegación ===================== */
 export function go(view, extra = {}) {
@@ -842,174 +843,6 @@ document.addEventListener('keydown', e => {
   else if (!ses.revealed && (mode === 'choice' || mode === 'clozechoice') && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
   else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
 });
-
-/* ===================== amigos ===================== */
-// Se cargan aparte de lo demás (no retrasan la app) y se refrescan como mucho una vez por minuto
-const FR = () => S.friends || (S.friends = { me: null, list: [], requests: [], cheers: [], loaded: false, missing: false, error: '', at: 0 });
-export async function loadFriends(force = false) {
-  if (!api.social || !S.uid || S.fromCache) return;
-  const f = FR();
-  if (!force && f.at && Date.now() - f.at < 60e3) return;
-  f.at = Date.now();
-  try {
-    const [me, list, requests, cheers] = await Promise.all([api.social.me(), api.social.summary(dateKey()), api.social.requests(), api.social.cheers()]);
-    Object.assign(f, { me, list: list || [], requests: requests || [], cheers: cheers || [], missing: false, error: '' });
-  } catch (e) {
-    if (api.social.isMissingFn(e)) f.missing = true; else f.error = errMsg(e);
-  }
-  f.loaded = true;
-  friendsChanged();
-}
-// Repinta lo que muestra amigos (la pantalla de amigos, la tarjeta de Inicio y el aviso en Perfil)
-function friendsChanged() {
-  if (S.view === 'friends') return renderFriends();
-  const el = $('#homeFriends');
-  if (el && S.view === 'home') el.outerHTML = homeFriendsHTML();
-  const badge = $('#frBadge');
-  if (badge) { const n = incoming().length; badge.textContent = n; badge.hidden = !n; }
-}
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadFriends(); });
-export const incoming = () => (S.friends?.requests || []).filter(r => r.dir === 'in');
-const myWeek = () => weekDays().map(k => S.log[k] || 0);
-// Ánimos ya mandados hoy (para no ofrecer otro al mismo amigo)
-function cheeredToday() {
-  try { const c = JSON.parse(localStorage.getItem('flaski-cheered') || 'null'); return c?.day === dateKey() ? new Set(c.ids) : new Set(); } catch { return new Set(); }
-}
-function markCheered(id) {
-  const ids = cheeredToday(); ids.add(id);
-  try { localStorage.setItem('flaski-cheered', JSON.stringify({ day: dateKey(), ids: [...ids] })); } catch {}
-}
-const avatar = (name, me = false) => `<span class="fr-av${me ? ' me' : ''}" aria-hidden="true">${esc(initial(name))}</span>`;
-const langNames = langs => (langs || []).map(b => LANGS.find(l => baseLang(l.id) === b)?.label.split(' (')[0] || b);
-
-// Barras de la semana (lunes a domingo); hoy, marcado
-function weekBars(week) {
-  const max = Math.max(1, ...week.map(n => Number(n) || 0)), today = (new Date().getDay() + 6) % 7;
-  return `<div class="fr-week" aria-label="Repasos de esta semana">${week.map((n, i) => `<span class="fr-day${i === today ? ' today' : ''}${n ? ' on' : ''}" title="${WEEK_LETTERS[i]}: ${plural(n || 0, 'repaso', 'repasos')}">
-    <i style="height:${n ? Math.max(12, Math.round((n / max) * 100)) : 0}%"></i><small>${WEEK_LETTERS[i]}</small></span>`).join('')}</div>`;
-}
-
-// Tarjeta de Inicio: ánimos recibidos y la clasificación de la semana
-export function homeFriendsHTML() {
-  const f = S.friends;
-  if (!api.social || !f?.loaded || f.missing || !S.prefs.home.friends) return '<div id="homeFriends"></div>';
-  const cheers = f.cheers.length ? (() => {
-    const names = [...new Set(f.cheers.map(c => c.name || 'Alguien'))];
-    const who = names.length > 2 ? `${names.slice(0, 2).join(', ')} y ${names.length - 2} más` : names.join(' y ');
-    return `<div class="cheer-banner" role="status"><span class="cheer-emo" aria-hidden="true">👏</span><span><b>${esc(who)}</b> ${names.length > 1 ? 'te animan' : 'te anima'} a seguir estudiando</span><button class="ghost small-btn" data-act="cheers-seen">Gracias</button></div>`;
-  })() : '';
-  const shared = f.list.filter(x => x.shared);
-  if (!f.list.length) {
-    return `<div id="homeFriends">${cheers}<section class="chart-card fr-home-empty"><div class="chart-h"><h2>Estudia con amigos</h2></div>
-      <p class="muted small">Invita a alguien y veréis vuestras rachas y quién repasa más cada semana.</p>
-      <button class="ghost small-btn" data-nav="friends">${icon('users', { size: 16 })} Invitar a un amigo</button></section></div>`;
-  }
-  const me = { id: S.uid, name: S.name || 'Tú', week: myWeek(), streak: streaks(S.log).current, me: true, shared: true };
-  const rows = ranking(me, shared).map(p => `<li class="${p.me ? 'me' : ''}"><span class="rk-pos">${p.pos}</span>${avatar(p.name, p.me)}
-    <span class="rk-name">${p.me ? 'Tú' : esc(p.name)}</span>
-    <span class="rk-streak" title="Racha">${icon('fire', { size: 14 })}${p.streak || 0}</span>
-    <span class="rk-total"><b>${p.total}</b> <small>${p.total === 1 ? 'repaso' : 'repasos'}</small></span></li>`).join('');
-  return `<div id="homeFriends">${cheers}<section class="chart-card" aria-labelledby="h-rank">
-    <div class="chart-h"><h2 id="h-rank">Esta semana</h2><button class="link small" data-nav="friends">Amigos</button></div>
-    <ol class="rank">${rows}</ol>
-    <p class="muted small rk-foot">Se reinicia cada lunes.</p></section></div>`;
-}
-
-function renderFriends() {
-  const head = `<nav class="crumbs" aria-label="Ruta"><button class="crumb" data-nav="profile">Perfil</button><span class="sep" aria-hidden="true">/</span><span class="crumb crumb-cur">Amigos</span></nav><h1>Amigos</h1>`;
-  if (!api.social) {
-    main.innerHTML = `${head}<div class="panel"><p>Para tener amigos necesitas una cuenta.</p>
-      <p class="muted small">Ahora estás en modo local: tus datos están solo en este navegador. Conecta la app a Supabase (ver README) para crear cuentas.</p></div>`;
-    return;
-  }
-  const f = FR();
-  if (!f.loaded && S.fromCache) { main.innerHTML = `${head}<div class="panel"><p>Sin conexión. Tus amigos aparecerán cuando vuelva la red.</p></div>`; return; }
-  if (!f.loaded) { loadFriends(true); main.innerHTML = `${head}<div class="empty"><div class="spin" aria-label="Cargando"></div></div>`; return; }
-  if (f.missing) {
-    main.innerHTML = `${head}<div class="panel"><h2>Falta un paso</h2><p>Para usar amigos, ejecuta otra vez <b>supabase/schema.sql</b> en Supabase (SQL Editor → New query → Run).</p>
-      <button class="ghost" data-act="friends-reload">Ya lo he hecho</button></div>`;
-    return;
-  }
-  if (!f.me) {
-    main.innerHTML = `${head}<div class="panel"><p>${esc(f.error || 'No se han podido cargar tus amigos.')}</p><button class="ghost" data-act="friends-reload">Reintentar</button></div>`;
-    return;
-  }
-  const cheered = cheeredToday();
-  const inc = incoming(), out = f.requests.filter(r => r.dir === 'out'), blocked = f.requests.filter(r => r.dir === 'blocked');
-  const card = p => {
-    const total = weekTotal(p.week);
-    const langs = langNames(p.langs);
-    return `<li class="fr-card">
-      <div class="fr-top">${avatar(p.name)}<div class="fr-who"><b>${esc(p.name || 'Sin nombre')}</b>
-        ${p.shared ? `<span class="fr-meta"><span class="fr-streak">${icon('fire', { size: 14 })} ${plural(p.streak, 'día', 'días')}</span>
-          <span class="${p.today ? 'fr-today' : 'muted'}">${p.today ? `${icon('check', { size: 13 })} Hoy, ${plural(p.today, 'repaso', 'repasos')}` : 'Hoy aún no ha estudiado'}</span></span>`
-          : '<span class="fr-meta muted">No comparte su actividad</span>'}</div>
-        <button type="button" class="iconbtn" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name)}" title="Opciones">${icon('ellipsis', { size: 18 })}</button></div>
-      ${p.shared ? `${weekBars(p.week)}<div class="fr-foot"><span class="muted small">${plural(total, 'repaso', 'repasos')} esta semana${langs.length ? ` · ${esc(langs.join(', '))}` : ''}</span>
-        <button type="button" class="ghost small-btn" data-cheer="${p.id}" ${cheered.has(p.id) ? 'disabled' : ''}>${cheered.has(p.id) ? 'Ánimo enviado' : '👏 Animar'}</button></div>` : ''}
-    </li>`;
-  };
-  const link = inviteLink(f.me.code);
-  main.innerHTML = `${head}
-    <section class="panel fr-invite">
-      <h2>Invita a tus amigos</h2>
-      <p class="muted small">Pásales tu enlace o tu código. Cuando lo acepten, veréis vuestras rachas y los repasos de la semana; nunca vuestros mazos ni apuntes.</p>
-      <div class="fr-code"><span class="muted small">Tu código</span><b id="frMyCode">${esc(formatCode(f.me.code))}</b></div>
-      <div class="btnrow"><button class="primary" data-act="fr-share" data-link="${esc(link)}">${icon('share', { size: 16 })} Compartir enlace</button>
-        <button class="ghost" data-act="fr-copy-code">${icon('copy', { size: 16 })} Copiar código</button></div>
-      <form data-form="add-friend" class="fr-add" autocomplete="off"><label for="frCode">Añadir con el código de un amigo</label>
-        <div class="fr-addrow"><input id="frCode" placeholder="XXXX-XXXX" maxlength="12" autocapitalize="characters" spellcheck="false"><button class="ghost" type="submit">Añadir</button></div></form>
-    </section>
-    ${inc.length ? `<div class="section-h"><h2>Peticiones</h2></div><ul class="list fr-reqs">${inc.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">quiere ser tu amigo</span></span>
-      <span class="btnrow"><button class="primary small-btn" data-fr-accept="${r.id}">Aceptar</button><button class="ghost small-btn" data-fr-reject="${r.id}">Rechazar</button></span></li>`).join('')}</ul>` : ''}
-    <div class="section-h"><h2>Tus amigos${f.list.length ? ` · ${f.list.length}` : ''}</h2></div>
-    ${f.list.length ? `<ul class="fr-list">${[...f.list].sort((a, b) => weekTotal(b.week) - weekTotal(a.week)).map(card).join('')}</ul>`
-      : '<p class="muted">Aún no tienes amigos en Flaski. Comparte tu enlace para empezar.</p>'}
-    ${out.length ? `<div class="section-h"><h2>Enviadas</h2></div><ul class="list fr-reqs">${out.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">pendiente</span></span>
-      <span class="btnrow"><button class="ghost small-btn" data-fr-cancel="${r.other}">Cancelar</button></span></li>`).join('')}</ul>` : ''}
-    <section class="panel fr-privacy"><h2>Privacidad</h2>
-      <div class="set-row"><div class="set-l"><b id="frShareL">Compartir mi actividad</b><small>Tus amigos ven tu racha, tus repasos de la semana y los idiomas que estudias.</small></div>
-        <div class="set-c"><label class="switch"><input type="checkbox" role="switch" id="frShare" aria-labelledby="frShareL" ${f.me.share ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
-      ${blocked.length ? `<p class="small" style="margin-bottom:4px"><b>Bloqueados</b></p><ul class="list fr-reqs">${blocked.map(r => `<li class="fr-req">${avatar(r.name)}<span>${esc(r.name || 'Alguien')}</span>
-        <span class="btnrow"><button class="ghost small-btn" data-fr-unblock="${r.other}">Desbloquear</button></span></li>`).join('')}</ul>` : ''}
-    </section>`;
-  loadFriends();
-}
-// Acciones de amigos: cada una llama a Supabase y vuelve a cargar la lista
-async function friendAction(fn, ok) {
-  try { await fn(); if (ok) toast(ok); } catch (e) { return fail(e); }
-  await loadFriends(true);
-}
-const ADD_MSG = {
-  sent: 'Petición enviada. Cuando la acepte, aparecerá en tu lista.', accepted: '¡Ya sois amigos!', already: 'Ya sois amigos',
-  pending: 'Ya le habías enviado una petición', self: 'Ese es tu propio código', not_found: 'No hay nadie con ese código', blocked: 'No se puede añadir a esa persona',
-};
-async function addFriend(raw) {
-  const code = cleanCode(raw);
-  if (!code) return toast('El código tiene 8 letras o números, como ABCD-1234');
-  try { const r = await api.social.request(code); toast(ADD_MSG[r] || 'Hecho'); } catch (e) { return fail(e); }
-  const inp = $('#frCode'); if (inp) inp.value = '';
-  await loadFriends(true);
-}
-function friendMenu(id) {
-  const p = S.friends?.list.find(x => x.id === id);
-  if (!p) return;
-  openSheet(`<h2>${esc(p.name || 'Amigo')}</h2>
-    <p class="muted small">Amigos desde el ${new Date(p.since).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>
-    <div class="btnrow" style="flex-direction:column;align-items:stretch">
-      <button class="ghost" data-fr-remove="${p.id}">Quitar de amigos</button>
-      <button class="ghost danger" data-fr-block="${p.id}">Bloquear</button>
-      <button class="primary" data-act="close-sheet">Cerrar</button></div>
-    <p class="muted small">Si lo bloqueas, deja de ver tu actividad y no puede volver a pedirte amistad.</p>`);
-}
-// Al abrir un enlace de invitación
-export function inviteSheet(code) {
-  if (!api.social) return toast('Para añadir amigos necesitas una cuenta');
-  openSheet(`<h2>Te han invitado a Flaski</h2>
-    <p>Alguien quiere estudiar contigo. Si aceptas, os aparecerá la racha y los repasos de la semana del otro.</p>
-    <p class="muted small">Código de la invitación: <b>${esc(formatCode(code))}</b></p>
-    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Ahora no</button><button class="primary" data-act="fr-accept-invite" data-code="${esc(code)}">Aceptar la invitación</button></div>`);
-}
 
 /* ===================== arranque ===================== */
 (async function boot() {
