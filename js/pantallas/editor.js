@@ -659,7 +659,7 @@ export async function saveFolderForm(form) {
     const f = id ? await api.updateFolder(id, fields) : await api.createFolder({ ...fields, owner: S.uid });
     S.folders.set(f.id, f);
     toast(id ? 'Carpeta guardada' : 'Carpeta creada');
-    if (S.view === 'notes') go('notes', { noteFolder: f.id }); else go('decks', { folderId: f.id });
+    if (S.view === 'notes' || (S.view === 'library' && S.folderForNotes)) go('notes', { noteFolder: f.id }); else go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
 }
 export async function addTag(name, color = 'gray') {

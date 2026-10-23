@@ -10,7 +10,7 @@ import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
 import { pageTitle } from '../pages.js';
-import { $, main, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts, planMeta } from '../comun.js';
+import { $, main, libHost, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts, planMeta } from '../comun.js';
 import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
 import { previewImport } from './explorar.js';
 import { drag } from './apuntes.js';
@@ -125,7 +125,7 @@ export function renderDecks() {
       <button class="pill-tint" data-start="${first.id}">Estudiar</button></div>` : '';
   const note = first ? `<div class="hand-note" aria-hidden="true"><span>empieza por aquí,<br>${plural(fsN, 'pendiente', 'pendientes')}</span>${ARROW}</div>` : '';
 
-  main.innerHTML = `
+  libHost('#libDecks').innerHTML = `
     ${folder && !filtering ? crumbs(folder.id) : ''}
     <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1><button class="add-round" data-act="new-deck" aria-label="Nueva lista">${icon('plus', { size: 20 })}</button></div>${note}</div>
     ${feat}
@@ -147,7 +147,6 @@ export function renderDecks() {
     </div>
     <div class="btnrow btnrow-sm">
       <button class="ghost small-btn" data-act="new-folder">+ Carpeta</button>
-      <button class="ghost small-btn" data-nav="plan">Plan de estudio</button>
       <button class="ghost small-btn" data-act="import">Importar</button>
       <button class="ghost small-btn" data-act="paste">Pegar</button>
     </div>

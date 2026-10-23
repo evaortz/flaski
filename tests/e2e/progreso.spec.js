@@ -7,7 +7,7 @@ test('tu progreso: lo que te sabes, periodos, notas y la cabecera al recorrer lo
   await openApp(page);
   const card = page.locator('#pgHost');
   await expect(card.locator('.lv-k')).toContainText('Tu progreso · hoy');
-  await expect(card.locator('.lv-of')).toContainText(`de ${db.cards.length} tarjetas te las sabes`);
+  await expect(card.locator('.lv-of')).toContainText(`de ${db.cards.length} preguntas te las sabes`);
   const n = Number((await card.locator('.lv-n').textContent()).replace(/\./g, ''));
   expect(n).toBeGreaterThan(50);
   expect(n).toBeLessThanOrEqual(db.cards.length);
@@ -79,7 +79,7 @@ test('estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera
   await expect(rev.locator('.lv-n')).toHaveText(total);
   await expect(page.locator('#stPg .lv-k')).toContainText('Tu progreso');
   await expect(page.locator('section[aria-labelledby="st-hour"] .lv-of')).toHaveText('tu mejor hora');
-  await expect(page.locator('section[aria-labelledby="st-ivl"] .lv-sub')).toContainText('La mitad de tus tarjetas');
+  await expect(page.locator('section[aria-labelledby="st-ivl"] .lv-sub')).toContainText('La mitad de tus preguntas');
   await expect(page.locator('.hard-bar').first()).toBeVisible();
   if (process.env.SHOT) await page.screenshot({ path: `${process.env.SHOT}/stats-${info.project.name}.png`, fullPage: true });
 });

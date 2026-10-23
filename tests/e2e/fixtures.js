@@ -45,7 +45,7 @@ export async function answer(page, g = 3) {
 }
 
 export async function createDeck(page, name) {
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();
   await page.locator('#d-name').fill(name);
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
@@ -70,7 +70,7 @@ export async function addBasicCards(page, pairs) {
 export async function addBuiltinDeck(page, name) {
   await nav(page, 'Explorar');
   await page.getByRole('button', { name: new RegExp(name) }).click();
-  await page.getByRole('button', { name: 'Añadir a mis mazos' }).click();
+  await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }
 // Unos apuntes a partir de un texto: un apunte nuevo (el primer «# » es su título) y el resto pegado dentro

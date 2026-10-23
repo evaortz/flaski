@@ -10,6 +10,8 @@ import { pageTitle, sectionIds } from './pages.js';
 
 export const $ = s => document.querySelector(s);
 export const main = $('#main');
+// Dónde pinta una pantalla de la Biblioteca: en su sección si se está en ella; si no, en todo #main
+export const libHost = sel => (S.view === 'library' && $(sel)) || main;
 
 export const S = {
   uid: null, email: '', name: '',

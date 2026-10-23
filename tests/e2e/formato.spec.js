@@ -2,7 +2,7 @@
 import { test, expect, openApp, nav } from './fixtures.js';
 
 async function newPage(page, title) {
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('#pgTitle').fill(title);
 }
@@ -57,7 +57,7 @@ test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las 
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByText('Formato').first().click();
   await expect(page.locator('#pgBlocks .nb').first().locator('b')).toHaveText('locativo');
 });

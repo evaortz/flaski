@@ -3,7 +3,7 @@
 import { test, expect, openApp, nav } from './fixtures.js';
 
 async function newPage(page, title) {
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('#pgTitle').fill(title);
 }
@@ -111,7 +111,7 @@ test('sangría con Tab en listas (numeración por niveles) y plegar un apartado'
   await expect(page.locator('#pgBlocks .nb:visible')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByText('Sangría').first().click();
   await expect(page.locator('#pgBlocks .nb:visible')).toHaveCount(1);
   await page.locator('#pgBlocks .nb-h2 .nb-fold').click();

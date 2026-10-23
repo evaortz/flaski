@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v84';
+const VERSION = 'flaski-v85';
 const STROKES = 'flaski-strokes-v1';
 const SHELL = [
   './',
@@ -11,7 +11,7 @@ const SHELL = [
   './fonts/atkinson-400-italic-latin.woff2', './fonts/atkinson-400-italic-latin-ext.woff2', './fonts/atkinson-700-italic-latin.woff2', './fonts/atkinson-700-italic-latin-ext.woff2',
   './fonts/gochi-hand-400-latin.woff2', './fonts/inter-latin.woff2', './fonts/inter-latin-ext.woff2', 
   './js/app.js',
-  './js/comun.js', './js/pantallas/cuenta.js', './js/pantallas/inicio.js', './js/pantallas/estudio.js', './js/pantallas/mazos.js', './js/pantallas/explorar.js', './js/pantallas/apuntes.js', './js/pantallas/perfil.js', './js/pantallas/editor.js', './js/pantallas/amigos.js',
+  './js/comun.js', './js/pantallas/cuenta.js', './js/pantallas/inicio.js', './js/pantallas/estudio.js', './js/pantallas/mazos.js', './js/pantallas/biblioteca.js', './js/pantallas/explorar.js', './js/pantallas/apuntes.js', './js/pantallas/perfil.js', './js/pantallas/editor.js', './js/pantallas/amigos.js',
   './js/api.js', './js/push.js', './js/plan.js',
   './js/srs.js',
   './js/prefs.js',

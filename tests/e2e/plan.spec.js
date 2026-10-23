@@ -8,7 +8,7 @@ async function twoDecks(page) {
   await addBuiltinDeck(page, TR);
 }
 async function openPlan(page) {
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Plan de estudio' })).toBeVisible();
 }
@@ -25,7 +25,7 @@ test('en pausa: sale de lo de hoy y de las sesiones de «Todo», y se recuerda',
   await openPlan(page);
   await setState(page, JA, 'En pausa');
   await expect(row(page, JA).locator('.pl-meta')).toContainText('En pausa');
-  await nav(page, 'Estudiar');
+  await nav(page, 'Hoy');
   await expect(deckMeta(page, JA)).toContainText('en pausa');
   // La sesión de «Todo» no trae tarjetas del mazo en pausa
   await page.locator('#main [data-start="all"]').click();
@@ -46,7 +46,7 @@ test('solo repasos: ese mazo ya no da nuevas', async ({ page }) => {
   await twoDecks(page);
   await openPlan(page);
   await setState(page, TR, 'Solo repasos');
-  await nav(page, 'Estudiar');
+  await nav(page, 'Hoy');
   await expect(deckMeta(page, TR)).toContainText('0 nuevas');
   await expect(deckMeta(page, TR)).toContainText('solo repasos');
 });

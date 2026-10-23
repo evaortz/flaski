@@ -11,11 +11,11 @@ test.describe('al entrar', () => {
     await expect(news.locator('h1')).toHaveText('Novedades en Flaski');
     if (process.env.OUT) await page.screenshot({ path: `${process.env.OUT}/n-${info.project.name}-1.png` });
     await news.locator('.news-jump').nth(3).click();
-    await expect(news.locator('h2')).toHaveText('Tarjetas sugeridas, sin IA');
+    await expect(news.locator('h2')).toHaveText('Preguntas sugeridas, sin IA');
     await expect(news.locator('.ob-phone img')).toHaveAttribute('src', /img\/novedades\/sugerencias-(light|dark)\.jpg/);
     if (process.env.OUT) { await page.waitForTimeout(400); await page.screenshot({ path: `${process.env.OUT}/n-${info.project.name}-2.png` }); }
     await page.keyboard.press('ArrowRight');
-    await expect(news.locator('h2')).toHaveText('Ocho tipos de tarjeta nuevos');
+    await expect(news.locator('h2')).toHaveText('Ocho tipos de pregunta nuevos');
     await page.keyboard.press('Escape');
     await expect(news).toHaveCount(0);
     // Ya vistas: no vuelven a salir al entrar

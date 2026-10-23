@@ -2,7 +2,7 @@
 import { test, expect, openApp, nav, pasteNotes } from './fixtures.js';
 
 async function pastePage(page, text) {
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pasteNotes(page, text);
 }
 

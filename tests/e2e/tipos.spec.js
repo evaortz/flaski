@@ -2,7 +2,7 @@
 import { test, expect, openApp, nav } from './fixtures.js';
 
 async function newDeck(page, name, lang) {
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();
   await page.locator('#d-name').fill(name);
   if (lang) {
@@ -122,7 +122,7 @@ test('migración: los mazos antiguos reciben su idioma y desaparecen las copias 
   await expect.poll(async () => (await stored()).types.length).toBe(0);
   expect((await stored()).cards.find(c => c.id === 'c2').type_id).toBe('vocab');
 
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Cosas/ }).first().click();
   await expect(page.locator('.deckhead')).toContainText('Japonés');
   await page.locator('#main [data-start]').click();

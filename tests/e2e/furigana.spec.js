@@ -2,7 +2,7 @@ import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
 
 test('furigana en el editor: añadir, ver la vista previa y cambiarla', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();
   await page.locator('#d-name').fill('Japonés');
   await page.locator('[data-kind="lang"]').click();

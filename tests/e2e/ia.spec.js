@@ -14,7 +14,7 @@ async function docExamples() {
 }
 
 async function paste(page, text) {
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="paste"]').click();
   await page.locator('#pasteText').fill(text);
   await page.getByRole('button', { name: 'Ver vista previa' }).click();
@@ -33,11 +33,11 @@ test('los ejemplos de FORMATO-IA.md se importan enteros, tal como los daría una
     // Como lo pega alguien desde el chat de la IA: con el bloque ```json y una frase antes
     await paste(page, `¡Claro! Aquí tienes tu mazo:\n\n\`\`\`json\n${ex.json}\`\`\`\n`);
     const sheet = page.locator('#sheetBody');
-    await expect(sheet).toContainText(`${ex.cards} tarjetas`);
+    await expect(sheet).toContainText(`${ex.cards} preguntas`);
     await expect(sheet.locator('.issues-box')).toHaveCount(0);     // ni notas saltadas ni avisos
-    await sheet.getByRole('button', { name: 'Añadir a mis mazos' }).click();
+    await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
     await expect(page.getByRole('heading', { level: 1, name: ex.name })).toBeVisible();
-    await expect(page.locator('#cardCount')).toHaveText(`${ex.cards} tarjetas`);
+    await expect(page.locator('#cardCount')).toHaveText(`${ex.cards} preguntas`);
   }
 });
 
@@ -46,7 +46,7 @@ test('las etiquetas se crean y el mazo queda con su idioma al importar', async (
   const ja = examples.find(e => /"lang": "ja-JP"/.test(e.json));
   await openApp(page);
   await paste(page, ja.json);
-  await page.getByRole('button', { name: 'Añadir a mis mazos' }).click();
+  await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.locator('#cardRows')).toContainText('lugares');
   await expect(page.locator('#cardRows')).toContainText('Ordenar frase');
   await expect(page.locator('.deckhead')).toContainText('Japonés');                 // el idioma es del mazo
@@ -65,21 +65,21 @@ test('pegar con errores: dice qué notas se saltan y por qué, e importa el rest
     ],
   }));
   const sheet = page.locator('#sheetBody');
-  await expect(sheet).toContainText('2 tarjetas');
+  await expect(sheet).toContainText('2 preguntas');
   await expect(sheet).toContainText('Se saltan 2 notas');
   await expect(sheet).toContainText('Nota 2');
   await expect(sheet).toContainText('el tipo «flashcard» no existe');
   await expect(sheet).toContainText('{{hueco}}');
   await expect(sheet.getByText('1 aviso')).toBeVisible();
-  await sheet.getByRole('button', { name: 'Añadir a mis mazos' }).click();
-  await expect(page.locator('#cardCount')).toHaveText('2 tarjetas');
+  await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
+  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
 });
 
 test('si ninguna nota vale, no se importa nada y se puede volver a pegar lo mismo', async ({ page }) => {
   await openApp(page);
   const bad = '[{ "type": "nada", "fields": { "q": "a" } }]';
   await paste(page, bad);
-  await expect(page.getByRole('heading', { name: 'No se ha podido crear ninguna tarjeta' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No se ha podido crear ninguna pregunta' })).toBeVisible();
   await page.getByRole('button', { name: 'Volver a pegar' }).click();
   await expect(page.locator('#pasteText')).toHaveValue(bad);
 });
@@ -94,19 +94,19 @@ test('JSON roto: el error dice la línea y no se cierra la hoja', async ({ page 
 test('pegar columnas de una hoja de cálculo (CSV)', async ({ page }) => {
   await openApp(page);
   await paste(page, 'pregunta\trespuesta\nev\tcasa\nkapı\tpuerta');
-  await expect(page.locator('#sheetBody')).toContainText('2 tarjetas · desde CSV');
+  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde CSV');
 });
 
 test('un archivo flaski-deck se sigue importando igual', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#importFile').setInputFiles(new URL('../../decks/japones-demo.json', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
-  await expect(page.locator('#sheetBody')).toContainText('43 tarjetas · Japonés · desde archivo Flaski');
+  await expect(page.locator('#sheetBody')).toContainText('43 preguntas · Japonés · desde archivo Flaski');
 });
 
 test('las instrucciones para IA se descargan desde la app', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="paste"]').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#sheetBody [data-act="download-ai-guide"]').click()]);
   expect(dl.suggestedFilename()).toBe('FORMATO-IA.md');

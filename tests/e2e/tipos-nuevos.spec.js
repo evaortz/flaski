@@ -27,7 +27,7 @@ test('verdadero o falso: se escribe V o F y se responde con dos botones', async 
   await page.locator('#fld-s').fill('Colón llegó a América en 1492');
   await page.locator('#fld-v').fill('v');
   await page.locator('#fld-n').fill('El 12 de octubre');
-  await expect(page.locator('#pvCount')).toHaveText('1 tarjeta');
+  await expect(page.locator('#pvCount')).toHaveText('1 pregunta');
   await save(page);
   await expect(page.locator('#main .row')).toContainText('Verdadero');
   await study(page);
@@ -78,7 +78,7 @@ test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta
   await drag(0.6, 0.6, 0.9, 0.9);
   await drag(0.2, 0.7, 0.4, 0.95);
   await expect(page.locator('#occStage .occ-m')).toHaveCount(3);
-  await expect(page.locator('#pvCount')).toHaveText('3 tarjetas');
+  await expect(page.locator('#pvCount')).toHaveText('3 preguntas');
   await page.locator('#occStage .occ-m').nth(2).click();          // quitar el tercero
   await expect(page.locator('#occStage .occ-m')).toHaveCount(2);
   await page.locator('#fld-h').fill('¿Qué ciudad es?');
@@ -95,7 +95,7 @@ test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta
 
 test('conjugación: se escriben todas las formas y se corrige cada una (en alemán, con mayúsculas y ß)', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();
   await page.locator('#d-name').fill('Alemán');
   await page.locator('[data-kind="lang"]').click();

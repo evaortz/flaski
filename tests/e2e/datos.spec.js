@@ -5,13 +5,13 @@ const CSV = '﻿pregunta;respuesta;nota\nçiçek;flor;"con ""comillas"""\nkapı;
 
 test('importar un CSV, revisar la vista previa y volver a exportarlo igual', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#importFile').setInputFiles({ name: 'vocabulario-turco.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
-  await expect(page.locator('#sheetBody')).toContainText('2 tarjetas · desde CSV');
+  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde CSV');
   await expect(page.locator('#sheetBody')).toContainText('Se han saltado 1 filas');
-  await page.getByRole('button', { name: 'Añadir a mis mazos' }).click();
+  await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'vocabulario turco' })).toBeVisible();
-  await expect(page.locator('#cardCount')).toHaveText('2 tarjetas');
+  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
 
   await page.locator('#main [data-act="share"]').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Descargar CSV' }).click()]);
@@ -25,7 +25,7 @@ test('buscar dentro de un mazo', async ({ page }) => {
   await createDeck(page, 'Buscar');
   await addBasicCards(page, [['ev', 'casa'], ['kapı', 'puerta'], ['evet', 'sí']]);
   await page.locator('#cardSearch').fill('ev');
-  await expect(page.locator('#cardCount')).toHaveText('2 de 3 tarjetas');
+  await expect(page.locator('#cardCount')).toHaveText('2 de 3 preguntas');
 });
 
 async function downloadBackup(page) {
@@ -38,7 +38,7 @@ async function wipeLocal(page) {
   await nav(page, 'Perfil');
   await page.locator('[data-act="ask-reset-local"]').click();
   await page.locator('[data-act="reset-local"]').click();
-  await expect(page.locator('.pf-num')).toHaveText(['0tarjetas', '0mazos', '0empezadas', '0consolidadas']);
+  await expect(page.locator('.pf-num')).toHaveText(['0preguntas', '0listas', '0empezadas', '0consolidadas']);
 }
 async function restore(page, data) {
   await nav(page, 'Perfil');
@@ -65,8 +65,8 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await expect(page.locator('#main .spin')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('1');          // 1 nueva pendiente, la otra ya estudiada
   await nav(page, 'Perfil');
-  await expect(page.locator('.pf-num').nth(0)).toHaveText('2tarjetas');
-  await expect(page.locator('.pf-num').nth(1)).toHaveText('1mazo');
+  await expect(page.locator('.pf-num').nth(0)).toHaveText('2preguntas');
+  await expect(page.locator('.pf-num').nth(1)).toHaveText('1lista');
   await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
@@ -82,22 +82,22 @@ test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir
   await wipeLocal(page);
 
   await restore(page, cloudLike);
-  await expect(page.locator('#sheetBody')).toContainText('1 mazo restaurado');
+  await expect(page.locator('#sheetBody')).toContainText('1 lista restaurada');
   await page.locator('#sheetBody').getByRole('button', { name: 'Entendido' }).click();
 
   await restore(page, cloudLike);
-  await expect(page.locator('#sheetBody')).toContainText('1 mazo ya estaba');
+  await expect(page.locator('#sheetBody')).toContainText('1 lista ya estaba');
   await page.locator('#sheetBody').getByRole('button', { name: 'Entendido' }).click();
 
   await nav(page, 'Perfil');
-  await expect(page.locator('.pf-num').nth(0)).toHaveText('1tarjeta');
+  await expect(page.locator('.pf-num').nth(0)).toHaveText('1pregunta');
   await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
 test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Con apuntes');
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pasteNotes(page, '# Mis apuntes\n\nEl agua es su.');
   await page.locator('#pgDeck').selectOption({ label: 'Con apuntes' });
   await page.locator('#pgBlocks .nb-text').first().click();
@@ -114,7 +114,7 @@ test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', 
   await expect(page.locator('#sheetBody')).toContainText('Apuntes: 1 restaurado');
   await page.locator('#sheetBody').getByRole('button', { name: 'Entendido' }).click();
 
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Mis apuntes/ }).click();
   await expect(page.locator('.nb-cards')).toHaveText('1');                // la tarjeta sigue unida a su parte
   await expect(page.locator('#pgDeck')).toHaveValue(/.+/);                // y el apunte, a su mazo

@@ -4,7 +4,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await openApp(page);
   await createDeck(page, 'Turco básico');
   await addBasicCards(page, [['ev', 'casa'], ['kapı', 'puerta']]);
-  await expect(page.locator('#cardCount')).toHaveText('2 tarjetas');
+  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
 
   await page.locator('#main [data-start]').click();
   await expect(page.locator('.studybar .left')).toHaveText('2 quedan');
@@ -13,7 +13,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
     await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await page.locator('[data-grade="3"]').click();
   }
-  await expect(page.getByRole('heading', { name: '¡Sesión terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
   await expect(page.locator('.tally .g3')).toHaveText('Bien 2');
 
   await page.reload();
@@ -35,7 +35,7 @@ test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» 
 
   await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
-  await expect(page.getByRole('heading', { name: '¡Sesión terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
   await page.getByRole('button', { name: 'Deshacer la última' }).click();
   await expect(page.locator('.studybar .left')).toHaveText('1 quedan');
   await expect(page.locator('[data-grade="3"]')).toBeVisible();
@@ -44,7 +44,7 @@ test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» 
 test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Turco · Armonía vocálica');   // 20 tarjetas, límite de 15 nuevas al día
-  await nav(page, 'Estudiar');
+  await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveText('15');
 
   await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
@@ -52,7 +52,7 @@ test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía',
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="4"]').click();
   }
-  await expect(page.getByRole('heading', { name: '¡Sesión terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
   await page.getByRole('button', { name: '10 nuevas más' }).click();
   await expect(page.locator('.studybar .left')).toHaveText('5 quedan');
 

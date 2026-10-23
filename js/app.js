@@ -22,6 +22,7 @@ import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIn
 import { renderHome } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
 import { plural, crumbs, renderDecks, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
+import { renderLibrary } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
 import { pageCards, savePageSoon, noteCrumbs, pageFolder, renderNotes, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, formatSelection, syncBlock, placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, notesHelpSheet, showHelpTab, blockCardsSheet, setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/apuntes.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
@@ -38,20 +39,23 @@ export function go(view, extra = {}) {
 }
 export function render() {
   const authed = !!S.uid && !S.recovery;
+  // La raíz de las listas y la de los apuntes es la Biblioteca (las dos, una debajo de otra)
+  if ((S.view === 'decks' && !S.folderId) || (S.view === 'notes' && !S.noteFolder)) S.view = 'library';
+  if (S.view === 'library') Object.assign(S, { folderId: null, noteFolder: null });
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   document.body.classList.toggle('in-study', authed && S.view === 'study');
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'decks' && ['deck', 'plan'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends'].includes(S.view)) || (b.dataset.nav === 'notes' && S.view === 'page');
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -356,7 +360,7 @@ document.addEventListener('click', async e => {
       return toast('Copia lista: cambia lo que quieras y guarda');
     }
     case 'new-deck': return deckForm(null);
-    case 'new-folder': return folderForm(null);
+    case 'new-folder': S.folderForNotes = !!b.closest('#libNotes'); return folderForm(null);   // en la Biblioteca: ¿desde Apuntes?
     case 'toggle-emoji': {
       const panel = $('#emojiPanel');
       panel.hidden = !panel.hidden;

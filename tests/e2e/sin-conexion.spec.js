@@ -68,7 +68,7 @@ test('una imagen añadida sin conexión se sube al volver la red y se descarga e
   await openCloud(page);
   await context.setOffline(true);
   srv.reachable = false;
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.getByText('Turco en la nube').first().click();
   await page.locator('#main .row').first().click();
   await page.locator('#fld-q').click();

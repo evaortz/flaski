@@ -12,7 +12,7 @@ import { htmlToBlocks } from '../paste.js';
 import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, titleFromFile, markdownImageRefs } from '../notesio.js';
 import { readZip } from '../zip.js';
 import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from '../pages.js';
-import { $, main, S, esc, imgHTML, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
+import { $, main, libHost, S, esc, imgHTML, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { typeIcon, getType, deckLang, nativeLang, typeIn, undo } from './estudio.js';
 import { plural, crumbs, ARROW, statusChip, download } from './mazos.js';
@@ -115,7 +115,7 @@ export function renderNotes() {
       <button class="feat-info" data-page="${last.id}"><b>${esc(pageTitle(last))}</b><span>editado el ${shortDate(last.updated_at)}${pageSnippet(last) ? ` · ${esc(pageSnippet(last).slice(0, 60))}` : ''}</span></button>
       <button class="pill-tint" data-page="${last.id}">Seguir</button></div>` : '';
   const has = S.pages.size || S.folders.size;
-  main.innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
+  libHost('#libNotes').innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
     <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1>${has ? `<button class="add-round" data-act="new-page" aria-label="Nuevo apunte">${icon('plus', { size: 20 })}</button>` : ''}</div>${last ? `<div class="hand-note" aria-hidden="true"><span>lo dejaste aquí,<br>¿sigues?</span>${ARROW}</div>` : ''}</div>
     ${feat}
     ${folder && !filtering ? '<div class="btnrow"><button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button></div>' : ''}

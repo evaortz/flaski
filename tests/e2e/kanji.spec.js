@@ -32,7 +32,7 @@ async function writeStrokes(page, box, medians, touch) {
 test('escribir 日 a mano: se corrige trazo a trazo y sin errores', async ({ page }, info) => {
   await page.route(/hanzi-writer-data-jp@[^/]+\/%E6%97%A5\.json$/, route => route.fulfill({ contentType: 'application/json', body: NICHI }));
   await openApp(page);
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();
   await page.locator('#d-name').fill('Japonés');
   await page.locator('[data-kind="lang"]').click();

@@ -3,7 +3,7 @@ import { test, expect, openApp, nav, createDeck, pasteNotes } from './fixtures.j
 import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('#pgTitle').fill(title);
 }
@@ -51,7 +51,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   // Se guarda: al volver a la lista y abrirlo sigue igual
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Casos del turco/ }).click();
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(4);
   await expect(block(page, 0)).toHaveText('Locativo');
@@ -112,7 +112,7 @@ test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de 
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByText('Tabla').first().click();
   await expect(page.locator('#pgBlocks table tbody tr').nth(1).locator('td')).toHaveText(['Ablativo', '-den', 'evden']);
 });
@@ -155,7 +155,7 @@ test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes
   await expect(page.locator('.nb-cards')).toHaveText('1');
 
   // Al estudiarla, «Ver en los apuntes» lleva al bloque y se puede volver al estudio
-  await page.locator('#nav').getByRole('button', { name: 'Estudiar' }).click();
+  await page.locator('#nav').getByRole('button', { name: 'Hoy' }).click();
   await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
   await page.locator('[data-act="reveal"]').click();
   await page.getByRole('button', { name: 'Ver en los apuntes' }).click();
@@ -178,7 +178,7 @@ async function cardFrom(page, i, palabra, pregunta) {
 test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pasteNotes(page, '# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.');
   await page.locator('#pgDeck').selectOption({ label: 'Historia' });
   await cardFrom(page, 1, '1789', '¿Año de la Bastilla?');
@@ -205,7 +205,7 @@ test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
 
 test('la guía de formato y atajos de los apuntes', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('[data-act="notes-help"]').click();
   await expect(page.getByRole('heading', { name: 'Formato y atajos' })).toBeVisible();
@@ -229,10 +229,10 @@ async function pastePage(page, text) {
 
 test('carpetas: compartidas con los mazos, crear apuntes dentro y moverlos', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pastePage(page, '# Primer apunte\n\nTexto.');
-  await nav(page, 'Apuntes');
-  await page.locator('#main [data-act="new-folder"]').click();
+  await nav(page, 'Biblioteca');
+  await page.locator('#libNotes [data-act="new-folder"]').click();
   await page.locator('#fo-name').fill('Turco');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Turco' })).toBeVisible();      // ya dentro de la carpeta
@@ -240,31 +240,31 @@ test('carpetas: compartidas con los mazos, crear apuntes dentro y moverlos', asy
   await expect(page.locator('.pg-top .crumbs')).toHaveText(/Apuntes\s*\/\s*Turco\s*\/\s*Casos/);
   await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
   await expect(page.locator('.notes-list li')).toHaveCount(1);                             // en la raíz, solo el primero
-  await expect(page.locator('#main .folder')).toContainText('1 apunte');
+  await expect(page.locator('#libNotes .folder')).toContainText('1 apunte');
 
   // Mover el primero a la carpeta desde sus propiedades
   await page.getByRole('button', { name: /Primer apunte/ }).click();
   await page.locator('#pgFolder').selectOption({ label: 'Turco' });
   await expect(page.locator('.pg-top .crumbs')).toContainText('Turco');
   await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
-  await expect(page.locator('#main .folder')).toContainText('2 apuntes');
-  // La carpeta también aparece en «Mis mazos»
-  await nav(page, 'Mis mazos');
-  await expect(page.locator('#main .folder')).toContainText('2 apuntes');
+  await expect(page.locator('#libNotes .folder')).toContainText('2 apuntes');
+  // La carpeta también aparece en «Mis listas»
+  await nav(page, 'Biblioteca');
+  await expect(page.locator('#libDecks .folder')).toContainText('2 apuntes');
 });
 
 test('etiquetas, buscar y ordenar los apuntes', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pastePage(page, '# Beta\n\nVerbos irregulares.');
   await page.locator('[data-act="page-tags"]').click();
   await page.locator('#f-newtag').fill('examen');
   await page.locator('[data-act="add-tag-inline"]').click();
   await page.locator('[data-act="save-page-tags"]').click();
   await expect(page.locator('.pg-props')).toContainText('examen');
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pastePage(page, '# Alfa\n\nSustantivos.');
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
 
   await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa', 'Beta']);        // editados recientemente
   await page.locator('#noteSort').selectOption('name');
@@ -280,7 +280,7 @@ test('etiquetas, buscar y ordenar los apuntes', async ({ page }) => {
 test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pastePage(page, '# Revolución\n\n## Fechas\n\n- 1789\n- 1793');
   await page.locator('#pgDeck').selectOption({ label: 'Historia' });
   await page.locator('[data-act="page-icon"]').click();
@@ -295,7 +295,7 @@ test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async 
   const { readFile } = await import('node:fs/promises');
   expect(await readFile(await dl.path(), 'utf8')).toBe('# Revolución\n\n## Fechas\n\n- 1789\n- 1793\n');
 
-  await nav(page, 'Mis mazos');
+  await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Historia/ }).first().click();
   await page.locator('.deck-notes [data-page]').click();
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución');
@@ -303,11 +303,11 @@ test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async 
 
 test('pegar unos apuntes enteros', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await pasteNotes(page, '# Revolución francesa\n\nEmpezó en 1789.\n\n- Toma de la Bastilla\n- Declaración de derechos\n\n| Año | Hecho |\n|---|---|\n| 1789 | Bastilla |');
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución francesa');
   expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['p', 'li', 'li', 'table', 'p']);   // detrás de una tabla, un párrafo para seguir escribiendo
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('#pageSearch').fill('bastilla');
   await expect(page.locator('#main .list li')).toHaveCount(1);
   await page.locator('#pageSearch').fill('nada');
@@ -347,7 +347,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
 
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByText('Mapas').first().click();
   const img = page.locator('#pgBlocks .nb-img img.media');
   await expect(img).toHaveAttribute('src', /^blob:/);
@@ -398,7 +398,7 @@ test('más tipos de bloque: atajos, menú /, casillas, destacado, código y sepa
   // Se guarda y vuelve igual al recargar
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.getByText('Bloques').first().click();
   await expect(page.locator('#pgBlocks .nb-todo')).toHaveClass(/is-done/);
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(8);
@@ -406,14 +406,14 @@ test('más tipos de bloque: atajos, menú /, casillas, destacado, código y sepa
 
 test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, tablas y páginas escaneadas como imagen', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').first().click();
   await page.locator('[data-act="page-menu"]').click();
   const chooser = page.waitForEvent('filechooser');
   await page.locator('#sheetBody [data-act="import-into-page"]').click();
   await (await chooser).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
   // Después de importar se ofrecen las tarjetas sugeridas
-  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await page.locator('#sheetBody [data-act="close-sheet"]').first().click();
   await expect(page.locator('#pgTitle')).toHaveValue('Los casos del turco');
   const blocks = page.locator('#pgBlocks .nb');
@@ -433,7 +433,7 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   const chooser2 = page.waitForEvent('filechooser');
   await page.locator('#sheetBody [data-act="import-into-page"]').click();
   await (await chooser2).setFiles({ name: 'casos.pdf', mimeType: 'application/pdf', buffer: makePdf() });
-  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await page.locator('#sheetBody [data-act="close-sheet"]').first().click();
   await expect(page.locator('#pgBlocks .nb-img')).toHaveCount(2);
   await expect(blocks).toHaveCount(15);   // lo añadido va encabezado por el título del PDF
@@ -476,16 +476,16 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await expect(page.locator('#fld-q')).toHaveValue('Mitosis');
   await page.locator('#fld-q').fill('¿Qué es la mitosis?');
   await page.locator('.ed-foot button[type="submit"]').click();
-  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await expect(items.nth(0)).toContainText('¿Qué es la mitosis?');
   // Cerrar el editor sin guardar también vuelve a la lista
   await items.nth(2).locator('[data-sug-open]').click();
   await page.locator('.ed-x').click();
-  await expect(page.locator('#sheetBody')).toContainText('Tarjetas sugeridas');
+  await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await items.nth(1).locator('[data-sug]').uncheck();
-  await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 tarjetas');
+  await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 preguntas');
   await page.locator('[data-act="sug-create"]').click();
-  await expect(page.locator('#toast')).toContainText('2 tarjetas creadas en «Biología»');
+  await expect(page.locator('#toast')).toContainText('2 preguntas creadas en «Biología»');
   await expect(page.locator('#pgBlocks .nb-cards')).toHaveCount(2);
   // Al pedirlas otra vez, ya no propone lo que es tarjeta
   await page.locator('[data-act="suggest-cards"]').first().click();

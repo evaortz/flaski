@@ -3,7 +3,7 @@ import { test, expect, openApp, nav } from './fixtures.js';
 import fs from 'node:fs';
 
 async function newPage(page, title) {
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('[data-act="new-page"]').click();
   await page.locator('#pgTitle').fill(title);
 }
@@ -36,7 +36,7 @@ test('exportar a Word y volver a importarlo: mismos títulos, listas con sangrí
   const file = info.outputPath('celula.docx');
   await dl.saveAs(file);
   // Importarlo desde la lista de apuntes: un apunte nuevo
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('#noteFile').setInputFiles(file);
   await expect(page.locator('#pgTitle')).toHaveValue('Célula');
   expect(await kinds(page)).toEqual(['h2', 'p', 'li', 'li', 'p']);
@@ -60,7 +60,7 @@ test('exportar en Markdown y en HTML', async ({ page }, info) => {
 
 test('importar varios archivos a la vez (Markdown, CSV, HTML) y dentro de un apunte', async ({ page }) => {
   await openApp(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   await page.locator('#noteFile').setInputFiles([
     { name: 'mitosis.md', mimeType: 'text/markdown', buffer: Buffer.from('# Mitosis\n\nDivisión **celular**.\n\n1. Profase\n2. Metafase\n') },
     { name: 'casos.csv', mimeType: 'text/csv', buffer: Buffer.from('Caso;Sufijo\nLocativo;-de\n') },
@@ -81,7 +81,7 @@ test('exportar todos los apuntes en un .zip', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Uno');
   await fillPage(page);
-  await nav(page, 'Apuntes');
+  await nav(page, 'Biblioteca');
   const dl = page.waitForEvent('download');
   await page.locator('[data-act="export-all-notes"]').click();
   expect((await dl).suggestedFilename()).toMatch(/^Apuntes de Flaski .*\.zip$/);

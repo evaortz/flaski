@@ -9,7 +9,7 @@ test('sale la primera vez, se recorre y crea un mazo del idioma elegido', async 
   await open(page);
   await expect(page.locator('.ob h1')).toHaveText('Te damos la bienvenida a Flaski');
   await page.locator('.ob').getByRole('button', { name: 'Empezar', exact: true }).click();
-  for (const title of ['Estudia solo lo que toca', 'Una tarjeta para cada cosa', 'Tus apuntes, unidos a tus tarjetas', 'Mazos hechos con IA']) {
+  for (const title of ['Estudia solo lo que toca', 'Una pregunta para cada cosa', 'Tus apuntes, unidos a tus preguntas', 'Listas hechas con IA']) {
     await expect(page.locator('.ob h2')).toHaveText(title);
     await expect(page.locator('.ob-phone img')).toHaveJSProperty('complete', true);
     expect(await page.locator('.ob-phone img').evaluate(i => i.naturalWidth)).toBeGreaterThan(0);   // la captura existe
@@ -60,5 +60,5 @@ test('las otras opciones llevan a su sitio', async ({ page }) => {
   await page.locator('[data-act="intro"]').click();
   await page.locator('.ob-skip').click();
   await page.locator('[data-ob-pick="ia"]').click();
-  await expect(page.getByRole('heading', { name: 'Pegar un mazo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pegar una lista' })).toBeVisible();
 });
