@@ -12,7 +12,8 @@ import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
 import { nativeLang, langLabel } from './estudio.js';
-import { go, render, plural, openPublicPreview, openBuiltinPreview, pasteSheet, newPage, savePrefsSoon, seg, pushAutoSync, cardForm, dedupeTypes, migrateDeckLangs, loadFriends, inviteSheet } from '../app.js';
+import { plural } from './mazos.js';
+import { go, render, openPublicPreview, openBuiltinPreview, pasteSheet, newPage, savePrefsSoon, seg, pushAutoSync, cardForm, dedupeTypes, migrateDeckLangs, loadFriends, inviteSheet } from '../app.js';
 
 /* ===================== sin configurar ===================== */
 function renderSetup() {

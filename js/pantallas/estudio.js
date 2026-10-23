@@ -9,7 +9,8 @@ import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handw
 import { buzz, swipeable, chime } from '../feel.js';
 import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, deckIcon, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
-import { go, plural, seg, numIn, openSheet, charsFor, hasRuby } from '../app.js';
+import { plural } from './mazos.js';
+import { go, seg, numIn, openSheet, charsFor, hasRuby } from '../app.js';
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */

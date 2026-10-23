@@ -5,7 +5,8 @@ import { heatmapView, HM_PERIODS, progressSeries, progressView, innerW, nextLine
 import { icon } from '../icons.js';
 import { sortDecks } from '../org.js';
 import { $, main, S, esc, cardList, deckIcon, deckName, capNote, counts, planMeta } from '../comun.js';
-import { go, plural, H, statsData, tabs, pushAskHTML, homeFriendsHTML } from '../app.js';
+import { plural } from './mazos.js';
+import { go, H, statsData, tabs, pushAskHTML, homeFriendsHTML } from '../app.js';
 
 /* ===================== inicio ===================== */
 export function renderHome() {
