@@ -16,7 +16,8 @@ import { $, main, S, esc, imgHTML, fmt, plain, norm, cardList, toast, fail, tagC
 import { saveSnapSoon } from './cuenta.js';
 import { typeIcon, getType, deckLang, nativeLang, typeIn, undo } from './estudio.js';
 import { plural, crumbs, ARROW, statusChip, download } from './mazos.js';
-import { go, seg, tabs, sw, openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage, readEditor, migrateDeckLangs } from '../app.js';
+import { seg, tabs, sw } from './perfil.js';
+import { go, openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage, readEditor, migrateDeckLangs } from '../app.js';
 
 /* ===================== apuntes ===================== */
 // Tarjetas vinculadas a cada bloque de una página: block_id → [tarjetas]

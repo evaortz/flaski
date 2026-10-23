@@ -7,7 +7,8 @@ import { sortDecks } from '../org.js';
 import { $, main, S, esc, cardList, deckIcon, deckName, capNote, counts, planMeta } from '../comun.js';
 import { plural } from './mazos.js';
 import { H } from './apuntes.js';
-import { go, statsData, tabs, pushAskHTML, homeFriendsHTML } from '../app.js';
+import { statsData, tabs, pushAskHTML } from './perfil.js';
+import { go, homeFriendsHTML } from '../app.js';
 
 /* ===================== inicio ===================== */
 export function renderHome() {
