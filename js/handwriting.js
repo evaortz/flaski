@@ -56,10 +56,25 @@ export async function canQuiz(chars, lang) {
   } catch { return false; }
 }
 
+// Colores del tema como rgba(): las variables pueden ser color-mix(), oklab()… y Hanzi Writer solo entiende hex y rgb.
+// El navegador resuelve el color en un elemento y un lienzo de 1×1 lo pasa a rgba.
+function rgba(cssVar, fallback) {
+  const probe = document.createElement('span');
+  probe.style.cssText = `display:none;color:${fallback};color:var(${cssVar})`;
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  if (!ctx) return fallback;
+  ctx.canvas.width = ctx.canvas.height = 1;
+  ctx.fillStyle = fallback;
+  ctx.fillStyle = resolved;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+  return `rgba(${r},${g},${b},${+(a / 255).toFixed(3)})`;
+}
 function theme() {
-  const cs = getComputedStyle(document.documentElement);
-  const v = n => cs.getPropertyValue(n).trim();
-  return { fg: v('--fg') || '#37352F', line: v('--line-strong') || '#D9D8D4', accent: v('--accent') || '#2383E2', muted: v('--faint') || '#A5A29B' };
+  return { fg: rgba('--fg', '#37352F'), line: rgba('--line-strong', '#D9D8D4'), accent: rgba('--accent', '#2383E2'), muted: rgba('--faint', '#A5A29B') };
 }
 
 function writerFor(el, ch, lang, size, extra = {}) {
