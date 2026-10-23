@@ -36,3 +36,9 @@
 - Borrar carpeta: la app ya subía su contenido un nivel; además `backend-local` deja `folder_id` a null en los apuntes, como Supabase. Prueba nueva en `apuntes.spec.js`.
 - Pendiente: «Cómo lo llevas» (columna derecha en escritorio) y la nueva pantalla de lista (`lista-movil.jpg`, con «Apuntes vinculados»), que no eran de esta fase. `sw.js` → `flaski-v88`.
 - Dudas: el color de cada carpeta (azul / azul oscuro / con borde) lo elijo yo por pendientes; en el diseño no está la regla. En las fichas de la raíz va «N hoy»/«al día» y dentro de una carpeta, el estado (te cuesta, toca repasar…), como en las capturas.
+
+## Fase 3b · remates
+- Color de carpeta: el que se elige en «Editar carpeta» (paleta de `org.js`), en la tarjeta y en la cabecera; sin color, el del tema (cobalto por defecto). Ya no se alterna azul / azul oscuro ni hay carpetas con borde. `sw.js` → `flaski-v89`.
+- "Lo dejaste aquí" pasa a Hoy en la fase 4.
+- Dibujos de carpeta: los 8 SVG de `img/carpetas/` (en el SHELL de `sw.js`, para que se vean sin conexión). Se eligen en «Editar carpeta», debajo del icono y junto a los emojis, y asoman por la esquina de la carpeta y de su cabecera; sin dibujo, asoma su emoji y, sin emoji, el icono de carpeta. Se guardan en `icon` como «d:economia» (cabe en sus 16 caracteres; no cambia el esquema). En rutas y desplegables, una carpeta con dibujo sale solo con su nombre.
+- Fallo ajeno: `plan.spec.js` «fecha de examen…» falla según la hora del día (dice «examen mañana» en vez de «en 2 días»); también falla sin estos cambios.

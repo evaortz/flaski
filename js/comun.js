@@ -3,7 +3,7 @@ import { startOfDay, dateKey } from './srs.js';
 import { loadPrefs, algoFor } from './prefs.js';
 import { deckState, shares, allocate, examFloors } from './plan.js';
 import { icon } from './icons.js';
-import { colorVar, decksInFolder } from './org.js';
+import { colorVar, decksInFolder, drawingOf, drawingSrc, iconText } from './org.js';
 import { hydrate, stripImages } from './media.js';
 import { toHTML, toPlain } from './inline.js';
 import { pageTitle, sectionIds } from './pages.js';
@@ -94,7 +94,9 @@ export function deckIcon(d, big = false) {
     : `<span class="dot${big ? ' dot-big' : ''}" style="background:${deckColor(d.id)}"></span>`;
 }
 export function folderIcon(f, big = false) {
-  return f.icon ? `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${esc(f.icon)}</span>`
+  const dr = drawingOf(f.icon);
+  if (dr) return `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true"><img class="draw-ic" src="${drawingSrc(dr)}" alt=""></span>`;
+  return iconText(f.icon) ? `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${esc(f.icon)}</span>`
     : `<span class="ficon${big ? ' icon-big' : ''}" style="color:${f.color ? colorVar(f.color) : 'var(--muted)'}">${icon('folder', { size: big ? 30 : 20 })}</span>`;
 }
 export function tagChips(ids = []) {

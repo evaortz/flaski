@@ -20,6 +20,22 @@ export const colorVar = id => (id ? `var(--c-${id})` : 'var(--faint)');
 export const ICONS = ['📘', '📗', '📕', '📙', '📓', '🗂️', '🧠', '🎯', '⭐', '🔥', '💬', '🗣️', '✍️', '🔤', '🔢', '🧮',
   '🧪', '🧬', '🌍', '🗺️', '🏛️', '🎵', '🎨', '💻', '⚖️', '🩺', '📈', '🍳', '🇹🇷', '🇪🇸', '🇬🇧', '🇫🇷', '🇩🇪', '🇮🇹', '🇯🇵', '🇨🇳'];
 
+// Dibujos para las carpetas (img/carpetas). Se guardan en el icono como «d:id», que cabe en sus 16 caracteres
+export const DRAWINGS = [
+  { id: 'turquia', file: 'bandera-turquia.svg', label: 'Bandera de Turquía' },
+  { id: 'japon', file: 'bandera-japon.svg', label: 'Bandera de Japón' },
+  { id: 'gramatica', file: 'gramatica-japones.svg', label: 'Gramática japonesa' },
+  { id: 'clase', file: 'clase-online.svg', label: 'Clase en línea' },
+  { id: 'economia', file: 'economia.svg', label: 'Economía' },
+  { id: 'balanza', file: 'balanza-color.svg', label: 'Balanza' },
+  { id: 'derecho', file: 'derecho.svg', label: 'Derecho' },
+  { id: 'brujula', file: 'brujula.svg', label: 'Brújula' },
+];
+export const drawingOf = ic => DRAWINGS.find(d => 'd:' + d.id === ic) || null;
+export const drawingSrc = d => 'img/carpetas/' + d.file;
+// El icono como texto (rutas, desplegables): el emoji; un dibujo no se puede escribir
+export const iconText = ic => (ic && !String(ic).startsWith('d:') ? ic : '');
+
 export const SORTS = [
   { id: 'manual', label: 'Fijados primero' },
   { id: 'name', label: 'Nombre (A-Z)' },

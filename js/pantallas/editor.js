@@ -4,7 +4,7 @@ import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
-import { COLORS, colorVar, folderPath, folderTree, sortDecks } from '../org.js';
+import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, iconText } from '../org.js';
 import { addImage, imgToken } from '../media.js';
 import { pageTitle } from '../pages.js';
 import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, shareUrl, algo, counts } from '../comun.js';
@@ -48,19 +48,23 @@ export function charsFor(lang) {
   return CHARS_BY_LANG[lang.split('-')[0]] || [];
 }
 
-export function iconPicker(current) {
+// El icono elegido: un emoji o, en las carpetas, uno de los dibujos de img/carpetas
+const iconShown = e => { const dr = drawingOf(e); return dr ? `<img class="draw-ic" src="${drawingSrc(dr)}" alt="${esc(dr.label)}">` : e ? esc(e) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`; };
+export function iconPicker(current, { drawings = false } = {}) {
   return `<input type="hidden" id="f-icon" value="${esc(current || '')}">
     <div class="iconfield">
-      <button type="button" class="icon-current" data-act="toggle-emoji" aria-expanded="false" aria-label="Elegir icono">${current ? esc(current) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`}</button>
+      <button type="button" class="icon-current" data-act="toggle-emoji" aria-expanded="false" aria-label="Elegir icono">${iconShown(current)}</button>
       <div class="iconfield-txt"><button type="button" class="link" data-act="toggle-emoji">${current ? 'Cambiar icono' : 'Elegir un emoji'}</button>
         ${current ? '<button type="button" class="link" data-act="clear-icon">Quitar</button>' : ''}</div>
     </div>
+    ${drawings ? `<div class="draw-pick" role="group" aria-label="Dibujos">${DRAWINGS.map(d => `<button type="button" data-drawing="d:${d.id}" aria-pressed="${current === 'd:' + d.id}" title="${esc(d.label)}" aria-label="${esc(d.label)}"><img src="${drawingSrc(d)}" alt=""></button>`).join('')}</div>` : ''}
     <div class="emoji-panel" id="emojiPanel" hidden></div>`;
 }
 export function setIcon(e) {
   $('#f-icon').value = e;
-  $('.icon-current').innerHTML = e ? esc(e) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`;
+  $('.icon-current').innerHTML = iconShown(e);
   $('.iconfield-txt').innerHTML = `<button type="button" class="link" data-act="toggle-emoji">${e ? 'Cambiar icono' : 'Elegir un emoji'}</button>${e ? '<button type="button" class="link" data-act="clear-icon">Quitar</button>' : ''}`;
+  for (const b of document.querySelectorAll('.draw-pick [data-drawing]')) b.setAttribute('aria-pressed', String(b.dataset.drawing === e));
   const panel = $('#emojiPanel'); panel.hidden = true; $('.icon-current').setAttribute('aria-expanded', 'false');
 }
 function colorPicker(current) {
@@ -69,7 +73,7 @@ function colorPicker(current) {
 }
 export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna (en «Mis listas»)') {
   return `<select id="${id}"><option value="">${rootLabel}</option>${folderTree(S.folders, exclude).map(f =>
-    `<option value="${f.id}" ${f.id === selected ? 'selected' : ''}>${'   '.repeat(f.depth)}${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</option>`).join('')}</select>`;
+    `<option value="${f.id}" ${f.id === selected ? 'selected' : ''}>${'   '.repeat(f.depth)}${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</option>`).join('')}</select>`;
 }
 export function tagPicker(selected = []) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
@@ -123,7 +127,7 @@ export function folderForm(f) {
   openSheet(`<h2>${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
     <form data-form="folder" data-id="${f ? f.id : ''}">
       <label for="fo-name">Nombre</label><input id="fo-name" maxlength="80" required value="${esc(f?.name || '')}">
-      <label>Icono</label>${iconPicker(f?.icon)}
+      <label>Icono</label>${iconPicker(f?.icon, { drawings: true })}
       <label>Color de la carpeta</label>${colorPicker(f?.color)}
       <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna (en la raíz)')}
       ${f ? '' : '<p class="hint">Las carpetas son comunes a listas y apuntes: un tema puede tener los dos.</p>'}

@@ -5,7 +5,7 @@ import { fmtWhen, dateKey } from '../srs.js';
 import { cardsToCSV } from '../csv.js';
 import { icon } from '../icons.js';
 import { LANGS } from '../cardtypes.js';
-import { folderPath } from '../org.js';
+import { folderPath, iconText } from '../org.js';
 import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
@@ -27,8 +27,8 @@ export function crumbs(folderId, { linkLast = false } = {}) {
   const parts = [`<button class="crumb" data-folder="">Biblioteca</button>`];
   path.forEach((f, i) => {
     const last = i === path.length - 1 && !linkLast;
-    parts.push(last ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
-      : `<button class="crumb" data-folder="${f.id}">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</button>`);
+    parts.push(last ? `<span class="crumb crumb-cur">${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</span>`
+      : `<button class="crumb" data-folder="${f.id}">${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</button>`);
   });
   return `<nav class="crumbs" aria-label="Ruta">${parts.join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
 }

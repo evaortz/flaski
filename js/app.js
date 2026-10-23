@@ -252,6 +252,7 @@ document.addEventListener('click', async e => {
   if (ds.moveTo !== undefined) { b.disabled = true; return moveDecks(JSON.parse(b.closest('[data-moving]').dataset.moving), ds.moveTo || null); }
   if (ds.folder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.folder || null }); }
   if (ds.libkind) { S.libKind = ds.libkind; return renderLibrary(); }
+  if (ds.drawing) return setIcon(ds.drawing);
   if (ds.tagfilter) {
     const t = ds.tagfilter, list = S.org.tagIds;
     S.org.tagIds = list.includes(t) ? list.filter(x => x !== t) : [...list, t];

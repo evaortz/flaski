@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
-import { folderPath } from '../org.js';
+import { folderPath, iconText } from '../org.js';
 import { readPdf, pdfToBlocks } from '../pdf.js';
 import { suggestCards, PRESELECT, writingTips } from '../suggest.js';
 import { storeImage, imageType, newImageId, flushUploads, stripImages, imageBlob } from '../media.js';
@@ -61,8 +61,8 @@ export function noteCrumbs(folderId, current = null) {
   const path = folderId && S.folders.has(folderId) ? folderPath(S.folders, folderId) : [];
   const btn = (id, label) => `<button class="crumb" data-nfolder="${id}">${label}</button>`;
   const parts = [btn('', 'Biblioteca'), ...path.map((f, i) => (i === path.length - 1 && !current
-    ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
-    : btn(f.id, `${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}`)))];
+    ? `<span class="crumb crumb-cur">${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</span>`
+    : btn(f.id, `${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}`)))];
   if (current) parts.push(`<span class="crumb crumb-cur">${esc(current)}</span>`);
   return `<nav class="crumbs" aria-label="Ruta">${parts.join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
 }

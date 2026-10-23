@@ -2,9 +2,9 @@
 // Raíz: carpetas grandes y, debajo, «Sueltos» (lo que no está en ninguna). Dentro de una carpeta:
 // su cabecera azul y, mezclados, sus subcarpetas, apuntes y listas. Al buscar o filtrar, los resultados.
 import { icon } from '../icons.js';
-import { SORTS, folderPath, descendants, sortDecks, matchesDeck } from '../org.js';
+import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar, drawingOf, drawingSrc } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
-import { main, S, esc, norm, cardList, tagChips, counts, planNodes } from '../comun.js';
+import { main, S, esc, norm, cardList, tagChips, counts, planNodes, folderIcon } from '../comun.js';
 import { plural } from './mazos.js';
 
 const ST_LABEL = { ok: 'al día', due: 'toca repasar', weak: 'te cuesta', new: 'sin estudiar' };
@@ -34,14 +34,18 @@ function examText(id, long = false) {
   return ` · examen el ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')}${long ? ` · ${days === 0 ? 'es hoy' : `faltan ${plural(days, 'día', 'días')}`}` : ''}`;
 }
 const bar = (c, young) => `<span class="lbar" aria-label="${pct(c.mature, c.total)} % consolidadas"><i style="width:${pct(c.mature, c.total)}%"></i><i style="width:${pct(young, c.total)}%"></i></span>`;
-const deco = f => `<span class="lfold-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 72 })}</span>`;
+// Color de la carpeta: el que eligió la persona (Editar carpeta) o, si no eligió ninguno, el cobalto del tema
+const foldColor = f => `--fold:${f.color ? colorVar(f.color) : 'var(--accent)'}`;
+// Lo que asoma por la esquina: el dibujo de la carpeta, su emoji o, si no tiene, el icono de carpeta
+const deco = f => { const dr = drawingOf(f.icon);
+  return dr ? `<img class="lfold-deco lfold-draw" src="${drawingSrc(dr)}" alt="" aria-hidden="true">`
+    : `<span class="lfold-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 72 })}</span>`; };
 
 // Carpeta grande de la raíz
-function folderCard(f, i) {
+function folderCard(f) {
   const { decks, pages, c, young } = folderInfo(f.id), n = dueOf(c);
-  const tone = n ? (i % 2 ? 'deep' : 'blue') : 'line';
   const what = [pages.length && plural(pages.length, 'apunte', 'apuntes'), decks.length && plural(decks.length, 'lista', 'listas')].filter(Boolean).join(' · ') || 'vacía';
-  return `<li><button class="lfold lfold-${tone}" data-folder="${f.id}"><span class="lfold-tab" aria-hidden="true"></span>${deco(f)}
+  return `<li><button class="lfold" data-folder="${f.id}" style="${foldColor(f)}"><span class="lfold-tab" aria-hidden="true"></span>${deco(f)}
     <span class="lfold-k">carpeta${examText(f.id)}</span>
     <span class="lfold-name">${esc(f.name)}</span>
     <span class="lfold-meta">${what}</span>
@@ -72,7 +76,7 @@ function deckTile(d, { hand, where }) {
 function subTile(f) {
   const { decks, pages, subs, c } = folderInfo(f.id), n = decks.length + pages.length + subs.length;
   const st = statusOf(cardList().filter(x => decks.some(d => d.id === x.deck_id)));
-  return `<li data-kind="subs" class="lt-subli"><button class="ltile lt-sub" data-folder="${f.id}"><span class="lt-ic" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 26 })}</span>
+  return `<li data-kind="subs" class="lt-subli"><button class="ltile lt-sub" data-folder="${f.id}"><span class="lt-ic" aria-hidden="true">${f.icon ? folderIcon(f) : icon('folder', { size: 26 })}</span>
     <span class="lt-name">${esc(f.name)}</span>
     <span class="lt-foot"><span class="lt-meta">subcarpeta · ${plural(n, 'elemento', 'elementos')}${c.total ? ` · ${c.total}` : ''}</span>${st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : ''}</span>
     <span class="lt-go" aria-hidden="true">${icon('chevron-right', { size: 18 })}</span></button></li>`;
@@ -160,7 +164,7 @@ function renderFolder(folder) {
       <button class="iconbtn" data-act="edit-folder" aria-label="Editar carpeta" title="Editar carpeta">${icon('ellipsis', { size: 20 })}</button>
       <button class="add-round" data-act="create-menu" aria-label="Crear">${icon('plus', { size: 20 })}</button>
     </div>
-    <section class="fhero"><span class="lfold-tab" aria-hidden="true"></span>${deco(folder)}
+    <section class="fhero" style="${foldColor(folder)}"><span class="lfold-tab" aria-hidden="true"></span>${deco(folder)}
       <div class="fhero-main">
         <span class="lfold-k">carpeta${examText(folder.id, true)}</span>
         <h1 class="fhero-name">${esc(folder.name)}</h1>

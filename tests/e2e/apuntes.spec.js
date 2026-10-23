@@ -291,6 +291,50 @@ test('borrar una carpeta no pierde sus apuntes ni sus listas: pasan a sueltos', 
   await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Casos']);
 });
 
+test('color de la carpeta: cobalto si no se elige ninguno; si no, el elegido', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  for (const [name, color] of [['Turco', ''], ['Macro', 'green']]) {
+    await page.locator('#main [data-act="new-folder"]').click();
+    await page.locator('#fo-name').fill(name);
+    if (color) await page.locator(`input[name="f-color"][value="${color}"]`).check({ force: true });
+    await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+    await expect(page.locator('#main .fhero')).toHaveAttribute('style', color ? `--fold:var(--c-${color})` : '--fold:var(--accent)');
+    await nav(page, 'Biblioteca');
+  }
+  await expect(page.locator('#main .lfold', { hasText: 'Turco' })).toHaveAttribute('style', '--fold:var(--accent)');
+  await expect(page.locator('#main .lfold', { hasText: 'Macro' })).toHaveAttribute('style', '--fold:var(--c-green)');
+});
+
+test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin dibujo, su emoji', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('#fo-name').fill('Macro');
+  await expect(page.locator('.draw-pick [data-drawing]')).toHaveCount(8);
+  await page.locator('[data-drawing="d:economia"]').click();
+  await expect(page.locator('.icon-current img')).toHaveAttribute('src', 'img/carpetas/economia.svg');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#main .fhero .lfold-draw')).toHaveAttribute('src', 'img/carpetas/economia.svg');
+  await expect(page.locator('#main .lib-top .crumbs')).not.toContainText('d:');
+  await pasteNotes(page, '# Tema 1\n\nTexto.');
+  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Biblioteca\s*\/\s*Macro\s*\/\s*Tema 1/);
+  await nav(page, 'Biblioteca');
+  const card = page.locator('#main .lfold', { hasText: 'Macro' });
+  await expect(card.locator('img.lfold-draw')).toHaveAttribute('src', 'img/carpetas/economia.svg');
+  expect(await card.locator('img.lfold-draw').evaluate(i => i.complete && i.naturalWidth > 0)).toBe(true);   // el archivo existe
+  // Quitar el dibujo y poner un emoji: asoma el emoji
+  await card.click();
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await expect(page.locator('[data-drawing="d:economia"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-act="clear-icon"]').click();
+  await page.locator('[data-act="toggle-emoji"]').first().click();
+  await page.locator('#emojiPanel [data-emoji]').first().click();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#main .fhero img.lfold-draw')).toHaveCount(0);
+  await expect(page.locator('#main .fhero span.lfold-deco')).not.toBeEmpty();
+});
+
 test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
