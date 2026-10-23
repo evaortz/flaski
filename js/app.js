@@ -9,7 +9,7 @@ import { pushBlocker, BLOCKER_TEXT, syncPush } from './push.js';
 import { STATES, folderState, shares, allocate, examStatus, childrenOf, weightOf, folderKey, urgencyWeight } from './plan.js';
 import { APP_NAME } from './config.js';
 import { cardsFromCSV, cardsToCSV } from './csv.js';
-import { heatmapView, HM_PERIODS, progressSeries, progressView, innerW, nextLine, initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
+import { initProgressHover, PG_PERIODS, streaks, initChartTips, scrollChartsToEnd } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, activeTemplates, summarize, missingFor, legacyFields, splitQuick, checkTyped, choiceOptions, blankType, copyType, nextId, resolveType, typeFit, typeScope, LANG_ROLES, baseLang, parsePairs, parseMasks, masksToText, imageIdIn, MAX_MASKS, parseGroups, clozeAnswer, checkNumber } from './cardtypes.js';
@@ -32,6 +32,7 @@ import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenI
 import { buzz, canVibrate, swipeable, chime, canAudio } from './feel.js';
 import { $, main, S, esc, imgHTML, fmt, plain, norm, cardList, toast, errMsg, fail, deckIcon, folderIcon, tagChips, scopeDecks, scopeTest, scopeName, deckName, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, reviewsLeft, algo, capNote, counts, planNodes, stateOf, planMeta, freshByDeck, newPlan } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, saveSnapSoon, onSignedOut } from './pantallas/cuenta.js';
+import { renderHome, drawHeatmap, drawProgress } from './pantallas/inicio.js';
 
 /* ===================== navegación ===================== */
 export function go(view, extra = {}) {
@@ -66,99 +67,6 @@ function navMe() {
   const who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]) || 'Tú', st = streaks(S.log).current;
   el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon('fire', { size: 13 })} ${plural(st, 'día', 'días')}</span></span>`;
 }
-
-/* ===================== inicio ===================== */
-function renderHome() {
-  if (S.decks.size === 0) {
-    main.innerHTML = `<div class="panel">
-      <h1>Hola${S.name ? ', ' + esc(S.name) : ''}</h1>
-      <p>Todavía no tienes mazos. Puedes empezar con uno ya hecho o crear el tuyo.</p>
-      <div class="btnrow"><button class="primary" data-nav="explore">Ver mazos para empezar</button><button class="ghost" data-act="new-deck">Crear un mazo</button></div></div>`;
-    return;
-  }
-  const all = counts('all');
-  const avail = all.due + all.newToday;
-  const homeStats = new Map([...S.decks.values()].map(d => [d.id, counts(d.id)]));
-  const decks = sortDecks([...S.decks.values()].filter(d => !d.archived), 'due', homeStats).map(d => {
-    const c = homeStats.get(d.id); const n = c.due + c.newToday;
-    return `<li><button class="deck" data-start="${d.id}" ${n ? '' : 'disabled'}>${deckIcon(d)}
-      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''} · ${c.newToday} nuevas · ${c.total} en total${planMeta(d)}</span></span>
-      <span class="go">${n ? 'Estudiar' : c.total ? 'Al día' : 'Vacío'}</span></button></li>`;
-  }).join('');
-  const h = new Date().getHours();
-  const hello = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
-  const H = S.prefs.home;
-  const st = streaks(S.log);
-  // Meta diaria (Ajustes → Estudio diario): respuestas de hoy frente a la meta
-  const doneToday = S.log[dateKey(Date.now())] || 0;
-  const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${H.goal}" aria-valuenow="${Math.min(doneToday, H.goal)}"><span style="width:${Math.min(100, Math.round((doneToday / H.goal) * 100))}%"></span></div></div>` : '';
-  main.innerHTML = `
-    <div class="home-l">
-    <section class="hero" aria-label="Hoy">
-      <h1 class="hero-hi">${hello}${S.name ? ', ' + esc(S.name) : ''}${avail ? ', tienes' : ''}</h1>
-      <div class="hero-row">
-        <div class="hero-num">${avail}</div>
-        <div class="hero-side">
-          <span class="hero-word">${avail ? (avail === 1 ? 'tarjeta!' : 'tarjetas!') : 'al día'}</span>
-          <span class="hero-band">para hoy</span>
-          ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}</span>` : ''}
-        </div>
-      </div>
-      ${avail
-        ? `<button class="primary big hero-go" data-start="all">Empezar a estudiar</button>${capNote(all)}`
-        : `<p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
-           <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
-      ${goal}
-    </section>
-    </div>
-    <div class="home-r">
-    ${pushAskHTML()}
-    ${homeFriendsHTML()}
-    ${H.activity ? `<section class="chart-card lv" data-live aria-labelledby="h-act">
-      <div class="lv-h"><h2 class="lv-k" id="h-act">Actividad<span class="lv-day"></span></h2>${tabs('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.short]))}</div>
-      <div class="lv-big"><b class="lv-n">${st.current}</b><span class="lv-of">${st.current === 1 ? 'día' : 'días'} de racha${st.current ? ` ${icon('fire', { size: 16, cls: 'flame' })}` : ''}</span></div>
-      <p class="lv-sub" id="hmSum"></p>
-      <div id="hmHost" class="hm-host"></div>
-    </section>` : ''}
-    ${H.forecast ? '<section class="chart-card lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
-    </div>
-    ${H.decks ? `<div class="home-decks"><div class="section-h"><h2>Tus mazos</h2><button class="link small" data-nav="decks">ver todos</button></div>
-    <ul class="list">${decks}</ul></div>` : ''}`;
-  drawHeatmap();
-  drawProgress();
-}
-// «mar 14» a partir de una clave AAAA-MM-DD
-const fmtDay = k => { const d = new Date(k + 'T12:00:00'); return `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}`; };
-// Calendario de actividad: el periodo elegido (al cambiarlo, los cuadrados se recolocan con una transición)
-function drawHeatmap() {
-  const host = $('#hmHost');
-  if (!host) return;
-  const st = streaks(S.log);
-  const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth), st.frozen);
-  const sum = $('#hmSum');
-  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js)
-  const fz = st.freeze.available ? 'Comodín de la semana disponible' : `Comodín usado el ${fmtDay(st.freeze.usedOn)}`;
-  if (sum) sum.innerHTML = `<span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span> · Mejor racha: ${plural(st.best, 'día', 'días')} · ${plural(r.active, 'día', 'días')} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
-  scrollChartsToEnd(host);
-}
-// Tu progreso: cuántas tarjetas te sabes cada día del periodo y lo que te queda por aprender
-function drawProgress({ animate = true } = {}) {
-  const host = $('#pgHost');
-  if (!host) return;
-  const cards = cardList(), period = S.prefs.home.progressPeriod || 'm3';
-  const focused = host.contains(document.activeElement) && document.activeElement.dataset.v;
-  progressView(host, {
-    series: progressSeries({ events: S.events, cards, progress: S.progress, period }),
-    width: Math.max(280, innerW(host)), title: 'Tu progreso', animate,
-    tabs: tabs('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])),
-    next: cards.length ? nextLine(cards, S.progress) : '', deckName: id => S.decks.get(id)?.name || '',
-  });
-  if (focused) host.querySelector(`[data-v="${focused}"]`)?.focus();
-}
-
-let resizeT;
-window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (S.view === 'home') { drawHeatmap(); drawProgress({ animate: false }); } if (S.view === 'stats' && statsData) drawStats(main, statsData); }, 150); });
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -1329,7 +1237,7 @@ function toggleFold(id) {
 /* ---------- Deshacer y rehacer en todo el apunte (Ctrl+Z / Ctrl+Mayús+Z) ----------
    Cada cambio guarda una copia del apunte; lo que se escribe seguido en un bloque cuenta como un solo paso.
    Al deshacer, el cursor vuelve a donde estaba el cambio. */
-const H = { id: null, list: [], i: 0, t: 0, kind: '' };
+export const H = { id: null, list: [], i: 0, t: 0, kind: '' };
 let histApplying = false;
 function histFocus() {
   const a = document.activeElement;
@@ -3161,7 +3069,7 @@ function statsScopeOptions(sel) {
     + `<optgroup label="Mazos">${decks.map(d => o(d.id, d.name + (d.archived ? ' (archivado)' : ''))).join('')}</optgroup>`
     + (tags.length ? `<optgroup label="Etiquetas">${tags.map(t => o('tag:' + t.id, '#' + t.name)).join('')}</optgroup>` : '');
 }
-let statsData = null;
+export let statsData = null;
 function renderStats() {
   const f = S.stats;
   if (f.scope !== 'all' && !f.scope.includes(':') && !S.decks.has(f.scope)) f.scope = 'all';
@@ -3312,7 +3220,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 export const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
 // Periodos de un gráfico: pestañas de texto subrayadas
-const tabs = (path, opts) => seg(path, opts).replace('class="seg"', 'class="seg seg-text" aria-label="Periodo"');
+export const tabs = (path, opts) => seg(path, opts).replace('class="seg"', 'class="seg seg-text" aria-label="Periodo"');
 const sw = (path, cur = getPref(path)) => `<label class="switch"><input type="checkbox" role="switch" data-pref="${path}" ${cur ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label>`;
 const numIn = (path, { min = 0, max = 9999, step = 1, unit = '', cur = getPref(path), id = '' } = {}) =>
   `<span class="num"><input type="number" ${id ? `id="${id}"` : ''} data-pref="${path}" data-num min="${min}" max="${max}" step="${step}" inputmode="decimal" value="${cur}">${unit ? `<span>${unit}</span>` : ''}</span>`;
@@ -3352,7 +3260,7 @@ function remindRows() {
 const PUSH_ASK = 'flaski-push-ask';
 const pushWanted = () => S.prefs.remind.on || S.prefs.remind.cheers;
 const pushPending = () => !!api.push && pushWanted() && !remindBlock() && Notification.permission === 'default';
-function pushAskHTML() {
+export function pushAskHTML() {
   if (!pushPending()) return '';
   try { if (localStorage.getItem(PUSH_ASK) === 'no') return ''; } catch { /* sin almacenamiento */ }
   const R = S.prefs.remind, what = [R.on && `te recordamos repasar a las ${R.time}`, R.cheers && api.social && 'te avisamos cuando alguien te anime'].filter(Boolean).join(' y ');
@@ -5964,7 +5872,7 @@ function weekBars(week) {
 }
 
 // Tarjeta de Inicio: ánimos recibidos y la clasificación de la semana
-function homeFriendsHTML() {
+export function homeFriendsHTML() {
   const f = S.friends;
   if (!api.social || !f?.loaded || f.missing || !S.prefs.home.friends) return '<div id="homeFriends"></div>';
   const cheers = f.cheers.length ? (() => {
