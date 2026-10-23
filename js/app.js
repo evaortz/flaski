@@ -16,11 +16,8 @@ import { BUILTIN_TYPES, MODES, LANGS, CLOZE_RE, RUBY_RE, NEEDS_ANSWER, stripRuby
 import { speak, stopSpeaking, ttsAvailable, setBaseRate } from './tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from './handwriting.js';
 import { COLORS, SORTS, colorVar, folderPath, folderTree, decksInFolder, sortDecks, matchesDeck, descendants } from './org.js';
-import { saveSnapshot, loadSnapshot, deleteSnapshot, rememberUser, lastUser, forgetUser } from './snapshot.js';
-import { isRetryable } from './outbox.js';
+import { loadSnapshot, deleteSnapshot, lastUser, forgetUser } from './snapshot.js';
 import { isNotesDeck, notesToDeck, parsePasted } from './notes.js';
-import { openOnboarding } from './onboarding.js';
-import { openNews, NEWS_VERSION, NEWS_ALWAYS } from './news.js';
 import { formatCode, cleanCode, inviteLink, parseInvite, weekDays, WEEK_LETTERS, weekTotal, ranking, initial } from './friends.js';
 import { readPdf, pdfToBlocks } from './pdf.js';
 import { suggestCards, PRESELECT, writingTips } from './suggest.js';
@@ -34,16 +31,17 @@ import { readZip } from './zip.js';
 import { BLOCK_TYPES, BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, shortcut, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, TABLE_TEMPLATE, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from './pages.js';
 import { buzz, canVibrate, swipeable, chime, canAudio } from './feel.js';
 import { $, main, S, esc, imgHTML, fmt, plain, norm, cardList, toast, errMsg, fail, deckIcon, folderIcon, tagChips, scopeDecks, scopeTest, scopeName, deckName, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, reviewsLeft, algo, capNote, counts, planNodes, stateOf, planMeta, freshByDeck, newPlan } from './comun.js';
+import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, saveSnapSoon, onSignedOut } from './pantallas/cuenta.js';
 
 /* ===================== navegación ===================== */
-function go(view, extra = {}) {
+export function go(view, extra = {}) {
   Object.assign(S, { view }, extra);
   closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind();
   S.bsel = null; S.tocOpen = false;
   render();
   window.scrollTo(0, 0);
 }
-function render() {
+export function render() {
   const authed = !!S.uid && !S.recovery;
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
@@ -67,296 +65,6 @@ function navMe() {
   if (!el) return;
   const who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]) || 'Tú', st = streaks(S.log).current;
   el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon('fire', { size: 13 })} ${plural(st, 'día', 'días')}</span></span>`;
-}
-
-/* ===================== sin configurar ===================== */
-function renderSetup() {
-  main.innerHTML = `<div class="panel"><h2>Falta un paso</h2>
-    <p>La app todavía no está conectada a una base de datos. Abre <b>js/config.js</b> y pega la URL y la clave de tu proyecto de Supabase.</p>
-    <p class="muted small">Tienes los pasos detallados en el archivo README.md.</p></div>`;
-}
-
-/* ===================== cuenta ===================== */
-function renderAuth() {
-  const up = S.authMode === 'signup';
-  const reset = S.authMode === 'reset';
-  main.innerHTML = `
-    <div class="panel">
-      <h1>${reset ? 'Recuperar contraseña' : up ? 'Crea tu cuenta' : 'Entra en tu cuenta'}</h1>
-      <p class="muted">${reset ? 'Te enviaremos un email para elegir una contraseña nueva.' : 'Cada persona tiene sus propios mazos y su propio progreso.'}</p>
-      ${reset ? '' : `<div class="seg" role="group" aria-label="Tipo de acceso">
-        <button type="button" data-act="auth-mode" data-mode="signin" aria-pressed="${!up}">Entrar</button>
-        <button type="button" data-act="auth-mode" data-mode="signup" aria-pressed="${up}">Crear cuenta</button></div>`}
-      <form data-form="${reset ? 'reset' : up ? 'signup' : 'signin'}" novalidate>
-        ${up ? '<label for="a-name">Tu nombre</label><input id="a-name" autocomplete="nickname" maxlength="40" required>' : ''}
-        <label for="a-email">Email</label>
-        <input id="a-email" type="email" autocomplete="email" inputmode="email" required>
-        ${reset ? '' : `<label for="a-pass">Contraseña</label>
-        <input id="a-pass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" minlength="6" required>
-        ${up ? '<p class="hint">Mínimo 6 caracteres.</p>' : ''}`}
-        <p class="error" id="a-error" hidden></p>
-        <button class="primary big" type="submit" style="margin-top:12px">${reset ? 'Enviar email' : up ? 'Crear cuenta' : 'Entrar'}</button>
-      </form>
-      ${reset ? '<button class="link" data-act="auth-mode" data-mode="signin">Volver</button>'
-        : up ? '' : '<button class="link" data-act="auth-mode" data-mode="reset">He olvidado mi contraseña</button>'}
-    </div>`;
-}
-function renderNewPassword() {
-  main.innerHTML = `<div class="panel"><h1>Nueva contraseña</h1>
-    <form data-form="newpass"><label for="np">Contraseña nueva</label>
-    <input id="np" type="password" autocomplete="new-password" minlength="6" required>
-    <p class="error" id="a-error" hidden></p>
-    <button class="primary big" type="submit" style="margin-top:12px">Guardar contraseña</button></form></div>`;
-}
-function authError(msg) { const e = $('#a-error'); if (e) { e.textContent = msg; e.hidden = false; } }
-
-async function submitAuth(kind, form) {
-  const btn = form.querySelector('[type=submit]');
-  const email = $('#a-email')?.value.trim();
-  const pass = $('#a-pass')?.value;
-  btn.disabled = true;
-  try {
-    if (kind === 'signin') {
-      if (!email || !pass) return authError('Escribe tu email y tu contraseña.');
-      await api.auth.signIn(email, pass);
-    } else if (kind === 'signup') {
-      const name = $('#a-name').value.trim();
-      if (!name || !email || !pass) return authError('Rellena todos los campos.');
-      if (pass.length < 6) return authError('La contraseña debe tener al menos 6 caracteres.');
-      const res = await api.auth.signUp(email, pass, name);
-      if (!res.session) {
-        main.innerHTML = `<div class="panel"><h2>Revisa tu email</h2><p>Te hemos enviado un enlace a <b>${esc(email)}</b> para confirmar la cuenta. Después vuelve aquí y entra.</p>
-          <button class="primary" data-act="auth-mode" data-mode="signin">Ir a entrar</button></div>`;
-      }
-    } else if (kind === 'reset') {
-      if (!email) return authError('Escribe tu email.');
-      await api.auth.sendReset(email);
-      main.innerHTML = `<div class="panel"><h2>Email enviado</h2><p>Si existe una cuenta con <b>${esc(email)}</b>, te llegará un enlace para elegir una contraseña nueva.</p>
-        <button class="primary" data-act="auth-mode" data-mode="signin">Volver</button></div>`;
-    } else if (kind === 'newpass') {
-      const np = $('#np').value;
-      if (np.length < 6) return authError('Mínimo 6 caracteres.');
-      await api.auth.updatePassword(np);
-      S.recovery = false;
-      history.replaceState(null, '', location.pathname);
-      toast('Contraseña cambiada');
-      render();
-      if (!S.uid) onSignedIn(await api.auth.session());
-    }
-  } catch (e) {
-    authError(errMsg(e));
-  } finally {
-    if (btn.isConnected) btn.disabled = false;
-  }
-}
-
-async function onSignedIn(session) {
-  if (!session || session.user.id === S.uid) return;
-  S.uid = session.user.id;
-  S.email = session.user.email || '';
-  S.loading = true;
-  setImageRemote(api.imageStore ? api.imageStore(S.uid) : null);
-  render();
-  if (api.offline) {
-    if (!session.offline) rememberUser(session.user);
-    // Primero se envía lo que quedó pendiente, para que lo que se cargue ya lo incluya
-    // (sin esperar más de 4 s: si tarda, se carga igual y lo pendiente se aplica encima)
-    const first = api.offline.start(S.uid, n => { S.pending = n; netState(); });
-    if (navigator.onLine && !session.offline) await Promise.race([first, new Promise(r => setTimeout(r, 4000))]);
-    first.then(afterFlush);
-  }
-  try {
-    // Con copia guardada, si no hay red se abre con ella en el acto en vez de esperar a los reintentos
-    const snap = api.offline ? await loadSnapshot(S.uid) : null;
-    let d;
-    try {
-      if (session.offline) throw new TypeError('Failed to fetch');
-      d = await api.loadAll(S.uid, { retry: !snap });
-      S.fromCache = false;
-    } catch (e) {
-      if (!snap || !isOffline(e)) throw e;
-      d = snap; S.fromCache = true;
-    }
-    applyData(withPending(d));
-    S.loading = false;
-    netState();
-    migrateDeckLangs();
-    dedupeTypes();
-    if (!S.fromCache) saveSnap();
-    loadFriends(true);
-    if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
-    if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
-    render();
-    maybeIntro();
-    maybeNews();
-    pushAutoSync();
-  } catch (e) {
-    S.loading = false;
-    main.innerHTML = `<div class="panel"><h2>No se pudieron cargar tus datos</h2><p>${esc(errMsg(e))}</p><button class="primary" data-act="reload">Reintentar</button></div>`;
-  }
-}
-function applyData(d) {
-  S.name = d.profile?.display_name || '';
-  S.newPerDay = d.settings?.new_per_day ?? 15;
-  S.prefs = loadPrefs(d.settings?.prefs);
-  applyLook(S.prefs.look); setBaseRate(S.prefs.study.rate);
-  S.events = (d.events || []).map(e => ({ ...e, t: new Date(e.ts).getTime() }));
-  S.decks = new Map(d.decks.map(x => [x.id, { tags: [], ...x }]));
-  S.folders = new Map((d.folders || []).map(x => [x.id, x]));
-  S.tags = new Map((d.tags || []).map(x => [x.id, x]));
-  S.types = new Map((d.types || []).map(x => [x.id, x]));
-  S.cards = new Map(d.cards.map(x => [x.id, x]));
-  S.progress = new Map(d.progress.map(r => [r.card_id, api.fromRow(r)]));
-  S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
-  S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
-  S.pagesMissing = !!d.pagesMissing;
-  S.pageTagsMissing = !!d.pageTagsMissing;
-}
-
-/* ===================== bienvenida ===================== */
-// La presentación sale una vez, a quien entra sin nada todavía. Se recuerda en la cuenta (Ajustes) y en
-// este navegador, por si se cierra antes de que se guarde.
-const INTRO_KEY = 'flaski-intro-done';
-const introDone = () => S.prefs.intro.done || (() => { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return false; } })();
-function maybeIntro() {
-  if (!introDone() && S.decks.size === 0 && S.pages.size === 0 && !S.session && !S.recovery) showIntro();
-}
-const isDark = () => {
-  const t = document.documentElement.dataset.theme;
-  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-};
-// Novedades de la versión: al entrar, a quien aún no las ha visto (no a quien acaba de llegar: a ese, la bienvenida)
-const NEWS_KEY = 'flaski-news-seen';
-function maybeNews() {
-  let seen = '';
-  try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
-  const newcomer = !introDone() && S.decks.size === 0 && S.pages.size === 0;
-  if (newcomer || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
-  showNews();
-}
-function showNews() {
-  openNews({ dark: isDark, onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } } });
-}
-async function showIntro() {
-  if (document.querySelector('.ob')) return;
-  let examples = S.builtin;
-  if (!examples) { try { examples = S.builtin = await (await fetch('decks/index.json', { cache: 'no-cache' })).json(); } catch { examples = []; } }
-  const counts = new Map();
-  for (const d of S.decks.values()) { const l = d.options?.lang; if (l) counts.set(l, (counts.get(l) || 0) + 1); }
-  const common = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
-  openOnboarding({
-    name: S.name,
-    langs: LANGS.filter(l => l.id && l.id !== nativeLang()),
-    examples,
-    defaultLang: common || (nativeLang().startsWith('en') ? 'es-ES' : 'en-GB'),
-    dark: isDark,
-    onFinish: introChosen,
-  });
-}
-async function introChosen(choice) {
-  S.prefs.intro.done = true;
-  try { localStorage.setItem(INTRO_KEY, '1'); } catch {}
-  savePrefsSoon();
-  const kind = choice?.kind;
-  if (kind === 'lang') {
-    try {
-      const d = await api.createDeck({ owner: S.uid, name: langLabel(choice.lang), options: { lang: choice.lang } });
-      S.decks.set(d.id, { tags: [], ...d });
-      go('deck', { deckId: d.id, cardQuery: '' });
-      toast('Mazo creado: añade tu primera tarjeta');
-      return cardForm(null, { deckId: d.id });
-    } catch (e) { return fail(e); }
-  }
-  if (kind === 'example') { go('explore'); return openBuiltinPreview(choice.file); }
-  if (kind === 'notes') { go('notes', { noteFolder: null }); return newPage(); }
-  if (kind === 'ia') { go('decks', { folderId: null }); return pasteSheet(); }
-  if (kind === 'explore') return go('explore');
-  go('home');
-}
-
-/* ===================== sin conexión ===================== */
-const isOffline = e => !navigator.onLine || isRetryable(e);
-// Aplica encima de los datos cargados los cambios que aún esperan en la cola: ni el servidor ni la
-// copia del navegador (que se guarda con retraso) los tienen por fuerza, y la cola nunca se pierde.
-function withPending(d) {
-  const ops = api.offline?.pendingOps() || [];
-  if (!ops.length) return d;
-  const prog = new Map(d.progress.map(r => [r.card_id, r]));
-  const evs = new Map((d.events || []).map(e => [e.id, e]));
-  const log = new Map(d.log.map(r => [r.day, r.count]));
-  let settings = d.settings;
-  const pages = new Map((d.pages || []).map(p => [p.id, p]));
-  for (const { op, args } of ops) {
-    if (op === 'savePage') pages.set(args[0].id, args[0]);
-    if (op === 'saveProgress') prog.set(args[1], toRow(args[0], args[1], args[2]));
-    else if (op === 'clearProgress') prog.delete(args[1]);
-    else if (op === 'addEvent') evs.set(args[0].id, args[0]);
-    else if (op === 'deleteEvent') evs.delete(args[0]);
-    // bumpLog(uid, día, +1, total local de ese momento): el total ya incluye la respuesta
-    else if (op === 'bumpLog' && args[2] > 0) log.set(args[1], Math.max(log.get(args[1]) || 0, args[3] || 0));
-    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ?? settings?.prefs };
-  }
-  return {
-    ...d, settings, progress: [...prog.values()], pages: [...pages.values()],
-    events: [...evs.values()].sort((a, b) => String(a.ts).localeCompare(String(b.ts))),
-    log: [...log].map(([day, count]) => ({ day, count })),
-  };
-}
-// Copia de lo que hay en pantalla (incluidos los cambios aún sin enviar), para abrir sin conexión
-function snapshotData() {
-  return {
-    profile: { display_name: S.name }, settings: { new_per_day: S.newPerDay, prefs: S.prefs },
-    decks: [...S.decks.values()], cards: [...S.cards.values()], folders: [...S.folders.values()],
-    tags: [...S.tags.values()], types: [...S.types.values()],
-    progress: [...S.progress].map(([id, p]) => toRow(S.uid, id, p)),
-    log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
-    events: S.events.map(({ t, ...e }) => e),
-    pages: [...S.pages.values()],
-  };
-}
-let snapTimer;
-function saveSnap() {
-  clearTimeout(snapTimer); snapTimer = null;
-  if (api.offline && S.uid && !S.loading) saveSnapshot(S.uid, snapshotData());
-}
-function saveSnapSoon() { if (api.offline) { clearTimeout(snapTimer); snapTimer = setTimeout(saveSnap, 3000); } }
-// Aviso en la cabecera: sin conexión y/o cambios por enviar
-function netState() {
-  const el = $('#net');
-  if (!el) return;
-  const off = !navigator.onLine || S.fromCache;
-  const n = S.pending;
-  el.hidden = !S.uid || (!off && !n);
-  el.innerHTML = off
-    ? `${icon('wifi-off', { size: 14 })}<span>Sin conexión${n ? ` · ${plural(n, 'cambio', 'cambios')} por enviar` : ''}</span>`
-    : `${icon('refresh-cw', { size: 14 })}<span>${plural(n, 'cambio', 'cambios')} por enviar</span>`;
-  el.title = off ? 'Puedes seguir estudiando: lo que hagas se guarda aquí y se envía al volver la conexión.' : 'Se enviarán en cuanto el servidor responda.';
-}
-// Con todo enviado y conexión de nuevo, si la app se abrió con la copia, se cargan los datos frescos
-async function afterFlush(ok) {
-  if (!ok || !S.fromCache || !navigator.onLine || !S.uid || S.view === 'study' || S.edit?.open) return;
-  try {
-    // Sin una sesión válida, Supabase devolvería listas vacías: mejor seguir con la copia
-    const s = await api.auth.session();
-    if (s?.user?.id !== S.uid) return;
-    const d = await api.loadAll(S.uid);
-    applyData(withPending(d)); migrateDeckLangs(); S.fromCache = false; netState(); saveSnap(); render();
-  } catch {}
-}
-function retrySync() { if (api.offline && S.uid) api.offline.flush().then(afterFlush); }
-addEventListener('online', () => { netState(); retrySync(); });
-addEventListener('offline', netState);
-setInterval(() => { if (S.pending || S.fromCache) retrySync(); }, 30e3);
-addEventListener('pagehide', saveSnap);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveSnap(); else retrySync(); });
-
-function onSignedOut() {
-  // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre
-  api.offline?.stop();
-  clearTimeout(snapTimer);
-  Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0, pages: new Map(), pageId: null, friends: null });
-  netState();
-  render();
 }
 
 /* ===================== inicio ===================== */
@@ -460,9 +168,9 @@ const allTypes = () => [...BUILTIN_TYPES, ...[...S.types.values()].sort((a, b) =
 const getType = id => BUILTIN_TYPES.find(t => t.id === id) || S.types.get(id) || null;
 // Idioma que se estudia en un mazo ('' = no es de idiomas) y el tipo con sus idiomas resueltos para él
 const deckLang = id => S.decks.get(id)?.options?.lang || '';
-const nativeLang = () => S.prefs.study.nativeLang || 'es-ES';
+export const nativeLang = () => S.prefs.study.nativeLang || 'es-ES';
 const typeIn = (type, deckId) => resolveType(type, { study: deckLang(deckId), native: nativeLang() });
-const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
+export const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
 // Tipo, plantilla y campos de una tarjeta (las antiguas, sin campos, se leen como «Básica»)
 function cardModel(c) {
   const hasFields = c.fields && typeof c.fields === 'object' && Object.keys(c.fields).length;
@@ -996,7 +704,7 @@ function undo() {
 }
 
 /* ===================== mis mazos ===================== */
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const LIST_ICON = icon('list', { size: 18 });
 const GRID_ICON = icon('layout-grid', { size: 18 });
 const MOVE_ICON = icon('folder-input', { size: 20 });
@@ -1225,7 +933,7 @@ function renderExplore() {
     <div class="section-h"><h2>${api.mode === 'local' ? 'Tus mazos compartidos' : 'Compartidos por la comunidad'}</h2></div>
     ${pub ? `<ul class="list">${pub}</ul>` : '<div class="empty"><p class="muted">Todavía nadie ha compartido mazos. Abre uno de tus mazos y pulsa «Compartir».</p></div>'}`;
 }
-async function openPublicPreview(id) {
+export async function openPublicPreview(id) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
     const d = await api.getPublicDeck(id);
@@ -1234,7 +942,7 @@ async function openPublicPreview(id) {
     showPreview(`de ${esc(d.author)}`);
   } catch (e) { closeSheet(); fail(e); }
 }
-async function openBuiltinPreview(file) {
+export async function openBuiltinPreview(file) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
     if (!/^[\w.-]+\.json$/.test(file)) throw new Error('Archivo no válido');
@@ -1288,7 +996,7 @@ function previewImport(parsed, { source, baseName = 'Mazo importado' }) {
 }
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */
-function pasteSheet() {
+export function pasteSheet() {
   openSheet(`<h2>Pegar un mazo</h2>
     <p class="muted small">Pega el mazo que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
     <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto del mazo" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
@@ -2953,7 +2661,7 @@ document.addEventListener('drop', e => {
   e.preventDefault();
   addImageBlock(f, e.target.closest?.('[data-block]')?.dataset.block || null);
 });
-function newPage({ title = '', blocks = null, folder } = {}) {
+export function newPage({ title = '', blocks = null, folder } = {}) {
   if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
   const deckId = S.view === 'deck' ? S.deckId : null;
   // Se crea en la carpeta que estás viendo (en «Apuntes» o en «Mis mazos»)
@@ -3587,7 +3295,7 @@ function savedBadge(state) {
   s.innerHTML = state === 'saving' ? 'Guardando…' : `${icon('check', { size: 14 })} Guardado`;
   if (state === 'done') savedTimer = setTimeout(() => { s.hidden = true; }, 1600);
 }
-function savePrefsSoon() {
+export function savePrefsSoon() {
   clearTimeout(prefsTimer);
   savedBadge('saving');
   prefsTimer = setTimeout(savePrefsNow, 350);
@@ -3601,7 +3309,7 @@ function flushPrefs() { if (prefsTimer) savePrefsNow(); }
 addEventListener('pagehide', flushPrefs);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPrefs(); });
 // Controles reutilizables (todos guardan solos al cambiar)
-const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
+export const seg = (path, opts, cur = getPref(path)) => `<div class="seg" role="group" data-seg="${path}">${opts.map(([v, l]) =>
   `<button type="button" class="seg-b" data-v="${esc(v)}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join('')}</div>`;
 // Periodos de un gráfico: pestañas de texto subrayadas
 const tabs = (path, opts) => seg(path, opts).replace('class="seg"', 'class="seg seg-text" aria-label="Periodo"');
@@ -3652,7 +3360,7 @@ function pushAskHTML() {
     <div class="push-ask-t"><b id="pushAskH">Activa los avisos</b><span>${what.charAt(0).toUpperCase() + what.slice(1)}. Puedes cambiarlo en Ajustes → Avisos.</span></div>
     <div class="btnrow"><button type="button" class="primary small-btn" data-act="push-allow">Activar</button><button type="button" class="ghost small-btn" data-act="push-later">Ahora no</button></div></section>`;
 }
-function pushAutoSync() {
+export function pushAutoSync() {
   const R = S.prefs.remind;
   if (api.push && pushWanted() && !remindBlock() && Notification.permission === 'granted') syncPush({ daily: R.on, cheers: R.cheers, time: R.time }, api.push).catch(() => {});
 }
@@ -4271,7 +3979,7 @@ function linkProp(link) {
   return `<div class="prop"><span class="prop-k">${icon('notebook-text', { size: 16 })} Apuntes</span>
     <span class="prop-v prop-link">${esc(pageTitle(pg))}${b ? ` · <span class="muted">«${esc(plain(b.text).slice(0, 50))}${b.text.length > 50 ? '…' : ''}»</span>` : ''}</span></div>`;
 }
-function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugIndex = null } = {}) {
+export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugIndex = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
   const deckId = c?.deck_id || forcedDeck || (S.view === 'deck' && S.deckId) || sessionDeck || [...S.decks.values()].find(d => !d.archived)?.id || [...S.decks.keys()][0];
   if (!deckId && sugIndex == null) { toast('Crea primero un mazo'); return deckForm(null); }   // (una sugerencia se edita aunque aún no haya mazos)
@@ -5010,7 +4718,7 @@ function legacyCopyOf(t) {
 // Se aplica en memoria en el acto (para pintar ya con el idioma) y se guarda después; si no se puede
 // guardar (sin red), se repite la próxima vez que se cargue.
 let dedupedFor = null;
-async function dedupeTypes() {
+export async function dedupeTypes() {
   if (dedupedFor === S.uid || S.fromCache) return;
   dedupedFor = S.uid;
   const sig = t => canonJSON([t.name, t.fields, t.templates]);
@@ -5027,7 +4735,7 @@ async function dedupeTypes() {
     } catch (e) { console.warn('No se ha podido juntar el tipo repetido', t.name, e); }
   }
 }
-function migrateDeckLangs() {
+export function migrateDeckLangs() {
   const decks = [...S.decks.values()].filter(x => !x.options || !('lang' in x.options));
   for (const d of decks) d.options = { ...(d.options || {}), lang: guessDeckLang(d) };
   const copies = [...S.types.values()].map(t => [t, legacyCopyOf(t)]).filter(([, base]) => base);
@@ -6212,7 +5920,7 @@ async function createSuggested(btn) {
 /* ===================== amigos ===================== */
 // Se cargan aparte de lo demás (no retrasan la app) y se refrescan como mucho una vez por minuto
 const FR = () => S.friends || (S.friends = { me: null, list: [], requests: [], cheers: [], loaded: false, missing: false, error: '', at: 0 });
-async function loadFriends(force = false) {
+export async function loadFriends(force = false) {
   if (!api.social || !S.uid || S.fromCache) return;
   const f = FR();
   if (!force && f.at && Date.now() - f.at < 60e3) return;
@@ -6369,7 +6077,7 @@ function friendMenu(id) {
     <p class="muted small">Si lo bloqueas, deja de ver tu actividad y no puede volver a pedirte amistad.</p>`);
 }
 // Al abrir un enlace de invitación
-function inviteSheet(code) {
+export function inviteSheet(code) {
   if (!api.social) return toast('Para añadir amigos necesitas una cuenta');
   openSheet(`<h2>Te han invitado a Flaski</h2>
     <p>Alguien quiere estudiar contigo. Si aceptas, os aparecerá la racha y los repasos de la semana del otro.</p>
