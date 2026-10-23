@@ -21,7 +21,8 @@ import { nativeLang, cardModel, grade } from './estudio.js';
 import { plural, download } from './mazos.js';
 import { AI_GUIDE_BTNS, loadAiGuide } from './explorar.js';
 import { pageRow } from './apuntes.js';
-import { openSheet, deckTypes, adoptTypes, incoming } from '../app.js';
+import { openSheet, deckTypes, adoptTypes } from './editor.js';
+import { incoming } from '../app.js';
 
 /* ===================== perfil ===================== */
 export function renderProfile() {

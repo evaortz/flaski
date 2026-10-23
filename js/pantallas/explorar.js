@@ -7,7 +7,8 @@ import { importImages } from '../media.js';
 import { $, main, S, esc, fmt, norm, toast, fail } from '../comun.js';
 import { langLabel } from './estudio.js';
 import { plural, parseDeckFile, download } from './mazos.js';
-import { go, openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from '../app.js';
+import { openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from './editor.js';
+import { go } from '../app.js';
 
 /* ===================== explorar ===================== */
 async function loadExplore(force) {

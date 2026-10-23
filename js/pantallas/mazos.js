@@ -15,7 +15,8 @@ import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
 import { previewImport } from './explorar.js';
 import { drag } from './apuntes.js';
 import { seg } from './perfil.js';
-import { go, openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from '../app.js';
+import { openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from './editor.js';
+import { go } from '../app.js';
 
 /* ===================== mis mazos ===================== */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;

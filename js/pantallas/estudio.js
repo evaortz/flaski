@@ -11,7 +11,8 @@ import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, deckIcon, tagChip
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn } from './perfil.js';
-import { go, openSheet, charsFor, hasRuby } from '../app.js';
+import { openSheet, charsFor, hasRuby } from './editor.js';
+import { go } from '../app.js';
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */

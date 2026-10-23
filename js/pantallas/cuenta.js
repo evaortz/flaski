@@ -16,7 +16,8 @@ import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage } from './apuntes.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
-import { go, render, cardForm, dedupeTypes, migrateDeckLangs, loadFriends, inviteSheet } from '../app.js';
+import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
+import { go, render, loadFriends, inviteSheet } from '../app.js';
 
 /* ===================== sin configurar ===================== */
 function renderSetup() {
