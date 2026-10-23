@@ -119,7 +119,7 @@ export function deckForm(d) {
     </form>`);
 }
 export function folderForm(f) {
-  const parentDefault = f ? f.parent_id : S.view === 'notes' ? S.noteFolder : S.folderId;
+  const parentDefault = f ? f.parent_id : S.folderId;
   openSheet(`<h2>${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
     <form data-form="folder" data-id="${f ? f.id : ''}">
       <label for="fo-name">Nombre</label><input id="fo-name" maxlength="80" required value="${esc(f?.name || '')}">
@@ -659,7 +659,7 @@ export async function saveFolderForm(form) {
     const f = id ? await api.updateFolder(id, fields) : await api.createFolder({ ...fields, owner: S.uid });
     S.folders.set(f.id, f);
     toast(id ? 'Carpeta guardada' : 'Carpeta creada');
-    if (S.view === 'notes' || (S.view === 'library' && S.folderForNotes)) go('notes', { noteFolder: f.id }); else go('decks', { folderId: f.id });
+    go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
 }
 export async function addTag(name, color = 'gray') {

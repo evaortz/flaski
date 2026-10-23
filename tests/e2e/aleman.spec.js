@@ -3,7 +3,8 @@ import { test, expect, openApp, nav } from './fixtures.js';
 test('sustantivo alemán: elegir el artículo y escribir la palabra con mayúscula', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="paste"]').click();
+  await page.locator('#main [data-act="import-menu"]').click();
+  await page.locator('#sheetBody [data-act="paste"]').click();
   await page.locator('#pasteText').fill(JSON.stringify({
     name: 'Alemán', lang: 'de-DE',
     notes: [{ type: 'de-noun', fields: { g: 'das', w: 'Haus', pl: 'die Häuser', t: 'la casa' } }],
@@ -27,7 +28,8 @@ test('sustantivo alemán: elegir el artículo y escribir la palabra con mayúscu
 test('alemán: «strasse» por «Straße» es casi, y se sugiere Difícil', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="paste"]').click();
+  await page.locator('#main [data-act="import-menu"]').click();
+  await page.locator('#sheetBody [data-act="paste"]').click();
   await page.locator('#pasteText').fill(JSON.stringify({ name: 'Alemán', lang: 'de-DE', notes: [{ type: 'listen', fields: { x: 'Straße', t: 'la calle' } }] }));
   await page.getByRole('button', { name: 'Ver vista previa' }).click();
   await page.getByRole('button', { name: 'Añadir a mis listas' }).click();

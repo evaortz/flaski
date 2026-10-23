@@ -11,7 +11,6 @@ import { pageTitle, sectionIds } from './pages.js';
 export const $ = s => document.querySelector(s);
 export const main = $('#main');
 // Dónde pinta una pantalla de la Biblioteca: en su sección si se está en ella; si no, en todo #main
-export const libHost = sel => (S.view === 'library' && $(sel)) || main;
 
 export const S = {
   uid: null, email: '', name: '',
@@ -40,7 +39,8 @@ export const S = {
   pages: new Map(),            // id → página de apuntes
   pagesMissing: false,         // la tabla de apuntes aún no existe en Supabase
   pageId: null, pageQuery: '', focusBlock: null,
-  noteFolder: null,                              // carpeta abierta en «Apuntes»
+  noteFolder: null,                              // carpeta abierta (la misma que folderId en la Biblioteca)
+  libKind: 'all',                                // dentro de una carpeta: todo, apuntes, listas o subcarpetas
   noteOrg: { tagIds: [], sort: 'recent' },       // filtros y orden de la lista de apuntes
   fromCache: false,            // datos cargados de la copia del navegador (se abrió sin conexión)
   pending: 0,                  // cambios esperando a enviarse

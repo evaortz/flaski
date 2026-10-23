@@ -5,12 +5,12 @@ import { fmtWhen, dateKey } from '../srs.js';
 import { cardsToCSV } from '../csv.js';
 import { icon } from '../icons.js';
 import { LANGS } from '../cardtypes.js';
-import { SORTS, folderPath, decksInFolder, sortDecks, matchesDeck, descendants } from '../org.js';
+import { folderPath } from '../org.js';
 import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
 import { pageTitle } from '../pages.js';
-import { $, main, libHost, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts, planMeta } from '../comun.js';
+import { $, main, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
 import { previewImport } from './explorar.js';
 import { drag } from './apuntes.js';
@@ -20,15 +20,11 @@ import { go } from '../app.js';
 
 /* ===================== mis mazos ===================== */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const LIST_ICON = icon('list', { size: 18 });
-const GRID_ICON = icon('layout-grid', { size: 18 });
-const MOVE_ICON = icon('folder-input', { size: 20 });
-const PIN_ICON = icon('pin', { size: 14, cls: 'pin', label: 'Fijado' });
 
-// Ruta de carpetas: Mis mazos › Idiomas › Turco
+// Ruta de carpetas: Biblioteca › Idiomas › Turco
 export function crumbs(folderId, { linkLast = false } = {}) {
   const path = folderId ? folderPath(S.folders, folderId) : [];
-  const parts = [`<button class="crumb" data-folder="">Mis listas</button>`];
+  const parts = [`<button class="crumb" data-folder="">Biblioteca</button>`];
   path.forEach((f, i) => {
     const last = i === path.length - 1 && !linkLast;
     parts.push(last ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
@@ -36,142 +32,6 @@ export function crumbs(folderId, { linkLast = false } = {}) {
   });
   return `<nav class="crumbs" aria-label="Ruta">${parts.join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
 }
-
-export function renderDecks() {
-  if (S.folderId && !S.folders.has(S.folderId)) S.folderId = null;
-  const folder = S.folderId ? S.folders.get(S.folderId) : null;
-  const o = S.org;
-  const filtering = !!(o.query.trim() || o.tagIds.length || o.archived);
-  const stats = new Map([...S.decks.values()].map(d => [d.id, counts(d.id)]));
-  const parentOf = f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null);
-  const deckFolder = d => (d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null);
-
-  let decks, folders = [];
-  if (filtering) {
-    decks = [...S.decks.values()].filter(d => matchesDeck(d, { query: o.query.trim(), tagIds: o.tagIds, archived: o.archived }));
-  } else {
-    decks = [...S.decks.values()].filter(d => !d.archived && deckFolder(d) === (folder?.id || null));
-    folders = [...S.folders.values()].filter(f => parentOf(f) === (folder?.id || null)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  }
-  decks = sortDecks(decks, o.sort, stats);
-
-  const where = d => {
-    if (!filtering || !deckFolder(d)) return '';
-    return folderPath(S.folders, d.folder_id).map(f => f.name).join(' / ') + ' · ';
-  };
-  // Lo que toca de un mazo, a mano: «9 hoy», «al día» o «vacío»
-  const dueHand = c => (c.due + c.newToday ? `${c.due + c.newToday} hoy` : c.total ? 'al día' : 'vacío');
-  const deckCard = (d, mini = false) => {
-    const c = stats.get(d.id), pend = c.due + c.newToday, pct = c.total ? Math.round((c.mature / c.total) * 100) : 0;
-    const ic = d.icon ? `<span class="dc-ic dc-emoji" aria-hidden="true">${esc(d.icon)}</span>` : `<span class="dc-ic" aria-hidden="true">${deckGlyph(d)}</span>`;
-    const body = `${ic}<span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
-        ${!mini && d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
-        <span class="dc-foot"><span class="dc-due${pend ? ' on' : ''}">${dueHand(c)}</span><span class="meta">${where(d)}${plural(c.total, 'pregunta', 'preguntas')}${planMeta(d)}</span></span>
-        ${c.total ? `<span class="mini" aria-label="${pct} % consolidadas"><span style="width:${pct}%"></span></span>` : ''}`;
-    if (mini) return `<li><button class="deck dcard dcard-mini" data-open="${d.id}">${body}</button></li>`;
-    return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck dcard${c.total ? '' : ' dcard-empty'}" data-open="${d.id}">${body}</button><button class="row-more tile-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
-  };
-  // Carpetas: una tarjeta del color del tema con sus primeros mazos dentro
-  const folderRows = folders.map(f => {
-    const fc = counts('folder:' + f.id);
-    const all = decksInFolder(S.decks, S.folders, f.id).filter(d => !d.archived);
-    const sub = descendants(S.folders, f.id), np = [...S.pages.values()].filter(p => sub.has(p.folder_id)).length;
-    const top = sortDecks(all, 'due', stats).slice(0, 4);
-    return `<li class="fcard folder">
-      <span class="fcard-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 84 })}</span>
-      <span class="fcard-k">carpeta</span>
-      <button class="fcard-name" data-folder="${f.id}">${esc(f.name)}</button>
-      <span class="fcard-meta">${plural(all.length, 'lista', 'listas')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span>
-      ${top.length ? `<ul class="fcard-grid">${top.map(d => deckCard(d, true)).join('')}</ul>` : ''}
-      <button class="fcard-go" data-folder="${f.id}">${all.length ? `Ver ${all.length === 1 ? 'la lista' : `las ${all.length} listas`}` : 'Abrir la carpeta'}<span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 16 })}</span></button>
-    </li>`;
-  }).join('');
-
-  const deckRows = decks.map(d => {
-    if (o.layout === 'grid') return deckCard(d);
-    const c = stats.get(d.id);
-    const pend = c.due + c.newToday;
-    return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck" data-open="${d.id}">${deckIcon(d)}
-      <span class="info"><span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
-        ${d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
-        <span class="meta">${where(d)}${plural(c.total, 'pregunta', 'preguntas')}${pend ? ` · ${pend} para hoy` : ''}${planMeta(d)}${d.is_public ? ' · compartida' : ''}${d.archived ? ' · archivada' : ''}</span></span>
-      </button><button class="row-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
-  }).join('');
-
-  const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
-    `<button class="fchip" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
-
-  let studyBtn = '';
-  if (!filtering && folder) {
-    const fc = counts('folder:' + folder.id); const n = fc.due + fc.newToday;
-    studyBtn = `<button class="primary" data-start="folder:${folder.id}" ${n ? '' : 'disabled'}>Estudiar carpeta${n ? ' · ' + n : ''}</button>`;
-  } else if (o.tagIds.length === 1 && !o.archived) {
-    const tc = counts('tag:' + o.tagIds[0]); const n = tc.due + tc.newToday;
-    studyBtn = `<button class="primary" data-start="tag:${o.tagIds[0]}" ${n ? '' : 'disabled'}>Estudiar #${esc(S.tags.get(o.tagIds[0])?.name || '')}${n ? ' · ' + n : ''}</button>`;
-  }
-
-  const oneTag = o.tagIds.length === 1 && !o.query.trim() && !o.archived ? S.tags.get(o.tagIds[0]) : null;
-  const title = filtering ? (o.archived ? 'Archivadas' : oneTag ? '#' + esc(oneTag.name) : 'Resultados')
-    : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Mis listas';
-  const empty = filtering ? 'No hay listas que coincidan con el filtro.'
-    : folder ? 'Esta carpeta está vacía. Crea una lista aquí o pulsa «Añadir listas aquí».'
-    : 'Aún no tienes listas. Crea una o busca alguna en Explorar.';
-  // «Empieza por aquí»: el mazo con más pendientes, con una nota a mano que lo señala
-  const scope = filtering ? [] : folder ? decksInFolder(S.decks, S.folders, folder.id).filter(d => !d.archived) : [...S.decks.values()].filter(d => !d.archived);
-  const first = scope.length < 5 ? null : sortDecks(scope, 'due', stats).find(d => stats.get(d.id).due + stats.get(d.id).newToday > 0);
-  const fs1 = first && stats.get(first.id), fsN = first ? fs1.due + fs1.newToday : 0;
-  const feat = first ? `<div class="feat-row">
-      <button class="feat-info" data-open="${first.id}"><b>${esc(first.name)}</b><span>${fs1.due} por repasar · ${fs1.newToday} nuevas · ${plural(fs1.total, 'pregunta', 'preguntas')} en total${deckFolder(first) && !folder ? ` · ${esc(S.folders.get(first.folder_id).name)}` : ''}</span></button>
-      <button class="pill-tint" data-start="${first.id}">Estudiar</button></div>` : '';
-  const note = first ? `<div class="hand-note" aria-hidden="true"><span>empieza por aquí,<br>${plural(fsN, 'pendiente', 'pendientes')}</span>${ARROW}</div>` : '';
-
-  libHost('#libDecks').innerHTML = `
-    ${folder && !filtering ? crumbs(folder.id) : ''}
-    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1><button class="add-round" data-act="new-deck" aria-label="Nueva lista">${icon('plus', { size: 20 })}</button></div>${note}</div>
-    ${feat}
-    ${studyBtn || (folder && !filtering) ? `<div class="btnrow">${studyBtn}${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-folder">Editar carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir listas aquí</button>' : ''}</div>` : ''}
-    <div class="toolbar">
-      <input id="deckSearch" type="search" placeholder="Buscar en todas las listas" aria-label="Buscar listas" value="${esc(o.query)}">
-      <div class="seg-icons round" role="group" aria-label="Vista">
-        <button data-layout="grid" aria-pressed="${o.layout === 'grid'}" aria-label="Cuadrícula">${GRID_ICON}</button>
-        <button data-layout="list" aria-pressed="${o.layout === 'list'}" aria-label="Lista">${LIST_ICON}</button>
-      </div>
-    </div>
-    <div class="filters chips-scroll">
-      <button class="fchip" data-act="clear-filters" aria-pressed="${!filtering}">Todo</button>
-      ${tagFilter}
-    </div>
-    <div class="org-bar">
-      <label class="sort-inline">Orden: <select id="deckSort" aria-label="Ordenar">${SORTS.map(x => `<option value="${x.id}" ${x.id === o.sort ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label>
-      <button class="link" data-act="toggle-archived" aria-pressed="${o.archived}">${o.archived ? 'Ver las activas' : 'Archivadas'}</button>
-    </div>
-    <div class="btnrow btnrow-sm">
-      <button class="ghost small-btn" data-act="new-folder">+ Carpeta</button>
-      <button class="ghost small-btn" data-act="import">Importar</button>
-      <button class="ghost small-btn" data-act="paste">Pegar</button>
-    </div>
-    ${folderRows ? `<ul class="fcards">${folderRows}</ul>` : ''}
-    ${folderRows && deckRows ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta</span></div>' : ''}
-    ${deckRows ? `<ul class="${o.layout === 'grid' ? 'dcards' : 'list'}">${deckRows}</ul>` : folderRows ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
-    ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar una lista encima de una carpeta.</p>' : ''}
-    <button class="link manage-tags" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>`;
-}
-// El dibujo de un mazo sin emoji: según de qué parece que va
-const GLYPHS = {
-  vocab: 'M4 6c5-1 11-1 16 0 .5 3 .5 6 0 9-4 .6-7 .6-10 .4L6 19l.4-3.7c-1.2-.2-2-.4-2.4-.7-.4-3-.4-6 0-8.6zM8 9.5h8M8 12.5h5',
-  grammar: 'M5 9h4a2.5 2.5 0 1 1 5 0h4v4a2.5 2.5 0 1 1 0 5v2H5v-5a2.5 2.5 0 1 0 0-5z',
-  verb: 'M4 17c3-6 8-9 15-10M15 4l4 3-3 4M4 21h8',
-  cards: 'M5 7h13a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM8 4h11a1 1 0 0 1 1 1v11',
-};
-function deckGlyph(d) {
-  const n = (d.name || '').toLowerCase();
-  const k = /verb|pasado|presente|futuro|conjug|imperativ/.test(n) ? 'verb'
-    : /gram|caso|acusativ|dativ|genitiv|armon|mutaci|sufij|declin|artícul|pronombre/.test(n) ? 'grammar'
-    : deckLang(d.id) || /vocab|palabra|léxico/.test(n) ? 'vocab' : 'cards';
-  return `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${GLYPHS[k]}"/></svg>`;
-}
-// Flecha dibujada a mano (para las notas que señalan algo)
-export const ARROW = '<svg width="70" height="46" viewBox="0 0 70 46" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M60 4C58 24 40 36 12 40"/><path d="M20 32l-8 8 10 4"/></svg>';
 export function statusChip(id) {
   const p = S.progress.get(id);
   if (!p) return '<span class="chip">Nueva</span>';

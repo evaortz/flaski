@@ -76,7 +76,10 @@ export async function addBuiltinDeck(page, name) {
 // Unos apuntes a partir de un texto: un apunte nuevo (el primer «# » es su título) y el resto pegado dentro
 export async function pasteNotes(page, text) {
   const m = /^# (.+)\n+/.exec(text);
-  await page.locator('#main [data-act="new-page"]').first().click();
+  // En una carpeta, en el móvil, se crea con el botón «+» (Apunte o Lista)
+  const direct = page.locator('#main [data-act="new-page"]:visible').first();
+  if (await direct.count()) await direct.click();
+  else { await page.locator('#main [data-act="create-menu"]').click(); await page.locator('#sheetBody [data-act="new-page"]').click(); }
   if (m) await page.locator('#pgTitle').fill(m[1]);
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
   await page.evaluate(t => {

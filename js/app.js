@@ -21,10 +21,10 @@ import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPr
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
-import { plural, crumbs, renderDecks, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
-import { renderLibrary } from './pantallas/biblioteca.js';
+import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
+import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
-import { pageCards, savePageSoon, noteCrumbs, pageFolder, renderNotes, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, formatSelection, syncBlock, placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, notesHelpSheet, showHelpTab, blockCardsSheet, setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/apuntes.js';
+import { pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, formatSelection, syncBlock, placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, notesHelpSheet, showHelpTab, blockCardsSheet, setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/apuntes.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
@@ -39,9 +39,12 @@ export function go(view, extra = {}) {
 }
 export function render() {
   const authed = !!S.uid && !S.recovery;
-  // La raíz de las listas y la de los apuntes es la Biblioteca (las dos, una debajo de otra)
-  if ((S.view === 'decks' && !S.folderId) || (S.view === 'notes' && !S.noteFolder)) S.view = 'library';
+  // Un solo árbol de carpetas: la carpeta de los apuntes y la de las listas es la misma vista (decks + folderId);
+  // sin carpeta, la raíz de la Biblioteca
+  if (S.view === 'notes') Object.assign(S, { view: 'decks', folderId: S.noteFolder || null });
+  if (S.view === 'decks' && !S.folderId) S.view = 'library';
   if (S.view === 'library') Object.assign(S, { folderId: null, noteFolder: null });
+  if (S.view === 'decks') S.noteFolder = S.folderId;
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   document.body.classList.toggle('in-study', authed && S.view === 'study');
@@ -55,7 +58,7 @@ export function render() {
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -162,12 +165,7 @@ document.addEventListener('click', async e => {
   if (ds.setType) return setEditorType(ds.setType);
   if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
   if (ds.page) return go('page', { pageId: ds.page });
-  if (ds.nfolder !== undefined) { S.pageQuery = ''; S.noteOrg.tagIds = []; return go('notes', { noteFolder: ds.nfolder || null }); }
-  if (ds.ntag) {
-    const t = ds.ntag, list = S.noteOrg.tagIds;
-    S.noteOrg.tagIds = list.includes(t) ? list.filter(x => x !== t) : [...list, t];
-    return renderNotes();
-  }
+  if (ds.nfolder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.nfolder || null }); }
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
   if (ds.delBlock) return removeImageBlock(ds.delBlock);
@@ -252,12 +250,12 @@ document.addEventListener('click', async e => {
   }
   if (ds.tdel) { const t = readTypeEditor(); t.templates.splice(+ds.tdel, 1); return drawTypeEditor(); }
   if (ds.moveTo !== undefined) { b.disabled = true; return moveDecks(JSON.parse(b.closest('[data-moving]').dataset.moving), ds.moveTo || null); }
-  if (ds.folder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); return go('decks', { folderId: ds.folder || null }); }
-  if (ds.layout) { S.org.layout = ds.layout; saveOrgPrefs(); return renderDecks(); }
+  if (ds.folder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.folder || null }); }
+  if (ds.libkind) { S.libKind = ds.libkind; return renderLibrary(); }
   if (ds.tagfilter) {
     const t = ds.tagfilter, list = S.org.tagIds;
     S.org.tagIds = list.includes(t) ? list.filter(x => x !== t) : [...list, t];
-    return renderDecks();
+    return renderLibrary();
   }
   if (ds.delTag) {
     try {
@@ -360,7 +358,9 @@ document.addEventListener('click', async e => {
       return toast('Copia lista: cambia lo que quieras y guarda');
     }
     case 'new-deck': return deckForm(null);
-    case 'new-folder': S.folderForNotes = !!b.closest('#libNotes'); return folderForm(null);   // en la Biblioteca: ¿desde Apuntes?
+    case 'new-folder': return folderForm(null);
+    case 'create-menu': return openSheet(createMenuHTML());
+    case 'import-menu': return openSheet(importMenuHTML());
     case 'toggle-emoji': {
       const panel = $('#emojiPanel');
       panel.hidden = !panel.hidden;
@@ -381,10 +381,10 @@ document.addEventListener('click', async e => {
     case 'ask-delete-folder': return confirmSheet('¿Eliminar esta carpeta?', 'delete-folder', 'Eliminar carpeta');
     case 'delete-folder': {
       b.disabled = true;
-      const inNotes = S.view === 'notes', fid = inNotes ? S.noteFolder : S.folderId;
+      const fid = S.folderId;
       const parent = S.folders.get(fid)?.parent_id || null;
       const up = parent && S.folders.has(parent) ? parent : null;
-      try { await deleteFolder(fid); toast('Carpeta eliminada'); return inNotes ? go('notes', { noteFolder: up }) : go('decks', { folderId: up }); }
+      try { await deleteFolder(fid); toast('Carpeta eliminada'); return go('decks', { folderId: up }); }
       catch (err) { b.disabled = false; return fail(err); }
     }
     case 'manage-tags': return tagsSheet();
@@ -393,7 +393,7 @@ document.addEventListener('click', async e => {
     case 'new-page': return newPage();
     case 'import-pdf': closeSheet(); return $('#pdfFile').click();
     case 'import-into-page': closeSheet(); setImportInto(true); return $('#noteFile').click();
-    case 'import-notes': setImportInto(false); return $('#noteFile').click();
+    case 'import-notes': closeSheet(); setImportInto(false); return $('#noteFile').click();
     case 'export-page': return exportSheet();
     case 'export-all-notes': return exportAllNotes();
     case 'block-menu': {
@@ -421,7 +421,6 @@ document.addEventListener('click', async e => {
       return go('notes');
     }
     case 'back-study': return go('study');
-    case 'clear-nfilters': S.pageQuery = ''; S.noteOrg.tagIds = []; return renderNotes();
     case 'edit-nfolder': return folderForm(S.folders.get(S.noteFolder));
     case 'page-tags': {
       if (S.pageTagsMissing) return openSheet('<h2>Etiquetas en los apuntes</h2><p>Para usar etiquetas en los apuntes, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor de Supabase y recarga la app.</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>');
@@ -498,8 +497,8 @@ document.addEventListener('click', async e => {
       savePrefsSoon(); toast('Foco repartido por igual'); return renderPlan();
     }
     case 'plan-urgent': return planUrgent();
-    case 'toggle-archived': S.org.archived = !S.org.archived; return renderDecks();
-    case 'clear-filters': Object.assign(S.org, { query: '', tagIds: [], archived: false }); return renderDecks();
+    case 'toggle-archived': S.org.archived = !S.org.archived; return renderLibrary();
+    case 'clear-filters': Object.assign(S.org, { query: '', tagIds: [], archived: false }); return renderLibrary();
     case 'add-tag-inline': {
       const input = $('#f-newtag');
       try {
@@ -515,7 +514,7 @@ document.addEventListener('click', async e => {
     case 'edit-deck': return deckForm(S.decks.get(S.deckId));
     case 'new-card': return cardForm(null);
     case 'share': return shareSheet();
-    case 'import': return $('#importFile').click();
+    case 'import': closeSheet(); return $('#importFile').click();
     case 'add-anki': return addAnki(e.target.closest('button'));
     case 'suggest-cards': closeSheet(); return openSuggestions();
     case 'sug-create': return createSuggested(e.target.closest('button'));
@@ -696,13 +695,6 @@ document.addEventListener('input', e => {
     if (p) { p.title = e.target.value; savePageSoon(p); const cur = document.querySelector('.pg-top .crumbs .crumb-cur:last-child'); if (cur) cur.textContent = pageTitle(p); }
     return;
   }
-  if (e.target.id === 'pageSearch') {
-    S.pageQuery = e.target.value;
-    const pos = e.target.selectionStart;
-    renderNotes();
-    const s = $('#pageSearch'); if (s) { s.focus(); s.setSelectionRange(pos, pos); }
-    return;
-  }
   if (e.target.type === 'range' && e.target.dataset?.pref) { setPref(e.target.dataset.pref, Number(e.target.value)); return prefChanged(e.target.dataset.pref); }
   if (e.target.id === 'cardSearch') {
     S.cardQuery = e.target.value;
@@ -717,11 +709,11 @@ document.addEventListener('input', e => {
     S.edit.dirty = true; readEditor();
   } else if (e.target.id === 'q-text') {
     drawQuick();
-  } else if (e.target.id === 'deckSearch') {
+  } else if (e.target.id === 'libSearch') {
     S.org.query = e.target.value;
     const pos = e.target.selectionStart;
-    renderDecks();
-    const f = $('#deckSearch'); f.focus(); f.setSelectionRange(pos, pos);
+    renderLibrary();
+    const f = $('#libSearch'); f.focus(); f.setSelectionRange(pos, pos);
   } else if (e.target.id === 'exploreSearch') {
     S.exploreQuery = e.target.value;
     const pos = e.target.selectionStart;
@@ -783,8 +775,7 @@ document.addEventListener('change', async e => {
     const p = curPage();
     if (p) { p.folder_id = e.target.value || null; savePageSoon(p); $('.pg-top .crumbs').outerHTML = noteCrumbs(pageFolder(p), pageTitle(p)); }
   }
-  if (e.target.id === 'noteSort') { S.noteOrg.sort = e.target.value; renderNotes(); }
-  if (e.target.id === 'deckSort') { S.org.sort = e.target.value; saveOrgPrefs(); renderDecks(); }
+  if (e.target.id === 'libSort') { S.org.sort = e.target.value; saveOrgPrefs(); renderLibrary(); }
   if (e.target.id === 'c-deck') {
     const d = S.decks.get(e.target.value);
     const ic = e.target.closest('.ed-deck')?.querySelector('.icon, .dot');

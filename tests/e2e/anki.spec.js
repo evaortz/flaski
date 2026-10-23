@@ -7,7 +7,8 @@ for (const modern of [false, true]) {
     await openApp(page);
     await nav(page, 'Biblioteca');
     const chooser = page.waitForEvent('filechooser');
-    await page.locator('#main [data-act="import"]').click();
+    await page.locator('#main [data-act="import-menu"]').click();
+    await page.locator('#sheetBody [data-act="import"]').click();
     await (await chooser).setFiles({ name: 'Idiomas.apkg', mimeType: 'application/octet-stream', buffer: makeApkg({ modern }) });
 
     const sheet = page.locator('#sheetBody');

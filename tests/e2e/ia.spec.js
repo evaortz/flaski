@@ -15,7 +15,8 @@ async function docExamples() {
 
 async function paste(page, text) {
   await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="paste"]').click();
+  await page.locator('#main [data-act="import-menu"]').click();
+  await page.locator('#sheetBody [data-act="paste"]').click();
   await page.locator('#pasteText').fill(text);
   await page.getByRole('button', { name: 'Ver vista previa' }).click();
 }
@@ -107,7 +108,8 @@ test('un archivo flaski-deck se sigue importando igual', async ({ page }) => {
 test('las instrucciones para IA se descargan desde la app', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="paste"]').click();
+  await page.locator('#main [data-act="import-menu"]').click();
+  await page.locator('#sheetBody [data-act="paste"]').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#sheetBody [data-act="download-ai-guide"]').click()]);
   expect(dl.suggestedFilename()).toBe('FORMATO-IA.md');
   expect(await readFile(await dl.path(), 'utf8')).toBe(await readFile(DOC, 'utf8'));

@@ -66,7 +66,7 @@ test('importar varios archivos a la vez (Markdown, CSV, HTML) y dentro de un apu
     { name: 'casos.csv', mimeType: 'text/csv', buffer: Buffer.from('Caso;Sufijo\nLocativo;-de\n') },
     { name: 'web.html', mimeType: 'text/html', buffer: Buffer.from('<html><head><title>Una web</title></head><body><h2>Apartado</h2><p>Texto <em>importante</em>.</p></body></html>') },
   ]);
-  await expect(page.locator('#main .notes-list li')).toHaveCount(3);
+  await expect(page.locator('#main .ltiles li')).toHaveCount(3);
   await page.getByRole('button', { name: /Mitosis/ }).click();
   expect(await kinds(page)).toEqual(['p', 'ol', 'ol']);
   // Dentro del apunte abierto: se añade al final

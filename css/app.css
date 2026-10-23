@@ -2042,3 +2042,130 @@ body.in-study .bar-seg i.on{background:#FFFFFF}
 body.in-study .card .front .fld-main .fld-v{font-family:'Gochi Hand',var(--card-font);font-weight:400;font-size:calc(clamp(44px,12vw,72px) * var(--card-scale,1));line-height:1.05}
 body.in-study .answer::before{content:'respuesta';display:block;text-align:left;font-size:11px;color:var(--muted);margin-bottom:-4px}
 body.in-study .answer .fld-main .fld-v{font-family:'Gochi Hand',var(--card-font);font-weight:400;font-size:calc(clamp(34px,9vw,48px) * var(--card-scale,1));line-height:1.05}
+
+/* ======================================================================
+   Biblioteca (fase 3): un solo árbol de carpetas con apuntes y listas juntos.
+   Carpetas azules con su dibujo asomando; fichas de apunte (esquina doblada),
+   de lista (otras debajo) y de subcarpeta. Solo en esta pantalla.
+   ====================================================================== */
+.lib-head{display:flex;align-items:center;gap:12px}
+.lib-head h1{font-family:var(--font-hand);font-weight:400;font-size:44px;line-height:1;margin:0}
+.lib-head .add-round{margin-bottom:0}
+.lib-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.lib-quick button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:64px;border:1px solid var(--line-strong);border-radius:18px;background:var(--bg);color:var(--fg);font-size:12.5px;font-weight:600;padding:8px 4px}
+.lib-quick button:hover{background:var(--soft)}
+.lib-quick .lu{stroke-width:1.7}
+.lib-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:99px;padding:0 16px;min-height:46px;color:var(--muted)}
+.lib-search input{flex:1;min-width:0;border:0;background:transparent;padding:0;min-height:44px;box-shadow:none;outline:none}
+.lib-search:focus-within{border-color:var(--accent)}
+.lib-links{display:flex;justify-content:center;gap:18px;font-size:12.5px}
+
+/* Carpetas grandes de la raíz (y la cabecera de una carpeta) */
+.lfolds{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px}
+.lfold,.fhero{--fold:var(--accent);--fold-fg:#FFFFFF;position:relative;width:100%;margin-top:14px;text-align:left;border:0;border-radius:0 26px 26px 26px;background:var(--fold);color:var(--fold-fg);padding:20px 20px 18px;display:flex;flex-direction:column;gap:4px}
+.lfold-deep{--fold:var(--accent-deep)}
+.lfold-line{--fold:var(--bg);--fold-fg:var(--fg);border:1.5px solid var(--fg)}
+.lfold:hover{filter:brightness(1.04)}
+.lfold-line:hover{filter:none;background:var(--soft)}
+.lfold-tab{position:absolute;left:0;top:-14px;width:120px;height:22px;background:var(--fold);border-radius:14px 18px 0 0;pointer-events:none}
+.lfold-line .lfold-tab{left:-1.5px;top:-15px;border:1.5px solid var(--fg);border-bottom:0;background:var(--bg)}
+.lfold-line:hover .lfold-tab{background:var(--soft)}
+.lfold-deco{position:absolute;right:-8px;top:-14px;font-size:76px;line-height:1;transform:rotate(10deg);pointer-events:none;filter:drop-shadow(0 4px 0 rgba(0,0,0,.12))}
+.lfold-deco .lu{color:var(--fold-fg);opacity:.32;stroke-width:1.5}
+.lfold-k{font-size:12px;opacity:.85}
+.lfold-name{font-family:var(--font-hand);font-size:clamp(32px,9.5vw,40px);line-height:1.05;max-width:80%;overflow-wrap:break-word}
+.lfold-meta{font-size:13.5px;opacity:.92;margin:0}
+.lbar{display:flex;height:6px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--fold-fg) 20%,transparent);margin-top:10px;max-width:520px}
+.lbar i{display:block;height:100%;background:var(--fold-fg)}
+.lbar i + i{background:color-mix(in srgb,var(--fold-fg) 55%,transparent)}
+.lfold-line .lbar{background:var(--soft)}
+.lfold-line .lbar i:first-child{background:var(--accent-deep)}
+.lfold-line .lbar i + i{background:color-mix(in oklab,var(--accent) 60%,#FFFFFF)}
+.lfold-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:4px}
+.lfold-stats{font-size:11.5px;opacity:.85;line-height:1.35}
+.lfold-due{flex:none;display:inline-flex;align-items:center;gap:4px;font-family:var(--font-hand);font-size:30px;line-height:1;white-space:nowrap}
+.lfold-line .lfold-due{color:#2F7A4F;font-size:24px}
+.lfold.drop-ok{outline:3px dashed var(--accent);outline-offset:3px}
+
+/* Dentro de una carpeta: barra de arriba y cabecera azul */
+.lib-top{display:flex;align-items:center;gap:10px}
+.lib-top .crumbs{flex:1 1 auto;margin:0;min-width:0;flex-wrap:nowrap;overflow:hidden}
+.lib-top .crumb{flex:0 1 auto;min-width:0}
+.lib-top .crumbs .crumb-cur{font-weight:600}
+.lib-top .add-round{margin-bottom:0}
+.lib-top .iconbtn{width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--fg);display:grid;place-items:center}
+.back-round{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg);color:var(--fg);display:grid;place-items:center;padding:0}
+.fhero{--fold:var(--accent-deep);gap:16px}
+.fhero-main{display:flex;flex-direction:column;gap:4px;position:relative}
+.fhero-name{font-family:var(--font-hand);font-weight:400;font-size:clamp(34px,10vw,44px);line-height:1.05;margin:0;max-width:85%;overflow-wrap:break-word;color:inherit}
+.lbar-key{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px}
+.lbar-key li{display:inline-flex;align-items:center;gap:5px}
+.lbar-key i{width:8px;height:8px;border-radius:50%;background:#FFFFFF}
+.lbar-key li:nth-child(2) i{background:color-mix(in srgb,#FFFFFF 55%,transparent)}
+.lbar-key li:nth-child(3) i{background:transparent;border:1.5px solid color-mix(in srgb,#FFFFFF 55%,transparent)}
+.fhero-side{display:flex;flex-direction:column;gap:10px;position:relative}
+.fhero-study{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;border:0;border-radius:99px;background:#FFFFFF;color:var(--accent-deep);padding:0 8px 0 22px;font-size:15px;font-weight:600;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.fhero-study span:first-child{flex:1;text-align:left}
+.fhero-study b{font-family:var(--font-hand);font-weight:400;font-size:28px;line-height:1}
+.fhero-study .go-dot{width:42px;height:42px;background:var(--accent-deep);color:#FFFFFF}
+.fhero-study:disabled{opacity:1;box-shadow:none}
+.fhero-study:disabled .go-dot{opacity:.4}
+.fhero-add{display:none;gap:10px}
+.fhero-add button{flex:1;min-height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,#FFFFFF 70%,transparent);background:transparent;color:#FFFFFF;font-weight:600;font-size:14px}
+.fhero-add button:hover{background:rgba(255,255,255,.1)}
+
+/* Fichas mezcladas: apuntes, listas y subcarpetas */
+.ltiles{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ltiles > li{position:relative;min-width:0}
+.ltile{position:relative;width:100%;height:100%;min-height:168px;text-align:left;border:1px solid var(--line-strong);border-radius:20px;background:var(--bg);color:var(--fg);padding:16px 14px 14px;display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.ltile:hover{background:var(--soft)}
+.lt-ic{color:color-mix(in oklab,var(--accent) 60%,#FFFFFF);line-height:1;font-size:26px}
+.lt-ic .lu{stroke-width:1.5}
+.lt-name{flex:1;font-size:14px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.lt-foot{display:flex;flex-direction:column;gap:4px}
+.lt-meta{font-size:11.5px;color:var(--muted)}
+.lt-hand{font-family:var(--font-hand);font-size:24px;line-height:1;align-self:flex-end;margin-top:-22px}
+.lt-st{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-hand);font-size:21px;line-height:1}
+.lt-st i{width:9px;height:9px;border-radius:50%;background:var(--faint);flex:none}
+.lt-st.st-weak i{background:#FF9F92}
+.lt-st.st-due i{background:#FFC36B}
+.lt-st.st-ok i{background:#8EE3B5}
+.lt-st.st-new i{background:#9ED4FF}
+/* Apunte: esquina doblada arriba a la derecha */
+.lt-note{clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,0 100%)}
+.lt-note::after{content:'';position:absolute;top:0;right:0;width:20px;height:20px;background:linear-gradient(225deg,transparent 50%,var(--line-strong) 50%);border-bottom-left-radius:3px}
+/* Lista: otras dos asomando por debajo */
+.lt-list{box-shadow:4px 4px 0 -1px var(--bg),4px 4px 0 0 var(--line-strong),8px 8px 0 -1px var(--bg),8px 8px 0 0 var(--line);width:calc(100% - 8px);height:calc(100% - 8px)}
+.ltiles .tile-more{position:absolute;top:6px;right:14px;z-index:1;width:40px;height:40px;border:0;background:transparent;color:var(--faint);display:grid;place-items:center;padding:0}
+/* Subcarpeta: en el móvil, una fila lila a lo ancho; en el ordenador, una ficha más */
+.lt-subli{grid-column:1 / -1}
+.lt-sub{min-height:0;flex-direction:row;align-items:center;gap:14px;border:0;background:var(--soft);border-radius:18px;padding:14px 16px}
+.lt-sub:hover{background:var(--press)}
+.lt-sub .lt-ic{color:var(--accent);font-size:28px}
+.lt-sub .lt-ic .lu{fill:currentColor;stroke-width:1}
+.lt-sub .lt-name{flex:1;font-size:15px}
+.lt-sub .lt-foot{flex:none;align-items:flex-end}
+.lt-sub .lt-st{display:none}
+.lt-go{flex:none;color:var(--fg)}
+.lt-sub.drop-ok{outline:3px dashed var(--accent);outline-offset:2px}
+/* Hojas «Crear» e «Importar» */
+.lib-pick{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.lib-pick button{display:flex;align-items:center;gap:14px;text-align:left;border:1px solid var(--line-strong);border-radius:16px;background:var(--bg);color:var(--fg);padding:14px 16px;min-height:64px}
+.lib-pick button:hover{background:var(--soft)}
+.lib-pick span{display:flex;flex-direction:column;gap:2px}
+.lib-pick b{font-size:15px}
+.lib-pick small{font-size:12.5px;color:var(--muted)}
+
+@media (min-width:700px){
+  .ltiles{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  .lt-subli{grid-column:auto}
+  .lt-sub{flex-direction:column;align-items:stretch;min-height:168px;padding:16px 14px 14px}
+  .lt-sub .lt-name{font-size:14px}
+  .lt-sub .lt-foot{align-items:flex-start}
+  .lt-sub .lt-st{display:inline-flex}
+  .lt-go{display:none}
+  .fhero{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,400px);align-items:center;gap:24px;padding:36px 36px 32px}
+  .fhero-name{font-size:clamp(44px,4.6vw,56px);max-width:none;overflow-wrap:normal}
+  .fhero-add{display:flex}
+  .lfold-name{font-size:46px}
+}

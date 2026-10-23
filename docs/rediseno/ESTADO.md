@@ -27,3 +27,12 @@
 - `FORMATO-IA.md` se queda como está (no hay IA en v1).
 - En el editor de apuntes y en Sugerir preguntas (menú de bloques, ayuda, trucos y consejos), las listas con viñetas se llaman «Viñetas» y las numeradas, «Numeración». «Lista» queda solo para las listas de preguntas.
 - Novedades y capturas: al final del rediseño. `sw.js` → `flaski-v87`.
+
+## Fase 3 · Biblioteca con carpetas (hecha)
+- Sin migración: listas (`decks.folder_id`) y apuntes (`pages.folder_id`) ya apuntaban a la misma tabla `folders`. Solo se unen las vistas: `go('notes', …)` y `go('decks', …)` con carpeta abren la misma vista (`decks` + `S.folderId`, y `S.noteFolder` va igual). `renderDecks`/`renderNotes`/`libHost` desaparecen; todo lo pinta `pantallas/biblioteca.js`.
+- Raíz: «Biblioteca» + «+», accesos Apunte · Lista · Carpeta · Importar, buscador único (apuntes y listas), carpetas grandes (azul, azul oscuro alternando; con borde si están al día) y «Sueltos». Carpeta: cabecera azul con barra consolidadas/jóvenes/por aprender, «Estudiar la carpeta», filtros Todo · Apuntes · Listas · Subcarpetas y fichas mezcladas. Un solo «+ Carpeta» por pantalla; «+» ofrece Apunte o Lista; «Importar» ofrece apuntes, listas o pegar.
+- Dibujos cartoon: no hay recursos, así que asoma el icono de la carpeta (su emoji o el icono de carpeta). Pendiente cuando existan los dibujos.
+- Se quitan de la Biblioteca (no salen en las capturas): vista en lista/cuadrícula, «Empieza por aquí», «Lo dejaste aquí» y el resumen del texto de cada apunte. Se mantienen, discretos: Orden, Archivadas, etiquetas, «+ Añadir listas aquí», mover y arrastrar listas a carpetas, «Exportar apuntes».
+- Borrar carpeta: la app ya subía su contenido un nivel; además `backend-local` deja `folder_id` a null en los apuntes, como Supabase. Prueba nueva en `apuntes.spec.js`.
+- Pendiente: «Cómo lo llevas» (columna derecha en escritorio) y la nueva pantalla de lista (`lista-movil.jpg`, con «Apuntes vinculados»), que no eran de esta fase. `sw.js` → `flaski-v88`.
+- Dudas: el color de cada carpeta (azul / azul oscuro / con borde) lo elijo yo por pendientes; en el diseño no está la regla. En las fichas de la raíz va «N hoy»/«al día» y dentro de una carpeta, el estado (te cuesta, toca repasar…), como en las capturas.

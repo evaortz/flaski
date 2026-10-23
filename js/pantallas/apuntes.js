@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
-import { folderPath, descendants } from '../org.js';
+import { folderPath } from '../org.js';
 import { readPdf, pdfToBlocks } from '../pdf.js';
 import { suggestCards, PRESELECT, writingTips } from '../suggest.js';
 import { storeImage, imageType, newImageId, flushUploads, stripImages, imageBlob } from '../media.js';
@@ -11,11 +11,11 @@ import { makeLive, liveSet, selOffsets, textOffset } from '../liveedit.js';
 import { htmlToBlocks } from '../paste.js';
 import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, titleFromFile, markdownImageRefs } from '../notesio.js';
 import { readZip } from '../zip.js';
-import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, pageSearchText, parseTable, isTableText, tableToMarkdown, gridFromPaste, cardsStatus, sectionIds, STATUS, pageToMarkdown, pageSnippet } from '../pages.js';
-import { $, main, libHost, S, esc, imgHTML, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
+import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, parseTable, isTableText, tableToMarkdown, gridFromPaste, cardsStatus, sectionIds, STATUS, pageToMarkdown } from '../pages.js';
+import { $, main, S, esc, imgHTML, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { typeIcon, getType, deckLang, nativeLang, typeIn, undo } from './estudio.js';
-import { plural, crumbs, ARROW, statusChip, download } from './mazos.js';
+import { plural, crumbs, statusChip, download } from './mazos.js';
 import { seg, tabs, sw } from './perfil.js';
 import { openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage, readEditor, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
@@ -27,7 +27,6 @@ export function pageCards(pageId) {
   for (const c of S.cards.values()) if (c.page_id === pageId) { const k = c.block_id || ''; if (!m.has(k)) m.set(k, []); m.get(k).push(c); }
   return m;
 }
-const shortDate = iso => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
 // Fila para guardar. Las etiquetas solo si la base de datos ya tiene esa columna (si no, se perdería el guardado)
 export const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.icon || '', deck_id: p.deck_id || null, folder_id: p.folder_id || null, blocks: p.blocks,
   ...(S.pageTagsMissing ? {} : { tags: p.tags || [] }) });
@@ -57,76 +56,17 @@ function flushPages() {
 addEventListener('pagehide', flushPages);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPages(); });
 
-// Ruta de los apuntes: Apuntes / Idiomas / Turco (/ título del apunte, si se está dentro de uno)
+// Ruta de los apuntes: Biblioteca / Idiomas / Turco (/ título del apunte, si se está dentro de uno)
 export function noteCrumbs(folderId, current = null) {
   const path = folderId && S.folders.has(folderId) ? folderPath(S.folders, folderId) : [];
   const btn = (id, label) => `<button class="crumb" data-nfolder="${id}">${label}</button>`;
-  const parts = [btn('', 'Apuntes'), ...path.map((f, i) => (i === path.length - 1 && !current
+  const parts = [btn('', 'Biblioteca'), ...path.map((f, i) => (i === path.length - 1 && !current
     ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
     : btn(f.id, `${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}`)))];
   if (current) parts.push(`<span class="crumb crumb-cur">${esc(current)}</span>`);
   return `<nav class="crumbs" aria-label="Ruta">${parts.join('<span class="sep" aria-hidden="true">/</span>')}</nav>`;
 }
 export const pageFolder = p => (p.folder_id && S.folders.has(p.folder_id) ? p.folder_id : null);
-const NOTE_SORTS = [['recent', 'Editados recientemente'], ['name', 'Nombre'], ['created', 'Creados recientemente']];
-export function renderNotes() {
-  if (S.noteFolder && !S.folders.has(S.noteFolder)) S.noteFolder = null;
-  const folder = S.noteFolder ? S.folders.get(S.noteFolder) : null;
-  const o = S.noteOrg, q = norm(S.pageQuery.trim());
-  const filtering = !!(q || o.tagIds.length);
-  const here = folder?.id || null;
-  const pages = [...S.pages.values()]
-    .filter(p => (filtering ? (!q || norm(pageSearchText(p)).includes(q)) && o.tagIds.every(t => (p.tags || []).includes(t)) : pageFolder(p) === here))
-    .sort(o.sort === 'name' ? (a, b) => pageTitle(a).localeCompare(pageTitle(b), 'es')
-      : o.sort === 'created' ? (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))
-      : (a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
-  const folders = filtering ? [] : [...S.folders.values()].filter(f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null) === here)
-    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  // Carpetas: una tarjeta de línea discontinua con su nombre a mano
-  const folderRows = folders.map(f => {
-    const inside = descendants(S.folders, f.id);
-    const np = [...S.pages.values()].filter(p => inside.has(pageFolder(p))).length;
-    const nd = [...S.decks.values()].filter(d => !d.archived && inside.has(d.folder_id)).length;
-    return `<li><button class="nfolder folder" data-nfolder="${f.id}"><span class="nfolder-ic" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 40 })}</span>
-      <span class="nfolder-t"><span class="nfolder-name">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes todavía'}${nd ? ` · ${plural(nd, 'lista', 'listas')}` : ''}</span></span>
-      <span class="nfolder-go">${np ? 'Abrir' : 'Escribir'}</span></button></li>`;
-  }).join('');
-  // Cada apunte, una tarjeta: título, el principio del texto y, abajo, la fecha y sus tarjetas
-  const pageRows = pages.map(p => {
-    const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards), snip = pageSnippet(p);
-    const where = filtering && pageFolder(p) ? `${folderPath(S.folders, p.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '';
-    return `<li><button class="deck note-row ncard" data-page="${p.id}">
-      <span class="dname">${p.icon ? `<span class="icon" aria-hidden="true">${esc(p.icon)}</span> ` : ''}${esc(pageTitle(p))}</span>
-      <span class="snip${snip ? '' : ' snip-empty'}">${snip ? esc(snip) : 'vacío'}</span>
-      ${(p.tags || []).length ? `<span class="tags">${tagChips(p.tags)}</span>` : ''}
-      <span class="meta">${where}${shortDate(p.updated_at)}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'pregunta', 'preguntas')}</span>` : ''}</span></button></li>`;
-  }).join('');
-  const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
-    `<button class="fchip" data-ntag="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
-  const title = filtering ? 'Resultados' : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Apuntes';
-  const empty = filtering ? '<p class="muted">Ningún apunte coincide con la búsqueda o las etiquetas.</p>'
-    : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
-    : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus preguntas</h2>
-       <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una pregunta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
-       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button></div>`;
-  // «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
-  const last = !filtering && !folder && S.pages.size >= 5 ? [...S.pages.values()].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0] : null;
-  const feat = last ? `<div class="feat-row">
-      <button class="feat-info" data-page="${last.id}"><b>${esc(pageTitle(last))}</b><span>editado el ${shortDate(last.updated_at)}${pageSnippet(last) ? ` · ${esc(pageSnippet(last).slice(0, 60))}` : ''}</span></button>
-      <button class="pill-tint" data-page="${last.id}">Seguir</button></div>` : '';
-  const has = S.pages.size || S.folders.size;
-  libHost('#libNotes').innerHTML = `${folder && !filtering ? noteCrumbs(folder.id) : ''}
-    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1>${has ? `<button class="add-round" data-act="new-page" aria-label="Nuevo apunte">${icon('plus', { size: 20 })}</button>` : ''}</div>${last ? `<div class="hand-note" aria-hidden="true"><span>lo dejaste aquí,<br>¿sigues?</span>${ARROW}</div>` : ''}</div>
-    ${feat}
-    ${folder && !filtering ? '<div class="btnrow"><button class="ghost small-btn" data-act="edit-nfolder">Editar carpeta</button></div>' : ''}
-    ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
-    ${has ? `<div class="toolbar"><input id="pageSearch" type="search" placeholder="Buscar en todos los apuntes" aria-label="Buscar en los apuntes" value="${esc(S.pageQuery)}"></div>
-    ${tagFilter ? `<div class="filters chips-scroll"><button class="fchip" data-act="clear-nfilters" aria-pressed="${!o.tagIds.length}">Todo</button>${tagFilter}</div>` : ''}
-    <div class="org-bar"><label class="sort-inline">Orden: <select id="noteSort" aria-label="Ordenar">${NOTE_SORTS.map(([v, l]) => `<option value="${v}" ${v === o.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <div class="btnrow btnrow-sm"><button class="ghost small-btn" data-act="new-folder" title="Nueva carpeta">+ Carpeta</button><button class="ghost small-btn" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">Importar</button><button class="ghost small-btn" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">Exportar</button></div>` : ''}
-    ${pageRows ? `<ul class="list notes-list ncards">${pageRows}</ul>` : folderRows ? '' : `<div class="empty notes-empty">${empty}</div>`}
-    ${folderRows ? `<ul class="nfolders">${folderRows}</ul>` : ''}`;
-}
 
 const BLOCK_PH = 'Escribe algo… («# » título, «- » viñetas)';
 // Una tabla en Markdown → <table>; si está a medio escribir, se ve el texto tal cual
@@ -1638,8 +1578,8 @@ document.addEventListener('drop', e => {
 export function newPage({ title = '', blocks = null, folder } = {}) {
   if (S.pagesMissing) return toast('Primero ejecuta supabase/schema.sql en Supabase (lo explica la pantalla de Apuntes)');
   const deckId = S.view === 'deck' ? S.deckId : null;
-  // Se crea en la carpeta que estás viendo (en «Apuntes» o en «Mis mazos»)
-  const folderId = folder !== undefined ? folder : S.view === 'notes' ? S.noteFolder : S.view === 'deck' ? S.decks.get(S.deckId)?.folder_id || null : null;
+  // Se crea en la carpeta que estás viendo (en la Biblioteca o en una lista)
+  const folderId = folder !== undefined ? folder : S.view === 'decks' ? S.folderId : S.view === 'deck' ? S.decks.get(S.deckId)?.folder_id || null : null;
   const p = { id: api.newId(), owner: S.uid, title, icon: '', deck_id: deckId, folder_id: folderId, tags: [], blocks: blocks?.length ? blocks : [newBlock()] };
   S.pages.set(p.id, p);
   savePageSoon(p, 0);
@@ -1877,10 +1817,10 @@ async function importNoteFiles(files, into) {
     renderPage();
     toast(`Importado${errors.length ? ` (${errors.length} con problemas)` : ''}`);
   } else {
-    const folder = S.view === 'notes' ? S.noteFolder : S.view === 'page' ? pageFolder(curPage()) : null;
+    const folder = S.view === 'decks' ? S.folderId : S.view === 'page' ? pageFolder(curPage()) : null;
     const pages = good.map(x => { const p = { id: api.newId(), owner: S.uid, title: x.title || '', icon: '', deck_id: null, folder_id: folder || null, tags: [], blocks: x.blocks }; S.pages.set(p.id, p); savePageSoon(p, 0); return p; });
     if (pages.length === 1) go('page', { pageId: pages[0].id });
-    else { S.view === 'notes' ? renderNotes() : go('notes'); }
+    else go('decks', { folderId: folder || null });
     toast(`${plural(pages.length, 'apunte importado', 'apuntes importados')}${errors.length ? ` · ${errors.length} con problemas` : ''}`);
   }
   if (errors.length) console.warn(errors);
