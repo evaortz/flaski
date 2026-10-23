@@ -13,7 +13,8 @@ import { pageTitle } from '../pages.js';
 import { $, main, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts, planMeta } from '../comun.js';
 import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
 import { previewImport } from './explorar.js';
-import { go, drag, seg, openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from '../app.js';
+import { drag } from './apuntes.js';
+import { go, seg, openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from '../app.js';
 
 /* ===================== mis mazos ===================== */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;

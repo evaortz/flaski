@@ -14,7 +14,8 @@ import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
 import { nativeLang, langLabel } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
-import { go, render, newPage, savePrefsSoon, seg, pushAutoSync, cardForm, dedupeTypes, migrateDeckLangs, loadFriends, inviteSheet } from '../app.js';
+import { newPage } from './apuntes.js';
+import { go, render, savePrefsSoon, seg, pushAutoSync, cardForm, dedupeTypes, migrateDeckLangs, loadFriends, inviteSheet } from '../app.js';
 
 /* ===================== sin configurar ===================== */
 function renderSetup() {
