@@ -86,6 +86,7 @@ test('una imagen añadida sin conexión se sube al volver la red y se descarga e
   // Otro dispositivo (sin la imagen guardada en el navegador): la descarga de la nube
   await page.evaluate(() => new Promise(r => { const q = indexedDB.deleteDatabase('flaski-media'); q.onsuccess = q.onerror = q.onblocked = r; }));
   await page.reload();
+  await expect(page.locator('#nav')).toBeVisible();   // con sesión: ya sabe de dónde descargar las imágenes
   await page.evaluate(i => document.body.insertAdjacentHTML('beforeend', `<img id="probe" class="media" data-img="${i}">`), id);
   await expect(page.locator('#probe')).toHaveAttribute('src', /^blob:/);
 });
