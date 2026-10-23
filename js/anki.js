@@ -154,7 +154,7 @@ export function convertNotetype(nt) {
     const front = q.refs, answer = q.typed[0] || null;
     let back = a.refs.filter(n => !front.includes(n) && n !== answer);
     if (!back.length && !answer) back = names.filter(n => !front.includes(n));
-    return { front, back, answer, name: t.name || `Tarjeta ${t.ord + 1}` };
+    return { front, back, answer, name: t.name || `Pregunta ${t.ord + 1}` };
   });
   // Los más corrientes, a los tipos de Flaski equivalentes
   if (names.length === 2 && tpls.length === 1 && !tpls[0].answer && same(tpls[0].front, [names[0]]) && same(tpls[0].back, [names[1]])) {

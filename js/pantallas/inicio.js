@@ -16,8 +16,8 @@ export function renderHome() {
   if (S.decks.size === 0) {
     main.innerHTML = `<div class="panel">
       <h1>Hola${S.name ? ', ' + esc(S.name) : ''}</h1>
-      <p>Todavía no tienes mazos. Puedes empezar con uno ya hecho o crear el tuyo.</p>
-      <div class="btnrow"><button class="primary" data-nav="explore">Ver mazos para empezar</button><button class="ghost" data-act="new-deck">Crear un mazo</button></div></div>`;
+      <p>Todavía no tienes listas. Puedes empezar con una ya hecha o crear la tuya.</p>
+      <div class="btnrow"><button class="primary" data-nav="explore">Ver listas para empezar</button><button class="ghost" data-act="new-deck">Crear una lista</button></div></div>`;
     return;
   }
   const all = counts('all');
@@ -44,7 +44,7 @@ export function renderHome() {
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
-          <span class="hero-word">${avail ? (avail === 1 ? 'tarjeta!' : 'tarjetas!') : 'al día'}</span>
+          <span class="hero-word">${avail ? (avail === 1 ? 'pregunta!' : 'preguntas!') : 'al día'}</span>
           <span class="hero-band">para hoy</span>
           ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}</span>` : ''}
         </div>
@@ -67,7 +67,7 @@ export function renderHome() {
     </section>` : ''}
     ${H.forecast ? '<section class="chart-card lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
     </div>
-    ${H.decks ? `<div class="home-decks"><div class="section-h"><h2>Tus mazos</h2><button class="link small" data-nav="decks">ver todos</button></div>
+    ${H.decks ? `<div class="home-decks"><div class="section-h"><h2>Tus listas</h2><button class="link small" data-nav="decks">ver todas</button></div>
     <ul class="list">${decks}</ul></div>` : ''}`;
   drawHeatmap();
   drawProgress();

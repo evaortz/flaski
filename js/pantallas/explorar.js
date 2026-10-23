@@ -29,21 +29,21 @@ export function renderExplore() {
   const q = norm(S.exploreQuery.trim());
   const match = d => !q || norm(d.name).includes(q) || norm(d.description).includes(q) || norm(d.author).includes(q);
   const builtin = S.builtin.filter(match).map(d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="dot" style="background:var(--d2)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} tarjetas · incluido en la app</span></span><span class="go">Ver</span></button></li>`).join('');
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} preguntas · incluida en la app</span></span><span class="go">Ver</span></button></li>`).join('');
   const pub = S.pub.filter(match).map(d => `<li><button class="deck" data-pub="${d.id}"><span class="dot" style="background:var(--d4)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} tarjetas · de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}</span></span><span class="go">Ver</span></button></li>`).join('');
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} preguntas · de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}</span></span><span class="go">Ver</span></button></li>`).join('');
   main.innerHTML = `<div class="section-h"><h1>Explorar</h1><button class="link" data-act="refresh-explore">Actualizar</button></div>
-    <div class="toolbar"><input id="exploreSearch" type="search" placeholder="Buscar mazos" aria-label="Buscar mazos" value="${esc(S.exploreQuery)}"></div>
+    <div class="toolbar"><input id="exploreSearch" type="search" placeholder="Buscar listas" aria-label="Buscar listas" value="${esc(S.exploreQuery)}"></div>
     <div class="section-h"><h2>Para empezar</h2></div>
     ${builtin ? `<ul class="list">${builtin}</ul>` : '<p class="muted">Nada por aquí.</p>'}
-    <div class="section-h"><h2>${api.mode === 'local' ? 'Tus mazos compartidos' : 'Compartidos por la comunidad'}</h2></div>
-    ${pub ? `<ul class="list">${pub}</ul>` : '<div class="empty"><p class="muted">Todavía nadie ha compartido mazos. Abre uno de tus mazos y pulsa «Compartir».</p></div>'}`;
+    <div class="section-h"><h2>${api.mode === 'local' ? 'Tus listas compartidas' : 'Compartidas por la comunidad'}</h2></div>
+    ${pub ? `<ul class="list">${pub}</ul>` : '<div class="empty"><p class="muted">Todavía nadie ha compartido listas. Abre una de tus listas y pulsa «Compartir».</p></div>'}`;
 }
 export async function openPublicPreview(id) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
     const d = await api.getPublicDeck(id);
-    if (!d) { openSheet('<h2>Mazo no disponible</h2><p class="muted">Puede que su autor haya dejado de compartirlo.</p><button class="primary" data-act="close-sheet">Cerrar</button>'); return; }
+    if (!d) { openSheet('<h2>Lista no disponible</h2><p class="muted">Puede que su autor haya dejado de compartirla.</p><button class="primary" data-act="close-sheet">Cerrar</button>'); return; }
     S.preview = { name: d.name, description: d.description, cards: d.cards, types: d.types || [], source: 'compartido:' + d.id, lang: d.options?.lang };
     showPreview(`de ${esc(d.author)}`);
   } catch (e) { closeSheet(); fail(e); }
@@ -55,25 +55,25 @@ export async function openBuiltinPreview(file) {
     const raw = await (await fetch('decks/' + file)).json();
     const d = isNotesDeck(raw) ? notesToDeck(raw) : parseDeckFile(raw);   // también en formato por notas
     S.preview = { ...d, source: 'incluido:' + file };
-    showPreview('incluido en la app');
+    showPreview('incluida en la app');
   } catch (e) { closeSheet(); fail(e); }
 }
 function showPreview(byline) {
   const p = S.preview;
   const sample = p.cards.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
-  openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} tarjetas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
+  openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} preguntas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
-      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Un mazo nuevo: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select>`
+      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select>`
       : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
-    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis mazos</button></div>`);
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis listas</button></div>`);
 }
 // Problemas del formato por notas: las que se saltan (y por qué) y los avisos
 function issueList(items) {
-  return `<ul class="issues">${items.map(i => `<li><b>${i.n ? `Nota ${i.n}` : 'Mazo'}</b>${i.label && i.n ? ` <span class="muted">(${esc(i.label)})</span>` : ''}: ${esc(i.reason)}</li>`).join('')}</ul>`;
+  return `<ul class="issues">${items.map(i => `<li><b>${i.n ? `Nota ${i.n}` : 'Lista'}</b>${i.label && i.n ? ` <span class="muted">(${esc(i.label)})</span>` : ''}: ${esc(i.reason)}</li>`).join('')}</ul>`;
 }
 function issuesHTML(issues = []) {
   const skipped = issues.filter(i => i.skipped), warns = issues.filter(i => !i.skipped);
@@ -81,7 +81,7 @@ function issuesHTML(issues = []) {
     ${warns.length ? `<details class="issues-box"><summary>${plural(warns.length, 'aviso', 'avisos')}</summary>${issueList(warns)}</details>` : ''}`;
 }
 // Archivo o texto pegado ya leído → vista previa. parsed: { kind: 'json', data } o { kind: 'csv', text }
-export function previewImport(parsed, { source, baseName = 'Mazo importado' }) {
+export function previewImport(parsed, { source, baseName = 'Lista importada' }) {
   if (parsed.kind === 'csv') {
     const { cards, skipped } = cardsFromCSV(parsed.text);
     S.preview = { name: baseName.slice(0, 80), description: '', cards, skipped, source };
@@ -91,7 +91,7 @@ export function previewImport(parsed, { source, baseName = 'Mazo importado' }) {
     const d = notesToDeck(parsed.data);
     S.preview = { ...d, source };
     if (!d.cards.length) {
-      return openSheet(`<h2>No se ha podido crear ninguna tarjeta</h2><p class="muted">Ninguna nota es válida. Esto es lo que falla en cada una:</p>
+      return openSheet(`<h2>No se ha podido crear ninguna pregunta</h2><p class="muted">Ninguna nota es válida. Esto es lo que falla en cada una:</p>
         ${issueList(d.issues.length ? d.issues : [{ n: 0, reason: 'la lista de notas está vacía' }])}
         <div class="btnrow"><span class="spacer"></span>${source === 'pegado' ? '<button class="ghost" data-act="paste">Volver a pegar</button>' : ''}<button class="primary" data-act="close-sheet">Cerrar</button></div>`);
     }
@@ -103,13 +103,13 @@ export function previewImport(parsed, { source, baseName = 'Mazo importado' }) {
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */
 export function pasteSheet() {
-  openSheet(`<h2>Pegar un mazo</h2>
-    <p class="muted small">Pega el mazo que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
-    <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto del mazo" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
+  openSheet(`<h2>Pegar una lista</h2>
+    <p class="muted small">Pega la lista que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
+    <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto de la lista" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
     <p class="error" id="pasteError" role="alert" hidden></p>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="paste-preview">Ver vista previa</button></div>
     <div class="ai-help">${icon('lightbulb', { size: 18 })}<div>
-      <p><b>¿Quieres que una IA te haga el mazo?</b> Copia estas instrucciones, pégalas en la IA junto con lo que quieres estudiar y pega aquí lo que te responda.</p>
+      <p><b>¿Quieres que una IA te haga la lista?</b> Copia estas instrucciones, pégalas en la IA junto con lo que quieres estudiar y pega aquí lo que te responda.</p>
       ${AI_GUIDE_BTNS()}</div></div>`);
   loadAiGuide();
 }
@@ -140,7 +140,7 @@ export async function addPreview(btn) {
     if (dest) {
       const created = await api.importCards(S.uid, dest, cards, typeMap);
       for (const c of created) S.cards.set(c.id, c);
-      toast(`${created.length} tarjetas añadidas`);
+      toast(`${created.length} preguntas añadidas`);
       return go('deck', { deckId: dest, cardQuery: '' });
     }
     const { deck, cards: made } = await api.importDeck(S.uid, { ...p, lang: p.lang || undefined, cards, typeMap });
@@ -149,5 +149,5 @@ export async function addPreview(btn) {
     migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
     toast(`«${deck.name}» añadido`);
     go('deck', { deckId: deck.id, cardQuery: '' });
-  } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis mazos'; fail(e); }
+  } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis listas'; fail(e); }
 }

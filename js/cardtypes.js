@@ -24,7 +24,7 @@ export const MODES = [
   { id: 'number', label: 'Respuesta numérica', help: 'Escribes un número o un año; se acepta con el margen que pongas.' },
   { id: 'conj', label: 'Conjugar', help: 'Escribes todas las formas de una tabla (persona → forma) y se corrigen una a una.' },
   { id: 'match', label: 'Emparejar', help: 'Unes cada elemento con su pareja. Una pareja por línea: «ev = casa».' },
-  { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una tarjeta.' },
+  { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una pregunta.' },
 ];
 export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match', 'conj', 'sort', 'clozechoice', 'number'];
 // Máximo de recuadros en «Tapar partes de una imagen» (cada uno, una tarjeta)
@@ -41,9 +41,9 @@ export const LANGS = [
 ];
 
 // Idioma de un campo: un código fijo («ja-JP»), '' (sin audio) o uno de estos dos, que dependen del mazo:
-export const STUDY = '@study';     // el idioma que se estudia en el mazo (sin idioma: sin audio)
-export const NATIVE = '@native';   // tu idioma (Ajustes); solo en mazos de idiomas
-export const LANG_ROLES = [{ id: STUDY, label: 'Idioma del mazo' }, { id: NATIVE, label: 'Tu idioma' }];
+export const STUDY = '@study';     // el idioma que se estudia en la lista (sin idioma: sin audio)
+export const NATIVE = '@native';   // tu idioma (Ajustes); solo en listas de idiomas
+export const LANG_ROLES = [{ id: STUDY, label: 'Idioma de la lista' }, { id: NATIVE, label: 'Tu idioma' }];
 
 const F = (id, name, extra = {}) => ({ id, name, lang: '', autoplay: false, help: '', ...extra });
 
@@ -58,7 +58,7 @@ export const BUILTIN_TYPES = [
   },
   {
     id: 'reverse', builtin: true, scope: 'general', name: 'Doble sentido', icon: '', lucide: 'repeat-2',
-    description: 'Crea dos tarjetas: de A a B y de B a A.',
+    description: 'Crea dos preguntas: de A a B y de B a A.',
     fields: [F('a', 'Anverso', { lang: STUDY }), F('b', 'Reverso', { lang: NATIVE }), F('n', 'Nota')],
     templates: [
       { id: 't1', name: 'Anverso → Reverso', mode: 'flip', front: ['a'], back: ['b', 'n'] },
@@ -81,7 +81,7 @@ export const BUILTIN_TYPES = [
     id: 'choice', builtin: true, scope: 'general', name: 'Opción múltiple', icon: '', lucide: 'list-checks',
     description: 'Eliges la respuesta correcta entre cuatro.',
     fields: [F('q', 'Pregunta'), F('a', 'Respuesta correcta'),
-      F('w', 'Respuestas incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan respuestas de otras tarjetas del mazo.' }), F('n', 'Nota')],
+      F('w', 'Respuestas incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan respuestas de otras preguntas de la lista.' }), F('n', 'Nota')],
     templates: [{ id: 't1', name: 'Elegir', mode: 'choice', front: ['q'], back: ['n'], answer: 'a', wrong: 'w' }],
   },
   {
@@ -108,7 +108,7 @@ export const BUILTIN_TYPES = [
     id: 'clozechoice', builtin: true, scope: 'general', name: 'Hueco con opciones', icon: '', lucide: 'list-checks',
     description: 'Una frase con un hueco: eliges la palabra que falta entre cuatro.',
     fields: [F('x', 'Frase con hueco', { lang: STUDY, help: 'Marca la palabra que falta: Ich wohne {{seit}} zwei Jahren hier.' }),
-      F('w', 'Opciones incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan los huecos de otras tarjetas del mazo.' }), F('e', 'Extra')],
+      F('w', 'Opciones incorrectas (opcional)', { help: 'Separadas por ; Si lo dejas vacío, se usan los huecos de otras preguntas de la lista.' }), F('e', 'Extra')],
     templates: [{ id: 't1', name: 'Elegir', mode: 'clozechoice', front: ['x'], back: ['e'], answer: 'x', wrong: 'w' }],
   },
   {
@@ -133,13 +133,13 @@ export const BUILTIN_TYPES = [
   },
   {
     id: 'occlusion', builtin: true, scope: 'general', name: 'Tapar partes de una imagen', icon: '', lucide: 'image',
-    description: 'Tapas partes de un mapa, un esquema o un diagrama. Cada recuadro es una tarjeta.',
+    description: 'Tapas partes de un mapa, un esquema o un diagrama. Cada recuadro es una pregunta.',
     fields: [F('img', 'Imagen'), F('m', 'Recuadros'), F('h', 'Pregunta (opcional)', { help: 'Ej.: ¿Qué río es?' }), F('n', 'Notas')],
     templates: Array.from({ length: 30 }, (_, k) => ({ id: 't' + (k + 1), name: `Recuadro ${k + 1}`, mode: 'occlusion', front: ['h'], back: ['n'], answer: 'm', image: 'img', mask: k })),
   },
   {
     id: 'vocab', builtin: true, scope: 'lang', name: 'Vocabulario', icon: '', lucide: 'languages',
-    description: 'Palabra, traducción, pronunciación y ejemplo. Crea dos tarjetas: reconocer y recordar escribiendo.',
+    description: 'Palabra, traducción, pronunciación y ejemplo. Crea dos preguntas: reconocer y recordar escribiendo.',
     fields: [F('w', 'Palabra', { lang: STUDY, autoplay: true }), F('t', 'Traducción', { lang: NATIVE }),
       F('p', 'Pronunciación'), F('e', 'Ejemplo', { lang: STUDY }), F('n', 'Notas')],
     templates: [
@@ -168,7 +168,7 @@ export const BUILTIN_TYPES = [
   },
   {
     id: 'de-noun', builtin: true, scope: ['de'], name: 'Sustantivo alemán', icon: '', lucide: 'languages',
-    description: 'Artículo, palabra y plural. Crea dos tarjetas: elegir der, die o das, y escribir la palabra (con su mayúscula).',
+    description: 'Artículo, palabra y plural. Crea dos preguntas: elegir der, die o das, y escribir la palabra (con su mayúscula).',
     fields: [F('g', 'Artículo', { help: 'der, die o das' }), F('w', 'Palabra', { lang: 'de-DE', autoplay: true, help: 'Sin artículo y con mayúscula: Haus' }),
       F('pl', 'Plural', { lang: 'de-DE', help: 'Ej.: die Häuser' }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Notas')],
     templates: [
@@ -472,7 +472,7 @@ export function blankType() {
   return {
     id: '', builtin: false, name: 'Mi tipo', icon: '', lucide: 'layers', description: '',
     fields: [F('f1', 'Anverso'), F('f2', 'Reverso')],
-    templates: [{ id: 't1', name: 'Tarjeta 1', mode: 'flip', front: ['f1'], back: ['f2'] }],
+    templates: [{ id: 't1', name: 'Pregunta 1', mode: 'flip', front: ['f1'], back: ['f2'] }],
   };
 }
 export function copyType(t) {

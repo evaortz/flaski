@@ -177,9 +177,9 @@ export function heatmapView(host, log, periodId, width, frozen = new Set()) {
 }
 
 /* ---------------- Tu progreso ----------------
-   Cuántas tarjetas te sabes cada día: franjas apiladas (consolidadas, jóvenes y aprendiendo) y, rayado,
+   Cuántas preguntas te sabes cada día: franjas apiladas (consolidadas, jóvenes y aprendiendo) y, rayado,
    lo que te queda por aprender hasta el total. Se reconstruye con el historial de respuestas (cada una
-   guarda el intervalo con el que dejó la tarjeta), sin guardar nada nuevo. */
+   guarda el intervalo con el que dejó la pregunta), sin guardar nada nuevo. */
 // Una curva suave que pasa por todos los puntos sin pasarse (monótona)
 function smooth(pts) {
   if (pts.length < 2) return pts.length ? `M${pts[0][0]},${pts[0][1]}` : '';
@@ -219,7 +219,7 @@ export function progressSeries({ events = [], cards = [], progress = new Map(), 
     if (!byCard.has(e.card_id)) byCard.set(e.card_id, []);
     byCard.get(e.card_id).push(e);
   }
-  const changes = [], born = [];   // [t, id, etapa] · [t, mazo]
+  const changes = [], born = [];   // [t, id, etapa] · [t, lista]
   for (const c of cards) {
     const p = progress.get(c.id), evs = byCard.get(c.id), seen = toMs(p?.firstSeen ?? p?.first_seen);
     let first = Infinity;
@@ -293,7 +293,7 @@ function pgSub(s, i) {
   const parts = [x.m3 && `${nf.format(x.m3)} consolidadas`, x.m2 && `${nf.format(x.m2)} jóvenes`, x.m1 && `${nf.format(x.m1)} aprendiendo`].filter(Boolean);
   return [i >= 7 && (w ? `${delta(w)} esa semana` : 'igual que la semana anterior'), parts.join(' · ')].filter(Boolean).join(' · ');
 }
-const pgOf = (x, past) => `de ${plural(x.total, 'tarjeta', 'tarjetas')} ${known(x) === 1 ? (past ? 'te la sabías' : 'te la sabes') : (past ? 'te las sabías' : 'te las sabes')}`;
+const pgOf = (x, past) => `de ${plural(x.total, 'pregunta', 'preguntas')} ${known(x) === 1 ? (past ? 'te la sabías' : 'te la sabes') : (past ? 'te las sabías' : 'te las sabes')}`;
 
 // Ancho útil de un contenedor (sin su relleno)
 export const innerW = el => { const cs = getComputedStyle(el); return Math.floor(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)); };
@@ -365,7 +365,7 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   const labels = keys.map(([k, lab], j) => (ys[j] == null ? '' : `<text class="pg-lab pg-lab-${k}" x="${R + 10}" y="${(ys[j] + 4).toFixed(1)}">${lab} <tspan class="pg-lab-n" data-k="${j}">${nf.format(vals(last)[j])}</tspan></text>`)).join('');
   const dot = `<circle class="pg-dot pg-now" cx="${X(N - 1).toFixed(1)}" cy="${Y(known(last)).toFixed(1)}" r="3.5"></circle>`;
   const hover = { x: idx.map(i => +X(i).toFixed(1)), y: idx.map(i => +Y(known(s[i])).toFixed(1)), i: idx };
-  const svg = `<svg class="pg-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="${title}: te sabes ${nf.format(known(last))} de ${plural(last.total, 'tarjeta', 'tarjetas')}">
+  const svg = `<svg class="pg-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="${title}: te sabes ${nf.format(known(last))} de ${plural(last.total, 'pregunta', 'preguntas')}">
     ${g}${notes}${axis}${labels}${dot}
     <line class="pg-cur" x1="0" x2="0" y1="${T}" y2="${B}"></line><circle class="pg-dot pg-cd" r="3.5"></circle>
     <rect class="pg-hit" x="${L}" y="0" width="${W}" height="${B + 4}" tabindex="0" aria-label="Recorre los días con las flechas"></rect></svg>`;
@@ -434,7 +434,7 @@ export function initProgressHover() {
 }
 
 /* ---------------- Cabeceras que cuentan lo que señalas ----------------
-   En las tarjetas con data-live, al pasar por una marca (con data-tip-*) la cabecera muestra ese dato
+   En las preguntas con data-live, al pasar por una marca (con data-tip-*) la cabecera muestra ese dato
    en vez de sacar un tooltip: «.lv-day» (de qué es), «.lv-n» (la cifra), «.lv-of» y «.lv-sub». */
 export function liveShow(el) {
   const b = el.closest('[data-live]');

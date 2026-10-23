@@ -14,11 +14,11 @@ export const main = $('#main');
 export const S = {
   uid: null, email: '', name: '',
   newPerDay: 15,
-  decks: new Map(),      // id → mazo
+  decks: new Map(),      // id → lista
   folders: new Map(),    // id → carpeta
   tags: new Map(),       // id → etiqueta
-  types: new Map(),      // id → tipo de tarjeta personalizado
-  cards: new Map(),      // id → tarjeta
+  types: new Map(),      // id → tipo de pregunta personalizado
+  cards: new Map(),      // id → pregunta
   progress: new Map(),   // cardId → srs (ms)
   log: {},               // 'YYYY-MM-DD' → nº de repasos
   events: [],            // cada respuesta (para Estadísticas)
@@ -31,7 +31,7 @@ export const S = {
   cardQuery: '', exploreQuery: '',
   pub: null, builtin: null,   // cachés de Explorar
   authMode: 'signin', recovery: false, loading: true,
-  pendingShare: null,          // id de mazo compartido por enlace
+  pendingShare: null,          // id de lista compartida por enlace
   pendingFriend: '',           // código de un enlace de invitación de amistad
   friends: null,               // amigos: { me, list, requests, cheers, … } (se cargan aparte)
   lastField: null,
@@ -127,10 +127,10 @@ export function scopeName(scope = 'all') {
     const b = bid && p?.blocks.find(x => x.id === bid);
     return p ? `${pageTitle(p)}${b ? ` › ${plain(b.text).slice(0, 40)}` : ''}` : 'Apuntes';
   }
-  if (scope === 'all') return 'Todos los mazos';
+  if (scope === 'all') return 'Todas las listas';
   if (scope.startsWith('folder:')) return S.folders.get(scope.slice(7))?.name || 'Carpeta';
   if (scope.startsWith('tag:')) return '#' + (S.tags.get(scope.slice(4))?.name || 'etiqueta');
-  return S.decks.get(scope)?.name || 'Mazo';
+  return S.decks.get(scope)?.name || 'Lista';
 }
 export const deckName = id => scopeName(id);
 export function saveOrgPrefs() { try { localStorage.setItem('flaski-org', JSON.stringify({ sort: S.org.sort, layout: S.org.layout })); } catch {} }
@@ -217,7 +217,7 @@ export function newPlan(scope = 'all', { steady = false } = {}) {
   }
   const ok = d => (avail.get(d.id) || 0) > 0;
   const sh = shares(S.decks, S.folders, planNodes(), ok);
-  for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. un mazo archivado que estudias a propósito
+  for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. una lista archivada que estudias a propósito
   const floors = new Map();
   for (const [id, f] of examFloors(S.decks, S.folders, planNodes(), remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
   return allocate(steady ? S.newPerDay : newLeft(), sh, avail, floors);

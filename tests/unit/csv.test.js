@@ -33,7 +33,7 @@ test('exportaciones de Anki como texto', () => {
 
 test('archivo vacío o sin tarjetas da un error claro', () => {
   assert.throws(() => cardsFromCSV(''), /vacío/);
-  assert.throws(() => cardsFromCSV('a\nb'), /No se encontraron tarjetas/);
+  assert.throws(() => cardsFromCSV('a\nb'), /No se encontraron preguntas/);
 });
 
 test('ida y vuelta: exportar e importar conserva todo, con BOM para Excel', () => {

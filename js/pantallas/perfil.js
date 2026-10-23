@@ -34,16 +34,16 @@ export function renderProfile() {
   main.innerHTML = `<h1>Perfil</h1>
     <div class="pf-head"><span class="pf-av" aria-hidden="true">${esc((who || '?').trim().charAt(0).toUpperCase())}</span>
       <div class="pf-who"><b>${esc(who)}</b><span>${icon('fire', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha</span></div></div>
-    <div class="pf-nums">${num(total, total === 1 ? 'tarjeta' : 'tarjetas')}${num(S.decks.size, S.decks.size === 1 ? 'mazo' : 'mazos')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
+    <div class="pf-nums">${num(total, total === 1 ? 'pregunta' : 'preguntas')}${num(S.decks.size, S.decks.size === 1 ? 'lista' : 'listas')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
     <ul class="list linklist">
       <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, mazo y tipo de tarjeta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
+      <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, lista y tipo de pregunta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="news">${icon('sparkles', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
     </ul>
     <form class="pf-sec" data-form="profile">
-      <label for="p-name" class="pf-h">Tu nombre<small>Lo ven quienes usan tus mazos compartidos</small></label>
+      <label for="p-name" class="pf-h">Tu nombre<small>Lo ven quienes usan tus listas compartidas</small></label>
       <div class="pf-row"><input id="p-name" maxlength="40" value="${esc(S.name)}"><button class="pill-tint" type="submit" aria-label="Guardar nombre">Guardar</button></div></form>
     ${api.mode === 'local'
       ? `<div class="pf-sec"><span class="pf-h">Cuenta</span><p class="small muted">Estás en <b>modo local</b>: no hay cuenta y todo se guarda en este navegador.</p>
@@ -60,9 +60,9 @@ function statsScopeOptions(sel) {
   const folders = [...S.folders.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const decks = [...S.decks.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  return o('all', 'Todos los mazos')
+  return o('all', 'Todas las listas')
     + (folders.length ? `<optgroup label="Carpetas">${folders.map(f => o('folder:' + f.id, f.name)).join('')}</optgroup>` : '')
-    + `<optgroup label="Mazos">${decks.map(d => o(d.id, d.name + (d.archived ? ' (archivado)' : ''))).join('')}</optgroup>`
+    + `<optgroup label="Listas">${decks.map(d => o(d.id, d.name + (d.archived ? ' (archivada)' : ''))).join('')}</optgroup>`
     + (tags.length ? `<optgroup label="Etiquetas">${tags.map(t => o('tag:' + t.id, '#' + t.name)).join('')}</optgroup>` : '');
 }
 export let statsData = null;
@@ -76,7 +76,7 @@ export function renderStats() {
     events: S.events, cards: S.cards, progress: S.progress, decks: S.decks, log: S.log, deckSet,
     modeOf: c => cardModel(c).tpl.mode, modes: MODES,
     scopeOptions: statsScopeOptions, scopeName,
-    deckName: id => S.decks.get(id)?.name || 'Mazo', deckLabel: id => (S.decks.get(id) ? deckIcon(S.decks.get(id)) : ''),
+    deckName: id => S.decks.get(id)?.name || 'Lista', deckLabel: id => (S.decks.get(id) ? deckIcon(S.decks.get(id)) : ''),
     cardFront: c => fmt(c.front), icon,
   };
   const { html, data } = statsView(ctx, f);
@@ -163,7 +163,7 @@ export function renderPlan() {
           ${inherited ? `<p class="hint">Ahora manda su carpeta: está ${eff === 'paused' ? 'en pausa' : 'en «solo repasos»'}.</p>` : `<p class="hint">${STATES.find(s => s.id === (own.state || 'active')).hint}</p>`}</div>
         <div class="pl-field"><span class="pl-lab">Foco</span>${sib.length > 1
           ? `<span class="range"><input type="range" min="0" max="100" step="5" value="${pct}" data-plw="${key}" aria-label="Foco de ${esc(isF ? f.name : d.name)}"><output>${pct} %</output></span>
-             <p class="hint">${depth ? (isF ? 'De las nuevas de su carpeta, la parte para esta subcarpeta' : 'De las nuevas de su carpeta, la parte para este mazo') : (isF ? 'De las nuevas de cada día, la parte para esta carpeta' : 'De las nuevas de cada día, la parte para este mazo')}${eff === 'active' ? `: ≈ ${plural(daily, 'nueva', 'nuevas')} al día.` : '.'}</p>`
+             <p class="hint">${depth ? (isF ? 'De las nuevas de su carpeta, la parte para esta subcarpeta' : 'De las nuevas de su carpeta, la parte para esta lista') : (isF ? 'De las nuevas de cada día, la parte para esta carpeta' : 'De las nuevas de cada día, la parte para esta lista')}${eff === 'active' ? `: ≈ ${plural(daily, 'nueva', 'nuevas')} al día.` : '.'}</p>`
           : `<p class="hint">Es lo único a su nivel: se lleva todo el foco${eff === 'active' ? ` (≈ ${plural(daily, 'nueva', 'nuevas')} al día)` : ''}.</p>`}</div>
         <div class="pl-field"><span class="pl-lab">Examen</span><span class="btnrow"><input type="date" data-plexam="${key}" value="${own.exam || ''}" aria-label="Fecha de examen">${own.exam ? `<button type="button" class="link small" data-plclear="${key}">Quitar</button>` : ''}</span>
           <p class="hint">${ex ? `${examText(ex.days).replace(/^./, c => c.toUpperCase())}${ex.days > 0 ? ` · quedan ${plural(ex.left, 'nueva', 'nuevas')}` : ''}.` : 'Con fecha, le damos el ritmo justo para verlo todo antes.'}</p>${warn}</div>
@@ -177,7 +177,7 @@ export function renderPlan() {
   main.innerHTML = `<div class="section-h"><h1>Plan de estudio</h1></div>
     <p class="muted pl-lead">Decide qué estudias ahora y cuánto foco le das a cada cosa. Con tu plan, hoy te ${today === 1 ? 'toca' : 'tocan'} <b>${plural(today, 'nueva', 'nuevas')}</b> de las ${S.newPerDay} al día que tienes en Ajustes. Los repasos de todo lo que no está en pausa salen siempre, para que no se te olvide lo que ya sabes.</p>
     <div class="btnrow"><button type="button" class="ghost" data-act="plan-equal">Repartir por igual</button><button type="button" class="ghost" data-act="plan-urgent">Prioridad a lo urgente</button></div>
-    ${keys.length ? `<div class="pl-tree">${keys.map(k => row(k, 0)).join('')}</div>` : '<div class="empty"><p class="muted">Aún no tienes mazos. Crea uno o busca alguno en Explorar.</p></div>'}`;
+    ${keys.length ? `<div class="pl-tree">${keys.map(k => row(k, 0)).join('')}</div>` : '<div class="empty"><p class="muted">Aún no tienes listas. Crea una o busca alguna en Explorar.</p></div>'}`;
   for (const el of main.querySelectorAll('.pl-row')) el.addEventListener('toggle', () => { el.open ? planOpen.add(el.dataset.plkey) : planOpen.delete(el.dataset.plkey); });
   for (const r of main.querySelectorAll('[data-plw]')) r.addEventListener('input', () => { r.nextElementSibling.textContent = r.value + ' %'; });
   if (S.view === 'plan') scrollTo(0, y);
@@ -309,54 +309,54 @@ export function renderSettings() {
     ${setSec('palette', 'Apariencia', `
       ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
       ${setRow('Color de acento', 'Botones principales, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
-      ${setRow('Tamaño del texto', 'Tamaño de las tarjetas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
-      ${setRow('Letra de las tarjetas', 'Tipo de letra de las tarjetas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])))}
-      ${setRow('Alineación', 'Cómo se coloca el texto dentro de la tarjeta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
+      ${setRow('Tamaño del texto', 'Tamaño de las preguntas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
+      ${setRow('Letra de las preguntas', 'Tipo de letra de las preguntas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])))}
+      ${setRow('Alineación', 'Cómo se coloca el texto dentro de la pregunta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
       ${setRow('Densidad', 'Compacta reduce márgenes y la altura de las filas.', seg('look.density', [['comfy', 'Cómoda'], ['compact', 'Compacta']]))}
-      <div class="look-pv" aria-label="Vista previa de una tarjeta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
+      <div class="look-pv" aria-label="Vista previa de una pregunta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
         <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
     ${setSec('gauge', 'Estudio diario', `
-      ${setRow('Plan de estudio', 'Qué mazos estudias ahora, cuánto foco le das a cada uno y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
-      ${setRow('Tarjetas nuevas al día', 'Entre 10 y 20 va bien. Cada mazo puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
+      ${setRow('Plan de estudio', 'Qué listas estudias ahora, cuánto foco le das a cada una y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
+      ${setRow('Preguntas nuevas al día', 'Entre 10 y 20 va bien. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
       ${setRow('Meta diaria', 'Respuestas al día. Aparece como barra de progreso en Inicio. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
-      ${setRow('Orden de las nuevas', 'En qué orden salen las tarjetas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en el mazo'], ['random', 'Al azar']]))}
+      ${setRow('Orden de las nuevas', 'En qué orden salen las preguntas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en la lista'], ['random', 'Al azar']]))}
       ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
-      ${setRow('Tu idioma', 'En los mazos de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
+      ${setRow('Tu idioma', 'En las listas de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
     ${setSec('bell', 'Avisos', remindRows(), 's-remind')}
     ${setSec('layers', 'Durante la sesión', `
       ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
-      ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la tarjeta.', sw('study.showIntervals'))}
-      ${setRow('Resaltar la nota sugerida', 'En tarjetas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
-      ${setRow('Una nueva por nota', 'Si una nota genera varias tarjetas (p. ej. ida y vuelta), solo sale una nueva por sesión.', sw('study.burySiblings'))}
-      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la tarjeta qué teclas puedes usar.', sw('study.shortcuts'))}
+      ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la pregunta.', sw('study.showIntervals'))}
+      ${setRow('Resaltar la nota sugerida', 'En preguntas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
+      ${setRow('Una nueva por nota', 'Si una nota genera varias preguntas (p. ej. ida y vuelta), solo sale una nueva por tanda.', sw('study.burySiblings'))}
+      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la pregunta qué teclas puedes usar.', sw('study.shortcuts'))}
       ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: izquierda «Otra vez», derecha «Bien», arriba «Fácil».', sw('study.swipe'))}
       ${canVibrate() ? setRow('Vibración', 'Una vibración muy breve al responder y al trazar kanji o hanzi.', sw('study.haptics')) : ''}
       ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`) : ''}`, 's-session')}
     ${setSec('volume-2', 'Voz', `
-      ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la tarjeta.', sw('study.autoplay'))}
+      ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la pregunta.', sw('study.autoplay'))}
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
     ${setSec('house', 'Inicio', `
       ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
-      ${setRow('Tu progreso', 'Cuántas tarjetas te sabes, cómo ha ido creciendo y lo que te toca los próximos días.', sw('home.forecast'))}
+      ${setRow('Tu progreso', 'Cuántas preguntas te sabes, cómo ha ido creciendo y lo que te toca los próximos días.', sw('home.forecast'))}
       ${setRow('Periodo de «Tu progreso»', 'Lo que abarca el gráfico (también se cambia en el propio gráfico).', seg('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
-      ${setRow('Lista de mazos', 'Tus mazos con lo que toca hoy en cada uno.', sw('home.decks'))}
+      ${setRow('Tus listas', 'Tus listas con lo que toca hoy en cada una.', sw('home.decks'))}
       ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
-      <p class="muted small set-intro">Decide cada cuánto vuelven las tarjetas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada mazo puede usar otro ritmo en sus opciones.</p>
+      <p class="muted small set-intro">Decide cada cuánto vuelven las preguntas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada lista puede usar otro ritmo en sus opciones.</p>
       <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
-      ${P.algo.preset === 'fsrs' ? `<div class="set-row"><div class="set-l"><b id="retL">Retención deseada</b><small>Con qué probabilidad quieres recordar cada tarjeta cuando vuelva. Más alta, más repasos. Entre 85 % y 92 % va bien.</small></div>
+      ${P.algo.preset === 'fsrs' ? `<div class="set-row"><div class="set-l"><b id="retL">Retención deseada</b><small>Con qué probabilidad quieres recordar cada pregunta cuando vuelva. Más alta, más repasos. Entre 85 % y 92 % va bien.</small></div>
         <div class="set-c"><span class="range"><input type="range" data-pref="algo.retention" data-num min="0.8" max="0.97" step="0.01" value="${P.algo.retention}" aria-labelledby="retL"><output id="retOut">${Math.round(P.algo.retention * 100)} %</output></span></div></div>` : ''}
-      <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una tarjeta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
+      <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una pregunta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
       <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''} ${P.algo.preset === 'fsrs' ? 'hidden' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
         <div class="algo-grid">${ALGO_FIELDS.map(x => `<label class="af"><span>${x.label}</span>${numIn('algo.custom.' + x.k, { min: x.min, max: x.max, step: x.step, unit: x.unit, cur: P.algo.preset === 'custom' ? P.algo.custom[x.k] : A[x.k] }).replace('<input', P.algo.preset === 'custom' ? '<input' : '<input disabled')}</label>`).join('')}</div>
         <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
       </details>`, 's-algo')}
     ${setSec('database', 'Datos', `
-      ${setRow('Mazos hechos con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen un mazo. Lo que te respondan se pega en «Mis mazos» → «Pegar».', AI_GUIDE_BTNS())}
-      ${setRow('Copia de seguridad', 'Descarga todos tus mazos, tarjetas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
-      ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade los mazos que falten.' : 'Añade los mazos que no tengas, con su progreso. Los que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
-      ${setRow('Reiniciar el progreso', 'Todas las tarjetas vuelven a ser nuevas. Los mazos no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
+      ${setRow('Listas hechas con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen una lista. Lo que te respondan se pega en «Mis listas» → «Pegar».', AI_GUIDE_BTNS())}
+      ${setRow('Copia de seguridad', 'Descarga todas tus listas, preguntas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
+      ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade las listas que falten.' : 'Añade las listas que no tengas, con su progreso. Las que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
+      ${setRow('Reiniciar el progreso', 'Todas las preguntas vuelven a ser nuevas. Las listas no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
       ${setRow('Ajustes por defecto', 'Vuelve a la configuración original (no toca tus datos).', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`)}`, 's-data')}`;
   markToc();
 }
@@ -513,7 +513,7 @@ async function restoreInto(data) {
   for (const e of data.events || []) if (e?.card_id) (eventsBy.get(e.card_id) || eventsBy.set(e.card_id, []).get(e.card_id)).push(e);
 
   for (const d of data.decks || []) {
-    const name = str(d?.name || 'Mazo', 80);
+    const name = str(d?.name || 'Lista', 80);
     try {
       const haveDeck = await existingId(d.id, id => S.decks.has(id));
       if (haveDeck) { deckMap.set(d.id, haveDeck); rep.skipped.push(name); continue; }
@@ -553,7 +553,7 @@ async function restoreInto(data) {
         }
         if (prog.length) await api.saveProgressMany(prog);
         if (evs.length) await api.addEvents(evs);
-      } catch (e) { await api.deleteDeck(deck.id).catch(() => {}); throw e; }   // sin mazos a medias
+      } catch (e) { await api.deleteDeck(deck.id).catch(() => {}); throw e; }   // sin listas a medias
       rep.restored.push(name);
     } catch (e) { rep.failed.push([name, errMsg(e)]); }
   }
@@ -571,10 +571,10 @@ function restoreReport({ restored, skipped, failed, pages }) {
   const pg = pages && (pages.restored || pages.skipped)
     ? `<p class="muted small">Apuntes: ${pages.restored ? plural(pages.restored, 'restaurado', 'restaurados') : ''}${pages.restored && pages.skipped ? ' · ' : ''}${pages.skipped ? `${pages.skipped} ya ${pages.skipped === 1 ? 'estaba' : 'estaban'}` : ''}</p>` : '';
   openSheet(`<h2>Copia restaurada</h2>${pg}
-    ${sec(`${restored.length} ${restored.length === 1 ? 'mazo restaurado' : 'mazos restaurados'}, con su progreso`, restored)}
-    ${sec(`${skipped.length} ${skipped.length === 1 ? 'mazo ya estaba' : 'mazos ya estaban'} en tu cuenta (no se han tocado)`, skipped)}
+    ${sec(`${restored.length} ${restored.length === 1 ? 'lista restaurada' : 'listas restauradas'}, con su progreso`, restored)}
+    ${sec(`${skipped.length} ${skipped.length === 1 ? 'lista ya estaba' : 'listas ya estaban'} en tu cuenta (no se han tocado)`, skipped)}
     ${failed.length ? `<h3>${failed.length === 1 ? 'Un elemento no se pudo restaurar' : `${failed.length} elementos no se pudieron restaurar`}</h3><ul class="list">${failed.map(([n, m]) => `<li class="small"><b>${esc(n)}</b>: ${esc(m)}</li>`).join('')}</ul>` : ''}
-    ${!restored.length && !skipped.length && !failed.length ? '<p class="muted">La copia no tenía mazos.</p>' : ''}
+    ${!restored.length && !skipped.length && !failed.length ? '<p class="muted">La copia no tenía listas.</p>' : ''}
     <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>`);
 }
 export async function restoreBackup(file) {

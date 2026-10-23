@@ -9,7 +9,7 @@ const PATTERNS = {
   again: [18, 60, 18],       // «Otra vez»
   stroke: 8,                 // trazo correcto (kanji/hanzi)
   miss: 28,                  // trazo fallado
-  done: [12, 50, 12, 50, 24] // sesión terminada
+  done: [12, 50, 12, 50, 24] // tanda terminada
 };
 export function buzz(kind) {
   if (!canVibrate()) return;

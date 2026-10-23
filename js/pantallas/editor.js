@@ -67,7 +67,7 @@ function colorPicker(current) {
   return `<div class="colors" role="radiogroup" aria-label="Color">${COLORS.map(c => `<label class="cpick" title="${c.label}">
     <input type="radio" name="f-color" value="${c.id}" ${c.id === (current || '') ? 'checked' : ''}><span style="background:${c.id ? colorVar(c.id) : 'transparent'}" class="${c.id ? '' : 'none'}"></span><span class="sr">${c.label}</span></label>`).join('')}</div>`;
 }
-export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna (en «Mis mazos»)') {
+export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna (en «Mis listas»)') {
   return `<select id="${id}"><option value="">${rootLabel}</option>${folderTree(S.folders, exclude).map(f =>
     `<option value="${f.id}" ${f.id === selected ? 'selected' : ''}>${'   '.repeat(f.depth)}${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</option>`).join('')}</select>`;
 }
@@ -90,11 +90,11 @@ function studyPicker(d) {
       <div class="seg" role="group" aria-label="Qué vas a estudiar"><button type="button" data-kind="lang" aria-pressed="${!!lang}">Un idioma</button><button type="button" data-kind="other" aria-pressed="${!lang}">Otra cosa</button></div>
       <div id="d-lang-row" ${lang ? '' : 'hidden'}><label for="d-lang">Idioma</label>
         <select id="d-lang">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === sel ? 'selected' : ''}>${l.label}</option>`).join('')}</select>
-        <p class="hint">Se usa para el audio, para corregir lo que escribes y para proponerte los tipos de tarjeta que encajan.</p></div>`;
+        <p class="hint">Se usa para el audio, para corregir lo que escribes y para proponerte los tipos de pregunta que encajan.</p></div>`;
 }
 export function deckForm(d) {
   const folderDefault = d ? d.folder_id : (S.view === 'decks' ? S.folderId : null);
-  openSheet(`<h2>${d ? 'Editar mazo' : 'Nuevo mazo'}</h2>
+  openSheet(`<h2>${d ? 'Editar lista' : 'Nueva lista'}</h2>
     <form data-form="deck" data-id="${d ? d.id : ''}">
       <label for="d-name">Nombre</label><input id="d-name" maxlength="80" required value="${esc(d?.name || '')}">
       <label for="d-desc">Descripción (opcional)</label><textarea id="d-desc" rows="2" maxlength="300">${esc(d?.description || '')}</textarea>
@@ -104,17 +104,17 @@ export function deckForm(d) {
       <label for="d-folder">Carpeta</label>${folderSelect('d-folder', folderDefault || '')}
       <label>Etiquetas</label>${tagPicker(d?.tags || [])}
       <label class="check"><input type="checkbox" id="d-pinned" ${d?.pinned ? 'checked' : ''}><span><b>Fijar arriba</b><br><span class="hint">Aparece el primero en su carpeta y en Inicio.</span></span></label>
-      ${d ? `<label class="check"><input type="checkbox" id="d-archived" ${d.archived ? 'checked' : ''}><span><b>Archivar</b><br><span class="hint">Se oculta y no entra en las sesiones de estudio. Lo encuentras en el filtro «Archivados».</span></span></label>` : ''}
-      <details class="opts" ${d?.options?.preset || (d?.options?.newPerDay ?? '') !== '' ? 'open' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Opciones de estudio de este mazo</summary>
+      ${d ? `<label class="check"><input type="checkbox" id="d-archived" ${d.archived ? 'checked' : ''}><span><b>Archivar</b><br><span class="hint">Se oculta y no entra en las tandas. La encuentras en el filtro «Archivadas».</span></span></label>` : ''}
+      <details class="opts" ${d?.options?.preset || (d?.options?.newPerDay ?? '') !== '' ? 'open' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Opciones de estudio de esta lista</summary>
         <p class="hint">Déjalo vacío para usar lo que tengas en Ajustes.</p>
-        <div class="field"><label for="d-new">Nuevas por día en este mazo</label><input id="d-new" type="number" min="0" max="500" inputmode="numeric" placeholder="Global (${S.newPerDay})" value="${esc(d?.options?.newPerDay ?? '')}"></div>
+        <div class="field"><label for="d-new">Nuevas por día en esta lista</label><input id="d-new" type="number" min="0" max="500" inputmode="numeric" placeholder="Global (${S.newPerDay})" value="${esc(d?.options?.newPerDay ?? '')}"></div>
         <div class="field"><label for="d-preset">Ritmo de repaso</label><select id="d-preset"><option value="">Global (${esc(S.prefs.algo.preset === 'custom' ? 'Personalizado' : ALGO_PRESETS[S.prefs.algo.preset]?.label || 'Estándar')})</option>
           ${Object.entries(ALGO_PRESETS).map(([k, v]) => `<option value="${k}" ${d?.options?.preset === k ? 'selected' : ''}>${v.label}</option>`).join('')}
           <option value="custom" ${d?.options?.preset === 'custom' ? 'selected' : ''}>Personalizado (el de Ajustes)</option></select></div>
-        ${d ? '<div class="btnrow"><button type="button" class="ghost small-btn danger" data-act="ask-reset-deck">Reiniciar el progreso de este mazo</button></div>' : ''}
+        ${d ? '<div class="btnrow"><button type="button" class="ghost small-btn danger" data-act="ask-reset-deck">Reiniciar el progreso de esta lista</button></div>' : ''}
       </details>
-      <label class="check"><input type="checkbox" id="d-public" ${d?.is_public ? 'checked' : ''}><span><b>Compartir con la comunidad</b><br><span class="hint">Cualquier usuario podrá verlo en Explorar y copiarlo. Tus cambios posteriores no se aplican a sus copias.</span></span></label>
-      <div class="btnrow" style="margin-top:14px">${d ? '<button type="button" class="ghost danger" data-act="ask-delete-deck">Eliminar mazo</button>' : ''}<span class="spacer"></span>
+      <label class="check"><input type="checkbox" id="d-public" ${d?.is_public ? 'checked' : ''}><span><b>Compartir con la comunidad</b><br><span class="hint">Cualquier usuario podrá verla en Explorar y copiarla. Tus cambios posteriores no se aplican a sus copias.</span></span></label>
+      <div class="btnrow" style="margin-top:14px">${d ? '<button type="button" class="ghost danger" data-act="ask-delete-deck">Eliminar lista</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
     </form>`);
 }
@@ -126,17 +126,17 @@ export function folderForm(f) {
       <label>Icono</label>${iconPicker(f?.icon)}
       <label>Color de la carpeta</label>${colorPicker(f?.color)}
       <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna (en la raíz)')}
-      ${f ? '' : '<p class="hint">Las carpetas son comunes a mazos y apuntes: un tema puede tener los dos.</p>'}
+      ${f ? '' : '<p class="hint">Las carpetas son comunes a listas y apuntes: un tema puede tener los dos.</p>'}
       <div class="btnrow" style="margin-top:14px">${f ? '<button type="button" class="ghost danger" data-act="ask-delete-folder">Eliminar carpeta</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
-      ${f ? '<p class="hint">Al eliminarla, sus mazos, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
+      ${f ? '<p class="hint">Al eliminarla, sus listas, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
     </form>`);
 }
 export function tagsSheet() {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const colorOpts = sel => COLORS.filter(c => c.id).map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${c.label}</option>`).join('');
   openSheet(`<h2>Etiquetas</h2>
-    <p class="muted small">Sirven para agrupar mazos de distintas carpetas (por ejemplo, <i>examen</i> o <i>verbos</i>) y estudiarlos juntos.</p>
+    <p class="muted small">Sirven para agrupar listas de distintas carpetas (por ejemplo, <i>examen</i> o <i>verbos</i>) y estudiarlos juntos.</p>
     <ul class="taglist">${tags.map(t => `<li data-tag-row="${t.id}">
       <span class="tag" style="--tag-bg:var(--tag-${t.color}-bg);--tag-fg:var(--tag-${t.color})">${esc(t.name)}</span>
       <input class="t-name" value="${esc(t.name)}" maxlength="40" aria-label="Nombre de la etiqueta">
@@ -154,10 +154,10 @@ function typeOptions(selected, deckId) {
   const fits = BUILTIN_TYPES.filter(t => typeFit(t, study) && (!typeHidden(t) || t.id === selected));
   const rest = BUILTIN_TYPES.filter(t => !fits.includes(t));
   const group = (label, list) => (list.length ? `<optgroup label="${label}">${list.map(opt).join('')}</optgroup>` : '');
-  return group(study ? `Para ${langLabel(study).toLowerCase()}` : 'Para este mazo', fits) + group('Tus tipos', own) + group('Otros', rest);
+  return group(study ? `Para ${langLabel(study).toLowerCase()}` : 'Para esta lista', fits) + group('Tus tipos', own) + group('Otros', rest);
 }
 export function deckOptions(selected) {
-  return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(d.name)}${d.archived ? ' (archivado)' : ''}</option>`).join('');
+  return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(d.name)}${d.archived ? ' (archivada)' : ''}</option>`).join('');
 }
 // Tipos usados hace poco en cada mazo (los más recientes primero), para tenerlos a un toque
 function recentTypes(deckId) {
@@ -189,9 +189,9 @@ function typeBar(sel, deckId) {
   const cur = getType(sel) || BUILTIN_TYPES[0];
   const quick = [...new Set([...recentTypes(deckId), ...suggestedTypes(deckId)])].filter(id => id !== cur.id)
     .map(getType).filter(t => t && !typeHidden(t) && (typeFit(t, deckLang(deckId)) || !t.builtin)).slice(0, 3);
-  return `<button type="button" class="ed-typesel" data-act="pick-type" aria-haspopup="dialog" title="Cambiar el tipo de tarjeta">
+  return `<button type="button" class="ed-typesel" data-act="pick-type" aria-haspopup="dialog" title="Cambiar el tipo de pregunta">
       <span class="tci">${typeIcon(cur, 18)}</span><span class="ed-typename">${esc(cur.name)}</span>${icon('chevron-down', { size: 16 })}</button>
-    ${quick.length ? `<span class="ed-quick" aria-label="Tipos que usas en este mazo">${quick.map(t => `<button type="button" class="tq" data-set-type="${t.id}" title="${esc(t.description || '')}">${typeIcon(t, 16)}<span>${esc(t.name)}</span></button>`).join('')}</span>` : ''}`;
+    ${quick.length ? `<span class="ed-quick" aria-label="Tipos que usas en esta lista">${quick.map(t => `<button type="button" class="tq" data-set-type="${t.id}" title="${esc(t.description || '')}">${typeIcon(t, 16)}<span>${esc(t.name)}</span></button>`).join('')}</span>` : ''}`;
 }
 // Selector de tipos (dentro del editor): agrupados según el idioma del mazo, con buscador
 export function drawTypePicker() {
@@ -214,12 +214,12 @@ export function drawTypePicker() {
   const item = t => {
     const n = t.templates.length;
     return `<li><button type="button" class="tp-item" data-pick-type="${t.id}" aria-pressed="${t.id === S.edit.typeId}">
-      <span class="tci">${typeIcon(t, 22)}</span><span class="tp-txt"><b>${esc(t.name)}</b><small>${esc(t.description || '')}${n > 1 && !/(dos|\d) tarjetas/i.test(t.description || '') ? ` · Crea ${n} tarjetas` : ''}</small></span></button></li>`;
+      <span class="tci">${typeIcon(t, 22)}</span><span class="tp-txt"><b>${esc(t.name)}</b><small>${esc(t.description || '')}${n > 1 && !/(dos|\d) preguntas/i.test(t.description || '') ? ` · Crea ${n} preguntas` : ''}</small></span></button></li>`;
   };
   const body = groups.filter(g => g[1].length).map(([h, list]) => `<h3 class="tp-h">${esc(h)}</h3><ul class="tp-list">${list.map(item).join('')}</ul>`).join('');
   box.querySelector('.tp-body').innerHTML = body || '<p class="muted">Ningún tipo coincide con la búsqueda.</p>';
-  box.querySelector('.tp-note').textContent = study ? `Mazo de ${langLabel(study).toLowerCase()}: se muestran los tipos que encajan.` : 'Este mazo no es de idiomas: se muestran los tipos generales.';
-  box.querySelector('[data-act="types-all"]').textContent = all ? 'Ver solo los de este mazo' : 'Ver todos los tipos';
+  box.querySelector('.tp-note').textContent = study ? `Lista de ${langLabel(study).toLowerCase()}: se muestran los tipos que encajan.` : 'Esta lista no es de idiomas: se muestran los tipos generales.';
+  box.querySelector('[data-act="types-all"]').textContent = all ? 'Ver solo los de esta lista' : 'Ver todos los tipos';
 }
 export function openTypePicker(open = true) {
   if (!S.edit) return;
@@ -304,7 +304,7 @@ function linkProp(link) {
 export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugIndex = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
   const deckId = c?.deck_id || forcedDeck || (S.view === 'deck' && S.deckId) || sessionDeck || [...S.decks.values()].find(d => !d.archived)?.id || [...S.decks.keys()][0];
-  if (!deckId && sugIndex == null) { toast('Crea primero un mazo'); return deckForm(null); }   // (una sugerencia se edita aunque aún no haya mazos)
+  if (!deckId && sugIndex == null) { toast('Crea primero una lista'); return deckForm(null); }   // (una sugerencia se edita aunque aún no haya listas)
   let model, siblings = [];
   if (c) {
     model = cardModel(c);
@@ -323,8 +323,8 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
   openSheet(`<form data-form="card" data-id="${c ? c.id : ''}" class="ed" autocomplete="off">
     <header class="ed-top">
       <button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
-      <div class="ed-title"><span>${c ? 'Editar tarjeta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva tarjeta'}</span>
-        <label class="ed-deck" title="Mazo">${deck ? deckIcon(deck) : ''}<select id="c-deck" aria-label="Mazo">${deckOptions(deckId)}</select></label></div>
+      <div class="ed-title"><span>${c ? 'Editar pregunta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva pregunta'}</span>
+        <label class="ed-deck" title="Lista">${deck ? deckIcon(deck) : ''}<select id="c-deck" aria-label="Lista">${deckOptions(deckId)}</select></label></div>
       <button type="submit" class="primary ed-save">Guardar</button>
     </header>
     <div class="ed-discard" id="edDiscard" hidden role="alert"><span>Tienes cambios sin guardar.</span>
@@ -341,18 +341,18 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
           <div class="prop prop-tags"><span class="prop-k">${icon('tag', { size: 16 })} Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
           ${linkProp(source || (c?.page_id ? { page_id: c.page_id, block_id: c.block_id } : null))}
         </div>
-        ${siblings.length > 1 ? `<p class="ed-note">Esta nota genera ${siblings.length} tarjetas. Los cambios se aplican a todas.</p>` : ''}
+        ${siblings.length > 1 ? `<p class="ed-note">Esta nota genera ${siblings.length} preguntas. Los cambios se aplican a todas.</p>` : ''}
       </section>
       <aside class="ed-side" aria-label="Vista previa">
         <div class="pv-h"><span>Vista previa</span><span class="pv-count" id="pvCount"></span></div>
         <div class="pv-tabs" id="pvTabs"></div>
         <div id="pvBody"></div>
-        <p class="ed-kbd">Toca la tarjeta para darle la vuelta · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda</p>
+        <p class="ed-kbd">Toca la pregunta para darle la vuelta · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda</p>
       </aside>
     </div>
-    <div class="ed-picker" id="typePicker" role="dialog" aria-label="Elegir tipo de tarjeta" hidden>
+    <div class="ed-picker" id="typePicker" role="dialog" aria-label="Elegir tipo de pregunta" hidden>
       <div class="tp-top"><button type="button" class="iconbtn" data-act="close-picker" aria-label="Volver">${icon('x', { size: 18 })}</button>
-        <input id="typeSearch" type="search" placeholder="Buscar tipo de tarjeta" aria-label="Buscar tipo de tarjeta" autocomplete="off"></div>
+        <input id="typeSearch" type="search" placeholder="Buscar tipo de pregunta" aria-label="Buscar tipo de pregunta" autocomplete="off"></div>
       <p class="hint tp-note"></p>
       <div class="tp-body"></div>
       <div class="btnrow tp-foot"><button type="button" class="link" data-act="types-all"></button><span class="spacer"></span><button type="button" class="ghost small-btn" data-act="manage-types">Gestionar tipos…</button></div>
@@ -501,10 +501,10 @@ export function rubyClose() {
 function occEditorHTML(imgText, maskText) {
   const has = !!imageIdIn(imgText), n = parseMasks(maskText).length;
   return `<div class="ef ef-req ef-occ" data-ef="img"><div class="ef-head"><span class="ef-name">Imagen y recuadros<span class="ef-dot" aria-label="necesario">•</span></span>
-      <span class="ef-badges">${has ? `<span class="ef-role">${plural(n, 'recuadro', 'recuadros')} · ${plural(n, 'tarjeta', 'tarjetas')}</span>` : ''}</span></div>
+      <span class="ef-badges">${has ? `<span class="ef-role">${plural(n, 'recuadro', 'recuadros')} · ${plural(n, 'pregunta', 'preguntas')}</span>` : ''}</span></div>
     <textarea data-fld="img" hidden>${esc(imgText || '')}</textarea><textarea data-fld="m" hidden>${esc(maskText || '')}</textarea>
     <div id="occEd">${has ? `${occlusionHTML(imgText, maskText, -1, false, { edit: true })}
-      <p class="ef-help">Arrastra sobre la imagen para tapar una parte: cada recuadro será una tarjeta. Toca un recuadro para quitarlo.</p>
+      <p class="ef-help">Arrastra sobre la imagen para tapar una parte: cada recuadro será una pregunta. Toca un recuadro para quitarlo.</p>
       <div class="btnrow"><button type="button" class="ghost small-btn" data-act="occ-pick">${icon('image', { size: 15 })} Cambiar imagen</button>${n ? '<button type="button" class="ghost small-btn" data-act="occ-clear">Quitar los recuadros</button>' : ''}</div>`
       : `<button type="button" class="occ-empty" data-act="occ-pick">${icon('image', { size: 22 })}<b>Elegir imagen</b><small>Un mapa, un esquema, un diagrama… (también puedes pegarla)</small></button>`}</div></div>`;
 }
@@ -582,8 +582,8 @@ export function drawPreview() {
   const tpls = type.templates;
   if (!tpls.some(t => t.id === e.pv)) e.pv = (active[0] || tpls[0]).id;
   const isActive = t => active.some(a => a.id === t.id);
-  $('#pvTabs').innerHTML = tpls.length > 1 ? tpls.map(t => `<button type="button" class="pvtab${isActive(t) ? '' : ' off'}" data-pv="${t.id}" aria-pressed="${t.id === e.pv}" title="${isActive(t) ? 'Se creará' : 'Faltan campos para crear esta tarjeta'}">${isActive(t) ? icon('check', { size: 13 }) + ' ' : ''}${esc(t.name)}</button>`).join('') : '';
-  $('#pvCount').textContent = active.length ? `${active.length} ${active.length === 1 ? 'tarjeta' : 'tarjetas'}` : 'Faltan campos';
+  $('#pvTabs').innerHTML = tpls.length > 1 ? tpls.map(t => `<button type="button" class="pvtab${isActive(t) ? '' : ' off'}" data-pv="${t.id}" aria-pressed="${t.id === e.pv}" title="${isActive(t) ? 'Se creará' : 'Faltan campos para crear esta pregunta'}">${isActive(t) ? icon('check', { size: 13 }) + ' ' : ''}${esc(t.name)}</button>`).join('') : '';
+  $('#pvCount').textContent = active.length ? `${active.length} ${active.length === 1 ? 'pregunta' : 'preguntas'}` : 'Faltan campos';
   const tpl = tpls.find(t => t.id === e.pv);
   const model = { type, tpl, fields: e.fields };
   const st = { revealed: e.pvSide === 'back', typed: null, choice: null };
@@ -599,7 +599,7 @@ export function drawPreview() {
       <div class="front">${f.front || '<span class="muted">Rellena los campos…</span>'}</div>${f.ask}${f.answer ? `<div class="answer">${f.answer}</div>` : ''}
       <button type="button" class="pv-flip-hint" data-act="pv-flip" aria-label="Dar la vuelta">${icon('rotate-cw', { size: 16 })}</button>
     </div>
-    ${!isActive(tpl) ? `<p class="hint pv-miss">Esta tarjeta no se creará hasta que rellenes ${esc(missingFor(type, tpl, e.fields))}.</p>` : ''}`;
+    ${!isActive(tpl) ? `<p class="hint pv-miss">Esta pregunta no se creará hasta que rellenes ${esc(missingFor(type, tpl, e.fields))}.</p>` : ''}`;
 }
 export function confirmSheet(text, act, label) {
   openSheet(`<h2>${text}</h2><p class="muted">No se puede deshacer.</p>
@@ -610,15 +610,15 @@ export function shareSheet() {
   const url = shareUrl(d.id);
   openSheet(`<h2>Compartir «${esc(d.name)}»</h2>
     ${d.is_public
-      ? `<p>Envía este enlace a tus amigos. Al abrirlo con su cuenta podrán copiarse el mazo.</p>
+      ? `<p>Envía este enlace a tus amigos. Al abrirlo con su cuenta podrán copiarse la lista.</p>
          <input id="shareUrl" readonly value="${esc(url)}" aria-label="Enlace para compartir">
          <div class="btnrow"><button class="primary" data-act="copy-link">Copiar enlace</button><button class="ghost" data-act="toggle-public">Dejar de compartir</button></div>`
-      : `<p>Ahora mismo este mazo es privado. Si lo compartes, cualquier usuario podrá verlo en Explorar y copiarlo.</p>
+      : `<p>Ahora mismo esta lista es privada. Si la compartes, cualquier usuario podrá verla en Explorar y copiarla.</p>
          <button class="primary" data-act="toggle-public">Compartir con la comunidad</button>`}
     <hr style="border:0;border-top:1px solid var(--line);width:100%">
-    <p class="small muted">También puedes descargarlo y mandarlo por WhatsApp o email. Se importa desde «Mis mazos».</p>
+    <p class="small muted">También puedes descargarlo y mandarlo por WhatsApp o email. Se importa desde «Mis listas».</p>
     <div class="btnrow"><button class="ghost" data-act="export-csv">Descargar CSV</button><button class="ghost" data-act="export-deck">Descargar copia Flaski</button></div>
-    <p class="hint">El CSV se abre con Excel, Google Sheets o Anki. La copia Flaski (.json) conserva también la descripción del mazo.</p>
+    <p class="hint">El CSV se abre con Excel, Google Sheets o Anki. La copia Flaski (.json) conserva también la descripción de la lista.</p>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
 
@@ -640,13 +640,13 @@ export async function saveDeckForm(form) {
     lang: isLang ? $('#d-lang').value : '' };
   if (id && fields.is_public) fields.types = deckTypes(id);
   if ($('#d-archived')) fields.archived = $('#d-archived').checked;
-  if (!fields.name) return toast('Ponle un nombre al mazo');
+  if (!fields.name) return toast('Ponle un nombre a la lista');
   const btn = form.querySelector('[type=submit]'); btn.disabled = true;
   try {
     const d = id ? await api.updateDeck(id, fields) : await api.createDeck({ ...fields, owner: S.uid });
     S.decks.set(d.id, { tags: [], ...d });
     S.pub = null;
-    toast(id ? 'Mazo guardado' : 'Mazo creado');
+    toast(id ? 'Lista guardada' : 'Lista creada');
     go('deck', { deckId: d.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; fail(e); }
 }
@@ -689,10 +689,10 @@ export function moveSheet(ids) {
   const tree = folderTree(S.folders);
   const row = (id, label, depth, icon) => `<li><button class="moverow" data-move-to="${id}" ${id === cur ? 'aria-current="true"' : ''} style="padding-left:${10 + depth * 18}px">
     ${icon}<span>${label}</span>${id === cur ? '<span class="muted small">aquí está</span>' : ''}</button></li>`;
-  openSheet(`<h2>Mover ${decks.length === 1 ? `«${esc(decks[0].name)}»` : `${decks.length} mazos`}</h2>
+  openSheet(`<h2>Mover ${decks.length === 1 ? `«${esc(decks[0].name)}»` : `${decks.length} listas`}</h2>
     <p class="muted small">Toca la carpeta de destino.</p>
     <ul class="movelist" data-moving='${esc(JSON.stringify(ids))}'>
-      ${row('', 'Mis mazos (sin carpeta)', 0, `<span class="icon">${icon('house', { size: 18 })}</span>`)}
+      ${row('', 'Mis listas (sin carpeta)', 0, `<span class="icon">${icon('house', { size: 18 })}</span>`)}
       ${tree.map(f => row(f.id, esc(f.name), f.depth + 1, folderIcon(S.folders.get(f.id)))).join('')}
     </ul>
     <div class="btnrow"><button class="ghost" data-act="new-folder">+ Carpeta nueva</button><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button></div>`);
@@ -700,10 +700,10 @@ export function moveSheet(ids) {
 export function addDecksSheet() {
   const here = S.folderId;
   const others = sortDecks([...S.decks.values()].filter(d => (d.folder_id || null) !== here && !d.archived), 'name', new Map());
-  if (!others.length) return toast('No hay más mazos para traer aquí');
-  const where = d => (d.folder_id && S.folders.has(d.folder_id) ? folderPath(S.folders, d.folder_id).map(f => f.name).join(' / ') : 'Mis mazos');
-  openSheet(`<h2>Añadir mazos a «${esc(S.folders.get(here)?.name || '')}»</h2>
-    <p class="muted small">Marca los mazos que quieres mover a esta carpeta.</p>
+  if (!others.length) return toast('No hay más listas para traer aquí');
+  const where = d => (d.folder_id && S.folders.has(d.folder_id) ? folderPath(S.folders, d.folder_id).map(f => f.name).join(' / ') : 'Mis listas');
+  openSheet(`<h2>Añadir listas a «${esc(S.folders.get(here)?.name || '')}»</h2>
+    <p class="muted small">Marca las listas que quieres mover a esta carpeta.</p>
     <ul class="picklist">${others.map(d => `<li><label class="pickrow"><input type="checkbox" name="pick-deck" value="${d.id}">${deckIcon(d)}
       <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${esc(where(d))}</span></span></label></li>`).join('')}</ul>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="confirm-add-decks">Mover aquí</button></div>`);
@@ -711,8 +711,8 @@ export function addDecksSheet() {
 export async function moveDecks(ids, folderId) {
   try {
     for (const id of ids) S.decks.set(id, { tags: [], ...await api.updateDeck(id, { folder_id: folderId }) });
-    const name = folderId ? S.folders.get(folderId)?.name : 'Mis mazos';
-    toast(ids.length === 1 ? `Movido a «${name}»` : `${ids.length} mazos movidos a «${name}»`);
+    const name = folderId ? S.folders.get(folderId)?.name : 'Mis listas';
+    toast(ids.length === 1 ? `Movida a «${name}»` : `${ids.length} listas movidas a «${name}»`);
     closeSheet(); render();
   } catch (e) { fail(e); }
 }
@@ -760,7 +760,7 @@ export async function saveCardForm(form, more) {
   const e = readEditor();
   const type = getType(S.edit.typeId) || BUILTIN_TYPES[0];
   const deckId = $('#c-deck').value;
-  if (!deckId) return toast('Crea primero un mazo');
+  if (!deckId) return toast('Crea primero una lista');
   const fields = {};
   for (const f of type.fields) fields[f.id] = String(e.fields[f.id] || '').trim();
   const btns = form.querySelectorAll('button'); btns.forEach(b => { b.disabled = true; });
@@ -775,7 +775,7 @@ export async function saveCardForm(form, more) {
     const pg = e.source && S.pages.get(e.source.page_id);
     if (pg && !pg.deck_id) { pg.deck_id = deckId; savePageSoon(pg); }
     if (S.session) S.session.st = null;
-    toast(e.cardId ? 'Tarjeta guardada' : out.length > 1 ? `${out.length} tarjetas añadidas` : 'Tarjeta añadida');
+    toast(e.cardId ? 'Pregunta guardada' : out.length > 1 ? `${out.length} preguntas añadidas` : 'Pregunta añadida');
     if (more) { S.edit.dirty = false; cardForm(null, { deckId }); if (S.view === 'deck') renderDeck(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
     else { S.edit.dirty = false; closeSheet(); render(); }
   } catch (err) { btns.forEach(b => { b.disabled = false; }); fail(err); }
@@ -785,20 +785,20 @@ export async function saveCardForm(form, more) {
 export function quickSheet() {
   const deckId = S.deckId;
   const t = defaultTypeFor(deckId);
-  openSheet(`<h2>Crear varias tarjetas</h2>
-    <p class="muted small">Pega una lista con una tarjeta por línea. Cada columna rellena un campo, en orden.</p>
+  openSheet(`<h2>Crear varias preguntas</h2>
+    <p class="muted small">Pega una lista con una pregunta por línea. Cada columna rellena un campo, en orden.</p>
     <form data-form="quick" class="cardform">
       <div class="two">
-        <div><label for="q-type">Tipo de tarjeta</label><select id="q-type">${typeOptions(t.id, deckId)}</select></div>
+        <div><label for="q-type">Tipo de pregunta</label><select id="q-type">${typeOptions(t.id, deckId)}</select></div>
         <div><label for="q-sep">Separador</label><select id="q-sep">
           <option value="auto">Detectar solo</option><option value="\t">Tabulador (copiado de Excel)</option><option value=" - ">Guion ( - )</option>
           <option value=";">Punto y coma (;)</option><option value=",">Coma (,)</option><option value=" = ">Igual ( = )</option><option value="|">Barra (|)</option></select></div>
       </div>
-      <label for="q-deck">Mazo</label><select id="q-deck">${deckOptions(deckId)}</select>
+      <label for="q-deck">Lista</label><select id="q-deck">${deckOptions(deckId)}</select>
       <p class="hint" id="qMap"></p>
       <textarea id="q-text" rows="8" placeholder="ev - casa&#10;kitap - libro&#10;su - agua"></textarea>
       <div id="qPrev"></div>
-      <div class="btnrow" style="margin-top:8px"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary" id="qGo" disabled>Crear tarjetas</button></div>
+      <div class="btnrow" style="margin-top:8px"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary" id="qGo" disabled>Crear preguntas</button></div>
     </form>`);
   drawQuick();
 }
@@ -820,9 +820,9 @@ export function drawQuick() {
   const cards = valid.reduce((n, f) => n + activeTemplates(type, f).length, 0);
   $('#qPrev').innerHTML = notes.length ? `<div class="qtable-wrap"><table class="qtable"><thead><tr>${type.fields.map(f => `<th>${esc(f.name)}</th>`).join('')}</tr></thead>
     <tbody>${notes.slice(0, 5).map(f => `<tr class="${activeTemplates(type, f).length ? '' : 'bad'}">${type.fields.map(x => `<td>${esc(f[x.id] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    <p class="hint">${notes.length > 5 ? `…y ${notes.length - 5} líneas más. ` : ''}Se crearán <b>${cards}</b> ${cards === 1 ? 'tarjeta' : 'tarjetas'}${notes.length - valid.length ? ` (${notes.length - valid.length} líneas incompletas se saltarán)` : ''}.</p>` : '';
+    <p class="hint">${notes.length > 5 ? `…y ${notes.length - 5} líneas más. ` : ''}Se crearán <b>${cards}</b> ${cards === 1 ? 'pregunta' : 'preguntas'}${notes.length - valid.length ? ` (${notes.length - valid.length} líneas incompletas se saltarán)` : ''}.</p>` : '';
   $('#qGo').disabled = !valid.length;
-  $('#qGo').textContent = cards ? `Crear ${cards} ${cards === 1 ? 'tarjeta' : 'tarjetas'}` : 'Crear tarjetas';
+  $('#qGo').textContent = cards ? `Crear ${cards} ${cards === 1 ? 'pregunta' : 'preguntas'}` : 'Crear preguntas';
 }
 export async function saveQuick(form) {
   const { type, valid } = quickRows();
@@ -843,7 +843,7 @@ export async function saveQuick(form) {
     const created = await api.createCards(rows);
     for (const c of created) S.cards.set(c.id, c);
     rememberType(deckId, type.id);
-    toast(`${created.length} tarjetas creadas`);
+    toast(`${created.length} preguntas creadas`);
     go('deck', { deckId, cardQuery: '' });
   } catch (e) { btn.disabled = false; drawQuick(); fail(e); }
 }
@@ -853,7 +853,7 @@ export function typeUsage(id) { return cardList().filter(c => c.type_id === id).
 export function typesSheet() {
   const scopeText = t => { const s = typeScope(t); return s === 'general' ? 'Cualquier tema' : s === 'lang' ? 'Idiomas' : s.map(b => LANGS.find(l => l.id.split('-')[0] === b)?.label || b).join(', '); };
   const row = (t, own) => `<li class="typerow${typeHidden(t) ? ' is-hidden' : ''}"><span class="icon">${typeIcon(t, 20)}</span>
-    <span class="info"><span class="dname">${esc(t.name)}</span><span class="meta">${esc(scopeText(t))} · ${esc(t.description || `${t.fields.length} campos · ${t.templates.length} ${t.templates.length === 1 ? 'tarjeta' : 'tarjetas'} por nota`)}</span></span>
+    <span class="info"><span class="dname">${esc(t.name)}</span><span class="meta">${esc(scopeText(t))} · ${esc(t.description || `${t.fields.length} campos · ${t.templates.length} ${t.templates.length === 1 ? 'pregunta' : 'preguntas'} por nota`)}</span></span>
     <button class="ghost small-btn" data-hide-type="${t.id}" aria-pressed="${typeHidden(t)}" title="${typeHidden(t) ? 'Volver a mostrarlo en el editor' : 'No mostrarlo en el editor'}">${typeHidden(t) ? 'Mostrar' : 'Ocultar'}</button>
     ${own ? `<button class="ghost small-btn" data-edit-type="${t.id}">Editar</button>` : `<button class="ghost small-btn" data-copy-type="${t.id}">Personalizar</button>`}</li>`;
   // Por para qué sirven: cualquier tema, cualquier idioma y luego cada idioma (los tuyos primero en cada grupo)
@@ -865,8 +865,8 @@ export function typesSheet() {
     if (!groups.has(k)) groups.set(k, { title: k === '0' ? 'Para cualquier tema' : k === '1' ? 'Para idiomas' : `Para ${scopeText(t).toLowerCase()}`, rows: [] });
     groups.get(k).rows.push(row(t, mine));
   }
-  openSheet(`<h2>Tipos de tarjeta</h2>
-    <p class="muted small">Un tipo define qué campos rellenas y qué tarjetas se crean con ellos. En el editor solo salen los que sirven para el mazo (los de japonés, en mazos de japonés). Los que ocultes no saldrán en el editor (siguen en «Ver todos los tipos»).</p>
+  openSheet(`<h2>Tipos de pregunta</h2>
+    <p class="muted small">Un tipo define qué campos rellenas y qué preguntas se crean con ellos. En el editor solo salen los que sirven para la lista (los de japonés, en listas de japonés). Los que ocultes no saldrán en el editor (siguen en «Ver todos los tipos»).</p>
     ${[...groups].sort((a, b) => a[0].localeCompare(b[0], 'es')).map(([, g]) => `<h3 class="sub-h">${esc(g.title)}</h3><ul class="typelist">${g.rows.join('')}</ul>`).join('')}
     <div class="btnrow"><button class="primary" data-act="new-type">+ Tipo nuevo</button><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
@@ -894,19 +894,19 @@ export function drawTypeEditor() {
       <label for="ty-desc">Descripción (opcional)</label><input id="ty-desc" maxlength="300" value="${esc(t.description || '')}">
 
       <h3 class="sub-h">1 · Campos</h3>
-      <p class="hint">Lo que rellenarás en cada nota. Si eliges un idioma, el campo tendrá botón de audio. «Idioma del mazo» y «Tu idioma» se adaptan a cada mazo: el mismo tipo sirve para turco, alemán o japonés.</p>
+      <p class="hint">Lo que rellenarás en cada nota. Si eliges un idioma, el campo tendrá botón de audio. «Idioma de la lista» y «Tu idioma» se adaptan a cada lista: el mismo tipo sirve para turco, alemán o japonés.</p>
       <ol class="tfields">${t.fields.map((f, i) => `<li data-fi="${i}">
         <input class="tf-name" value="${esc(f.name)}" maxlength="40" aria-label="Nombre del campo ${i + 1}">
         <select class="tf-lang" aria-label="Idioma del audio"><option value="" ${!f.lang ? 'selected' : ''}>Sin audio</option>
-          <optgroup label="Según el mazo">${LANG_ROLES.map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</optgroup>
+          <optgroup label="Según la lista">${LANG_ROLES.map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</optgroup>
           <optgroup label="Siempre el mismo">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === f.lang ? 'selected' : ''}>${l.label}</option>`).join('')}</optgroup></select>
         <label class="tf-auto" title="Reproducir solo al aparecer"><input type="checkbox" class="tf-autoplay" ${f.autoplay ? 'checked' : ''} ${f.lang ? '' : 'disabled'}>Auto</label>
         <span class="tf-btns"><button type="button" class="iconbtn" data-fmove="${i}:-1" aria-label="Subir" ${i ? '' : 'disabled'}>${icon('arrow-up', { size: 15 })}</button><button type="button" class="iconbtn" data-fmove="${i}:1" aria-label="Bajar" ${i < t.fields.length - 1 ? '' : 'disabled'}>${icon('arrow-down', { size: 15 })}</button><button type="button" class="iconbtn danger" data-fdel="${i}" aria-label="Quitar campo" ${t.fields.length > 1 ? '' : 'disabled'}>${icon('x', { size: 15 })}</button></span>
       </li>`).join('')}</ol>
       <button type="button" class="ghost small-btn" data-act="add-field">+ Campo</button>
 
-      <h3 class="sub-h">2 · Tarjetas que se crean</h3>
-      <p class="hint">Cada una genera una tarjeta por nota. Por ejemplo, una de «turco → español» y otra de «español → turco».</p>
+      <h3 class="sub-h">2 · Preguntas que se crean</h3>
+      <p class="hint">Cada una genera una pregunta por nota. Por ejemplo, una de «turco → español» y otra de «español → turco».</p>
       <div class="ttpls">${t.templates.map((tpl, i) => `<fieldset class="ttpl" data-ti="${i}">
         <div class="two"><div><label>Nombre</label><input class="tt-name" value="${esc(tpl.name)}" maxlength="60"></div>
           <div><label>Cómo se estudia</label><select class="tt-mode">${MODES.filter(m => !m.builtinOnly || m.id === tpl.mode).map(m => `<option value="${m.id}" ${m.id === tpl.mode ? 'selected' : ''}>${m.label}</option>`).join('')}</select></div></div>
@@ -917,11 +917,11 @@ export function drawTypeEditor() {
         ${NEEDS_ANSWER.includes(tpl.mode) ? `<label>${{ type: 'Respuesta correcta', choice: 'Respuesta correcta', draw: 'Lo que hay que escribir a mano', listen: 'Lo que se escucha y se escribe', order: 'Frase correcta (las piezas)' }[tpl.mode]}</label><select class="tt-answer">${fieldOpts(tpl.answer)}</select>` : ''}
         ${tpl.mode === 'draw' ? `<label class="check"><input type="checkbox" class="tt-guide" ${tpl.guide ? 'checked' : ''}><span>Mostrar la silueta como guía <span class="hint">(para calcar; desmárcalo para escribir de memoria)</span></span></label>` : ''}
         <label class="check"><input type="checkbox" class="tt-hideruby" ${tpl.hideRuby ? 'checked' : ''}><span>Ocultar el furigana delante <span class="hint">(漢字[かんじ] se lee solo al responder)</span></span></label>
-        ${tpl.mode === 'choice' ? `<label>Respuestas incorrectas (opcional)</label><select class="tt-wrong"><option value="">Coger de otras tarjetas del mazo</option>${fieldOpts(tpl.wrong)}</select>` : ''}
+        ${tpl.mode === 'choice' ? `<label>Respuestas incorrectas (opcional)</label><select class="tt-wrong"><option value="">Coger de otras preguntas de la lista</option>${fieldOpts(tpl.wrong)}</select>` : ''}
         <label>${tpl.mode === 'flip' ? 'Se ve detrás' : 'Se ve también al responder'}</label><div class="fchecks">${checks(tpl, 'back')}</div>
-        <div class="btnrow"><span class="spacer"></span><button type="button" class="ghost small-btn danger" data-tdel="${i}" ${t.templates.length > 1 ? '' : 'disabled'}>Quitar esta tarjeta</button></div>
+        <div class="btnrow"><span class="spacer"></span><button type="button" class="ghost small-btn danger" data-tdel="${i}" ${t.templates.length > 1 ? '' : 'disabled'}>Quitar esta pregunta</button></div>
       </fieldset>`).join('')}</div>
-      <button type="button" class="ghost small-btn" data-act="add-template">+ Tarjeta</button>
+      <button type="button" class="ghost small-btn" data-act="add-template">+ Pregunta</button>
 
       <h3 class="sub-h">Vista previa</h3>${pv || '<p class="hint">Elige qué campos se ven delante.</p>'}
       <div class="btnrow" style="margin-top:10px">${t.id ? '<button type="button" class="ghost danger" data-act="delete-type">Eliminar tipo</button>' : ''}<span class="spacer"></span>
@@ -964,7 +964,7 @@ export async function saveTypeEditor() {
   if (!t.name) return toast('Ponle un nombre al tipo');
   t.fields.forEach((f, i) => { f.name = f.name.trim() || `Campo ${i + 1}`; });
   for (const tpl of t.templates) {
-    tpl.name = tpl.name.trim() || 'Tarjeta';
+    tpl.name = tpl.name.trim() || 'Pregunta';
     if (!tpl.front.length && !['listen', 'order'].includes(tpl.mode)) return toast(`En «${tpl.name}» elige al menos un campo para delante`);
     if (NEEDS_ANSWER.includes(tpl.mode) && !tpl.answer) return toast(`En «${tpl.name}» elige la respuesta correcta`);
     if (tpl.mode === 'listen' && !t.fields.find(f => f.id === tpl.answer)?.lang) return toast(`En «${tpl.name}» el campo que se escucha necesita un idioma de audio`);

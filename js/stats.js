@@ -103,7 +103,7 @@ export function computeStats(ctx, f) {
 }
 
 /* ---------------- HTML de la página (lo que no depende del ancho) ----------------
-   Cada tarjeta empieza con su cifra (una etiqueta pequeña, un número grande y una frase) y la cabecera
+   Cada pregunta empieza con su cifra (una etiqueta pequeña, un número grande y una frase) y la cabecera
    cuenta lo que señalas en el gráfico (data-live: ver liveShow en charts.js). Todo en tonos del color del tema. */
 const lvHead = (id, label, n, of, sub = '', right = '') => `<div class="lv-h"><h2 class="lv-k" id="st-${id}">${label}<span class="lv-day"></span></h2>${right}</div>
       <div class="lv-big"><b class="lv-n">${n}</b><span class="lv-of">${of}</span></div><p class="lv-sub">${sub}</p>`;
@@ -131,15 +131,15 @@ export function statsView(ctx, f) {
   const filters = `<div class="st-filters">
       <div class="seg seg-text" role="group" aria-label="Periodo">${periodBtns}</div>
       <div class="st-selects">
-        <label class="sel"><span>Mazos</span><select id="st-scope">${ctx.scopeOptions(f.scope)}</select></label>
-        <label class="sel"><span>Tipo de tarjeta</span><select id="st-mode"><option value="">Todos</option>${ctx.modes.map(m => `<option value="${m.id}" ${m.id === f.mode ? 'selected' : ''}>${m.label}</option>`).join('')}</select></label>
+        <label class="sel"><span>Listas</span><select id="st-scope">${ctx.scopeOptions(f.scope)}</select></label>
+        <label class="sel"><span>Tipo de pregunta</span><select id="st-mode"><option value="">Todos</option>${ctx.modes.map(m => `<option value="${m.id}" ${m.id === f.mode ? 'selected' : ''}>${m.label}</option>`).join('')}</select></label>
       </div></div>`;
 
   const L = D.B.list;
   const kpi = (v, l, sp, tip = '') => `<div class="kpi"${tip ? ` title="${escA(tip)}"` : ''}><b>${v}</b><span>${l}</span>${sp}</div>`;
   const kpis = `<div class="kpis">
       ${kpi(nf.format(n), n === 1 ? 'respuesta' : 'respuestas', spark(L.map(b => b.n)))}
-      ${kpi(fmtDuration(D.ms), 'de estudio', spark(L.map(b => b.ms)), n ? `${Math.round(D.ms / n / 1000)} s por tarjeta de media` : '')}
+      ${kpi(fmtDuration(D.ms), 'de estudio', spark(L.map(b => b.ms)), n ? `${Math.round(D.ms / n / 1000)} s por pregunta de media` : '')}
       ${kpi(n ? pct(D.ok, n) + ' %' : '—', 'de aciertos', spark(L.map(b => (b.n ? pct(b.ok, b.n) : null))), 'Respuestas que no fueron «Otra vez»')}
       ${kpi(`${D.activeDays}<small>/${D.periodDays}</small>`, 'días estudiando', spark(L.map(b => (b.n ? 1 : 0)), { bars: true }))}
     </div>`;
@@ -149,13 +149,13 @@ export function statsView(ctx, f) {
   const emptyBox = (ic, title, text, btns = '') => `<div class="st-empty" role="status"><h2>${ctx.icon(ic, { size: 18 })} ${title}</h2><p>${text}</p>${btns ? `<div class="btnrow">${btns}</div>` : ''}</div>`;
   const noCards = !D.cards.length;
   const empty = noCards
-    ? (filtered ? emptyBox('chart-column', 'No hay tarjetas con estos filtros', 'Prueba con otro mazo o tipo de tarjeta.')
-      : emptyBox('chart-column', 'Todavía no hay nada que medir', 'Cuando tengas mazos y estudies, aquí verás tu progreso: respuestas, aciertos, tiempo y previsión.', '<button class="primary" data-nav="explore">Ver mazos para empezar</button>'))
+    ? (filtered ? emptyBox('chart-column', 'No hay preguntas con estos filtros', 'Prueba con otra lista o tipo de pregunta.')
+      : emptyBox('chart-column', 'Todavía no hay nada que medir', 'Cuando tengas listas y estudies, aquí verás tu progreso: respuestas, aciertos, tiempo y previsión.', '<button class="primary" data-nav="explore">Ver listas para empezar</button>'))
     : n ? ''
     : D.scopedN ? emptyBox('chart-column', 'Sin respuestas en este periodo', 'Elige un periodo más largo para ver tu actividad anterior.', '<button class="ghost" data-stp="0">Ver todo el historial</button>')
     : emptyBox('chart-column', 'Aún no hay respuestas', D.prog.size
       ? 'Las estadísticas detalladas (botones, tiempo, horas…) cuentan desde que actualizaste Flaski; el calendario incluye todo tu historial. Estudia un poco y aparecerán aquí.'
-      : 'Estudia algunas tarjetas y aquí aparecerán tus respuestas, aciertos y tiempo.', `<button class="primary" data-start="${escA(f.scope)}">Estudiar ahora</button>`);
+      : 'Estudia algunas preguntas y aquí aparecerán tus respuestas, aciertos y tiempo.', `<button class="primary" data-start="${escA(f.scope)}">Estudiar ahora</button>`);
   const none = text => `<p class="st-none">${text}</p>`;
   const noProg = !D.prog.size;
 
@@ -181,7 +181,7 @@ export function statsView(ctx, f) {
   const hardHTML = D.hard.length ? `<ul class="list hard-list">${D.hard.map(({ c, p, lapses, miss }) => `<li><button class="row" data-card="${c.id}">
       <span class="f">${ctx.cardFront(c)}</span><span class="hard-meta"><span class="hard-bar" style="--w:${Math.round(((lapses + miss) / maxHard) * 100)}%"></span>${[lapses && plural(lapses, 'olvido', 'olvidos'), miss && `${plural(miss, 'fallo', 'fallos')} en el periodo`, p && `facilidad ${Math.round((p.ease || 2.5) * 100)} %`].filter(Boolean).join(' · ')}</span>
       <span class="b">${ctx.deckLabel(c.deck_id)} ${escA(ctx.deckName(c.deck_id))}</span></button></li>`).join('')}</ul>`
-    : none('Ninguna tarjeta se te resiste. 🎉');
+    : none('Ninguna pregunta se te resiste. 🎉');
 
   const fcOpts = [7, 30, 90].map(d => `<button type="button" class="seg-b" data-stfc="${d}" aria-pressed="${d === f.fcDays}">${d} d</button>`).join('');
   const fcSum = D.fc.reduce((a, b) => a + b, 0);
@@ -197,20 +197,20 @@ export function statsView(ctx, f) {
 
   const periodCards = n ? `
     ${card('rev', lvHead('rev', `Respuestas ${perT}`, nf.format(n), n === 1 ? 'respuesta' : 'respuestas', `${nf.format(Math.round(avg * 10) / 10)} ${per} de media · ${pct(D.ok, n)} % de aciertos`), '<div class="st-chart" data-chart="reviews"></div>')}
-    ${card('time', lvHead('time', 'Tiempo y aciertos', fmtDuration(D.ms), `de estudio · ${pct(D.ok, n)} % de aciertos`, `${Math.round(D.ms / n / 1000)} s por tarjeta de media`), '<div class="st-chart" data-chart="time"></div><div class="st-chart st-chart-sm" data-chart="acc"></div>')}
-    ${card('btn', lvHead('btn', 'Botones según la tarjeta', `${pct(again, n)} %`, 'de las veces, «Otra vez»', 'Según si la tarjeta era nueva, la estabas aprendiendo o la repasabas'), `<ul class="bstack">${stRows}</ul>${gradeKey}`)}
+    ${card('time', lvHead('time', 'Tiempo y aciertos', fmtDuration(D.ms), `de estudio · ${pct(D.ok, n)} % de aciertos`, `${Math.round(D.ms / n / 1000)} s por pregunta de media`), '<div class="st-chart" data-chart="time"></div><div class="st-chart st-chart-sm" data-chart="acc"></div>')}
+    ${card('btn', lvHead('btn', 'Botones según la pregunta', `${pct(again, n)} %`, 'de las veces, «Otra vez»', 'Según si la pregunta era nueva, la estabas aprendiendo o la repasabas'), `<ul class="bstack">${stRows}</ul>${gradeKey}`)}
     ${card('hour', lvHead('hour', 'Hora del día', `${best} h`, 'tu mejor hora', `${plural(bh.n, 'respuesta', 'respuestas')} · ${pct(bh.ok, bh.n)} % de aciertos a esa hora`), '<div class="st-chart" data-chart="hours"></div>')}
-    ${deckRows.length > 1 ? card('deck', lvHead('deck', 'Por mazo', nf.format(deckRows[0][1].n), `respuestas en ${escA(ctx.deckName(deckRows[0][0]))}`, `${plural(deckRows.length, 'mazo', 'mazos')} con respuestas en el periodo`), `<ul class="hbars">${deckHTML}</ul>`) : ''}` : '';
+    ${deckRows.length > 1 ? card('deck', lvHead('deck', 'Por lista', nf.format(deckRows[0][1].n), `respuestas en ${escA(ctx.deckName(deckRows[0][0]))}`, `${plural(deckRows.length, 'lista', 'listas')} con respuestas en el periodo`), `<ul class="hbars">${deckHTML}</ul>`) : ''}` : '';
   const html = `<div class="st-head"><h1>Estadísticas</h1><p class="muted">${escA(ctx.scopeName(f.scope))}${f.mode ? ' · ' + escA(ctx.modes.find(m => m.id === f.mode)?.label || '') : ''}</p></div>
     ${ctx.decks.size ? filters : ''}${noCards && !filtered ? '' : kpis}${empty}
     ${noCards ? '' : '<section class="chart-card st-card lv pg-card" id="stPg" aria-labelledby="st-pg"></section>'}
     ${periodCards}
     ${noCards ? '' : `
     ${card('cal', lvHead('cal', 'Calendario', nf.format(hm.active), hm.active === 1 ? 'día estudiando en el último año' : 'días estudiando en el último año', `${plural(hm.total, 'repaso', 'repasos')}`), hm.total ? hm.html : none('Aún no hay días de estudio en el último año.'))}
-    ${card('fc', lvHead('fc', 'Previsión', nf.format(fcSum), `${fcSum === 1 ? 'repaso' : 'repasos'} en los próximos ${f.fcDays} días`, noProg ? '' : `Hoy ${nf.format(D.fc[0])} (con las atrasadas) · mañana ${nf.format(D.fc[1] || 0)}`, `<div class="seg seg-text" role="group" aria-label="Días de previsión">${fcOpts}</div>`), noProg ? none('Cuando estudies tarjetas, aquí verás cuántas tocan cada día.') : '<div class="st-chart" data-chart="forecast"></div>')}
-    ${card('ivl', lvHead('ivl', 'Intervalos', noProg ? '—' : fmtDays(median), 'intervalo mediano', noProg ? '' : `La mitad de tus tarjetas vuelven en más de ${fmtDays(median)}`), noProg ? none('Aún no has estudiado ninguna tarjeta con estos filtros.') : '<div class="st-chart" data-chart="intervals"></div>')}
-    ${card('ease', lvHead('ease', 'Facilidad', eases.length ? `${meanEase} %` : '—', 'de facilidad media', 'Cuanto más baja, más te cuesta la tarjeta'), noProg ? none('Aún no has estudiado ninguna tarjeta con estos filtros.') : '<div class="st-chart" data-chart="ease"></div>')}
-    ${card('hard', lvHead('hard', 'Las que más se te resisten', nf.format(D.hardN), D.hardN === 1 ? 'tarjeta con fallos' : 'tarjetas con fallos', D.hard.length ? 'Estas son las que más' : ''), hardHTML)}`}`;
+    ${card('fc', lvHead('fc', 'Previsión', nf.format(fcSum), `${fcSum === 1 ? 'repaso' : 'repasos'} en los próximos ${f.fcDays} días`, noProg ? '' : `Hoy ${nf.format(D.fc[0])} (con las atrasadas) · mañana ${nf.format(D.fc[1] || 0)}`, `<div class="seg seg-text" role="group" aria-label="Días de previsión">${fcOpts}</div>`), noProg ? none('Cuando estudies preguntas, aquí verás cuántas tocan cada día.') : '<div class="st-chart" data-chart="forecast"></div>')}
+    ${card('ivl', lvHead('ivl', 'Intervalos', noProg ? '—' : fmtDays(median), 'intervalo mediano', noProg ? '' : `La mitad de tus preguntas vuelven en más de ${fmtDays(median)}`), noProg ? none('Aún no has estudiado ninguna pregunta con estos filtros.') : '<div class="st-chart" data-chart="intervals"></div>')}
+    ${card('ease', lvHead('ease', 'Facilidad', eases.length ? `${meanEase} %` : '—', 'de facilidad media', 'Cuanto más baja, más te cuesta la pregunta'), noProg ? none('Aún no has estudiado ninguna pregunta con estos filtros.') : '<div class="st-chart" data-chart="ease"></div>')}
+    ${card('hard', lvHead('hard', 'Las que más se te resisten', nf.format(D.hardN), D.hardN === 1 ? 'pregunta con fallos' : 'preguntas con fallos', D.hard.length ? 'Estas son las que más' : ''), hardHTML)}`}`;
   return { html, data: D };
 }
 
@@ -329,7 +329,7 @@ export function drawStats(root, D, { animate: anim = false } = {}) {
       ivls.sort((a, b) => a - b);
       const med = ivls[Math.floor((ivls.length - 1) / 2)] || 0, mi = B.findIndex(([, a, b]) => med >= a && med < b);
       const short = w < 520;
-      return areaChart(w, B.map(([label], i) => ({ v: cnt[i], label: short ? label.replace(' sem–1 mes', 's–1m').replace(' meses', 'm').replace(' sem', 's').replace('aprendiendo', 'apr.') : label, tipL: i ? `vuelven en ${label}` : 'aprendiendo (menos de 1 día)', tipV: plural(cnt[i], 'tarjeta', 'tarjetas') })), { mark: mi, markText: 'mediana' });
+      return areaChart(w, B.map(([label], i) => ({ v: cnt[i], label: short ? label.replace(' sem–1 mes', 's–1m').replace(' meses', 'm').replace(' sem', 's').replace('aprendiendo', 'apr.') : label, tipL: i ? `vuelven en ${label}` : 'aprendiendo (menos de 1 día)', tipV: plural(cnt[i], 'pregunta', 'preguntas') })), { mark: mi, markText: 'mediana' });
     },
     ease: w => {
       const edges = [1.3, 1.5, 1.7, 1.9, 2.1, 2.3, 2.5, 2.7, 2.9, Infinity];
@@ -337,7 +337,7 @@ export function drawStats(root, D, { animate: anim = false } = {}) {
       let sum = 0, k = 0;
       for (const p of D.prog.values()) { if (!p.reps && p.interval < 1) continue; const i = edges.findIndex((e, j) => p.ease >= e && p.ease < edges[j + 1]); cnt[Math.max(0, i)]++; sum += p.ease || 2.5; k++; }
       const mean = k ? sum / k : 0, mi = Math.max(0, edges.findIndex((e, j) => mean >= e && mean < edges[j + 1]));
-      return areaChart(w, cnt.map((c, i) => ({ v: c, label: i === cnt.length - 1 ? `≥${nf.format(edges[i] * 100)}` : nf.format(edges[i] * 100), tipL: i === cnt.length - 1 ? `facilidad de ${nf.format(edges[i] * 100)} % o más` : `facilidad de ${nf.format(edges[i] * 100)} a ${nf.format(edges[i + 1] * 100 - 1)} %`, tipV: plural(c, 'tarjeta', 'tarjetas') })), { mark: k ? mi : null, markText: 'media' });
+      return areaChart(w, cnt.map((c, i) => ({ v: c, label: i === cnt.length - 1 ? `≥${nf.format(edges[i] * 100)}` : nf.format(edges[i] * 100), tipL: i === cnt.length - 1 ? `facilidad de ${nf.format(edges[i] * 100)} % o más` : `facilidad de ${nf.format(edges[i] * 100)} a ${nf.format(edges[i + 1] * 100 - 1)} %`, tipV: plural(c, 'pregunta', 'preguntas') })), { mark: k ? mi : null, markText: 'media' });
     },
   };
   for (const el of root.querySelectorAll('[data-chart]')) {

@@ -8,17 +8,17 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const SLIDES = [
   { id: 'welcome' },
   { id: 'estudiar', title: 'Estudia solo lo que toca',
-    text: 'Cada día Flaski te enseña las tarjetas que estás a punto de olvidar. Tú dices cómo te ha ido y la app decide cuándo volver a enseñártelas: cuanto mejor la sabes, más tarda en volver.',
-    alt: 'Una tarjeta de japonés con su respuesta y los botones Otra vez, Difícil, Bien y Fácil' },
-  { id: 'tipos', title: 'Una tarjeta para cada cosa',
-    text: 'Vocabulario, huecos, opción múltiple, dictado, kanji trazo a trazo… Cada mazo sabe qué estudias y el editor te propone los tipos de tarjeta que encajan.',
-    alt: 'El selector de tipos de tarjeta en un mazo de alemán' },
-  { id: 'apuntes', title: 'Tus apuntes, unidos a tus tarjetas',
-    text: 'Selecciona cualquier parte de tus apuntes para convertirla en tarjeta. Verás de un vistazo qué partes dominas y cuáles te cuestan, y podrás repasar un tema entero de una vez.',
-    alt: 'Unos apuntes de historia con cada parte coloreada según cómo se llevan sus tarjetas' },
-  { id: 'ia', title: 'Mazos hechos con IA',
-    text: 'Pídele a ChatGPT, Gemini o Claude un mazo sobre lo que quieras y pégalo aquí. Flaski revisa cada tarjeta antes de añadirla y te dice si algo no está bien.',
-    alt: 'La vista previa de un mazo de inglés pegado desde una IA' },
+    text: 'Cada día Flaski te enseña las preguntas que estás a punto de olvidar. Tú dices cómo te ha ido y la app decide cuándo volver a enseñártelas: cuanto mejor la sabes, más tarda en volver.',
+    alt: 'Una pregunta de japonés con su respuesta y los botones Otra vez, Difícil, Bien y Fácil' },
+  { id: 'tipos', title: 'Una pregunta para cada cosa',
+    text: 'Vocabulario, huecos, opción múltiple, dictado, kanji trazo a trazo… Cada lista sabe qué estudias y el editor te propone los tipos de pregunta que encajan.',
+    alt: 'El selector de tipos de pregunta en una lista de alemán' },
+  { id: 'apuntes', title: 'Tus apuntes, unidos a tus preguntas',
+    text: 'Selecciona cualquier parte de tus apuntes para convertirla en pregunta. Verás de un vistazo qué partes dominas y cuáles te cuestan, y podrás repasar un tema entero de una vez.',
+    alt: 'Unos apuntes de historia con cada parte coloreada según cómo se llevan sus preguntas' },
+  { id: 'ia', title: 'Listas hechas con IA',
+    text: 'Pídele a ChatGPT, Gemini o Claude una lista sobre lo que quieras y pégala aquí. Flaski revisa cada pregunta antes de añadirla y te dice si algo no está bien.',
+    alt: 'La vista previa de una lista de inglés pegada desde una IA' },
   { id: 'start' },
 ];
 
@@ -40,10 +40,10 @@ export function openOnboarding(opts) {
   const welcome = () => `
     <div class="ob-hero"><div class="ob-mark" aria-hidden="true">F</div>
       <h1>${opts.name ? `Hola, ${esc(opts.name)}` : 'Te damos la bienvenida a Flaski'}</h1>
-      <p class="ob-lead">Aprende cualquier cosa y no la olvides: flashcards con repaso espaciado, apuntes unidos a tus tarjetas y mazos para cualquier tema.</p>
+      <p class="ob-lead">Aprende cualquier cosa y no la olvides: flashcards con repaso espaciado, apuntes unidos a tus preguntas y listas para cualquier tema.</p>
       <ul class="ob-feats">
-        <li>${icon('brain', { size: 20 })}<span><b>Recuerda más estudiando menos.</b> Cada tarjeta vuelve justo cuando la ibas a olvidar.</span></li>
-        <li>${icon('notebook-text', { size: 20 })}<span><b>De tus apuntes a tus tarjetas.</b> Y de cada tarjeta, de vuelta a su apunte.</span></li>
+        <li>${icon('brain', { size: 20 })}<span><b>Recuerda más estudiando menos.</b> Cada pregunta vuelve justo cuando la ibas a olvidar.</span></li>
+        <li>${icon('notebook-text', { size: 20 })}<span><b>De tus apuntes a tus preguntas.</b> Y de cada pregunta, de vuelta a su apunte.</span></li>
         <li>${icon('wifi-off', { size: 20 })}<span><b>Siempre contigo.</b> En el móvil como una app, también sin conexión.</span></li>
       </ul></div>`;
   const shot = s => `
@@ -57,15 +57,15 @@ export function openOnboarding(opts) {
     const langPanel = open === 'lang' ? `<div class="ob-optpanel">
         <label for="obLang">¿Qué idioma?</label>
         <div class="ob-row"><select id="obLang">${opts.langs.map(l => `<option value="${l.id}" ${l.id === lang ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}</select>
-          <button type="button" class="primary" data-ob-go="lang">Crear mi mazo</button></div>
-        ${ex.length ? `<p class="hint">O empieza con uno ya hecho:</p><ul class="ob-examples">${ex.map(e => `<li><button type="button" class="ghost small-btn" data-ob-example="${esc(e.file)}">${esc(e.name)} <span class="muted">· ${e.count} tarjetas</span></button></li>`).join('')}</ul>` : ''}
+          <button type="button" class="primary" data-ob-go="lang">Crear mi lista</button></div>
+        ${ex.length ? `<p class="hint">O empieza con una ya hecha:</p><ul class="ob-examples">${ex.map(e => `<li><button type="button" class="ghost small-btn" data-ob-example="${esc(e.file)}">${esc(e.name)} <span class="muted">· ${e.count} preguntas</span></button></li>`).join('')}</ul>` : ''}
       </div>` : '';
     return `<div class="ob-copy ob-copy-start"><h2>¿Por dónde quieres empezar?</h2><p>Puedes cambiar de idea cuando quieras: todo está en la barra de abajo.</p></div>
       <ul class="ob-opts">
-        ${choice('lang', 'languages', 'Aprender un idioma', 'Un mazo con audio y corrección para ese idioma', langPanel)}
-        ${choice('notes', 'file-text', 'Empezar con mis apuntes', 'Escribe o pega tus apuntes y crea tarjetas desde ellos')}
-        ${choice('ia', 'copy', 'Pedirle un mazo a una IA', 'Te damos las instrucciones para copiarlas en tu IA')}
-        ${choice('explore', 'compass', 'Ver mazos de ejemplo', 'Japonés, turco y más, listos para estudiar')}
+        ${choice('lang', 'languages', 'Aprender un idioma', 'Una lista con audio y corrección para ese idioma', langPanel)}
+        ${choice('notes', 'file-text', 'Empezar con mis apuntes', 'Escribe o pega tus apuntes y crea preguntas desde ellos')}
+        ${choice('ia', 'copy', 'Pedirle una lista a una IA', 'Te damos las instrucciones para copiarlas en tu IA')}
+        ${choice('explore', 'compass', 'Ver listas de ejemplo', 'Japonés, turco y más, listas para estudiar')}
       </ul>
       <button type="button" class="link ob-later" data-ob-done>Ahora no, prefiero mirar</button>`;
   };

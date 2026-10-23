@@ -50,7 +50,7 @@ export function render() {
   $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
-  if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus tarjetas…</p></div>'; return; }
+  if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
   ({ home: renderHome, study: renderStudy, decks: renderDecks, deck: renderDeck, explore: renderExplore, notes: renderNotes, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
 }
 
@@ -322,15 +322,15 @@ document.addEventListener('click', async e => {
       return toast('Copia descargada');
     }
     case 'restore': return $('#backupFile').click();
-    case 'ask-reset-progress': return confirmSheet('¿Reiniciar el progreso de todas las tarjetas?', 'reset-progress', 'Reiniciar todo');
+    case 'ask-reset-progress': return confirmSheet('¿Reiniciar el progreso de todas las preguntas?', 'reset-progress', 'Reiniciar todo');
     case 'reset-progress': {
       try { await api.clearManyProgress(S.uid, null); S.progress = new Map(); closeSheet(); toast('Progreso reiniciado'); } catch (err) { fail(err); }
       return;
     }
-    case 'ask-reset-deck': return confirmSheet('¿Reiniciar el progreso de este mazo?', 'reset-deck', 'Reiniciar mazo');
+    case 'ask-reset-deck': return confirmSheet('¿Reiniciar el progreso de esta lista?', 'reset-deck', 'Reiniciar lista');
     case 'reset-deck': {
       const ids = cardList().filter(c => c.deck_id === S.deckId).map(c => c.id);
-      try { await api.clearManyProgress(S.uid, ids); ids.forEach(id => S.progress.delete(id)); closeSheet(); toast('Progreso del mazo reiniciado'); renderDeck(); } catch (err) { fail(err); }
+      try { await api.clearManyProgress(S.uid, ids); ids.forEach(id => S.progress.delete(id)); closeSheet(); toast('Progreso de la lista reiniciado'); renderDeck(); } catch (err) { fail(err); }
       return;
     }
     case 'ask-reset-prefs': return confirmSheet('¿Restablecer todos los ajustes?', 'reset-prefs', 'Restablecer');
@@ -369,7 +369,7 @@ document.addEventListener('click', async e => {
     case 'add-decks-here': return addDecksSheet();
     case 'confirm-add-decks': {
       const ids = [...document.querySelectorAll('input[name="pick-deck"]:checked')].map(i => i.value);
-      if (!ids.length) return toast('Elige al menos un mazo');
+      if (!ids.length) return toast('Elige al menos una lista');
       b.disabled = true;
       return moveDecks(ids, S.folderId);
     }
@@ -413,7 +413,7 @@ document.addEventListener('click', async e => {
       try { await api.deletePage(id); } catch (err) { return fail(err); }
       S.pages.delete(id);
       for (const c of S.cards.values()) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
-      toast('Apunte eliminado. Sus tarjetas se conservan.');
+      toast('Apunte eliminado. Sus preguntas se conservan.');
       return go('notes');
     }
     case 'back-study': return go('study');
@@ -421,7 +421,7 @@ document.addEventListener('click', async e => {
     case 'edit-nfolder': return folderForm(S.folders.get(S.noteFolder));
     case 'page-tags': {
       if (S.pageTagsMissing) return openSheet('<h2>Etiquetas en los apuntes</h2><p>Para usar etiquetas en los apuntes, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor de Supabase y recarga la app.</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>');
-      return openSheet(`<h2>Etiquetas del apunte</h2><p class="muted small">Las mismas que usas en los mazos: sirven para filtrar en «Apuntes».</p>
+      return openSheet(`<h2>Etiquetas del apunte</h2><p class="muted small">Las mismas que usas en las listas: sirven para filtrar en «Apuntes».</p>
         ${tagPicker(curPage()?.tags || [])}
         <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="save-page-tags">Guardar</button></div>`);
     }
@@ -435,11 +435,11 @@ document.addEventListener('click', async e => {
     case 'save-page-icon': { const p = curPage(); p.icon = readIcon(); savePageSoon(p); closeSheet(); return renderPage(); }
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
-        <li><button class="row-link" data-act="suggest-cards">${icon('sparkles', { size: 20 })}<span><b>Sugerir tarjetas</b><small>Propone tarjetas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
+        <li><button class="row-link" data-act="suggest-cards">${icon('sparkles', { size: 20 })}<span><b>Sugerir preguntas</b><small>Propone preguntas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
         <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
         <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
-        <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus tarjetas no se borran: solo dejan de estar unidas a él</small></span></button></li>
+        <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus preguntas no se borran: solo dejan de estar unidas a él</small></span></button></li>
       </ul>
       <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
     case 'page-md': {
@@ -476,10 +476,10 @@ document.addEventListener('click', async e => {
     case 'types-all': S.edit.pick.all = !S.edit.pick.all; return drawTypePicker();
     case 'new-type': return typeEditor(blankType());
     case 'add-field': { const t = readTypeEditor(); const id = nextId('f', t.fields); t.fields.push({ id, name: `Campo ${t.fields.length + 1}`, lang: '', autoplay: false, help: '' }); return drawTypeEditor(); }
-    case 'add-template': { const t = readTypeEditor(); t.templates.push({ id: nextId('t', t.templates), name: `Tarjeta ${t.templates.length + 1}`, mode: 'flip', front: [t.fields[0].id], back: t.fields.slice(1).map(f => f.id) }); return drawTypeEditor(); }
+    case 'add-template': { const t = readTypeEditor(); t.templates.push({ id: nextId('t', t.templates), name: `Pregunta ${t.templates.length + 1}`, mode: 'flip', front: [t.fields[0].id], back: t.fields.slice(1).map(f => f.id) }); return drawTypeEditor(); }
     case 'delete-type': {
       const t = S.typeEdit; const n = typeUsage(t.id);
-      if (n) return toast(`No se puede eliminar: lo usan ${n} tarjetas. Cámbialas de tipo primero.`);
+      if (n) return toast(`No se puede eliminar: lo usan ${n} preguntas. Cámbialas de tipo primero.`);
       try { await api.deleteType(t.id); S.types.delete(t.id); toast('Tipo eliminado'); return typesSheet(); } catch (err) { return fail(err); }
     }
     case 'make-cloze': {
@@ -541,7 +541,7 @@ document.addEventListener('click', async e => {
     case 'paste': return pasteSheet();
     case 'paste-preview': {
       S.pasteText = $('#pasteText').value;
-      try { previewImport(parsePasted(S.pasteText), { source: 'pegado', baseName: 'Mazo pegado' }); }
+      try { previewImport(parsePasted(S.pasteText), { source: 'pegado', baseName: 'Lista pegada' }); }
       catch (err) { const el = $('#pasteError'); el.textContent = err.message || 'No se ha podido leer lo pegado.'; el.hidden = false; }
       return;
     }
@@ -575,7 +575,7 @@ document.addEventListener('click', async e => {
       catch (err) { b.disabled = false; fail(err); }
       return;
     }
-    case 'ask-delete-deck': return confirmSheet('¿Eliminar este mazo y todas sus tarjetas?', 'delete-deck', 'Eliminar mazo');
+    case 'ask-delete-deck': return confirmSheet('¿Eliminar esta lista y todas sus preguntas?', 'delete-deck', 'Eliminar lista');
     case 'delete-deck': {
       b.disabled = true;
       const folderOfDeleted = S.decks.get(S.deckId)?.folder_id || null;
@@ -583,20 +583,20 @@ document.addEventListener('click', async e => {
         await api.deleteDeck(S.deckId);
         for (const c of cardList()) if (c.deck_id === S.deckId) { S.cards.delete(c.id); S.progress.delete(c.id); }
         S.decks.delete(S.deckId); S.pub = null;
-        toast('Mazo eliminado'); return go('decks', { folderId: folderOfDeleted });
+        toast('Lista eliminada'); return go('decks', { folderId: folderOfDeleted });
       } catch (err) { b.disabled = false; return fail(err); }
     }
     case 'ask-delete-card': {
       const ids = S.edit?.siblings?.length ? S.edit.siblings : [b.closest('form').dataset.id];
       S.deleting = ids;
-      return confirmSheet(ids.length > 1 ? `¿Eliminar esta nota y sus ${ids.length} tarjetas?` : '¿Eliminar esta tarjeta?', 'delete-card', 'Eliminar');
+      return confirmSheet(ids.length > 1 ? `¿Eliminar esta nota y sus ${ids.length} preguntas?` : '¿Eliminar esta pregunta?', 'delete-card', 'Eliminar');
     }
     case 'delete-card': {
       const ids = S.deleting || []; b.disabled = true;
       try {
         for (const id of ids) { await api.deleteCard(id); S.cards.delete(id); S.progress.delete(id); }
         if (S.session) { S.session.queue = S.session.queue.filter(x => !ids.includes(x)); S.session.st = null; S.session.revealed = false; }
-        toast(ids.length > 1 ? 'Tarjetas eliminadas' : 'Tarjeta eliminada'); closeSheet(); return render();
+        toast(ids.length > 1 ? 'Preguntas eliminadas' : 'Pregunta eliminada'); closeSheet(); return render();
       } catch (err) { b.disabled = false; return fail(err); }
     }
     case 'reset-card': {
@@ -607,7 +607,7 @@ document.addEventListener('click', async e => {
     case 'change-pass':
       return openSheet(`<h2>Cambiar contraseña</h2><form data-form="changepass"><label for="cp">Contraseña nueva</label><input id="cp" type="password" autocomplete="new-password" minlength="6" required>
         <div class="btnrow" style="margin-top:14px"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div></form>`);
-    case 'ask-reset-local': return confirmSheet('¿Borrar todos los mazos y el progreso de este navegador?', 'reset-local', 'Borrar todo');
+    case 'ask-reset-local': return confirmSheet('¿Borrar todas las listas y el progreso de este navegador?', 'reset-local', 'Borrar todo');
     case 'reset-local': {
       api.resetLocal();
       closeSheet(); toast('Datos locales borrados');
@@ -735,7 +735,7 @@ document.addEventListener('change', async e => {
     const sgi = S.sug?.list[+e.target.dataset.sug];
     if (sgi) { sgi.selected = e.target.checked; e.target.closest('.sug')?.classList.toggle('on', sgi.selected); }
     const sel = S.sug.list.filter(x => x.selected), n = sel.reduce((k, x) => k + (x.cards || 1), 0), btn = document.querySelector('[data-act="sug-create"]');
-    if (btn) { btn.disabled = !n; btn.textContent = n ? `Crear ${plural(n, 'tarjeta', 'tarjetas')}` : 'Marca alguna'; }
+    if (btn) { btn.disabled = !n; btn.textContent = n ? `Crear ${plural(n, 'pregunta', 'preguntas')}` : 'Marca alguna'; }
     const cnt = $('#sugCount'); if (cnt) cnt.textContent = plural(sel.length, 'marcada', 'marcadas');
     const gh = e.target.closest('.sug-group')?.querySelector('[data-sug-group]');
     if (gh) { const items = S.sug.list.filter(x => (!S.sug.types || S.sug.types.has(x.typeId)) && (gh.dataset.sugGroup === 'rec') === (x.score >= PRESELECT)); gh.textContent = items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'; }

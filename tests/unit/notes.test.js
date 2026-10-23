@@ -55,7 +55,7 @@ test('avisos que no impiden importar: campo desconocido y tarjetas a medias', ()
   assert.equal(d.cards.length, 1);
   const reasons = warned(d).map(i => i.reason);
   assert.ok(reasons.some(r => /«ejemplo» no existe en «vocab»/.test(r)));
-  assert.ok(reasons.some(r => /solo crea 1 de 2 tarjetas.*«Traducción»/.test(r)));
+  assert.ok(reasons.some(r => /solo crea 1 de 2 preguntas.*«Traducción»/.test(r)));
   const d2 = deck([{ type: 'basic', fields: { q: 'a', a: 'b', extra: 'x' } }]);
   assert.equal(d2.cards.length, 1);
   assert.match(warned(d2)[0].reason, /«extra» no existe en «basic».*q, a, n/);
@@ -76,7 +76,7 @@ test('lang: tipos de idiomas sin idioma, o de otro idioma, se avisan', () => {
   assert.match(warned(sin)[0].reason, /no tendrán audio/);
   const otro = notesToDeck({ lang: 'ja-JP', notes: [{ type: 'de-noun', fields: { g: 'das', w: 'Haus', t: 'casa' } }] });
   assert.equal(otro.cards.length, 2);
-  assert.match(warned(otro)[0].reason, /«de-noun» es para mazos de alemán, no de japonés/);
+  assert.match(warned(otro)[0].reason, /«de-noun» es para listas de alemán, no de japonés/);
 });
 
 test('lang: idiomas desconocidos se ignoran', () => {

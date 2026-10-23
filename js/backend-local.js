@@ -139,7 +139,7 @@ export async function createDeck(fields) {
 }
 export async function updateDeck(id, fields) {
   const d = db.decks.find(x => x.id === id);
-  if (!d) throw new Error('Ese mazo ya no existe');
+  if (!d) throw new Error('Esa lista ya no existe');
   Object.assign(d, fields, { updated_at: now() });
   persist();
   return clone(d);
@@ -162,7 +162,7 @@ export async function createCards(rows) {
 }
 export async function updateCard(id, fields) {
   const c = db.cards.find(x => x.id === id);
-  if (!c) throw new Error('Esa tarjeta ya no existe');
+  if (!c) throw new Error('Esa pregunta ya no existe');
   Object.assign(c, fields);
   persist();
   return clone(c);

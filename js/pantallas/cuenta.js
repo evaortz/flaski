@@ -34,7 +34,7 @@ export function renderAuth() {
   main.innerHTML = `
     <div class="panel">
       <h1>${reset ? 'Recuperar contraseña' : up ? 'Crea tu cuenta' : 'Entra en tu cuenta'}</h1>
-      <p class="muted">${reset ? 'Te enviaremos un email para elegir una contraseña nueva.' : 'Cada persona tiene sus propios mazos y su propio progreso.'}</p>
+      <p class="muted">${reset ? 'Te enviaremos un email para elegir una contraseña nueva.' : 'Cada persona tiene sus propias listas y su propio progreso.'}</p>
       ${reset ? '' : `<div class="seg" role="group" aria-label="Tipo de acceso">
         <button type="button" data-act="auth-mode" data-mode="signin" aria-pressed="${!up}">Entrar</button>
         <button type="button" data-act="auth-mode" data-mode="signup" aria-pressed="${up}">Crear cuenta</button></div>`}
@@ -214,7 +214,7 @@ async function introChosen(choice) {
       const d = await api.createDeck({ owner: S.uid, name: langLabel(choice.lang), options: { lang: choice.lang } });
       S.decks.set(d.id, { tags: [], ...d });
       go('deck', { deckId: d.id, cardQuery: '' });
-      toast('Mazo creado: añade tu primera tarjeta');
+      toast('Lista creada: añade tu primera pregunta');
       return cardForm(null, { deckId: d.id });
     } catch (e) { return fail(e); }
   }

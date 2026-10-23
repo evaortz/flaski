@@ -5,32 +5,32 @@ import { DEFAULT_ALGO, ALGO_PRESETS } from './srs.js';
 export const DEFAULT_PREFS = {
   study: {
     maxReviews: 200,        // repasos máximos al día (0 = sin límite)
-    newOrder: 'order',      // 'order' (como están en el mazo) | 'random'
+    newOrder: 'order',      // 'order' (como están en la lista) | 'random'
     mix: 'mixed',           // 'mixed' | 'reviewsFirst' | 'newFirst'
     buttons: 4,             // 4 = Otra vez/Difícil/Bien/Fácil · 2 = Otra vez/Bien
     showIntervals: true,    // mostrar «3 d» debajo de cada botón
-    suggest: true,          // resaltar la nota sugerida en tarjetas de escribir/elegir/dibujar
-    burySiblings: true,     // solo una tarjeta nueva de cada nota por sesión
+    suggest: true,          // resaltar la nota sugerida en preguntas de escribir/elegir/dibujar
+    burySiblings: true,     // solo una pregunta nueva de cada nota por tanda
     autoplay: true,         // leer en voz alta los campos con audio automático
     rate: 1,                // velocidad de la voz
     shortcuts: true,        // mostrar la ayuda de atajos de teclado
-    swipe: true,            // móvil: deslizar la tarjeta para valorarla
+    swipe: true,            // móvil: deslizar la pregunta para valorarla
     haptics: true,          // móvil: vibración breve al responder y al trazar
-    sound: true,            // efectos de sonido al valorar tarjetas
-    nativeLang: 'es-ES',    // tu idioma: el de las traducciones en los mazos de idiomas
+    sound: true,            // efectos de sonido al valorar preguntas
+    nativeLang: 'es-ES',    // tu idioma: el de las traducciones en las listas de idiomas
   },
-  types: { hidden: [] },    // tipos de tarjeta que no quieres ver en el editor
+  types: { hidden: [] },    // tipos de pregunta que no quieres ver en el editor
   intro: { done: false },   // ya has visto la presentación de bienvenida
   algo: { preset: 'fsrs', custom: { ...DEFAULT_ALGO }, retention: 0.9 },   // FSRS para quien empieza
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'
     accent: 'blue',
     font: 'system',         // 'system' | 'serif' | 'rounded' | 'mono'
-    cardSize: 'm',          // tamaño del texto de las tarjetas: s | m | l | xl
+    cardSize: 'm',          // tamaño del texto de las preguntas: s | m | l | xl
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
-  plan: { nodes: {} },     // plan de estudio: estado, foco y examen de cada mazo y carpeta (ver plan.js)
+  plan: { nodes: {} },     // plan de estudio: estado, foco y examen de cada lista y carpeta (ver plan.js)
   remind: { on: true, time: '20:00', cheers: true },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
 };

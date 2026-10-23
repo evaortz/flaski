@@ -28,7 +28,7 @@ const PIN_ICON = icon('pin', { size: 14, cls: 'pin', label: 'Fijado' });
 // Ruta de carpetas: Mis mazos › Idiomas › Turco
 export function crumbs(folderId, { linkLast = false } = {}) {
   const path = folderId ? folderPath(S.folders, folderId) : [];
-  const parts = [`<button class="crumb" data-folder="">Mis mazos</button>`];
+  const parts = [`<button class="crumb" data-folder="">Mis listas</button>`];
   path.forEach((f, i) => {
     const last = i === path.length - 1 && !linkLast;
     parts.push(last ? `<span class="crumb crumb-cur">${esc(f.icon ? f.icon + ' ' : '')}${esc(f.name)}</span>`
@@ -66,7 +66,7 @@ export function renderDecks() {
     const ic = d.icon ? `<span class="dc-ic dc-emoji" aria-hidden="true">${esc(d.icon)}</span>` : `<span class="dc-ic" aria-hidden="true">${deckGlyph(d)}</span>`;
     const body = `${ic}<span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
         ${!mini && d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
-        <span class="dc-foot"><span class="dc-due${pend ? ' on' : ''}">${dueHand(c)}</span><span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${planMeta(d)}</span></span>
+        <span class="dc-foot"><span class="dc-due${pend ? ' on' : ''}">${dueHand(c)}</span><span class="meta">${where(d)}${plural(c.total, 'pregunta', 'preguntas')}${planMeta(d)}</span></span>
         ${c.total ? `<span class="mini" aria-label="${pct} % consolidadas"><span style="width:${pct}%"></span></span>` : ''}`;
     if (mini) return `<li><button class="deck dcard dcard-mini" data-open="${d.id}">${body}</button></li>`;
     return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck dcard${c.total ? '' : ' dcard-empty'}" data-open="${d.id}">${body}</button><button class="row-more tile-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
@@ -81,9 +81,9 @@ export function renderDecks() {
       <span class="fcard-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 84 })}</span>
       <span class="fcard-k">carpeta</span>
       <button class="fcard-name" data-folder="${f.id}">${esc(f.name)}</button>
-      <span class="fcard-meta">${plural(all.length, 'mazo', 'mazos')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span>
+      <span class="fcard-meta">${plural(all.length, 'lista', 'listas')} · ${fc.due + fc.newToday} pendientes${np ? ` · ${plural(np, 'apunte', 'apuntes')}` : ''}</span>
       ${top.length ? `<ul class="fcard-grid">${top.map(d => deckCard(d, true)).join('')}</ul>` : ''}
-      <button class="fcard-go" data-folder="${f.id}">${all.length ? `Ver ${all.length === 1 ? 'el mazo' : `los ${all.length} mazos`}` : 'Abrir la carpeta'}<span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 16 })}</span></button>
+      <button class="fcard-go" data-folder="${f.id}">${all.length ? `Ver ${all.length === 1 ? 'la lista' : `las ${all.length} listas`}` : 'Abrir la carpeta'}<span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 16 })}</span></button>
     </li>`;
   }).join('');
 
@@ -94,7 +94,7 @@ export function renderDecks() {
     return `<li class="has-more" draggable="true" data-drag-deck="${d.id}"><button class="deck" data-open="${d.id}">${deckIcon(d)}
       <span class="info"><span class="dname">${esc(d.name)}${d.pinned ? PIN_ICON : ''}</span>
         ${d.tags?.length ? `<span class="tags">${tagChips(d.tags)}</span>` : ''}
-        <span class="meta">${where(d)}${plural(c.total, 'tarjeta', 'tarjetas')}${pend ? ` · ${pend} para hoy` : ''}${planMeta(d)}${d.is_public ? ' · compartido' : ''}${d.archived ? ' · archivado' : ''}</span></span>
+        <span class="meta">${where(d)}${plural(c.total, 'pregunta', 'preguntas')}${pend ? ` · ${pend} para hoy` : ''}${planMeta(d)}${d.is_public ? ' · compartida' : ''}${d.archived ? ' · archivada' : ''}</span></span>
       </button><button class="row-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${MOVE_ICON}</button></li>`;
   }).join('');
 
@@ -111,29 +111,29 @@ export function renderDecks() {
   }
 
   const oneTag = o.tagIds.length === 1 && !o.query.trim() && !o.archived ? S.tags.get(o.tagIds[0]) : null;
-  const title = filtering ? (o.archived ? 'Archivados' : oneTag ? '#' + esc(oneTag.name) : 'Resultados')
-    : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Mis mazos';
-  const empty = filtering ? 'No hay mazos que coincidan con el filtro.'
-    : folder ? 'Esta carpeta está vacía. Crea un mazo aquí o pulsa «Añadir mazos aquí».'
-    : 'Aún no tienes mazos. Crea uno o busca alguno en Explorar.';
+  const title = filtering ? (o.archived ? 'Archivadas' : oneTag ? '#' + esc(oneTag.name) : 'Resultados')
+    : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Mis listas';
+  const empty = filtering ? 'No hay listas que coincidan con el filtro.'
+    : folder ? 'Esta carpeta está vacía. Crea una lista aquí o pulsa «Añadir listas aquí».'
+    : 'Aún no tienes listas. Crea una o busca alguna en Explorar.';
   // «Empieza por aquí»: el mazo con más pendientes, con una nota a mano que lo señala
   const scope = filtering ? [] : folder ? decksInFolder(S.decks, S.folders, folder.id).filter(d => !d.archived) : [...S.decks.values()].filter(d => !d.archived);
   const first = scope.length < 5 ? null : sortDecks(scope, 'due', stats).find(d => stats.get(d.id).due + stats.get(d.id).newToday > 0);
   const fs1 = first && stats.get(first.id), fsN = first ? fs1.due + fs1.newToday : 0;
   const feat = first ? `<div class="feat-row">
-      <button class="feat-info" data-open="${first.id}"><b>${esc(first.name)}</b><span>${fs1.due} por repasar · ${fs1.newToday} nuevas · ${plural(fs1.total, 'tarjeta', 'tarjetas')} en total${deckFolder(first) && !folder ? ` · ${esc(S.folders.get(first.folder_id).name)}` : ''}</span></button>
+      <button class="feat-info" data-open="${first.id}"><b>${esc(first.name)}</b><span>${fs1.due} por repasar · ${fs1.newToday} nuevas · ${plural(fs1.total, 'pregunta', 'preguntas')} en total${deckFolder(first) && !folder ? ` · ${esc(S.folders.get(first.folder_id).name)}` : ''}</span></button>
       <button class="pill-tint" data-start="${first.id}">Estudiar</button></div>` : '';
   const note = first ? `<div class="hand-note" aria-hidden="true"><span>empieza por aquí,<br>${plural(fsN, 'pendiente', 'pendientes')}</span>${ARROW}</div>` : '';
 
   main.innerHTML = `
     ${folder && !filtering ? crumbs(folder.id) : ''}
-    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1><button class="add-round" data-act="new-deck" aria-label="Nuevo mazo">${icon('plus', { size: 20 })}</button></div>${note}</div>
+    <div class="pg-title"><div class="pg-title-l"><h1>${title}</h1><button class="add-round" data-act="new-deck" aria-label="Nueva lista">${icon('plus', { size: 20 })}</button></div>${note}</div>
     ${feat}
-    ${studyBtn || (folder && !filtering) ? `<div class="btnrow">${studyBtn}${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-folder">Editar carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir mazos aquí</button>' : ''}</div>` : ''}
+    ${studyBtn || (folder && !filtering) ? `<div class="btnrow">${studyBtn}${folder && !filtering ? '<button class="ghost small-btn" data-act="edit-folder">Editar carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir listas aquí</button>' : ''}</div>` : ''}
     <div class="toolbar">
-      <input id="deckSearch" type="search" placeholder="Buscar en todos los mazos" aria-label="Buscar mazos" value="${esc(o.query)}">
+      <input id="deckSearch" type="search" placeholder="Buscar en todas las listas" aria-label="Buscar listas" value="${esc(o.query)}">
       <div class="seg-icons round" role="group" aria-label="Vista">
-        <button data-layout="grid" aria-pressed="${o.layout === 'grid'}" aria-label="Tarjetas">${GRID_ICON}</button>
+        <button data-layout="grid" aria-pressed="${o.layout === 'grid'}" aria-label="Cuadrícula">${GRID_ICON}</button>
         <button data-layout="list" aria-pressed="${o.layout === 'list'}" aria-label="Lista">${LIST_ICON}</button>
       </div>
     </div>
@@ -143,7 +143,7 @@ export function renderDecks() {
     </div>
     <div class="org-bar">
       <label class="sort-inline">Orden: <select id="deckSort" aria-label="Ordenar">${SORTS.map(x => `<option value="${x.id}" ${x.id === o.sort ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label>
-      <button class="link" data-act="toggle-archived" aria-pressed="${o.archived}">${o.archived ? 'Ver los activos' : 'Archivados'}</button>
+      <button class="link" data-act="toggle-archived" aria-pressed="${o.archived}">${o.archived ? 'Ver las activas' : 'Archivadas'}</button>
     </div>
     <div class="btnrow btnrow-sm">
       <button class="ghost small-btn" data-act="new-folder">+ Carpeta</button>
@@ -154,7 +154,7 @@ export function renderDecks() {
     ${folderRows ? `<ul class="fcards">${folderRows}</ul>` : ''}
     ${folderRows && deckRows ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta</span></div>' : ''}
     ${deckRows ? `<ul class="${o.layout === 'grid' ? 'dcards' : 'list'}">${deckRows}</ul>` : folderRows ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
-    ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar un mazo encima de una carpeta.</p>' : ''}
+    ${S.folders.size && !filtering ? '<p class="hint dnd-hint">Consejo: en el ordenador puedes arrastrar una lista encima de una carpeta.</p>' : ''}
     <button class="link manage-tags" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>`;
 }
 // El dibujo de un mazo sin emoji: según de qué parece que va
@@ -198,10 +198,10 @@ export function renderDeck() {
   main.innerHTML = `
     ${crumbs(d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null, { linkLast: true })}
     <div class="deckhead"><div class="deck-title">${deckIcon(d, true)}<h1>${esc(d.name)}</h1></div>${d.description ? `<p class="desc">${fmt(d.description)}</p>` : ''}
-      <div class="btnrow">${deckLang(d.id) ? `<span class="chip">${icon('languages', { size: 13 })} ${esc(langLabel(deckLang(d.id)))}</span>` : ''}${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'tarjeta' : 'tarjetas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivado</span>' : ''}${d.is_public ? '<span class="chip">Compartido</span>' : ''}</div></div>
+      <div class="btnrow">${deckLang(d.id) ? `<span class="chip">${icon('languages', { size: 13 })} ${esc(langLabel(deckLang(d.id)))}</span>` : ''}${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'pregunta' : 'preguntas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivada</span>' : ''}${d.is_public ? '<span class="chip">Compartida</span>' : ''}</div></div>
     <div class="btnrow">
       <button class="primary" data-start="${d.id}" ${c.due + c.newToday ? '' : 'disabled'}>Estudiar</button>
-      <button class="ghost" data-act="new-card">+ Tarjeta</button>
+      <button class="ghost" data-act="new-card">+ Pregunta</button>
       <button class="ghost" data-act="quick-add">Crear varias</button>
       <button class="ghost" data-act="share">Compartir</button>
       <button class="ghost" data-act="move-deck">Mover</button>
@@ -209,8 +209,8 @@ export function renderDeck() {
       <button class="ghost" data-stats="${d.id}">${icon('chart-column', { size: 16 })} Estadísticas</button>
     </div>
     ${deckNotesHTML(d.id)}
-    <div class="toolbar"><input id="cardSearch" type="search" placeholder="Buscar en este mazo" aria-label="Buscar tarjetas" value="${esc(S.cardQuery)}"></div>
-    <p class="muted small" id="cardCount">${rows.length === all.length ? `${all.length} ${all.length === 1 ? 'tarjeta' : 'tarjetas'}` : `${rows.length} de ${all.length} tarjetas`}</p>
+    <div class="toolbar"><input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></div>
+    <p class="muted small" id="cardCount">${rows.length === all.length ? `${all.length} ${all.length === 1 ? 'pregunta' : 'preguntas'}` : `${rows.length} de ${all.length} preguntas`}</p>
     <ul class="list" id="cardRows">${rows.map(c => {
       const t = c.fields && Object.keys(c.fields).length ? getType(c.type_id) : null;
       const tplName = t && t.templates.length > 1 ? t.templates.find(x => x.id === c.template)?.name : '';
@@ -223,7 +223,7 @@ export function renderDeck() {
 // Formato de archivo de mazo (ver README):
 // { "format": "flaski-deck", "version": 1, "name": "...", "description": "...", "cards": [ { "front", "back", "note" } ] }
 export function parseDeckFile(data) {
-  if (!data || typeof data !== 'object') throw new Error('El archivo no es un mazo válido');
+  if (!data || typeof data !== 'object') throw new Error('El archivo no es una lista válida');
   const cards = (Array.isArray(data.cards) ? data.cards : [])
     .filter(c => c && ((String(c.front || '').trim() && String(c.back || '').trim()) || (c.fields && typeof c.fields === 'object')))
     .map(c => ({
@@ -232,8 +232,8 @@ export function parseDeckFile(data) {
       fields: c.fields && typeof c.fields === 'object' && !Array.isArray(c.fields) ? c.fields : {}, note_id: typeof c.note_id === 'string' ? c.note_id : null,
       hint: String(c.hint || ''),
     }));
-  if (!cards.length) throw new Error('El archivo no tiene tarjetas');
-  return { name: String(data.name || 'Mazo importado').slice(0, 80), description: String(data.description || '').slice(0, 300), cards, types: Array.isArray(data.types) ? data.types : [],
+  if (!cards.length) throw new Error('El archivo no tiene preguntas');
+  return { name: String(data.name || 'Lista importada').slice(0, 80), description: String(data.description || '').slice(0, 300), cards, types: Array.isArray(data.types) ? data.types : [],
     images: data.images && typeof data.images === 'object' ? data.images : null,
     lang: typeof data.lang === 'string' && (data.lang === '' || LANGS.some(l => l.id === data.lang)) ? data.lang : undefined };
 }
@@ -241,7 +241,7 @@ export async function importFile(file) {
   if (/\.(apkg|colpkg)$/i.test(file.name)) return importAnki(file);
   try {
     const text = await file.text();
-    const baseName = file.name.replace(/\.(flaski\.json|kartlar\.json|json|csv|tsv|txt)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Mazo importado';
+    const baseName = file.name.replace(/\.(flaski\.json|kartlar\.json|json|csv|tsv|txt)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Lista importada';
     // .csv y .tsv siempre como CSV; lo demás puede ser JSON (también entre ```json, como lo dan las IAs)
     const parsed = /\.(csv|tsv)$/i.test(file.name) ? { kind: 'csv', text } : parsePasted(text);
     previewImport(parsed, { source: 'archivo', baseName });
@@ -253,7 +253,7 @@ async function importAnki(file) {
   try {
     const col = await readApkg(new Uint8Array(await file.arrayBuffer()));
     const r = ankiToFlaski(col, { newImageId });
-    if (!r.total) throw new Error('No se ha encontrado ninguna tarjeta en el archivo.');
+    if (!r.total) throw new Error('No se ha encontrado ninguna pregunta en el archivo.');
     const base = file.name.replace(/\.(apkg|colpkg)$/i, '').replace(/[-_]+/g, ' ').trim() || 'Anki';
     S.anki = { col, r, base };
     const withProgress = col.cards.some(c => c.type > 0);
@@ -261,12 +261,12 @@ async function importAnki(file) {
     const sample = r.decks.flatMap(d => d.cards).slice(0, 5).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
     const names = ankiDeckNames(r.decks, base);
     openSheet(`<h2>Importar de Anki</h2>
-      <p class="muted small">${plural(r.total, 'tarjeta', 'tarjetas')} de ${plural(r.notes, 'nota', 'notas')}${r.images.size ? ` · ${plural(r.images.size, 'imagen', 'imágenes')}` : ''}</p>
+      <p class="muted small">${plural(r.total, 'pregunta', 'preguntas')} de ${plural(r.notes, 'nota', 'notas')}${r.images.size ? ` · ${plural(r.images.size, 'imagen', 'imágenes')}` : ''}</p>
       <ul class="preview">${sample}</ul>
-      <p class="anki-dest"><b>${r.decks.length === 1 ? 'Se creará el mazo' : `Se crearán ${r.decks.length} mazos en la carpeta «${esc(names.folder)}»`}</b></p>
+      <p class="anki-dest"><b>${r.decks.length === 1 ? 'Se creará la lista' : `Se crearán ${r.decks.length} listas en la carpeta «${esc(names.folder)}»`}</b></p>
       <ul class="anki-decks">${r.decks.map((d, i) => `<li><span>${esc(names.decks[i])}</span><span class="muted">${d.cards.length}</span></li>`).join('')}</ul>
       ${withProgress ? '<label class="anki-check"><input type="checkbox" id="ankiProgress" checked> Traer también mi progreso y el historial de repasos</label>' : ''}
-      ${r.skipped ? `<p class="muted small">${r.skipped === 1 ? 'Se salta 1 nota vacía o sin tarjetas' : `Se saltan ${r.skipped} notas vacías o sin tarjetas`}.</p>` : ''}
+      ${r.skipped ? `<p class="muted small">${r.skipped === 1 ? 'Se salta 1 nota vacía o sin preguntas' : `Se saltan ${r.skipped} notas vacías o sin preguntas`}.</p>` : ''}
       ${sounds ? '<p class="muted small">Los audios de Anki no se importan: Flaski lee en voz alta los campos que tienen idioma.</p>' : ''}
       <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-anki">Importar</button></div>`);
   } catch (e) {
@@ -302,7 +302,7 @@ export async function addAnki(btn) {
       try { await storeImage(id, await col.media.get(name)(), imageType(name)); } catch {}
     }
     flushUploads();
-    step('Creando los mazos…');
+    step('Creando las listas…');
     const typeMap = await adoptTypes(r.types);
     const tagIds = new Map();
     for (const n of new Set(r.decks.flatMap(d => d.cards.flatMap(c => c.tagNames)))) { const t = await addTag(n); if (t) tagIds.set(n, t.id); }
@@ -313,10 +313,10 @@ export async function addAnki(btn) {
       S.folders.set(folder.id, folder);
     }
     const ankiCard = new Map(col.cards.map(c => [c.id, c]));
-    const byAnki = new Map();   // id de la tarjeta en Anki → [id en Flaski, mazo]
+    const byAnki = new Map();   // id de la pregunta en Anki → [id en Flaski, lista]
     let firstDeck = null;
     for (const [k, d] of r.decks.entries()) {
-      step(`Mazo ${k + 1}/${r.decks.length}…`);
+      step(`Lista ${k + 1}/${r.decks.length}…`);
       const cards = d.cards.map(c => ({ ...c, tags: c.tagNames.map(n => tagIds.get(n)).filter(Boolean) }));
       const { deck, cards: made } = await api.importDeck(S.uid, { name: names.decks[k], description: 'Importado de Anki', source: 'anki', cards, typeMap });
       S.decks.set(deck.id, { tags: [], ...(folder ? await api.updateDeck(deck.id, { folder_id: folder.id }) : deck) });
@@ -346,7 +346,7 @@ export async function addAnki(btn) {
     S.anki = null;
     migrateDeckLangs();
     closeSheet();
-    toast(`${plural(r.total, 'tarjeta importada', 'tarjetas importadas')} de Anki`);
+    toast(`${plural(r.total, 'pregunta importada', 'preguntas importadas')} de Anki`);
     if (folder) go('decks', { folderId: folder.id }); else go('deck', { deckId: firstDeck, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Importar'; fail(e); }
 }
@@ -362,7 +362,7 @@ export async function exportDeck(kind) {
   const d = S.decks.get(S.deckId);
   const cards = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
     .map(c => ({ front: c.front, back: c.back, note: c.note || '' }));
-  const slug = d.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'mazo';
+  const slug = d.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'lista';
   if (kind === 'csv') return download(cardsToCSV(cards), slug + '.csv', 'text/csv;charset=utf-8');
   const full = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position)
     .map(c => ({ front: c.front, back: c.back, note: c.note || '', type_id: c.type_id || 'basic', template: c.template || 't1', fields: c.fields || {}, note_id: c.note_id || null, hint: c.hint || '' }));

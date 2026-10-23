@@ -88,7 +88,7 @@ export function renderNotes() {
     const np = [...S.pages.values()].filter(p => inside.has(pageFolder(p))).length;
     const nd = [...S.decks.values()].filter(d => !d.archived && inside.has(d.folder_id)).length;
     return `<li><button class="nfolder folder" data-nfolder="${f.id}"><span class="nfolder-ic" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 40 })}</span>
-      <span class="nfolder-t"><span class="nfolder-name">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes todavía'}${nd ? ` · ${plural(nd, 'mazo', 'mazos')}` : ''}</span></span>
+      <span class="nfolder-t"><span class="nfolder-name">${esc(f.name)}</span><span class="meta">${np ? plural(np, 'apunte', 'apuntes') : 'Sin apuntes todavía'}${nd ? ` · ${plural(nd, 'lista', 'listas')}` : ''}</span></span>
       <span class="nfolder-go">${np ? 'Abrir' : 'Escribir'}</span></button></li>`;
   }).join('');
   // Cada apunte, una tarjeta: título, el principio del texto y, abajo, la fecha y sus tarjetas
@@ -99,15 +99,15 @@ export function renderNotes() {
       <span class="dname">${p.icon ? `<span class="icon" aria-hidden="true">${esc(p.icon)}</span> ` : ''}${esc(pageTitle(p))}</span>
       <span class="snip${snip ? '' : ' snip-empty'}">${snip ? esc(snip) : 'vacío'}</span>
       ${(p.tags || []).length ? `<span class="tags">${tagChips(p.tags)}</span>` : ''}
-      <span class="meta">${where}${shortDate(p.updated_at)}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'tarjeta', 'tarjetas')}</span>` : ''}</span></button></li>`;
+      <span class="meta">${where}${shortDate(p.updated_at)}${cards.length ? `<span class="st-chip st-${st}"><i aria-hidden="true"></i>${plural(cards.length, 'pregunta', 'preguntas')}</span>` : ''}</span></button></li>`;
   }).join('');
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
     `<button class="fchip" data-ntag="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
   const title = filtering ? 'Resultados' : folder ? `${folder.icon ? esc(folder.icon) + ' ' : ''}${esc(folder.name)}` : 'Apuntes';
   const empty = filtering ? '<p class="muted">Ningún apunte coincide con la búsqueda o las etiquetas.</p>'
     : folder ? '<p class="muted">Esta carpeta no tiene apuntes todavía.</p>'
-    : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus tarjetas</h2>
-       <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una tarjeta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
+    : `<div class="empty-ill">${icon('file-text', { size: 28 })}</div><h2>Tus apuntes, unidos a tus preguntas</h2>
+       <p class="muted">Escribe o pega tus apuntes. Selecciona cualquier parte para convertirla en una pregunta: quedará unida a ese fragmento, verás qué partes dominas y podrás repasar un tema entero de una vez.</p>
        <div class="btnrow" style="justify-content:center"><button class="primary" data-act="new-page">Nuevo apunte</button><button class="ghost" data-act="import-notes" title="Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian">${icon('upload', { size: 16 })} Importar</button></div>`;
   // «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
   const last = !filtering && !folder && S.pages.size >= 5 ? [...S.pages.values()].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0] : null;
@@ -179,12 +179,12 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
     const secCards = cardList().filter(c => c.page_id === p.id && ids.has(c.block_id));
     if (secCards.length) {
       const pend = pendingIn(`page:${p.id}:${b.id}`), sst = statusOf(secCards);
-      sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'tarjeta', 'tarjetas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
+      sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'pregunta', 'preguntas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
     }
   }
   const ind = b.indent ? ` data-ind="${b.indent}" style="--ind:${b.indent}"` : '';
   return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
-    ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'tarjeta sale', 'tarjetas salen')} de esta parte" aria-label="${plural(n, 'tarjeta', 'tarjetas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
+    ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'pregunta sale', 'preguntas salen')} de esta parte" aria-label="${plural(n, 'pregunta', 'preguntas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
 function pageStatusHTML(p, cards) {
@@ -211,7 +211,7 @@ export function renderPage() {
         <button type="button" class="iconbtn" data-act="pg-redo" aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled>${icon('redo-2', { size: 18 })}</button></span>
       <button type="button" class="iconbtn pg-tocbtn" data-act="toc" aria-label="Índice" title="Índice del apunte" aria-haspopup="true" hidden>${icon('list', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="find" aria-label="Buscar en el apunte" title="Buscar y reemplazar (Ctrl+F)">${icon('search', { size: 18 })}</button>
-      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone tarjetas a partir de este apunte">${icon('sparkles', { size: 15 })} <span>Sugerir tarjetas</span></button>
+      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone preguntas a partir de este apunte">${icon('sparkles', { size: 15 })} <span>Sugerir preguntas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
     <div class="pg-head">
@@ -220,10 +220,10 @@ export function renderPage() {
       <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
     </div>
     <div class="pg-props">
-      ${prop('layers', 'Mazo', `<select id="pgDeck" class="prop-select" aria-label="Mazo donde van las tarjetas de este apunte"><option value="">Sin mazo</option>${deckOptions(p.deck_id)}</select>`)}
+      ${prop('layers', 'Lista', `<select id="pgDeck" class="prop-select" aria-label="Lista donde van las preguntas de este apunte"><option value="">Sin lista</option>${deckOptions(p.deck_id)}</select>`)}
       ${prop('folder', 'Carpeta', folderSelect('pgFolder', pageFolder(p) || '', null, 'Sin carpeta').replace('<select ', '<select class="prop-select" aria-label="Carpeta" '))}
       ${prop('tag', 'Etiquetas', `${tagChips(p.tags || [])}<button type="button" class="link prop-add" data-act="page-tags">${(p.tags || []).length ? 'Editar' : 'Añadir'}</button>`)}
-      ${total ? '' : prop('notebook-text', 'Tarjetas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
+      ${total ? '' : prop('notebook-text', 'Preguntas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
     </div>
     ${pageStatusHTML(p, cards)}
     <div class="pg-blocks" id="pgBlocks">${blocksHTML(p, cards)}</div>
@@ -241,7 +241,7 @@ export function renderPage() {
         <button type="button" class="fmt fmt-color" data-act="fmt-colors" title="Color del texto o del fondo" aria-label="Color" aria-haspopup="true" aria-expanded="false"><span class="fmt-a">A</span>${icon('chevron-down', { size: 12 })}</button>
       </div>
       <span class="selbar-sep" aria-hidden="true"></span>
-      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} <span>Crear tarjeta</span></button>
+      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} <span>Crear pregunta</span></button>
       <button type="button" class="ghost small-btn" data-act="sel-cloze" title="Convertir en hueco">${icon('puzzle', { size: 15 })} <span>Hueco</span></button></div>
     <div id="fmtColors" class="fmt-colors" role="menu" aria-label="Color" hidden>
       <p class="fmt-h">Color del texto</p>
@@ -883,7 +883,7 @@ export function editBlock(id, caret = null) {
   if (curPage()?.blocks.find(x => x.id === id)?.type === 'table') return openTbl?.dataset.tableEd === id ? null : editTable(id, typeof caret === 'object' ? caret : null);
   return editBlockRaw(id, caret);
 }
-const WRITE_TIPS = ['Truco: «Término: definición» da una tarjeta', 'Truco: lo que pongas en negrita sale como hueco para completar', 'Truco: «Las fases son:» con una lista debajo da una pregunta', 'Truco: Tab en una lista crea subpuntos (y una tarjeta con ellos)', 'Truco: una pregunta con la respuesta debajo se convierte en tarjeta'];
+const WRITE_TIPS = ['Truco: «Término: definición» da una pregunta', 'Truco: lo que pongas en negrita sale como hueco para completar', 'Truco: «Las fases son:» con una lista debajo da una pregunta', 'Truco: Tab en una lista crea subpuntos (y una pregunta con ellos)', 'Truco: una pregunta con la respuesta debajo se convierte en pregunta'];
 function editBlockRaw(id, caret = null) {
   const b = curPage()?.blocks.find(x => x.id === id);
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
@@ -1918,7 +1918,7 @@ function kb(spec) {
   const name = k => (IS_MAC ? { Ctrl: '⌘', Alt: '⌥', Mayús: '⇧' }[k] || k : k);
   return spec.split(' o ').map(alt => `<span class="kc">${alt.split('+').map(k => `<kbd>${esc(name(k.trim()))}</kbd>`).join(' + ')}</span>`).join(' o ');
 }
-const HELP_TABS = [['basico', 'Lo básico'], ['formato', 'Formato'], ['bloques', 'Bloques'], ['teclado', 'Teclado'], ['tarjetas', 'Tarjetas']];
+const HELP_TABS = [['basico', 'Lo básico'], ['formato', 'Formato'], ['bloques', 'Bloques'], ['teclado', 'Teclado'], ['preguntas', 'Preguntas']];
 function helpContent() {
   const c = s => `<code>${esc(s)}</code>`;
   // Una fila: lo de la izquierda (lo que se escribe, una tecla…), qué hace y, si hay, su atajo
@@ -1934,7 +1934,7 @@ function helpContent() {
       ${step('/', 'Elige el tipo de bloque', `Escribe ${c('/')} en una línea vacía (o pulsa «+ Bloque») y elige: título, lista, casilla, tabla, imagen…`)}
       ${step('<b>B</b>', 'Da formato', 'Selecciona un texto y usa la barra que aparece: negrita, cursiva, subrayado, color…')}
       ${step(icon('grip-vertical', { size: 16 }), 'Mueve y organiza', 'El asa ⋮⋮ a la izquierda de cada bloque: arrástrala para moverlo o tócala para ver sus opciones. En el móvil aparece en el bloque que estás editando.')}
-      ${step(icon('notebook-text', { size: 16 }), 'Convierte en tarjetas', 'Selecciona lo importante y pulsa <b>Crear tarjeta</b>, o deja que <b>Sugerir tarjetas</b> te proponga las suyas.')}
+      ${step(icon('notebook-text', { size: 16 }), 'Convierte en preguntas', 'Selecciona lo importante y pulsa <b>Crear pregunta</b>, o deja que <b>Sugerir preguntas</b> te proponga las suyas.')}
       ${step(icon('undo-2', { size: 16 }), 'Deshaz lo que sea', `${kb('Ctrl+Z')} o la flecha de arriba deshacen cualquier cambio del apunte, también borrar o mover bloques.`)}
       ${step(icon('search', { size: 16 }), 'Encuentra', `${kb('Ctrl+F')} o la lupa buscan en el apunte. Con dos títulos o más tienes también un <b>índice</b>.`)}
     </ol>`),
@@ -2036,13 +2036,13 @@ function helpContent() {
         [kb('Ctrl+F'), 'Buscar en el apunte (sin importar mayúsculas ni tildes). ' + kb('Enter') + ' / ' + kb('Mayús+Enter') + ': siguiente / anterior'],
         [kb('Ctrl+H'), 'Buscar y reemplazar'],
       ])}`),
-    tarjetas: sec('tarjetas', 'Tarjetas desde los apuntes', `<ul class="help-list">
-        <li class="help-item">Selecciona un trozo de texto y pulsa <b>Crear tarjeta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: ${c('Ev{{de}}yim')}).</li>
-        <li class="help-item"><b>Sugerir tarjetas</b> (arriba) propone tarjetas a partir de cómo está escrito el apunte. Las revisas, retocas o descartas, y creas las que quieras. Si cambias el apunte, ${icon('refresh-cw', { size: 13 })} las actualiza sin perder lo retocado.</li>
-        <li class="help-item">Una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna tarjeta (aparece mientras escribes). Tócala para ver las de esa parte.</li>
-        <li class="help-item">Cada tarjeta queda unida a su parte del apunte. Al estudiarla, <b>Ver en los apuntes</b> te trae justo ahí.</li>
-        <li class="help-item">Arriba, en <b>Mazo</b>, eliges dónde van las tarjetas de este apunte.</li>
-        <li class="help-item">El número a la derecha de un bloque es cuántas tarjetas salen de él; tócalo para verlas.</li>
+    preguntas: sec('preguntas', 'Preguntas desde los apuntes', `<ul class="help-list">
+        <li class="help-item">Selecciona un trozo de texto y pulsa <b>Crear pregunta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: ${c('Ev{{de}}yim')}).</li>
+        <li class="help-item"><b>Sugerir preguntas</b> (arriba) propone preguntas a partir de cómo está escrito el apunte. Las revisas, retocas o descartas, y creas las que quieras. Si cambias el apunte, ${icon('refresh-cw', { size: 13 })} las actualiza sin perder lo retocado.</li>
+        <li class="help-item">Una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta (aparece mientras escribes). Tócala para ver las de esa parte.</li>
+        <li class="help-item">Cada pregunta queda unida a su parte del apunte. Al estudiarla, <b>Ver en los apuntes</b> te trae justo ahí.</li>
+        <li class="help-item">Arriba, en <b>Lista</b>, eliges dónde van las preguntas de este apunte.</li>
+        <li class="help-item">El número a la derecha de un bloque es cuántas preguntas salen de él; tócalo para verlas.</li>
       </ul>
       <h4 class="help-sub">Escribir para que salgan solas</h4>
       ${two(['Si escribes', 'Sale'], SUG_HOW)}
@@ -2090,7 +2090,7 @@ function filterHelp(q) {
 document.addEventListener('input', e => { if (e.target.id === 'helpQ') filterHelp(e.target.value); });
 export function blockCardsSheet(blockId) {
   const list = cardList().filter(c => c.page_id === S.pageId && c.block_id === blockId);
-  openSheet(`<h2>Tarjetas de esta parte</h2>
+  openSheet(`<h2>Preguntas de esta parte</h2>
     <ul class="list">${list.map(c => `<li><button class="row" data-card="${c.id}"><span class="f">${fmt(c.front)}</span>${statusChip(c.id)}<span class="b">${fmt(c.back)}</span></button></li>`).join('')}</ul>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
@@ -2156,12 +2156,12 @@ const SUG_HOW = [
   ['Algo en <b>negrita</b>, <mark class="hl hl-yellow">resaltado</mark>, <u>subrayado</u> o <span class="tc tc-red">en color</span>', 'Una frase para completar, con eso oculto'],
   ['Un título o «Las fases son:» y una lista debajo', '«¿Cuáles son…?» con la lista; si es numerada, ordenar los pasos'],
   ['Un punto con subpuntos (con <kbd>Tab</kbd>)', '«Núcleo: ¿qué incluye?» → sus subpuntos'],
-  ['Una tabla', 'Una tarjeta por celda («Locativo → sufijo» = «-de»); en idiomas, vocabulario o conjugación'],
+  ['Una tabla', 'Una pregunta por celda («Locativo → sufijo» = «-de»); en idiomas, vocabulario o conjugación'],
   ['Una pregunta (<code>¿…?</code>) con la respuesta debajo', 'Esa misma pregunta, con su respuesta'],
   ['«En 1789…», «Década de 1830: …»', '«¿Cuándo?», con el año como respuesta'],
   ['«La OMS (Organización Mundial de la Salud)…»', '«¿Qué significan las siglas OMS?»'],
   ['Un título y su primer párrafo', 'El título como pregunta y la idea principal como respuesta'],
-  ['Un destacado o «Importante: …»', 'Sus tarjetas salen ya marcadas'],
+  ['Un destacado o «Importante: …»', 'Sus preguntas salen ya marcadas'],
 ];
 export function drawSuggestions() {
   const g = S.sug, p = S.pages.get(g?.pageId);
@@ -2177,16 +2177,16 @@ export function drawSuggestions() {
   if (g.only) g.showMore = true;
   const hiddenN = sugHidden(p.id).size;
   const tips = writingTips(p, all);
-  const deckSel = `<select id="sugDeck" aria-label="Mazo donde se crean">${[...S.decks.values()].filter(d => !d.archived).map(d => `<option value="${d.id}" ${d.id === g.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
-    <option value="new" ${g.deckId === 'new' ? 'selected' : ''}>+ Mazo nuevo: «${esc(pageTitle(p).slice(0, 60))}»</option></select>`;
+  const deckSel = `<select id="sugDeck" aria-label="Lista donde se crean">${[...S.decks.values()].filter(d => !d.archived).map(d => `<option value="${d.id}" ${d.id === g.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+    <option value="new" ${g.deckId === 'new' ? 'selected' : ''}>+ Lista nueva: «${esc(pageTitle(p).slice(0, 60))}»</option></select>`;
   // Cada sugerencia, como una fila de la lista de un mazo: casilla para crearla, y debajo de dónde sale
   const row = x => {
     const i = all.indexOf(x), t = getType(x.typeId);
     const where = x.section && x.section !== pageTitle(p) ? x.section.split(' › ').at(-1) : '';
     const src = sugSource(p, x);
-    return `<li class="sug${x.selected ? ' on' : ''}${x.fresh ? ' is-new' : ''}"><label class="sug-check" title="${x.selected ? 'Se creará' : 'No se creará'}"><input type="checkbox" data-sug="${i}" ${x.selected ? 'checked' : ''} aria-label="Crear esta tarjeta"></label>
+    return `<li class="sug${x.selected ? ' on' : ''}${x.fresh ? ' is-new' : ''}"><label class="sug-check" title="${x.selected ? 'Se creará' : 'No se creará'}"><input type="checkbox" data-sug="${i}" ${x.selected ? 'checked' : ''} aria-label="Crear esta pregunta"></label>
       <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(x.back)}</span>
-        <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} tarjetas</span>` : ''}${x.edited ? '<span class="muted small">· Retocada</span>' : ''}${x.fresh ? '<span class="sug-new">Nueva</span>' : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span>
+        <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} preguntas</span>` : ''}${x.edited ? '<span class="muted small">· Retocada</span>' : ''}${x.fresh ? '<span class="sug-new">Nueva</span>' : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span>
         ${src ? `<span class="sug-src" title="Sale de esta parte del apunte (${esc(x.label || '')})">${icon('notebook-text', { size: 12 })} <span>${esc(x.label || '')}</span> «${esc(src)}»</span>` : ''}</button>
       <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button></li>`;
   };
@@ -2194,17 +2194,17 @@ export function drawSuggestions() {
     <div class="sug-gh"><h3>${title} <span class="muted">· ${items.length}</span></h3>
       <button type="button" class="link small" data-sug-group="${key}">${items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'}</button></div>
     <ul class="list sug-list">${items.map(row).join('')}</ul></div>` : '';
-  const tipBox = tips.length ? `<div class="sug-tips"><p class="sug-tips-h">${icon('lightbulb', { size: 16 })} <b>${list.length ? 'Para sacar más tarjetas de este apunte' : 'Así saldrán tarjetas de este apunte'}</b></p>
+  const tipBox = tips.length ? `<div class="sug-tips"><p class="sug-tips-h">${icon('lightbulb', { size: 16 })} <b>${list.length ? 'Para sacar más preguntas de este apunte' : 'Así saldrán preguntas de este apunte'}</b></p>
       <ul>${tips.slice(0, 3).map(tp => `<li>${fmt(tp.text)}</li>`).join('')}</ul></div>` : '';
   const how = `<details class="sug-how"${list.length ? '' : ' open'}><summary>${icon('circle-help', { size: 16 })} ¿Cómo se eligen las sugerencias?</summary>
       <p class="muted small">Salen de cómo están escritos los apuntes, sin inteligencia artificial: se fijan en lo que la propia forma del texto señala como importante. Si escribes así, saldrán solas:</p>
       <table class="help-tbl sug-how-tbl"><thead><tr><th>Si escribes</th><th>Sale</th></tr></thead><tbody>${SUG_HOW.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody></table>
-      <p class="muted small">En el apunte, una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna tarjeta. <label class="sug-marks-opt"><input type="checkbox" id="sugMarksOpt" ${sugMarksOn() ? 'checked' : ''}> Mostrarla</label></p></details>`;
+      <p class="muted small">En el apunte, una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta. <label class="sug-marks-opt"><input type="checkbox" id="sugMarksOpt" ${sugMarksOn() ? 'checked' : ''}> Mostrarla</label></p></details>`;
   const body = !list.length
-    ? `<div class="sug-empty"><p><b>${g.only ? 'Esta parte del apunte ya no da sugerencias.' : all.length ? '' : 'No he encontrado nada claro que convertir en tarjetas.'}</b></p>${tipBox}
-        <p class="muted">También puedes seleccionar cualquier texto del apunte y pulsar «Crear tarjeta».</p></div>`
+    ? `<div class="sug-empty"><p><b>${g.only ? 'Esta parte del apunte ya no da sugerencias.' : all.length ? '' : 'No he encontrado nada claro que convertir en preguntas.'}</b></p>${tipBox}
+        <p class="muted">También puedes seleccionar cualquier texto del apunte y pulsar «Crear pregunta».</p></div>`
     : `${g.only ? `<div class="sug-only">${icon('sparkles', { size: 15 })} <span>Las de esta parte del apunte</span><button type="button" class="link small" data-act="sug-all">Ver todas (${all.length})</button></div>` : ''}
-       ${typeIds.length > 1 ? `<div class="sug-filters" role="group" aria-label="Filtrar por tipo de tarjeta">${typeIds.map(id => { const t = getType(id); return `<button type="button" class="chip-btn" data-sug-type="${id}" aria-pressed="${!g.types || g.types.has(id)}">${typeIcon(t, 14)} ${esc(t?.name || id)} <span>${list.filter(x => x.typeId === id).length}</span></button>`; }).join('')}</div>` : ''}
+       ${typeIds.length > 1 ? `<div class="sug-filters" role="group" aria-label="Filtrar por tipo de pregunta">${typeIds.map(id => { const t = getType(id); return `<button type="button" class="chip-btn" data-sug-type="${id}" aria-pressed="${!g.types || g.types.has(id)}">${typeIcon(t, 14)} ${esc(t?.name || id)} <span>${list.filter(x => x.typeId === id).length}</span></button>`; }).join('')}</div>` : ''}
        ${group(g.only ? 'Sugerencias' : 'Recomendadas', g.only ? visible : rec, g.only ? 'all' : 'rec')}
        ${g.only ? '' : more.length ? (g.showMore ? group('Otras posibles', more, 'more') + (rec.length >= 5 ? '<button type="button" class="link sug-toggle" data-act="sug-more">Ocultar las otras posibles</button>' : '')
          : `<button type="button" class="ghost sug-toggle" data-act="sug-more">Ver ${plural(more.length, 'otra posible', 'otras posibles')}</button>`) : ''}
@@ -2212,17 +2212,17 @@ export function drawSuggestions() {
        ${g.only ? '' : tipBox}`;
   openSheet(`<div class="sug-wrap">
     <header class="ed-top"><button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
-      <div class="ed-title"><span>Tarjetas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div>
+      <div class="ed-title"><span>Preguntas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div>
       <button type="button" class="iconbtn sug-refresh" data-act="sug-refresh" aria-label="Actualizar" title="Actualizar: vuelve a leer el apunte (lo que has retocado se queda)">${icon('refresh-cw', { size: 18 })}</button></header>
     <div class="sug-main" id="sugMain">
-      ${all.length ? `<p class="sug-intro">He encontrado <b>${plural(all.length, 'posible tarjeta', 'posibles tarjetas')}</b> en tus apuntes. Las recomendadas ya están marcadas: toca una para verla y retocarla, o descártala con la ✕. Si cambias el apunte, pulsa ${icon('refresh-cw', { size: 13 })} para actualizarlas.</p>
+      ${all.length ? `<p class="sug-intro">He encontrado <b>${plural(all.length, 'posible pregunta', 'posibles preguntas')}</b> en tus apuntes. Las recomendadas ya están marcadas: toca una para verla y retocarla, o descártala con la ✕. Si cambias el apunte, pulsa ${icon('refresh-cw', { size: 13 })} para actualizarlas.</p>
       <div class="sug-deck"><label for="sugDeck">Crear en</label>${deckSel}</div>` : ''}
       ${body}
       ${how}
       ${hiddenN ? `<p class="muted small sug-hidden">${plural(hiddenN, 'sugerencia descartada', 'sugerencias descartadas')} en este apunte · <button type="button" class="link small" data-act="sug-unhide">Recuperarlas</button></p>` : ''}
     </div>
     ${all.length ? `<footer class="ed-foot"><span class="muted small" id="sugCount">${plural(picked.length, 'marcada', 'marcadas')}</span><span class="spacer"></span>
-      <button type="button" class="primary" data-act="sug-create" ${nCards ? '' : 'disabled'}>${nCards ? `Crear ${plural(nCards, 'tarjeta', 'tarjetas')}` : 'Marca alguna'}</button></footer>` : ''}
+      <button type="button" class="primary" data-act="sug-create" ${nCards ? '' : 'disabled'}>${nCards ? `Crear ${plural(nCards, 'pregunta', 'preguntas')}` : 'Marca alguna'}</button></footer>` : ''}
   </div>`, { full: true });
   if (g.scroll) { const m = $('#sugMain'); if (m) m.scrollTop = g.scroll; g.scroll = 0; }
 }
@@ -2251,7 +2251,7 @@ export function paintSugMarks() {
   for (const [id, n] of count) {
     const nb = box.querySelector(`.nb[data-block="${id}"]`);
     if (!nb) continue;
-    nb.insertAdjacentHTML('beforeend', `<button type="button" class="nb-sugdot" data-sug-block="${id}" tabindex="-1" title="${plural(n, 'tarjeta sugerida', 'tarjetas sugeridas')} de esta parte" aria-label="${plural(n, 'tarjeta sugerida', 'tarjetas sugeridas')}">${icon('sparkles', { size: 13 })}</button>`);
+    nb.insertAdjacentHTML('beforeend', `<button type="button" class="nb-sugdot" data-sug-block="${id}" tabindex="-1" title="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')} de esta parte" aria-label="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')}">${icon('sparkles', { size: 13 })}</button>`);
   }
 }
 const sugScroll = () => { const m = $('#sugMain'); if (m && S.sug) S.sug.scroll = m.scrollTop; };
@@ -2309,7 +2309,7 @@ export async function createSuggested(btn) {
     migrateDeckLangs();
     S.sug = null;
     closeSheet();
-    toast(`${plural(made.length, 'tarjeta creada', 'tarjetas creadas')} en «${S.decks.get(deckId)?.name || 'el mazo'}»`);
+    toast(`${plural(made.length, 'pregunta creada', 'preguntas creadas')} en «${S.decks.get(deckId)?.name || 'la lista'}»`);
     if (S.view === 'page') renderPage();
   } catch (e) { btn.disabled = false; btn.textContent = 'Crear'; fail(e); }
 }

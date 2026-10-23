@@ -382,7 +382,7 @@ function segBar(ses) {
 }
 export function startSession(scope = 'all') {
   const queue = buildSession(scope);
-  if (!queue.length) { toast('No hay tarjetas pendientes aquí'); return; }
+  if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
   S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null };
   go('study');
 }
@@ -412,7 +412,7 @@ function cardState(c) {
     st.choice = { ...choiceOptions(model.tpl, model.fields, pool), picked: -1 };
   }
   ses.st = st;
-  ses.shownAt = Date.now();   // para medir el tiempo de cada tarjeta
+  ses.shownAt = Date.now();   // para medir el tiempo de cada pregunta
   return st;
 }
 export function renderStudy() {
@@ -423,7 +423,7 @@ export function renderStudy() {
   const bar = `<div class="studybar"><button class="sb-back" data-act="exit" aria-label="Salir de la sesión">${icon('chevron-left', { size: 18 })}</button><span class="sb-info"><span class="where">${esc(scopeName(ses.scope))}</span><span class="left">${ses.queue.length} quedan</span></span></div>${segBar(ses)}`;
   if (!ses.queue.length) {
     const t = ses.tally;
-    main.innerHTML = `${bar}<div class="done"><h2>¡Sesión terminada!</h2><p class="muted">Has repasado ${ses.done} tarjetas.</p>${capNote(counts(ses.scope))}
+    main.innerHTML = `${bar}<div class="done"><h2>¡Tanda terminada!</h2><p class="muted">Has repasado ${ses.done} preguntas.</p>${capNote(counts(ses.scope))}
       <div class="tally"><span class="g1">Otra vez ${t[1]}</span><span class="g2">Difícil ${t[2]}</span><span class="g3">Bien ${t[3]}</span><span class="g4">Fácil ${t[4]}</span></div>
       <div class="btnrow" style="justify-content:center"><button class="primary" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost" data-act="more">10 nuevas más</button></div>
       ${ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : ''}</div>`;
@@ -467,7 +467,7 @@ export function renderStudy() {
       <div class="front">${front}</div>${hint}${ask}
       ${answer ? `<div class="answer">${answer}</div>` : ''}
     </article>${foot}
-    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar tarjeta</button></span></div>`;
+    <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar pregunta</button></span></div>`;
   if (!st.played) {
     st.played = true;
     if (model.tpl.mode === 'listen') { if (S.prefs.study.autoplay) playListen(model, 1); }

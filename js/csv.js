@@ -82,7 +82,7 @@ export function cardsFromCSV(text) {
     if (!front || !back) { skipped++; continue; }
     cards.push({ front, back, note: ni >= 0 ? (r[ni] || '').trim() : '' });
   }
-  if (!cards.length) throw new Error('No se encontraron tarjetas. Cada fila necesita al menos pregunta y respuesta.');
+  if (!cards.length) throw new Error('No se encontraron preguntas. Cada fila necesita al menos pregunta y respuesta.');
   return { cards, skipped, hadHeader: start === 1 };
 }
 

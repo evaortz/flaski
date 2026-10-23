@@ -576,7 +576,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         const subj = termP;
         const q = /^(qué|cuál|cómo|quién|por qué|cuándo|dónde|what|how|why|who|when|where)\b/i.test(subj) || /\?$/.test(subj)
           ? capFirst(subj.replace(/^¿?/, '¿').replace(/\??$/, '?'))
-          : def.term.replace(/\*\*/g, '').trim();   // el término tal cual, como en una tarjeta de toda la vida
+          : def.term.replace(/\*\*/g, '').trim();   // el término tal cual, como en una pregunta de toda la vida
         add('def', b.id, 'basic', { q, a: capFirst(cleanAnswer(defP)), n: '' }, 0.85);
         continue;
       }
@@ -662,7 +662,7 @@ export function writingTips(page, suggestions = []) {
   const tips = [];
   const emphasized = b => toRuns(b.text || '').some(r => r.st.b || r.st.u || r.st.bg || r.st.color);
   const longPlain = blocks.filter(b => b.type === 'p' && plainText(b.text).length > 220 && !emphasized(b) && !withSug.has(b.id));
-  if (longPlain.length) tips.push({ id: 'emphasis', n: longPlain.length, text: `${longPlain.length === 1 ? 'Un párrafo largo no da' : `${longPlain.length} párrafos largos no dan`} ninguna tarjeta. Marca en **negrita** o ==resalta== la palabra clave de cada idea y saldrá una frase para completar.` });
+  if (longPlain.length) tips.push({ id: 'emphasis', n: longPlain.length, text: `${longPlain.length === 1 ? 'Un párrafo largo no da' : `${longPlain.length} párrafos largos no dan`} ninguna pregunta. Marca en **negrita** o ==resalta== la palabra clave de cada idea y saldrá una frase para completar.` });
   // Listas sin nada que las presente
   let bare = 0;
   for (let i = 0; i < blocks.length; i++) {
@@ -675,7 +675,7 @@ export function writingTips(page, suggestions = []) {
   if (bare) tips.push({ id: 'list', n: bare, text: `${bare === 1 ? 'Hay una lista' : `Hay ${bare} listas`} sin nada encima. Escribe antes un título o una frase acabada en dos puntos («Las fases de la mitosis son:») y saldrá la pregunta con la lista; si es numerada, para ordenar los pasos.` });
   if (!blocks.some(b => /^h[1-3]$/.test(b.type)) && blocks.filter(b => plainText(b.text)).length >= 8) tips.push({ id: 'heads', text: 'Divide el apunte con títulos (escribe «## » al principio de una línea): cada apartado da su propia pregunta y luego puedes estudiarlos por separado.' });
   const defs = suggestions.filter(s => s.kind === 'def').length, paras = blocks.filter(b => b.type === 'p' && plainText(b.text)).length;
-  if (!defs && paras >= 3) tips.push({ id: 'defs', text: 'Escribe las definiciones así: «Mitosis: división de una célula en dos células hijas». Es lo que mejor se convierte en tarjeta.' });
+  if (!defs && paras >= 3) tips.push({ id: 'defs', text: 'Escribe las definiciones así: «Mitosis: división de una célula en dos células hijas». Es lo que mejor se convierte en pregunta.' });
   const lists = blocks.filter(b => ['li', 'ol'].includes(b.type));
   if (lists.length >= 6 && !lists.some(b => b.indent)) tips.push({ id: 'indent', text: 'Usa la sangría (Tab) para los subpuntos: «Núcleo» con «ADN» y «Nucléolo» debajo da la pregunta «Núcleo: ¿qué incluye?».' });
   return tips;

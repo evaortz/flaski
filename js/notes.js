@@ -123,7 +123,7 @@ export function notesToDeck(data) {
     // Tipos de idiomas en un mazo sin idioma: sin audio (y el dictado, sin nada que escuchar)
     if (!typeFit(type, lang)) {
       if (!lang && typeScope(type) === 'lang') {
-        if (type.templates.some(t => t.mode === 'listen')) return note(n, label, `el dictado necesita que el mazo tenga idioma ("lang")`, true);
+        if (type.templates.some(t => t.mode === 'listen')) return note(n, label, `el dictado necesita que la lista tenga idioma ("lang")`, true);
         needsLang = true;
       } else misfit.add(base.id);
     }
@@ -140,7 +140,7 @@ export function notesToDeck(data) {
     if (!active.length) return note(n, label, `falta ${missingFor(type, type.templates[0], fields)}`, true);
     if (active.length < type.templates.length) {
       const miss = type.templates.find(t => !active.includes(t));
-      note(n, label, `solo crea ${active.length} de ${type.templates.length} tarjetas: para «${miss.name}» falta ${missingFor(type, miss, fields)}`, false);
+      note(n, label, `solo crea ${active.length} de ${type.templates.length} preguntas: para «${miss.name}» falta ${missingFor(type, miss, fields)}`, false);
     }
     const hint = typeof raw.hint === 'string' ? raw.hint.trim().slice(0, 500) : '';
     const tags = (Array.isArray(raw.tags) ? raw.tags : typeof raw.tags === 'string' ? raw.tags.split(',') : [])
@@ -155,14 +155,14 @@ export function notesToDeck(data) {
       });
     }
   });
-  if (needsLang) note(0, 'lang', 'sin "lang", el mazo no es de idiomas y Vocabulario u Ordenar frase no tendrán audio', false);
+  if (needsLang) note(0, 'lang', 'sin "lang", la lista no es de idiomas y Vocabulario u Ordenar frase no tendrán audio', false);
   for (const id of misfit) {
     const t = BUILTIN_TYPES.find(x => x.id === id);
-    note(0, 'lang', `«${id}» es para mazos de ${typeScope(t).map(langName).join(' o ')}${lang ? `, no de ${langLabel(lang).toLowerCase()}` : ''}`, false);
+    note(0, 'lang', `«${id}» es para listas de ${typeScope(t).map(langName).join(' o ')}${lang ? `, no de ${langLabel(lang).toLowerCase()}` : ''}`, false);
   }
 
   return {
-    name: String(meta.name || 'Mazo importado').trim().slice(0, 80) || 'Mazo importado',
+    name: String(meta.name || 'Lista importada').trim().slice(0, 80) || 'Lista importada',
     description: String(meta.description || '').trim().slice(0, 300),
     lang, cards, notes, types: [], tagNames: [...tagNames.values()], issues,
   };
