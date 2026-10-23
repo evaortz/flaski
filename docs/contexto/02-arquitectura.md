@@ -27,7 +27,9 @@ licenses/, LICENSE    Licencias
 
 | Archivo | Qué hace |
 |---|---|
-| `app.js` (~6300 líneas) | Toda la interfaz: estado `S`, `render*()` de cada vista, hojas, editor de tarjetas, estudio, apuntes, ajustes, amigos y los manejadores de eventos |
+| `app.js` (~880 líneas) | `go`/`render`/`navMe`, los manejadores globales de eventos (`click`/`submit`/`input`/`change`/teclado) y el arranque (`boot`) |
+| `comun.js` | Estado único `S` y utilidades comunes (`$`, `esc`, `toast`, `fail`, ámbitos y contadores). **No importa ninguna pantalla**: así se evalúa siempre la primera |
+| `pantallas/*.js` | Una por pantalla: `cuenta` (acceso, carga, bienvenida, sin conexión), `inicio`, `estudio` (caras y sesión), `mazos` (+ importar/exportar mazos), `explorar`, `apuntes` (editor por bloques + sugerencias), `perfil` (estadísticas, plan, ajustes, copias), `editor` (hojas, formularios, editor de tarjetas y tipos), `amigos`. Se importan entre sí lo que necesitan |
 | `api.js` | Capa de datos: elige `backend-supabase.js` o `backend-local.js` según `config.js` (`configured`, `mode`) y reexporta la misma API |
 | `backend-supabase.js` | Backend nube: cliente Supabase, escrituras encoladas con `outbox`, snapshot offline, RPCs de amigos, Storage de imágenes |
 | `backend-local.js` | Backend local: todo en `localStorage` (`flaski-local-v1`), misma API que el de Supabase |
@@ -75,7 +77,11 @@ Los módulos marcados «sin dependencias de la interfaz» en su cabecera se prue
   lo pendiente y la cabecera muestra `#net`. Al arrancar sin red se usa el snapshot (`S.fromCache`).
 - El contador diario usa la RPC atómica `bump_review_log` para que dos dispositivos no se pisen.
 
-## Estado y renderizado en `app.js`
+## Estado y renderizado (`app.js`, `comun.js` y `pantallas/`)
+
+- Entre módulos solo se importan funciones y constantes: un `let` no se puede reasignar desde otro archivo
+  (para eso, un setter de una línea, como `setImportInto`). En el código de primer nivel de una pantalla (lo que se
+  ejecuta al cargarla) usa solo cosas de `comun.js` o de librerías, nunca constantes de otras pantallas.
 
 - **Estado único `S`**: `uid`, `decks`/`folders`/`tags`/`types`/`cards`/`pages` (Maps por id), `progress` (cardId → srs
   en ms), `log` (`YYYY-MM-DD` → repasos), `events` (cada respuesta), `prefs`, `stats` (filtros), `view`, `deckId`,
