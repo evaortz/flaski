@@ -21,3 +21,9 @@
 - `sw.js` → `flaski-v85`, con `biblioteca.js` en `SHELL`. E2e adaptadas a los textos y pestañas nuevos.
 - Dudas: iconos de Hoy (sol) y Biblioteca (libros) elegidos por mí, no están en el diseño. `FORMATO-IA.md` (instrucciones para la IA) sigue diciendo «mazo»/«tarjeta»: no lo he tocado porque lo lee la IA y una prueba cuenta sus «Este ejemplo crea N tarjetas». En «Sugerir preguntas», «listas» también significa listas con viñetas: puede confundir.
 - Pendiente: Novedades (`news.js` y capturas) sin actualizar; mejor hacerlas cuando el rediseño se vea entero. En Biblioteca hay dos `h1` («Mis listas» y «Apuntes») y cada sección tiene su «+ Carpeta»: se resuelve al unir las carpetas en la fase 3.
+
+## Fase 2b · dudas resueltas
+- Iconos: sol para Hoy y carpeta para Biblioteca (como en `organizacion-*.jpg`); Explorar sigue con la brújula y Perfil con la persona.
+- `FORMATO-IA.md` se queda como está (no hay IA en v1).
+- Las listas con viñetas se llaman «lista de puntos» en Sugerir preguntas y en el editor de apuntes (menú de bloques, textos de ayuda, trucos, consejos de sugerencias). «Lista» queda solo para las listas de preguntas. La numerada pasa a «Puntos numerados» (decisión mía para no usar «lista»: confirmar).
+- Novedades y capturas: al final del rediseño. `sw.js` → `flaski-v86`.
