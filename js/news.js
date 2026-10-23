@@ -20,7 +20,7 @@ const SLIDES = [
     text: 'Escribe celda a celda, como en una hoja de cálculo. Añade filas y columnas con el «+», y desde el menú de cada columna ordénala, alinéala o muévela. Puedes pegar celdas de Excel o Google Sheets.',
     alt: 'Una tabla en edición con el menú de una columna abierto' },
   { id: 'sugerencias', title: 'Preguntas sugeridas, sin IA',
-    text: 'Flaski lee tus apuntes y te propone preguntas: definiciones, lo que destacas, listas de puntos, tablas, fechas… Mientras escribes, una ✨ marca las partes de las que saldrá alguna pregunta. Y si quieres que salgan más, unos consejos te dicen cómo escribir tus apuntes.',
+    text: 'Flaski lee tus apuntes y te propone preguntas: definiciones, lo que destacas, viñetas, tablas, fechas… Mientras escribes, una ✨ marca las partes de las que saldrá alguna pregunta. Y si quieres que salgan más, unos consejos te dicen cómo escribir tus apuntes.',
     alt: 'La ventana de preguntas sugeridas a partir de unos apuntes de biología' },
   { id: 'tipos', title: 'Ocho tipos de pregunta nuevos',
     text: 'Emparejar, verdadero o falso, tapar partes de una imagen, conjugación, clasificar en grupos, hueco con opciones, ordenar los pasos y respuesta numérica.',

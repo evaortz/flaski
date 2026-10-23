@@ -25,5 +25,5 @@
 ## Fase 2b · dudas resueltas
 - Iconos: sol para Hoy y carpeta para Biblioteca (como en `organizacion-*.jpg`); Explorar sigue con la brújula y Perfil con la persona.
 - `FORMATO-IA.md` se queda como está (no hay IA en v1).
-- Las listas con viñetas se llaman «lista de puntos» en Sugerir preguntas y en el editor de apuntes (menú de bloques, textos de ayuda, trucos, consejos de sugerencias). «Lista» queda solo para las listas de preguntas. La numerada pasa a «Puntos numerados» (decisión mía para no usar «lista»: confirmar).
-- Novedades y capturas: al final del rediseño. `sw.js` → `flaski-v86`.
+- En el editor de apuntes y en Sugerir preguntas (menú de bloques, ayuda, trucos y consejos), las listas con viñetas se llaman «Viñetas» y las numeradas, «Numeración». «Lista» queda solo para las listas de preguntas.
+- Novedades y capturas: al final del rediseño. `sw.js` → `flaski-v87`.

@@ -56,6 +56,6 @@ test('sin sugerencias: consejos según cómo está escrito el apunte y cómo se 
   await pastePage(page, `# Tema\n\n${'Esto es una frase larga sobre el tema que no tiene nada destacado ni ninguna definición. '.repeat(4)}\n\n- uno\n- dos`);
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug-tips')).toContainText('párrafo largo');
-  await expect(page.locator('.sug-tips')).toContainText('lista');
+  await expect(page.locator('.sug-tips')).toContainText('viñetas');
   await expect(page.locator('.sug-how')).toHaveAttribute('open', '');
 });

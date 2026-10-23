@@ -128,7 +128,7 @@ export function renderNotes() {
     ${folderRows ? `<ul class="nfolders">${folderRows}</ul>` : ''}`;
 }
 
-const BLOCK_PH = 'Escribe algo… («# » título, «- » lista de puntos)';
+const BLOCK_PH = 'Escribe algo… («# » título, «- » viñetas)';
 // Una tabla en Markdown → <table>; si está a medio escribir, se ve el texto tal cual
 function tableHTML(text) {
   const t = parseTable(text);
@@ -143,7 +143,7 @@ const statusLabel = st => STATUS.find(s => s.id === st)?.label || '';
 // Tarjetas que tocan ahora en un ámbito (repasos + nuevas que caben hoy)
 const pendingIn = scope => { const c = counts(scope); return c.due + c.newToday; };
 // Texto de ayuda de un bloque vacío, según su tipo
-const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño', li: 'Lista de puntos', ol: 'Puntos numerados', todo: 'Por hacer',
+const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño', li: 'Viñetas', ol: 'Numeración', todo: 'Por hacer',
   quote: 'Cita', callout: 'Escribe algo que quieras destacar', code: 'Código', table: BLOCK_PH, img: 'Pie de foto (opcional)' };
 export const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❗', '📝', '🔑', '🧠'];
 const delBtn = (id, what) => `<button type="button" class="iconbtn nb-del" data-del-block="${id}" aria-label="Quitar ${what}" title="Quitar ${what}">${icon('trash-2', { size: 15 })}</button>`;
@@ -883,7 +883,7 @@ export function editBlock(id, caret = null) {
   if (curPage()?.blocks.find(x => x.id === id)?.type === 'table') return openTbl?.dataset.tableEd === id ? null : editTable(id, typeof caret === 'object' ? caret : null);
   return editBlockRaw(id, caret);
 }
-const WRITE_TIPS = ['Truco: «Término: definición» da una pregunta', 'Truco: lo que pongas en negrita sale como hueco para completar', 'Truco: «Las fases son:» con una lista de puntos debajo da una pregunta', 'Truco: Tab en una lista de puntos crea subpuntos (y una pregunta con ellos)', 'Truco: una pregunta con la respuesta debajo se convierte en pregunta'];
+const WRITE_TIPS = ['Truco: «Término: definición» da una pregunta', 'Truco: lo que pongas en negrita sale como hueco para completar', 'Truco: «Las fases son:» con unas viñetas debajo da una pregunta', 'Truco: Tab en unas viñetas crea subpuntos (y una pregunta con ellos)', 'Truco: una pregunta con la respuesta debajo se convierte en pregunta'];
 function editBlockRaw(id, caret = null) {
   const b = curPage()?.blocks.find(x => x.id === id);
   const el = document.querySelector(`[data-block="${id}"] .nb-text`);
@@ -1724,7 +1724,7 @@ export function exportSheet() {
   const imgs = pageImageIds(p).length;
   openSheet(`<h2>Exportar «${esc(pageTitle(p))}»</h2>
     <ul class="list linklist">
-      ${opt('docx', 'file-text', 'Word (.docx)', 'Con títulos, listas de puntos, tablas, colores e imágenes. Se abre en Word, Google Docs o Pages')}
+      ${opt('docx', 'file-text', 'Word (.docx)', 'Con títulos, viñetas, tablas, colores e imágenes. Se abre en Word, Google Docs o Pages')}
       ${opt('pdf', 'download', 'PDF', 'Se abre la ventana de imprimir: elige «Guardar como PDF»')}
       ${opt('md', 'code', `Markdown${imgs ? ' (.zip con las imágenes)' : ' (.md)'}`, 'Para abrirlo en otras aplicaciones de notas. Conserva el formato y los enlaces [[ ]]')}
       ${opt('html', 'link', 'Página web (.html)', 'Un solo archivo con todo dentro, para verlo en cualquier navegador')}
@@ -1931,7 +1931,7 @@ function helpContent() {
     basico: sec('basico', 'Empezar en un minuto', `<ol class="help-steps">
       ${step(icon('pencil', { size: 16 }), 'Escribe', 'Toca cualquier parte del apunte y escribe. Se guarda solo: arriba verás «Guardado».')}
       ${step(icon('plus', { size: 16 }), 'Un bloque por idea', `Cada párrafo, título o punto es un <b>bloque</b>. ${kb('Enter')} crea el siguiente.`)}
-      ${step('/', 'Elige el tipo de bloque', `Escribe ${c('/')} en una línea vacía (o pulsa «+ Bloque») y elige: título, lista de puntos, casilla, tabla, imagen…`)}
+      ${step('/', 'Elige el tipo de bloque', `Escribe ${c('/')} en una línea vacía (o pulsa «+ Bloque») y elige: título, viñetas, casilla, tabla, imagen…`)}
       ${step('<b>B</b>', 'Da formato', 'Selecciona un texto y usa la barra que aparece: negrita, cursiva, subrayado, color…')}
       ${step(icon('grip-vertical', { size: 16 }), 'Mueve y organiza', 'El asa ⋮⋮ a la izquierda de cada bloque: arrástrala para moverlo o tócala para ver sus opciones. En el móvil aparece en el bloque que estás editando.')}
       ${step(icon('notebook-text', { size: 16 }), 'Convierte en preguntas', 'Selecciona lo importante y pulsa <b>Crear pregunta</b>, o deja que <b>Sugerir preguntas</b> te proponga las suyas.')}
@@ -1963,14 +1963,14 @@ function helpContent() {
     bloques: sec('bloques', 'Tipos de bloque', `<p class="hint">Escribe esto al principio de una línea vacía, o elige el tipo con ${c('/')} o «+ Bloque». Para cambiar el tipo de un bloque que ya existe, tócale el asa ⋮⋮ → <b>Convertir en</b>.</p>
       ${two(['Escribe', 'Para'], [
         [c('# '), 'Título'], [c('## '), 'Subtítulo'], [c('### '), 'Título pequeño'],
-        [c('- ') + ' o ' + c('* '), 'Lista de puntos'], [c('1. '), 'Puntos numerados'],
+        [c('- ') + ' o ' + c('* '), 'Viñetas'], [c('1. '), 'Numeración'],
         [c('[] ') + ' o ' + c('[x] '), 'Casilla (vacía o ya marcada)'], [c('> '), 'Cita'], [c('```'), 'Código (se escribe tal cual)'], [c('---'), 'Separador'],
         [c('/'), 'Todos los tipos: también <b>destacado</b> (con icono), <b>tabla</b> e <b>imagen</b>'],
       ])}
       <h4 class="help-sub">Organizar</h4>
       ${two(['Con', 'Puedes'], [
         ['Asa ⋮⋮', 'Arrastrar el bloque a otro sitio. Con un toque: convertir, duplicar, mover, sangría, plegar o borrar.'],
-        [kb('Tab'), 'Meter un punto dentro del de arriba (sangría), en listas de puntos, casillas y párrafos. ' + kb('Mayús+Tab') + ' lo saca.'],
+        [kb('Tab'), 'Meter un punto dentro del de arriba (sangría), en viñetas, numeración, casillas y párrafos. ' + kb('Mayús+Tab') + ' lo saca.'],
         ['Flecha junto a un título', 'Plegar o desplegar todo lo que cuelga de él. Se queda así guardado.'],
         [kb('Esc'), 'Seleccionar el bloque. Con ' + kb('Mayús') + ' + clic, o arrastrando el ratón por varios, seleccionas más: puedes moverlos, convertirlos, copiarlos o borrarlos a la vez.'],
         ['Índice', 'Con dos títulos o más: a la derecha en pantallas grandes, o con el botón ' + icon('list', { size: 14 }) + ' de arriba.'],
@@ -1996,8 +1996,8 @@ function helpContent() {
       <p class="hint">Pega una imagen (${kb('Ctrl+V')}), arrástrala al apunte o elige <b>Imagen</b> con ${c('/')}. Debajo puedes escribirle un pie.</p>
       <h4 class="help-sub">Traer y llevar apuntes</h4>
       ${two(['Desde', 'Pasa'], [
-        ['Word, Google Docs, Notion, una web…', 'Al pegar se conservan los títulos, listas de puntos, tablas, negritas, colores y enlaces, cada cosa en su bloque.'],
-        ['Texto en Markdown', 'Al pegarlo, cada línea se convierte en su bloque (títulos, listas de puntos, tablas…).'],
+        ['Word, Google Docs, Notion, una web…', 'Al pegar se conservan los títulos, viñetas, tablas, negritas, colores y enlaces, cada cosa en su bloque.'],
+        ['Texto en Markdown', 'Al pegarlo, cada línea se convierte en su bloque (títulos, viñetas, tablas…).'],
         ['Un archivo', 'Menú ⋯ del apunte → <b>Importar…</b>: <b>PDF</b> (con sus tablas; las páginas escaneadas, como imágenes), <b>Word</b> (.docx, con formato e imágenes), <b>Markdown</b>, <b>HTML</b> o <b>CSV</b> (como tabla). Se añade al final del apunte.'],
         ['Muchos a la vez', 'En Biblioteca, en Apuntes → <b>Importar</b>: un apunte nuevo por archivo. También un <b>.zip</b> exportado de Notion u Obsidian (con sus imágenes).'],
         ['Hacia otra app', 'Menú ⋯ → <b>Exportar…</b>: <b>Word</b>, <b>PDF</b> (desde la ventana de imprimir), <b>Markdown</b> (con sus imágenes) o <b>página web</b>. O <b>Copiar como texto</b>.'],
@@ -2005,7 +2005,7 @@ function helpContent() {
       ])}`),
     teclado: sec('teclado', 'Atajos de teclado', `<h4 class="help-sub">Al escribir</h4>
       ${two(['Tecla', 'Hace'], [
-        [kb('Enter'), 'Bloque nuevo. En una lista de puntos, otro punto; en un punto vacío, la termina (o sube un nivel).'],
+        [kb('Enter'), 'Bloque nuevo. En viñetas o numeración, otro punto; en un punto vacío, se acaban (o sube un nivel).'],
         [kb('Mayús+Enter'), 'Salto de línea dentro del mismo bloque'],
         [kb('Retroceso'), 'Al principio de un bloque: quita la sangría, lo vuelve párrafo o lo junta con el de arriba'],
         [kb('↑') + ' ' + kb('↓'), 'Al principio o al final de un bloque: pasa al anterior o al siguiente'],
@@ -2154,7 +2154,7 @@ function sugSource(p, x) {
 const SUG_HOW = [
   ['<code>Mitosis: división de una célula</code>', 'Una pregunta y su respuesta: «Mitosis» → «División de una célula»'],
   ['Algo en <b>negrita</b>, <mark class="hl hl-yellow">resaltado</mark>, <u>subrayado</u> o <span class="tc tc-red">en color</span>', 'Una frase para completar, con eso oculto'],
-  ['Un título o «Las fases son:» y una lista de puntos debajo', '«¿Cuáles son…?» con los puntos; si están numerados, ordenar los pasos'],
+  ['Un título o «Las fases son:» y unas viñetas debajo', '«¿Cuáles son…?» con los puntos; si llevan numeración, ordenar los pasos'],
   ['Un punto con subpuntos (con <kbd>Tab</kbd>)', '«Núcleo: ¿qué incluye?» → sus subpuntos'],
   ['Una tabla', 'Una pregunta por celda («Locativo → sufijo» = «-de»); en idiomas, vocabulario o conjugación'],
   ['Una pregunta (<code>¿…?</code>) con la respuesta debajo', 'Esa misma pregunta, con su respuesta'],

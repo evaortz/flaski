@@ -8,7 +8,7 @@ import { toPlain, toRuns } from './inline.js';
 
 export const KINDS = {
   vocab: 'Vocabulario', def: 'Definición', term: 'Concepto', bold: 'Destacado', sub: 'Subpuntos', table: 'Tabla', match: 'Emparejar',
-  conj: 'Conjugación', steps: 'Pasos', list: 'Lista de puntos', sort: 'Clasificar', date: 'Fecha', phrase: 'Frase', code: 'Código',
+  conj: 'Conjugación', steps: 'Pasos', list: 'Viñetas', sort: 'Clasificar', date: 'Fecha', phrase: 'Frase', code: 'Código',
   section: 'Apartado', qa: 'Pregunta',
 };
 export const PRESELECT = 0.65;
@@ -672,7 +672,7 @@ export function writingTips(page, suggestions = []) {
     const prev = blocks[i - 1], intro = prev && (/^h[1-3]$/.test(prev.type) || /:$/.test(plainText(prev.text)));
     if (n >= 2 && !intro && !withSug.has(blocks[i].id)) bare++;
   }
-  if (bare) tips.push({ id: 'list', n: bare, text: `${bare === 1 ? 'Hay una lista de puntos' : `Hay ${bare} listas de puntos`} sin nada encima. Escribe antes un título o una frase acabada en dos puntos («Las fases de la mitosis son:») y saldrá la pregunta con los puntos; si están numerados, para ordenar los pasos.` });
+  if (bare) tips.push({ id: 'list', n: bare, text: `${bare === 1 ? 'Hay unas viñetas' : `Hay ${bare} grupos de viñetas`} sin nada encima. Escribe antes un título o una frase acabada en dos puntos («Las fases de la mitosis son:») y saldrá la pregunta con los puntos; si llevan numeración, para ordenar los pasos.` });
   if (!blocks.some(b => /^h[1-3]$/.test(b.type)) && blocks.filter(b => plainText(b.text)).length >= 8) tips.push({ id: 'heads', text: 'Divide el apunte con títulos (escribe «## » al principio de una línea): cada apartado da su propia pregunta y luego puedes estudiarlos por separado.' });
   const defs = suggestions.filter(s => s.kind === 'def').length, paras = blocks.filter(b => b.type === 'p' && plainText(b.text)).length;
   if (!defs && paras >= 3) tips.push({ id: 'defs', text: 'Escribe las definiciones así: «Mitosis: división de una célula en dos células hijas». Es lo que mejor se convierte en pregunta.' });
