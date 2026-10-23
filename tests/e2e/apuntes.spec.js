@@ -227,33 +227,71 @@ async function pastePage(page, text) {
   await pasteNotes(page, text);
 }
 
-test('carpetas: compartidas con los mazos, crear apuntes dentro y moverlos', async ({ page }) => {
+test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover apuntes', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await pastePage(page, '# Primer apunte\n\nTexto.');
   await nav(page, 'Biblioteca');
-  await page.locator('#libNotes [data-act="new-folder"]').click();
+  await page.locator('#main [data-act="new-folder"]').click();
   await page.locator('#fo-name').fill('Turco');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Turco' })).toBeVisible();      // ya dentro de la carpeta
   await pastePage(page, '# Casos\n\nEl locativo.');                                        // se crea dentro
-  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Apuntes\s*\/\s*Turco\s*\/\s*Casos/);
+  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Biblioteca\s*\/\s*Turco\s*\/\s*Casos/);
   await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
-  await expect(page.locator('.notes-list li')).toHaveCount(1);                             // en la raíz, solo el primero
-  await expect(page.locator('#libNotes .folder')).toContainText('1 apunte');
+  await expect(page.locator('#main .ltiles li')).toHaveCount(1);                          // en la raíz, solo el primero (suelto)
+  await expect(page.locator('#main .lfold')).toHaveCount(1);                              // la carpeta sale una sola vez
+  await expect(page.locator('#main .lfold')).toContainText('1 apunte');
 
   // Mover el primero a la carpeta desde sus propiedades
   await page.getByRole('button', { name: /Primer apunte/ }).click();
   await page.locator('#pgFolder').selectOption({ label: 'Turco' });
   await expect(page.locator('.pg-top .crumbs')).toContainText('Turco');
   await page.locator('.pg-top .crumbs [data-nfolder=""]').click();
-  await expect(page.locator('#libNotes .folder')).toContainText('2 apuntes');
-  // La carpeta también aparece en «Mis listas»
+  await expect(page.locator('#main .lfold')).toContainText('2 apuntes');
+  await expect(page.locator('#main .ltiles')).toHaveCount(0);
+
+  // Una lista dentro de la carpeta con el botón de crear: sale junto a los apuntes
+  await page.locator('#main .lfold').click();
+  await page.locator('#main [data-act="create-menu"]').click();
+  await expect(page.locator('#sheetBody [data-act]')).toHaveCount(2);                     // Apunte o Lista
+  await page.locator('#sheetBody [data-act="new-deck"]').click();
+  await page.locator('#d-name').fill('Vocabulario');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Vocabulario' })).toBeVisible();
+  await page.locator('#main .crumbs [data-folder]', { hasText: 'Turco' }).click();
+  await expect(page.locator('#main .ltiles li')).toHaveCount(3);
+  await expect(page.locator('#main .fhero')).toContainText('2 apuntes · 1 lista');
+  await page.locator('[data-libkind="lists"]').click();
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Vocabulario']);
+  await page.locator('[data-libkind="notes"]').click();
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Primer apunte', 'Casos']);
   await nav(page, 'Biblioteca');
-  await expect(page.locator('#libDecks .folder')).toContainText('2 apuntes');
+  await expect(page.locator('#main .lfold')).toContainText('2 apuntes · 1 lista');
+  await expect(page.locator('#main [data-act="new-folder"]')).toHaveCount(1);             // un solo «+ Carpeta»
 });
 
-test('etiquetas, buscar y ordenar los apuntes', async ({ page }) => {
+test('borrar una carpeta no pierde sus apuntes ni sus listas: pasan a sueltos', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('#fo-name').fill('Turco');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await pastePage(page, '# Casos\n\nEl locativo.');
+  await page.locator('.pg-top .crumbs [data-nfolder]', { hasText: 'Turco' }).click();
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await page.locator('[data-act="ask-delete-folder"]').click();
+  await page.locator('#sheetBody [data-act="delete-folder"]').click();
+  await expect(page.locator('#main .lfold')).toHaveCount(0);
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Casos']);
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.folder_id));
+  await expect.poll(stored).toEqual([null]);
+  await page.reload();
+  await nav(page, 'Biblioteca');
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Casos']);
+});
+
+test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await pastePage(page, '# Beta\n\nVerbos irregulares.');
@@ -266,15 +304,14 @@ test('etiquetas, buscar y ordenar los apuntes', async ({ page }) => {
   await pastePage(page, '# Alfa\n\nSustantivos.');
   await nav(page, 'Biblioteca');
 
-  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa', 'Beta']);        // editados recientemente
-  await page.locator('#noteSort').selectOption('name');
-  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa', 'Beta']);
-  await expect(page.locator('.notes-list li').first()).toContainText('Sustantivos.');   // vista previa del texto
-  await page.locator('[data-ntag]', { hasText: 'examen' }).click();
-  await expect(page.locator('.notes-list .dname')).toHaveText(['Beta']);
-  await page.locator('[data-act="clear-nfilters"]').click();
-  await page.locator('#pageSearch').fill('sustantivos');
-  await expect(page.locator('.notes-list .dname')).toHaveText(['Alfa']);
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Alfa', 'Beta']);       // editados recientemente
+  await page.locator('#libSort').selectOption('name');
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Alfa', 'Beta']);
+  await page.locator('[data-tagfilter]', { hasText: 'examen' }).click();
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Beta']);
+  await page.locator('[data-act="clear-filters"]').click();
+  await page.locator('#libSearch').fill('sustantivos');
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Alfa']);
 });
 
 test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async ({ page }) => {
@@ -308,10 +345,10 @@ test('pegar unos apuntes enteros', async ({ page }) => {
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución francesa');
   expect(await page.locator('#pgBlocks .nb').evaluateAll(els => els.map(e => e.className.split(' ')[1].slice(3)))).toEqual(['p', 'li', 'li', 'table', 'p']);   // detrás de una tabla, un párrafo para seguir escribiendo
   await nav(page, 'Biblioteca');
-  await page.locator('#pageSearch').fill('bastilla');
-  await expect(page.locator('#main .list li')).toHaveCount(1);
-  await page.locator('#pageSearch').fill('nada');
-  await expect(page.locator('#main .list li')).toHaveCount(0);
+  await page.locator('#libSearch').fill('bastilla');
+  await expect(page.locator('#main .ltiles li')).toHaveCount(1);
+  await page.locator('#libSearch').fill('nada');
+  await expect(page.locator('#main .ltiles li')).toHaveCount(0);
 });
 
 // Imagen de 2×2 píxeles

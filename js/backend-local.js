@@ -211,6 +211,7 @@ export async function deleteFolder(id) {
   db.folders = db.folders.filter(f => f.id !== id);
   for (const f of db.folders) if (f.parent_id === id) f.parent_id = null;
   for (const d of db.decks) if (d.folder_id === id) d.folder_id = null;
+  for (const p of db.pages || []) if (p.folder_id === id) p.folder_id = null;   // como en Supabase (on delete set null)
   persist();
 }
 
