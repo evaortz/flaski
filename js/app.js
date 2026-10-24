@@ -435,13 +435,13 @@ document.addEventListener('click', async e => {
       return moveDecks(ids, S.folderId);
     }
     case 'edit-folder': return folderForm(S.folders.get(S.folderId));
-    case 'ask-delete-folder': return confirmSheet('¿Eliminar esta carpeta?', 'delete-folder', 'Eliminar carpeta');
+    case 'ask-delete-folder': return confirmSheet('¿Borrar esta carpeta?', 'delete-folder', 'Borrar carpeta');
     case 'delete-folder': {
       b.disabled = true;
       const fid = S.folderId;
       const parent = S.folders.get(fid)?.parent_id || null;
       const up = parent && S.folders.has(parent) ? parent : null;
-      try { await deleteFolder(fid); toast('Carpeta eliminada'); return go('decks', { folderId: up }); }
+      try { await deleteFolder(fid); toast('Carpeta borrada'); return go('decks', { folderId: up }); }
       catch (err) { b.disabled = false; return fail(err); }
     }
     case 'manage-tags': return tagsSheet();
@@ -468,13 +468,13 @@ document.addEventListener('click', async e => {
       return redrawBlocks(target.id, ds.act === 'add-table' ? 2 : 0);
     }
     case 'add-image': { const f = await pickImage(); return f && addImageBlock(f); }
-    case 'ask-delete-page': return confirmSheet('¿Eliminar estos apuntes?', 'delete-page', 'Eliminar');
+    case 'ask-delete-page': return confirmSheet('¿Borrar este apunte?', 'delete-page', 'Borrar');
     case 'delete-page': {
       const id = S.pageId;
       try { await api.deletePage(id); } catch (err) { return fail(err); }
       S.pages.delete(id);
       for (const c of S.cards.values()) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
-      toast('Apunte eliminado. Sus preguntas se conservan.');
+      toast('Apunte borrado. Sus preguntas se conservan.');
       return go('notes');
     }
     case 'back-study': return go('study');
@@ -499,7 +499,7 @@ document.addEventListener('click', async e => {
         <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
         <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
-        <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Eliminar apunte</b><small>Sus preguntas no se borran: solo dejan de estar unidas a él</small></span></button></li>
+        <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Borrar apunte</b><small>Sus preguntas no se borran: solo dejan de estar unidas a él</small></span></button></li>
       </ul>
       <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
     case 'page-md': {
@@ -543,8 +543,8 @@ document.addEventListener('click', async e => {
     case 'add-template': { const t = readTypeEditor(); t.templates.push({ id: nextId('t', t.templates), name: `Pregunta ${t.templates.length + 1}`, mode: 'flip', front: [t.fields[0].id], back: t.fields.slice(1).map(f => f.id) }); return drawTypeEditor(); }
     case 'delete-type': {
       const t = S.typeEdit; const n = typeUsage(t.id);
-      if (n) return toast(`No se puede eliminar: lo usan ${n} preguntas. Cámbialas de tipo primero.`);
-      try { await api.deleteType(t.id); S.types.delete(t.id); toast('Tipo eliminado'); return typesSheet(); } catch (err) { return fail(err); }
+      if (n) return toast(`No se puede borrar: lo usan ${n} preguntas. Cámbialas de tipo primero.`);
+      try { await api.deleteType(t.id); S.types.delete(t.id); toast('Tipo borrado'); return typesSheet(); } catch (err) { return fail(err); }
     }
     case 'make-cloze': {
       const ta = $('#' + ds.target); const a = ta.selectionStart, z = ta.selectionEnd;
@@ -584,7 +584,7 @@ document.addEventListener('click', async e => {
       try {
         const nd = await api.updateDeck(d.id, { archived: !d.archived });
         S.decks.set(nd.id, { ...d, ...nd });
-        toast(nd.archived ? 'Lista archivada' : 'Lista desarchivada');
+        toast(nd.archived ? 'Lista archivada' : 'Lista fuera del archivo');
         closeSheet(); return renderDeck();
       } catch (err) { return fail(err); }
     }
@@ -655,7 +655,7 @@ document.addEventListener('click', async e => {
       catch (err) { b.disabled = false; fail(err); }
       return;
     }
-    case 'ask-delete-deck': return confirmSheet('¿Eliminar esta lista y todas sus preguntas?', 'delete-deck', 'Eliminar lista');
+    case 'ask-delete-deck': return confirmSheet('¿Borrar esta lista y todas sus preguntas?', 'delete-deck', 'Borrar lista');
     case 'delete-deck': {
       b.disabled = true;
       const folderOfDeleted = S.decks.get(S.deckId)?.folder_id || null;
@@ -663,20 +663,20 @@ document.addEventListener('click', async e => {
         await api.deleteDeck(S.deckId);
         for (const c of cardList()) if (c.deck_id === S.deckId) { S.cards.delete(c.id); S.progress.delete(c.id); }
         S.decks.delete(S.deckId); S.pub = null;
-        toast('Lista eliminada'); return go('decks', { folderId: folderOfDeleted });
+        toast('Lista borrada'); return go('decks', { folderId: folderOfDeleted });
       } catch (err) { b.disabled = false; return fail(err); }
     }
     case 'ask-delete-card': {
       const ids = S.edit?.siblings?.length ? S.edit.siblings : [b.closest('form').dataset.id];
       S.deleting = ids;
-      return confirmSheet(ids.length > 1 ? `¿Eliminar esta nota y sus ${ids.length} preguntas?` : '¿Eliminar esta pregunta?', 'delete-card', 'Eliminar');
+      return confirmSheet(ids.length > 1 ? `¿Borrar esta nota y sus ${ids.length} preguntas?` : '¿Borrar esta pregunta?', 'delete-card', 'Borrar');
     }
     case 'delete-card': {
       const ids = S.deleting || []; b.disabled = true;
       try {
         for (const id of ids) { await api.deleteCard(id); S.cards.delete(id); S.progress.delete(id); }
         if (S.session) { S.session.queue = S.session.queue.filter(x => !ids.includes(x)); S.session.st = null; S.session.revealed = false; }
-        toast(ids.length > 1 ? 'Preguntas eliminadas' : 'Pregunta eliminada'); closeSheet(); return render();
+        toast(ids.length > 1 ? 'Preguntas borradas' : 'Pregunta borrada'); closeSheet(); return render();
       } catch (err) { b.disabled = false; return fail(err); }
     }
     case 'reset-card': {

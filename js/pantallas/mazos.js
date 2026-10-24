@@ -128,9 +128,10 @@ export function renderDeck() {
     <header class="deckhead dk-head">
       <div class="dk-id"><h1 class="dk-title">${esc(d.name)}</h1>${d.description ? `<p class="dk-desc">${fmt(d.description)}</p>` : ''}<p class="dk-meta">${meta}</p></div>
       <div class="dk-today">
-        <div class="dk-num">${avail ? `<b>${avail}</b><span class="dk-para">para hoy</span>` : `<span class="dk-para dk-done">${all.length ? 'al día' : 'vacía'}</span>`}
+        ${d.archived ? `<div class="dk-num dk-arch"><span class="dk-para dk-done">Archivada</span><button class="link" data-act="archive-deck">Sacar del archivo</button></div>
+        <div class="dk-acts">` : `<div class="dk-num">${avail ? `<b>${avail}</b><span class="dk-para">para hoy</span>` : `<span class="dk-para dk-done">${all.length ? 'al día' : 'vacía'}</span>`}
           ${split.length ? `<span class="dk-split">${split.map(s => `<span>${s}</span>`).join('<span class="dk-sep" aria-hidden="true"> · </span>')}</span>` : ''}</div>
-        <div class="dk-acts"><button class="primary big dk-study" data-start="${d.id}" ${avail ? '' : 'disabled'}>${icon('play', { size: 20 })} Estudiar</button>
+        <div class="dk-acts"><button class="primary big dk-study" data-start="${d.id}" ${avail ? '' : 'disabled'}>${icon('play', { size: 20 })} Estudiar</button>`}
           <button class="dk-add" data-act="add-menu" aria-label="Añadir preguntas" aria-haspopup="menu" title="Añadir preguntas">${icon('plus', { size: 24 })}</button>${more}</div>
       </div>
     </header>
@@ -188,7 +189,7 @@ function menuHTML(kind, d, sheet) {
     ${mItem('data-act="share"', 'upload', 'Compartir', 'Con un enlace; quien la añada tendrá su copia')}
     ${mItem('data-act="move-deck"', 'folder-input', 'Mover a otra carpeta')}
     ${mItem('data-act="export-csv"', 'download', 'Exportar', 'En CSV, para Excel u otra app')}
-    ${d.archived ? mItem('data-act="archive-deck"', 'archive', 'Desarchivar', 'Vuelve a salir en Hoy y en las tandas') : mItem('data-act="archive-deck"', 'archive', 'Archivar', 'Deja de salir en Hoy; no se borra nada')}
+    ${d.archived ? mItem('data-act="archive-deck"', 'archive', 'Sacar del archivo', 'Vuelve a salir en Hoy y en las tandas') : mItem('data-act="archive-deck"', 'archive', 'Archivar', 'Deja de salir en Hoy; no se borra nada')}
     ${mItem('data-act="ask-delete-deck"', 'trash-2', 'Borrar lista', '', true)}</div>`;
 }
 export function deckMenu(kind, anchor) {

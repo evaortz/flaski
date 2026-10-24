@@ -105,6 +105,11 @@ function sortPages(list, sort) {
   return list.sort(upd);
 }
 
+// Apuntes y listas juntos: por nombre, mezclados en orden alfabético; con otro orden, primero los apuntes
+function mixed(pages, decks, sort) {
+  if (sort !== 'name') return [...pages, ...decks];
+  return [...pages, ...decks].sort((a, b) => (a.blocks ? pageTitle(a) : a.name).localeCompare(b.blocks ? pageTitle(b) : b.name, 'es'));
+}
 export function renderLibrary() {
   today = new Set(todayQueue('all').ids);
   if (S.folderId && !S.folders.has(S.folderId)) S.folderId = null;
@@ -117,7 +122,9 @@ function renderRoot() {
   const stats = new Map([...S.decks.values()].map(d => [d.id, counts(d.id)]));
   let decks, pages, folders = [];
   if (filtering) {
-    decks = [...S.decks.values()].filter(d => matchesDeck(d, { query: q, tagIds: o.tagIds, archived: o.archived }));
+    // Con una etiqueta, también las listas con alguna pregunta que la lleva
+    const tagged = new Map(o.tagIds.map(t => [t, new Set(cardList().filter(c => (c.tags || []).includes(t)).map(c => c.deck_id))]));
+    decks = [...S.decks.values()].filter(d => matchesDeck(d, { query: q, archived: o.archived }) && o.tagIds.every(t => (d.tags || []).includes(t) || tagged.get(t).has(d.id)));
     pages = o.archived ? [] : [...S.pages.values()].filter(p => (!q || norm(pageSearchText(p)).includes(norm(q))) && o.tagIds.every(t => (p.tags || []).includes(t)));
   } else {
     decks = [...S.decks.values()].filter(d => !d.archived && !inFolder(d));
@@ -128,7 +135,11 @@ function renderRoot() {
   decks = sortDecks(decks.filter(d => !twins.has(d.id)), o.sort, stats);
   pages = sortPages(pages, o.sort);
   const where = x => (filtering && inFolder(x) ? `${folderPath(S.folders, x.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '');
-  const tiles = [...pages.map(p => pageTile(p, { hand: true, where })), ...decks.map(d => deckTile(d, { hand: true, where }))].join('');
+  const tiles = mixed(pages, decks, o.sort).map(x => (x.blocks ? pageTile(x, { hand: true, where }) : deckTile(x, { hand: true, where }))).join('');
+  // Al buscar, también dentro de las preguntas de las listas: pregunta · respuesta · lista (abre la pregunta)
+  const nq = norm(q), qs = nq.length >= 2 ? cardList().filter(c => !!S.decks.get(c.deck_id)?.archived === o.archived && norm(`${plain(c.front)} ${plain(c.back)}`).includes(nq)) : [];
+  const qList = qs.length ? `<div class="section-h"><h2>Preguntas</h2><span class="muted small">${qs.length > 30 ? `30 de ${qs.length}` : qs.length}</span></div>
+    <ul class="lib-qs">${qs.slice(0, 30).map(c => `<li><button class="lib-q" data-card="${c.id}"><span class="lq-f">${esc(plain(c.front).slice(0, 120))}</span><span class="lq-b">${esc(plain(c.back).split(/\n/)[0].slice(0, 120))}</span><span class="lq-d">${esc(S.decks.get(c.deck_id)?.name || '')}</span></button></li>`).join('')}</ul>` : '';
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
     `<button class="tagbtn" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${tagSticker(t, { big: true })}</button>`).join('');
   const studyTag = o.tagIds.length === 1 && !o.archived ? (() => { const c = counts('tag:' + o.tagIds[0]), n = dueOf(c);
@@ -156,7 +167,8 @@ function renderRoot() {
     ${folders.length ? `<ul class="lfolds">${folders.map(folderCard).join('')}</ul>` : ''}
     ${tiles && !filtering && folders.length ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta<span class="lib-drag-hint"> · arrástralos a una carpeta para ordenarlos</span></span></div>' : ''}
     ${filtering ? `<div class="section-h"><h2>${o.archived ? 'Archivadas' : 'Resultados'}</h2></div>` : ''}
-    ${tiles ? `<ul class="ltiles">${tiles}</ul>` : folders.length ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
+    ${tiles ? `<ul class="ltiles">${tiles}</ul>` : folders.length || qList ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
+    ${qList}
     <div class="lib-links"><button class="link" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>${S.pages.size ? '<button class="link" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">Exportar apuntes</button>' : ''}</div>`;
 }
 
@@ -170,7 +182,7 @@ function renderFolder(folder) {
   const decks = sortDecks(here.filter(d => !twins.has(d.id)), S.org.sort, stats);
   const show = k => kind === 'all' || kind === k;
   const where = () => '';
-  const tiles = [show('subs') ? subs.map(subTile).join('') : '', show('notes') ? pages.map(p => pageTile(p, { where })).join('') : '', show('lists') ? decks.map(d => deckTile(d, { where })).join('') : ''].join('');
+  const tiles = [show('subs') ? subs.map(subTile).join('') : '', mixed(show('notes') ? pages : [], show('lists') ? decks : [], S.org.sort).map(x => (x.blocks ? pageTile(x, { where }) : deckTile(x, { where }))).join('')].join('');
   const chip = (k, label, num) => `<button class="fchip" data-libkind="${k}" aria-pressed="${kind === k}">${label} · ${num}</button>`;
   const what = [plural(pages.length, 'apunte', 'apuntes'), plural(here.length, 'lista', 'listas'), subs.length && plural(subs.length, 'subcarpeta', 'subcarpetas'), c.total && plural(c.total, 'pregunta', 'preguntas')].filter(Boolean).join(' · ');
   const path = folderPath(S.folders, folder.id);

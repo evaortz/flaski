@@ -48,7 +48,7 @@ test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lis
   await deckMenu(page, '[data-act="archive-deck"]');
   await expect(page.locator('.dk-meta')).toContainText('archivada');
   await page.locator('#main [data-act="deck-menu"]:visible').click();
-  await expect(page.locator('#sheetBody, #dkPop:not([hidden])').getByText('Desarchivar')).toBeVisible();
+  await expect(page.locator('#sheetBody, #dkPop:not([hidden])').getByText('Sacar del archivo')).toBeVisible();
   await page.locator('#sheetBody [data-act="archive-deck"], #dkPop:not([hidden]) [data-act="archive-deck"]').click();
   await expect(page.locator('.dk-meta')).not.toContainText('archivada');
 

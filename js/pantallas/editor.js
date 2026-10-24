@@ -195,7 +195,7 @@ export function deckForm(d) {
         ${d ? '<div class="btnrow"><button type="button" class="ghost small-btn danger" data-act="ask-reset-deck">Reiniciar el progreso de esta lista</button></div>' : ''}
       </details>
       <label class="check"><input type="checkbox" id="d-public" ${d?.is_public ? 'checked' : ''}><span><b>Compartir con la comunidad</b><br><span class="hint">Cualquier usuario podrá verla en Explorar y copiarla. Tus cambios posteriores no se aplican a sus copias.</span></span></label>
-      <div class="btnrow" style="margin-top:14px">${d ? '<button type="button" class="ghost danger" data-act="ask-delete-deck">Eliminar lista</button>' : ''}<span class="spacer"></span>
+      <div class="btnrow" style="margin-top:14px">${d ? '<button type="button" class="ghost danger" data-act="ask-delete-deck">Borrar lista</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
     </form>`);
 }
@@ -209,9 +209,9 @@ export function folderForm(f) {
       <label>Color de la carpeta</label>${colorPicker(f?.color, FOLDER_COLORS)}
       <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna, en Biblioteca')}
       ${f ? '' : '<p class="hint">Las carpetas son comunes a listas y apuntes: un tema puede tener los dos.</p>'}
-      <div class="btnrow" style="margin-top:14px">${f ? '<button type="button" class="ghost danger" data-act="ask-delete-folder">Eliminar carpeta</button>' : ''}<span class="spacer"></span>
+      <div class="btnrow" style="margin-top:14px">${f ? '<button type="button" class="ghost danger" data-act="ask-delete-folder">Borrar carpeta</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
-      ${f ? '<p class="hint">Al eliminarla, sus listas, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
+      ${f ? '<p class="hint">Al borrarla, sus listas, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
     </form>`);
 }
 // Gestionar etiquetas: cada una con su pegatina, cuántas preguntas la llevan, sus 7 colores, Renombrar y Borrar
@@ -495,7 +495,7 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     </div>
     ${typePickerHTML()}
     <footer class="ed-foot">
-      ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Eliminar</button>
+      ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Borrar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
         ${p ? '<button type="button" class="ghost small-btn" data-act="reset-card">Reiniciar progreso</button>' : ''}` : ''}
       ${side ? `<button type="submit" class="primary">Crear pregunta</button>
@@ -1126,7 +1126,7 @@ export function drawTypeEditor() {
       <button type="button" class="ghost small-btn" data-act="add-template">+ Pregunta</button>
 
       <h3 class="sub-h">Vista previa</h3>${pv || '<p class="hint">Elige qué campos se ven delante.</p>'}
-      <div class="btnrow" style="margin-top:10px">${t.id ? '<button type="button" class="ghost danger" data-act="delete-type">Eliminar tipo</button>' : ''}<span class="spacer"></span>
+      <div class="btnrow" style="margin-top:10px">${t.id ? '<button type="button" class="ghost danger" data-act="delete-type">Borrar tipo</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="manage-types">Volver</button><button type="submit" class="primary">Guardar tipo</button></div>
     </form>`);
 }
