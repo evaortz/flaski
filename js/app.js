@@ -29,7 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
-import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey } from './pantallas/apuntes-repaso.js';
+import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
 import { focusPageBlock } from './pantallas/apuntes.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
@@ -38,13 +38,17 @@ import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, fr
 
 /* ===================== navegación ===================== */
 export function go(view, extra = {}) {
-  if (S.view === 'page' && (view !== 'page' || extra.pageId !== S.pageId)) dropEmptyPage(S.pageId);
+  const leaving = S.view === 'page' && (view !== 'page' || extra.pageId !== S.pageId);
+  if (leaving) dropEmptyPage(S.pageId);
+  // Irse del apunte a mitad de un repaso: se propone crear lo fallado que aún no es pregunta
+  const rvp = leaving ? rvLeave() : null;
   Object.assign(S, { view }, extra);
   closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind(); closeDeckMenu();
   S.bsel = null; S.tocOpen = false;
   render();
   window.scrollTo(0, 0);
   if (S.focusBlock) focusPageBlock();
+  if (rvp) rvOffer(rvp);
 }
 // Un apunte que se deja vacío y sin título (y sin preguntas) se descarta al salir de él
 function dropEmptyPage(id) {
@@ -602,6 +606,7 @@ document.addEventListener('click', async e => {
     case 'ex-dictate': return toggleDictation();
     case 'rv-reveal': return rvReveal();
     case 'rv-make': return rvMake();
+    case 'rv-make-pending': return rvMakePending();
     case 'rv-again': return startReview();
     case 'qs-skip': return qsSkip();
     case 'qs-insert': return qsInsert();

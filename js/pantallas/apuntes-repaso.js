@@ -11,6 +11,7 @@ import { $, S, esc, cardList, toast, fail } from '../comun.js';
 import { getType, recordAnswer } from './estudio.js';
 import { plural } from './mazos.js';
 import { makeSuggested } from './sugerencias.js';
+import { openSheet, closeSheet } from './editor.js';
 import { curPage, renderPage, redrawBlocks, savePageSoon } from './apuntes.js';
 
 const GRADES = [[1, 'Otra vez'], [2, 'Difícil'], [3, 'Bien'], [4, 'Fácil']];
@@ -110,7 +111,8 @@ export function qsInsert() {
 function gapsOf(b, cards) {
   if (!TEXT_BLOCKS.includes(b.type)) return [];
   const out = [];
-  for (const m of b.text.matchAll(/\*\*(.+?)\*\*/g)) out.push({ a: m.index, z: m.index + m[0].length, text: m[1] });
+  // (las que acaban en «:», como «Referéndum:», son títulos de una línea, no lo que hay que saber)
+  for (const m of b.text.matchAll(/\*\*(.+?)\*\*/g)) if (!/[:：]\s*$/.test(m[1])) out.push({ a: m.index, z: m.index + m[0].length, text: m[1] });
   const holes = cards.filter(c => c.type_id === 'cloze' || c.type_id === 'clozechoice').flatMap(c => [...String(c.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]));
   for (const h of holes) {
     const k = b.text.indexOf(h);
@@ -139,7 +141,26 @@ export function startReview() {
   S.rv = { pageId: p.id, items, i: 0, revealed: false, res: new Map(), shownAt: Date.now(), made: false };
   renderPage();
 }
-export function stopReview() { S.rv = null; qsHide(); renderPage(); }
+// Salir de Repasar (a mitad o al final): si fallaste cosas que aún no son pregunta, se proponen como «Hueco»
+export function stopReview() {
+  const R = rvLeave();
+  qsHide();
+  renderPage();
+  if (R) rvOffer(R);
+}
+// Al dejar el repaso (también al irse del apunte): lo que se podría crear, o null
+export function rvLeave() {
+  const R = S.rv;
+  S.rv = null;
+  return R && !R.made && failed(R).some(x => !x.cardId) ? R : null;
+}
+export function rvOffer(R) {
+  S.rvPending = R;
+  const n = failed(R).filter(x => !x.cardId).length;
+  openSheet(`<h2 class="sheet-hand">¿Las creo como preguntas?</h2>
+    <p>Te ${n === 1 ? 'ha costado 1 cosa que aún no es pregunta' : `han costado ${n} cosas que aún no son pregunta`}: ${failed(R).filter(x => !x.cardId).map(x => `«${esc(toPlain(x.text))}»`).join(', ')}.</p>
+    <div class="btnrow"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">No, gracias</button><button type="button" class="primary" data-act="rv-make-pending">Crear ${n === 1 ? '1 pregunta' : `${n} preguntas`} «Hueco»</button></div>`);
+}
 // Se vuelven a pintar los bloques con lo tapado y destapado de ahora
 const rvRedraw = () => { redrawBlocks(); drawReview(); };
 // Después de pintar los bloques: el texto de cada uno con lo que se tapa, y nada se edita al tocarlo
@@ -187,7 +208,7 @@ function drawReviewPanel() {
   const grades = `<div class="rv-grades">${GRADES.map(([g, l]) => `<button type="button" class="grade g${g}" data-rv-grade="${g}"><small>${g}</small> ${l}</button>`).join('')}</div>`;
   if (foot) {
     foot.hidden = !!R.done;
-    foot.innerHTML = R.done ? '' : R.revealed ? `<p class="rv-ask">¿Cómo te ha salido «${esc(toPlain(it.text))}»?</p>${grades}`
+    foot.innerHTML = R.done ? '' : R.revealed ? `<p class="rv-ask">¿Cómo te ha salido «${esc(toPlain(it.text).replace(/[:：]\s*$/, ''))}»?</p>${grades}`
       : `<button type="button" class="primary big rv-open" data-act="rv-reveal">Destapar</button><p class="rv-tip">Toca un hueco para destaparlo · lo que falles y no sea pregunta, te lo propongo al final</p>`;
   }
   document.querySelector('.rv-float')?.remove();
@@ -227,8 +248,8 @@ export function rvGrade(g) {
   document.querySelector(`.rv-gap[data-rv="${R.items[R.i]?.k}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 // Lo que falló y aún no es pregunta, como «Hueco» unido a su frase
-export async function rvMake() {
-  const R = S.rv, p = curPage();
+export async function rvMake(R = S.rv) {
+  const p = R && S.pages.get(R.pageId);
   if (!R || !p) return;
   const picks = [];
   for (const it of failed(R).filter(x => !x.cardId)) {
@@ -245,8 +266,9 @@ export async function rvMake() {
     for (const pk of picks) { const c = made.find(m => m.block_id === pk.blockId && m.fields?.x === pk.fields.x); const it = R.items.find(x => x.k === pk.k); if (c && it) it.cardId = c.id; }
     toast(plural(made.length, 'pregunta creada', 'preguntas creadas'));
   } catch (e) { fail(e); }
-  rvRedraw();
+  if (R === S.rv) rvRedraw(); else if (S.view === 'page' && S.pageId === p.id) renderPage();
 }
+export function rvMakePending() { const R = S.rvPending; S.rvPending = null; closeSheet(); return rvMake(R); }
 export function rvKey(e) {
   if (!rvOn() || e.target.matches?.('input, textarea, select, [contenteditable="true"]') || !$('#sheet').hidden) return false;
   if (e.key === 'Escape') { e.preventDefault(); stopReview(); return true; }

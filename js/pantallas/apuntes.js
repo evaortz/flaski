@@ -248,10 +248,13 @@ export function focusPageBlock() {
   if (!id) return;
   S.focusBlock = null;
   revealBlock(id);
-  const el = document.querySelector(`[data-block="${id}"]`);
-  if (!el) return;
-  el.classList.add('flash');
-  requestAnimationFrame(() => el.scrollIntoView({ block: 'center' }));
+  const find = () => document.querySelector(`#pgBlocks [data-block="${id}"]`);
+  if (!find()) return;
+  find().classList.add('flash');
+  // Cuando la vista ya está pintada (dos fotogramas) y otra vez al poco, por si algo la ha movido (letras, imágenes)
+  const show = () => { const el = find(); if (!el) return; el.classList.add('flash'); const r = el.getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) el.scrollIntoView({ block: 'center' }); };
+  requestAnimationFrame(() => requestAnimationFrame(show));
+  setTimeout(show, 350);
 }
 export const curPage = () => S.pages.get(S.pageId);
 // El título es un cuadro de varias líneas que crece con el texto (en el móvil, uno largo no se corta)

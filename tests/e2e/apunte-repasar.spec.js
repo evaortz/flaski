@@ -104,3 +104,37 @@ test('móvil: el botón «pregunta» de la barra sobre el teclado escribe « >> 
   await expect(page.locator('[data-block-input]')).toHaveText('okul >> escuela');
   await expect(page.locator('#qsHint')).toContainText('okul → escuela');
 });
+
+test('Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no lleva los «:» del final', async ({ page }) => {
+  await notes(page, '# Tema\n\n**Referéndum:** se aprobó en **1978**.\n\nEstructura: tres poderes.');
+  // Un hueco que acaba en «:» (como los de los temas de ejemplo)
+  await page.locator('#pgBlocks .nb', { hasText: 'tres poderes' }).locator('.nb-text').click();
+  await page.locator('[data-block-input]').evaluate(t => { const w = 'Estructura:', k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); });
+  await page.locator('#selBar [data-act="sel-cloze"]').click();
+  await page.locator('.ed-foot button[type="submit"], #sheetBody button[type="submit"]').first().click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await expect(page.locator('#pgBlocks .rv-gap')).toHaveCount(2);                       // «1978» y el hueco; «Referéndum:» no
+  await expect(page.locator('#pgBlocks .nb', { hasText: 'Referéndum' })).toContainText('Referéndum:');
+  await page.locator('#pgBlocks .rv-gap').nth(1).click();
+  await expect(page.locator('#rvFoot .rv-ask')).toHaveText('¿Cómo te ha salido «Estructura»?');
+});
+
+test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco»', async ({ page }) => {
+  await notes(page, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await page.locator('.rv-gap').first().click();
+  await page.locator('[data-rv-grade="1"]:visible').click();
+  await page.locator('[data-act="pg-mode"][data-mode="write"]').first().click();
+  await expect(page.locator('#sheetBody')).toContainText('¿Las creo como preguntas?');
+  await expect(page.locator('#sheetBody')).toContainText('«Madrid»');
+  await page.locator('[data-act="rv-make-pending"]').click();
+  await expect.poll(async () => (await stored(page)).cards.filter(c => c.type_id === 'cloze').map(c => c.fields.x)).toEqual(['La capital es {{Madrid}} y el río es el Manzanares.']);
+  // Irse del apunte a mitad también lo propone
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await page.locator('.rv-gap').nth(1).click();
+  await page.locator('[data-rv-grade="1"]:visible').click();
+  await nav(page, 'Hoy');
+  await expect(page.locator('#sheetBody')).toContainText('«Manzanares»');
+});

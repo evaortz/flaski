@@ -253,4 +253,9 @@ test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» ll
   const block = page.locator('#pgBlocks .nb.flash');
   await expect(block).toContainText('pluralismo');
   await expect.poll(async () => { const r = await block.boundingBox(); return r.y >= 0 && r.y + r.height <= page.viewportSize().height; }).toBe(true);
+  // Y sigue ahí al rato (no vuelve arriba)
+  await page.waitForTimeout(800);
+  const r = await block.boundingBox();
+  expect(r.y >= 0 && r.y + r.height <= page.viewportSize().height).toBe(true);
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
 });
