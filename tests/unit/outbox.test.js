@@ -116,3 +116,16 @@ test('qué errores se reintentan', () => {
   assert.equal(isRetryable({ message: 'new row violates row-level security policy', code: '42501', status: 403 }), false);
   assert.equal(isRetryable({ message: 'duplicate key', code: '23505', status: 409 }), false);
 });
+
+test('borrar una imagen sin conexión queda pendiente, una sola vez, y se envía al volver', async () => {
+  const srv = fakeServer();
+  const box = createOutbox({ key: 'k', run: srv.run, storage: memory() });
+  srv.online = false;
+  await box.push('removeImage', 'u', 'img1');
+  await box.push('removeImage', 'u', 'img1');
+  await box.push('removeImage', 'u', 'img2');
+  assert.equal(box.size, 2);
+  srv.online = true;
+  assert.equal(await box.flush(), true);
+  assert.deepEqual(srv.got, [['removeImage', 'u', 'img1'], ['removeImage', 'u', 'img2']]);
+});

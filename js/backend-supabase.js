@@ -23,6 +23,8 @@ const send = {
   deleteEvent: id => sb.from('review_events').delete().eq('id', id).then(check),
   bumpLog: (uid, day, delta, localCount) => sendBump(uid, day, delta, localCount),
   savePage: page => sb.from('pages').upsert({ ...page, updated_at: new Date().toISOString() }).then(check),
+  // Borrar una imagen que ya no usa nada (p. ej. la anterior de una carpeta)
+  removeImage: async (uid, id) => { const { error } = await sb.storage.from('media').remove([`${uid}/${id}`]); if (error) throw error; },
   saveSettings: (uid, new_per_day, prefs) => {
     const row = { user_id: uid, new_per_day };
     if (prefs) row.prefs = prefs;
@@ -311,16 +313,15 @@ export function imageStore(uid) {
       if (error) throw error;
       return data;
     },
-    async remove(id) {
-      const { error } = await bucket().remove([`${uid}/${id}`]);
-      if (error) throw error;
-    },
+    // Por la cola de envíos: sin conexión queda pendiente y se borra al volver la red
+    remove: id => removeImage(uid, id),
   };
 }
 
 /* ---------------- Apuntes ---------------- */
 // Se guarda la página entera por la cola: escribir apuntes sin conexión no pierde nada
 export const savePage = queued('savePage');
+const removeImage = queued('removeImage');
 // Crear sin pasar por la cola (al restaurar copias hay que saber al momento si el id ya existe)
 export async function createPage(fields) {
   return check(await sb.from('pages').insert(fields).select().single());

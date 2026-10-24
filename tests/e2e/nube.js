@@ -45,6 +45,7 @@ export async function mockCloud(page) {
       const key = decodeURIComponent(obj[1]);
       // Borrar: DELETE /storage/v1/object/<almacén> con { prefixes: [rutas] }
       if (req.method() === 'DELETE') {
+        if (srv.storageDown) return route.abort('internetdisconnected');   // la red falla justo al borrar
         const gone = (req.postDataJSON()?.prefixes || []).map(p => `${key}/${p}`).filter(k => srv.files.delete(k));
         return json(gone.map(name => ({ name })));
       }

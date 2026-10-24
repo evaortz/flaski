@@ -115,3 +115,36 @@ test('con cuenta, cambiar la imagen de una carpeta borra la anterior también de
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await expect.poll(() => [...srv.files.keys()]).toEqual([`media/${UID}/${second}`]);
 });
+
+test('si la red falla al borrar la imagen anterior de una carpeta, el borrado espera en la cola y se envía al volver', async ({ page }) => {
+  const PNG = { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64') };
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await nav(page, 'Biblioteca');
+  const pick = async () => {
+    await page.locator('[data-icon-tab="img"]').click();
+    const ch = page.waitForEvent('filechooser');
+    await page.locator('[data-act="folder-image"]').click();
+    await (await ch).setFiles(PNG);
+    await expect(page.locator('#f-icon')).toHaveValue(/^i:/);
+    return (await page.locator('#f-icon').inputValue()).slice(2);
+  };
+  await page.locator('#main [data-act="new-folder"]').first().click();
+  await page.locator('#fo-name').fill('Viajes');
+  const first = await pick();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(() => [...srv.files.keys()]).toContain(`media/${UID}/${first}`);
+  // Cambiar la imagen con la red cortada para el borrado
+  srv.storageDown = true;
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await page.locator('[data-act="clear-icon"]').click();
+  const second = await pick();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#net')).toContainText('1 cambio por enviar');
+  expect([...srv.files.keys()]).toContain(`media/${UID}/${first}`);
+  // Vuelve la red: se borra
+  srv.storageDown = false;
+  await page.evaluate(() => dispatchEvent(new Event('online')));
+  await expect(page.locator('#net')).toBeHidden();
+  await expect.poll(() => [...srv.files.keys()]).toEqual([`media/${UID}/${second}`]);
+});
