@@ -55,13 +55,15 @@ export function faceHTML(model, st, { preview = false } = {}) {
   const val = id => String(fields[id] ?? '');
   const say = id => (fdef(id)?.lang && ttsAvailable() && val(id).trim()
     ? `<button type="button" class="say" ${preview ? 'data-say-input' : 'data-say'}="${id}" aria-label="Escuchar ${esc(fdef(id).name)}" title="Escuchar">${SPEAK_ICON}</button>` : '');
-  const block = (id, main) => {
+  const block = (id, main, extra = '') => {
     const v = val(id);
     if (!v.trim()) return '';
     const label = !main && fdef(id) ? `<div class="fld-l">${esc(fdef(id).name)}</div>` : '';
     // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal
-    const plain = stripRuby(v), size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
-    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${say(id)}${strokesBtn(id)}</div></div>`;
+    const plain = stripRuby(v), lang = fdef(id)?.lang || '';
+    const ja = /^ja/.test(lang) || (!lang && /[぀-ヿ]/.test(plain)) ? ' fld-ja' : '';
+    const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
+    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${say(id)}${strokesBtn(id)}${extra}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
   const strokesBtn = id => {
@@ -70,13 +72,22 @@ export function faceHTML(model, st, { preview = false } = {}) {
     return chars.length && chars.length <= 6 ? `<button type="button" class="say" data-strokes="${id}" aria-label="Ver orden de trazos" title="Orden de trazos">${BRUSH_ICON}</button>` : '';
   };
 
+  // Escribir, dictado, ordenar o dibujar ya resueltos y sin más campos que enseñar: sin caja de respuesta;
+  // su altavoz (y el orden de trazos) va junto a la pregunta
+  const rest = tpl.back.filter(x => x !== tpl.answer).map(id => block(id, false)).join('');
+  const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
+  const sayAns = st.revealed && ['type', 'listen', 'order', 'draw'].includes(tpl.mode) && resolved && !rest ? say(tpl.answer) + strokesBtn(tpl.answer) : '';
+
   // Anverso
   let front;
   if (tpl.mode === 'occlusion') front = occlusionHTML(val(tpl.image), val(tpl.answer), tpl.mask, st.revealed) + tpl.front.map(id => block(id, false)).join('');
   else if (tpl.mode === 'match' && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">Une cada elemento con su pareja</span></div></div>`;
   else if (tpl.mode === 'clozechoice') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.answer), st.revealed)}</span>${st.revealed ? say(tpl.answer) : ''}</div></div>`;
   else if (tpl.mode === 'cloze') front = `<div class="fld fld-main fld-cloze"><div class="fld-v"><span class="fld-t">${clozeHTML(val(tpl.front[0]), st.revealed)}</span>${say(tpl.front[0])}</div></div>`;
-  else front = tpl.front.map((id, i) => block(id, i === 0)).join('');
+  else {
+    front = tpl.front.map((id, i) => block(id, i === 0, i === 0 ? sayAns : '')).join('');
+    if (sayAns && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v">${sayAns}</div></div>${front}`;
+  }
   if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
 
   // Interacción antes de destapar
@@ -210,10 +221,8 @@ export function faceHTML(model, st, { preview = false } = {}) {
     else if (['cloze', 'choice', 'match', 'occlusion', 'conj', 'sort', 'clozechoice', 'number'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
-      const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
-      const rest = tpl.back.filter(x => x !== tpl.answer).map(id => block(id, false)).join('');
       const sayAgain = fdef(tpl.answer)?.lang ? `<div class="fld"><div class="fld-v">${say(tpl.answer)}${strokesBtn(tpl.answer)}</div></div>` : '';
-      answer = (resolved ? sayAgain : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest;
+      answer = sayAns ? '' : (resolved ? sayAgain : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest;
     }
   }
   return { front, ask, answer };

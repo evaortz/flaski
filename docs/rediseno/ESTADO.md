@@ -63,3 +63,9 @@
 - Prueba nueva `tanda-tipos.spec.js`: una pregunta de cada uno de los 19 tipos, la responde, comprueba que nada se sale de la pantalla y que salen los 4 botones con intervalo; en el móvil guarda capturas en `tests/test-results/tanda/`. Arreglado al recorrerlos: clasificar y conjugar ilegibles sobre azul, la fila de respuesta numérica se salía y la respuesta con kanji salía pequeña.
 - No hecho (sale en las capturas pero no existe en la app): los dibujos de cada pregunta, las pistas de deslizar alrededor de la pregunta (↑ fácil, ← otra vez…), «en el metro» y «Lo que entiendes» del final (fase 9).
 - Dudas: Klee One no está en `fonts/` (el japonés grande usa la letra del sistema); ¿añadirla? Con «escribir la respuesta», ordenar o dictado acertados, la caja «respuesta» solo lleva el altavoz: ¿se quita la caja en ese caso? El atajo «Espacio: mostrar · 1-4: valorar» sigue saliendo en el móvil si está activado en Ajustes.
+
+## Fase 5b · dudas resueltas
+- Klee One (Google Fonts, peso 600) solo para el japonés grande de la tanda: campos con kanji en listas de japonés (o con kana si el campo no tiene idioma). Si no carga, la letra del sistema. El service worker guarda su hoja de estilos (red primero) y sus archivos (la primera vez) en `flaski-fonts-v1`, que no se borra al cambiar de versión. `sw.js` → `flaski-v93`.
+- Escribir la respuesta, Ordenar frase, Dictado (y Escribir a mano con dibujo libre) ya resueltos y sin más campos que enseñar: no sale la caja «respuesta»; su altavoz (y el orden de trazos) va junto a la pregunta. Vale también si fallas, porque la corrección ya enseña la respuesta.
+- «Espacio: mostrar · 1-4: valorar» no sale en pantallas táctiles (`pointer: coarse`), aunque los atajos estén activados.
+- Duda: si la pregunta ya tiene su altavoz (p. ej. la traducción en Ordenar frase), salen dos altavoces seguidos; cada uno dice qué lee al pasar por encima, pero a la vista son iguales.
