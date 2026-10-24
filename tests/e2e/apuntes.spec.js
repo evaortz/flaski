@@ -322,7 +322,8 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await expect(page.locator('#main .fhero .lfold-draw')).toHaveAttribute('data-dw', 'economia');
   await expect(page.locator('#main .lib-top .crumbs')).not.toContainText('d:');
   await pasteNotes(page, '# Tema 1\n\nTexto.');
-  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Biblioteca\s*\/\s*Macro\s*\/\s*Tema 1/);
+  await expect(page.locator('.pg-top .crumbs')).toHaveText(/Biblioteca\s*\/\s*Macro\s*\/\s*Tema( 1|…)/);   // si no cabe, se corta en palabra entera
+  await expect(page.locator('.pg-top .crumb-cur')).toHaveAttribute('data-full', 'Tema 1');
   await nav(page, 'Biblioteca');
   const card = page.locator('#main .lfold', { hasText: 'Macro' });
   await expect(card.locator('svg.lfold-draw')).toHaveAttribute('data-dw', 'economia');

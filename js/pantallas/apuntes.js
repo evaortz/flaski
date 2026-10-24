@@ -225,6 +225,7 @@ export function renderPage() {
   if (S.bsel?.pageId !== p.id) S.bsel = null;
   growTitle();
   fitCrumbs();
+  requestAnimationFrame(fitCrumbs);
   afterBlocksDrawn();
   if (S.focusBlock) {
     revealBlock(S.focusBlock);
@@ -247,6 +248,7 @@ export function fitCrumbs() {
   for (const el of document.querySelectorAll('.pg-top .crumb-cur')) {
     const full = el.dataset.full || el.textContent;
     el.dataset.full = full; el.textContent = full; el.removeAttribute('title');
+    if (!el.clientWidth) continue;   // aún sin pintar: se mide en el siguiente fotograma
     const w = full.split(' ');
     while (el.scrollWidth > el.clientWidth + 1 && w.length > 1) {
       w.pop();
