@@ -3287,3 +3287,39 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 @media (max-width:599px){.dk-qh{flex-wrap:wrap}.dk-qh .mp-seg{flex:1 1 100%}.dk-qh .mp-seg .seg-b{flex:1;min-width:0}}
 .ed-tools{max-width:100%;min-width:0}
 @media (max-width:599px){.ed-tools{flex-wrap:wrap;overflow-x:visible}}
+
+/* ===================== Entender: Explícalo y ¿Qué pasaría si…? ===================== */
+.grades.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ent-grades .grade{white-space:normal;line-height:1.15}
+.ent-chip{display:inline-block;align-self:flex-start;margin:0 0 10px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,.95);color:#16183A;font-size:13px;font-weight:700}
+.card.mode-explain .front,.card.mode-whatif .front{display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.ent-modes{display:flex;gap:8px;margin:14px 0 8px}
+.ent-modes button{border:1.5px solid rgba(255,255,255,.45);background:transparent;color:inherit;border-radius:99px;min-height:44px;padding:0 18px;font:inherit;font-weight:600;cursor:pointer}
+.ent-modes button[aria-pressed="true"]{background:#fff;color:var(--accent);border-color:#fff}
+.ent-tip,.ent-q{opacity:.8;font-size:15px;margin:6px 0 0}
+.ent-text{width:100%;min-height:110px;border-radius:16px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:inherit;padding:12px 14px;font:inherit;font-size:16px;resize:vertical}
+.ent-text::placeholder{color:inherit;opacity:.6}
+.ent-mic{margin:4px 0 8px;color:inherit;border-color:rgba(255,255,255,.45)}
+.wi-rows{width:100%;margin-top:10px}
+.wi-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.2)}
+.wi-name{font-family:var(--font-hand);font-size:22px}
+.wi-btns{display:flex;gap:8px}
+.wi-b{width:48px;height:48px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:inherit;font-size:20px;cursor:pointer}
+.wi-b[aria-pressed="true"]{background:#fff;color:var(--accent);border-color:#fff}
+.wi-b.is-right{background:#8EE3B5;color:#16183A;border-color:#8EE3B5}
+.wi-b.is-wrong{background:#FF9F92;color:#16183A;border-color:#FF9F92}
+.wi-b:disabled{cursor:default}
+.ent-ideas{text-align:left;width:100%}
+.ent-h{font-family:var(--font-hand);font-weight:400;font-size:26px;margin:0}
+.ent-sub{font-size:14px;opacity:.8;margin:4px 0 8px}
+.ent-idea{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:16px;cursor:pointer}
+.ent-idea input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.ent-verdict{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:12px 0 0;font-size:14px}
+.ent-verdict b{font-family:var(--font-hand);font-weight:400;font-size:19px}
+.ent-done{text-align:left;width:100%;margin:18px 0 8px}
+.ent-done h3{font-family:var(--font-hand);font-weight:400;font-size:28px;margin:0}
+.ent-done p{opacity:.8;font-size:13.5px;margin:2px 0 8px}
+.ent-done ul{list-style:none;margin:0;padding:0}
+.ent-done li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.2)}
+.ent-pill{flex:none;padding:4px 12px;border-radius:99px;color:#16183A;font-size:13px}
+.ent-pill.eg1{background:#FF9F92}.ent-pill.eg2{background:#FFC36B}.ent-pill.eg3,.ent-pill.eg4{background:#8EE3B5}

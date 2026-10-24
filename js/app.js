@@ -20,7 +20,7 @@ import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
-import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
+import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
@@ -142,6 +142,9 @@ document.addEventListener('click', async e => {
   if ('mapView' in ds) { setMapView(ds.scope, ds.mapView === 'map'); return render(); }
   if (ds.mapCell) return cellClick(b, e);
   // Repasar un apunte: tocar lo tapado lo destapa; los 4 botones, como en la tanda
+  // Entender: cómo lo explicas, ↑ = ↓ de cada efecto y dictar
+  if (ds.exMode && S.session?.st?.ex) { S.session.st.ex.mode = ds.exMode; renderStudy(); if (ds.exMode !== 'think') $('#exText')?.focus(); return; }
+  if (ds.wi && S.session?.st?.ex) { const [i, d] = ds.wi.split(':'); S.session.st.ex.picks[+i] = d; return renderStudy(); }
   if (ds.rv) return rvReveal(Number(ds.rv));
   if (ds.rvGrade) return rvGrade(Number(ds.rvGrade));
   if (ds.remindAt) {
@@ -596,6 +599,7 @@ document.addEventListener('click', async e => {
     // Editor en el móvil: Borrar, Duplicar y Reiniciar progreso en «⋯ Más»
     case 'ed-extra': { const f = b.closest('.ed-foot'), on = !f.classList.contains('show-extra'); f.classList.toggle('show-extra', on); b.setAttribute('aria-expanded', on); return; }
     case 'pg-mode': return ds.mode === 'review' ? (rvOn() ? null : startReview()) : (rvOn() ? stopReview() : null);
+    case 'ex-dictate': return toggleDictation();
     case 'rv-reveal': return rvReveal();
     case 'rv-make': return rvMake();
     case 'rv-again': return startReview();
@@ -802,6 +806,7 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'f-newtag') return filterTagPicker();
+  if (e.target.id === 'exText' && S.session?.st?.ex) { S.session.st.ex.text = e.target.value; return; }
   if (e.target.id === 'typeSearch' && S.pick) { S.pick.q = e.target.value; return drawTypePicker(); }
   if (e.target.matches?.('.tc')) { histRecord('type'); autoGrow(e.target); placeTblHandles(e.target.parentElement); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
   if (e.target.matches?.('[data-block-input]')) {
@@ -903,6 +908,7 @@ document.addEventListener('change', async e => {
     setPref(path, v); return prefChanged(path);
   }
   if (e.target.name === 'f-tag' && S.edit?.open) S.edit.dirty = true;
+  if (e.target.dataset?.idea != null && S.session?.st?.ex?.ideas) { S.session.st.ex.ideas[+e.target.dataset.idea] = e.target.checked; const y = scrollY; renderStudy(); scrollTo(0, y); return; }
   if (e.target.name === 'f-tag' && e.target.closest('.tagpick.compact')) { redrawTagPicker(); $('#tagPick .tag-add')?.focus(); }
   if (e.target.id === 'pgDeck') { const p = curPage(); if (p) { p.deck_id = e.target.value || null; savePageSoon(p); } }
   if (e.target.id === 'pgFolder') {
@@ -974,7 +980,7 @@ document.addEventListener('keydown', e => {
   const ses = S.session; const c = S.cards.get(ses.queue[0]); const mode = c ? cardModel(c).tpl.mode : 'flip';
   if ((e.key === ' ' || e.key === 'Enter') && !ses.revealed && ses.queue.length && ['flip', 'cloze', 'occlusion'].includes(mode)) { e.preventDefault(); reveal(); }
   else if (!ses.revealed && (mode === 'choice' || mode === 'clozechoice') && /^[1-4]$/.test(e.key)) { e.preventDefault(); document.querySelector(`[data-choice="${+e.key - 1}"]`)?.click(); }
-  else if (ses.revealed && /^[1-4]$/.test(e.key)) { e.preventDefault(); grade(Number(e.key)); }
+  else if (ses.revealed && /^[1-4]$/.test(e.key) && !(ENT_MODES.includes(mode) && e.key === '4')) { e.preventDefault(); grade(Number(e.key)); }
 });
 
 /* ===================== arranque ===================== */

@@ -277,7 +277,7 @@ function defaultTypeFor(deckId) {
   return [lastTypeFor(deckId), ...suggestedTypes(deckId)].map(getType).find(fits) || BUILTIN_TYPES[0];
 }
 // Los 4 tipos a un toque, fijos según el idioma de la lista (el elegido, si no está entre ellos, ocupa el cuarto)
-const SHORT_NAME = { reverse: 'Con inversa', typing: 'Escribir respuesta' };
+const SHORT_NAME = { reverse: 'Con inversa', typing: 'Escribir respuesta', explain: 'Explícalo' };
 function segTypes(deckId) {
   const study = deckLang(deckId);
   const base = study ? ['vocab', 'basic', 'typing', BUILTIN_TYPES.find(t => typeFit(t, study) === 'own' && !typeHidden(t))?.id || 'listen'] : ['basic', 'reverse', 'cloze', 'choice'];
@@ -293,13 +293,14 @@ export function typeSegs(sel, deckId, attr = 'data-set-type') {
     return `<button type="button" class="ed-seg${id === sel ? ' ed-typesel' : ''}" ${attr}="${id}" aria-pressed="${id === sel}" title="${esc(t.name)}">${esc(SHORT_NAME[id] || t.name)}</button>`;
   }).join('')}</div><button type="button" class="ed-seg-more" data-act="pick-type" aria-haspopup="dialog">Más tipos ${icon('chevron-down', { size: 15 })}</button>`;
 }
-// Todos los tipos, por lo que se hace con ellos (Explícalo y ¿Qué pasaría si…? llegarán con la fase 9)
+// Todos los tipos, por lo que se hace con ellos
 const TYPE_GROUPS = [
   ['Recordar', ['basic', 'reverse', 'vocab', 'de-noun']],
   ['Escribir', ['typing', 'kanji', 'handwrite', 'listen', 'conj', 'number']],
   ['Elegir', ['choice', 'truefalse', 'clozechoice']],
   ['Completar', ['cloze']],
   ['Relacionar y ordenar', ['match', 'sort', 'order', 'steps']],
+  ['Entender', ['explain', 'whatif']],
   ['Con imagen', ['occlusion']],
 ];
 const langOf = t => { const s = typeScope(t); return Array.isArray(s) && s.length === 1 ? (LANGS.find(l => l.id && baseLang(l.id) === s[0])?.label || '').toLowerCase() : ''; };

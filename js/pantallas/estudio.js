@@ -6,6 +6,7 @@ import { pace, tandaSize, composeShort, TANDA_MINUTES } from '../tanda.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, legacyFields, choiceOptions, resolveType, parsePairs, parseMasks, imageIdIn, parseGroups, clozeAnswer } from '../cardtypes.js';
 import { isShortText } from '../inline.js';
+import { ideasOf, ideaHit, parseEffects, suggestGrade, verdictText } from '../entender.js';
 import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
@@ -226,6 +227,14 @@ export function faceHTML(model, st, { preview = false } = {}) {
       const m = st.drawn.mistakes;
       ask = `<div class="verdict ${m ? 'bad' : 'ok'}" style="text-align:center">${m ? `${m} ${m === 1 ? 'trazo fallado' : 'trazos fallados'}` : `${icon('check', { size: 16 })} Todos los trazos bien`}${st.drawn.peeked ? ' · miraste la animación' : ''}</div>`;
     }
+  }
+
+  // Entender: Explícalo y ¿Qué pasaría si…?
+  if (tpl.mode === 'explain' || tpl.mode === 'whatif') {
+    const ent = entenderHTML(model, st, { preview });
+    front = `<span class="ent-chip">${tpl.mode === 'explain' ? 'Explícalo con tus palabras' : '¿Qué pasaría si…?'}</span>${front}`;
+    ask = ent.ask;
+    if (st.revealed) return { front, ask, answer: ent.answer + tpl.back.map(id => block(id, false)).join('') };
   }
 
   // Respuesta
@@ -501,6 +510,83 @@ function cardState(c) {
   ses.shownAt = Date.now();   // para medir el tiempo de cada pregunta
   return st;
 }
+/* ---------- Entender: Explícalo y ¿Qué pasaría si…? ---------- */
+const DIRS = [['up', '↑', 'Sube'], ['eq', '=', 'Igual'], ['down', '↓', 'Baja']];
+export const ENT_MODES = ['explain', 'whatif'];
+const ENT_GRADES = [{ g: 1, label: 'Todavía no' }, { g: 2, label: 'A medias' }, { g: 3, label: 'Lo sé explicar' }];
+const ENT_LABEL = { 1: 'Todavía no', 2: 'A medias', 3: 'Lo sabrías explicar', 4: 'Lo sabrías explicar' };
+// Fin de tanda con preguntas de entender: «Lo que entiendes», por ideas (la última respuesta de cada una)
+function entDoneHTML(ses) {
+  const last = new Map();
+  for (const x of ses.ent || []) last.set(x.id, x.g);
+  if (!last.size) return '';
+  const rows = [...last].map(([id, g]) => { const c = S.cards.get(id); return c ? `<li><span>${esc(String(c.front).split('\n')[0].slice(0, 70))}</span><b class="ent-pill eg${g}">${ENT_LABEL[g]}</b></li>` : ''; }).join('');
+  return `<section class="ent-done"><h3>Lo que entiendes</h3><p>Por ideas de tu apunte, no por aciertos.</p><ul>${rows}</ul></section>`;
+}
+const canDictate = () => typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+// El estado de una pregunta de entender: modo, lo escrito, ↑ = ↓ elegidos e ideas marcadas
+function entState(model, st) {
+  if (!st.ex) {
+    const effects = model.tpl.mode === 'whatif' ? parseEffects(model.fields.e) : [];
+    st.ex = { mode: 'think', text: '', effects, picks: effects.map(() => null), ideas: null };
+  }
+  return st.ex;
+}
+// Lo que se lleva acertado: ideas marcadas y, en ¿Qué pasaría si…?, efectos bien elegidos → { hits, total }
+export function entScore(model, st) {
+  const ex = entState(model, st), ideas = ideasOf(model.fields[model.tpl.answer]);
+  const okFx = ex.effects.filter((f, i) => ex.picks[i] === f.dir).length;
+  const okIdeas = (ex.ideas || []).filter(Boolean).length;
+  return { hits: okFx + okIdeas, total: ex.effects.length + ideas.length };
+}
+function entenderHTML(model, st, { preview = false } = {}) {
+  const ex = entState(model, st), ideas = ideasOf(model.fields[model.tpl.answer]), fx = ex.effects;
+  let ask = '';
+  if (fx.length) {
+    // ↑ = ↓ en cada efecto (al comprobar: bien o mal, y la correcta)
+    ask = `${model.fields.p ? '' : '<p class="ent-q">¿Qué pasa con…?</p>'}<div class="wi-rows">${fx.map((f, i) => `<div class="wi-row"><span class="wi-name">${esc(f.name)}</span><span class="wi-btns" role="group" aria-label="${esc(f.name)}">${DIRS.map(([d, sym, label]) => {
+      const cls = st.revealed ? (d === f.dir ? ' is-right' : ex.picks[i] === d ? ' is-wrong' : '') : '';
+      return `<button type="button" class="wi-b${cls}" data-wi="${i}:${d}" aria-pressed="${ex.picks[i] === d}" aria-label="${label}" ${st.revealed || preview ? 'disabled' : ''}>${sym}</button>`;
+    }).join('')}</span></div>`).join('')}</div>`;
+  } else if (!st.revealed) {
+    const modes = [['write', 'Escribir'], ...(canDictate() ? [['dictate', 'Dictar']] : []), ['think', 'Pensarlo']];
+    ask = `<div class="ent-modes" role="group" aria-label="Cómo lo explicas">${modes.map(([m, l]) => `<button type="button" data-ex-mode="${m}" aria-pressed="${ex.mode === m}" ${preview ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+      ${ex.mode === 'think' ? '<p class="ent-tip">Piénsalo en voz baja, como si se lo contaras a alguien. Luego compara con tu apunte.</p>'
+        : `${ex.mode === 'dictate' ? `<button type="button" class="ghost small-btn ent-mic" data-act="ex-dictate">${icon('mic', { size: 16 })} ${S.dictating ? 'Parar' : 'Empezar a dictar'}</button>` : ''}
+        <textarea id="exText" class="ent-text" rows="4" placeholder="${ex.mode === 'dictate' ? 'Aquí sale lo que dictas' : 'Explícalo como se lo contarías a alguien'}" ${preview ? 'disabled' : ''}>${esc(ex.text)}</textarea>`}`;
+  }
+  let answer = '';
+  if (st.revealed && ideas.length) {
+    // Al destapar: las ideas que salen en lo escrito, ya marcadas (se pueden cambiar)
+    if (!ex.ideas) ex.ideas = ideas.map(idea => !!ex.text.trim() && ideaHit(idea, ex.text));
+    answer = `<div class="ent-ideas"><h3 class="ent-h">${fx.length ? '¿Por qué?' : '¿Qué ideas te salieron?'}</h3><p class="ent-sub">Las ideas clave de tu apunte. Marca las que dijiste.</p>
+      ${ideas.map((idea, i) => `<label class="ent-idea"><input type="checkbox" data-idea="${i}" ${ex.ideas[i] ? 'checked' : ''}><span>${fmt(idea)}</span></label>`).join('')}</div>`;
+  }
+  if (st.revealed) {
+    const { hits, total } = entScore(model, st);
+    answer += `<p class="ent-verdict"><span>¿Cómo lo ves?</span><b>${esc(verdictText(hits, total))}</b></p>`;
+  }
+  return { ask, answer };
+}
+// Dictar: lo que se oye va al cuadro de texto (se puede corregir a mano)
+let rec = null;
+export function toggleDictation() {
+  const st = S.session?.st, el = $('#exText');
+  if (!st?.ex) return;
+  if (rec) { rec.stop(); return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!R) return toast('Este navegador no puede dictar: escríbelo o piénsalo');
+  rec = new R();
+  rec.lang = 'es-ES'; rec.interimResults = true; rec.continuous = true;
+  const base = st.ex.text ? st.ex.text.replace(/\s*$/, ' ') : '';
+  rec.onresult = e => { st.ex.text = base + [...e.results].map(r => r[0].transcript).join(' '); if (el?.isConnected) el.value = st.ex.text; };
+  rec.onend = () => { rec = null; S.dictating = false; renderStudy(); };
+  rec.onerror = () => toast('No se ha podido dictar');
+  S.dictating = true;
+  rec.start();
+  renderStudy();
+}
+
 // Fin de tanda: la carita dibujada a mano
 const DONE_FACE = `<svg class="done-face" viewBox="0 0 80 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
   <path d="M10 14l5 5M24 6l2 7M40 3v7M56 6l-2 7M70 14l-5 5"/><path d="M27 32q3-5 6 0M47 32q3-5 6 0"/><path d="M20 42q20 22 40 0"/></svg>`;
@@ -553,7 +639,7 @@ export function renderStudy() {
     // Tanda corta: lo que queda para hoy y otra tanda igual
     if (ses.minutes) {
       const left = todayQueue('all').ids.length, done = doneToday(), tandas = tandasToday();
-      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}
+      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}${entDoneHTML(ses)}
         ${left ? `<div class="done-left"><small>Para hoy</small><b>${left === 1 ? 'te queda 1' : `te quedan ${left}`}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
         <div class="done-go">${left > 1 ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
@@ -562,7 +648,7 @@ export function renderStudy() {
       return;
     }
     const more = ses.picked ? 0 : Math.min(10, freshLeft(ses.scope));
-    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}
+    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}
       <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
     return;
   }
@@ -580,7 +666,9 @@ export function renderStudy() {
   if (ses.revealed) {
     const now = Date.now();
     const d = st.drawn;
-    const suggest = st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
+    const ent = ENT_MODES.includes(model.tpl.mode);
+    const suggest = ent ? (() => { const { hits, total } = entScore(model, st); return suggestGrade(hits, total); })()
+      : st.typed ? (st.typed.ok ? 3 : st.typed.near ? 2 : 1)
       : st.choice && st.choice.picked >= 0 ? (st.choice.opts[st.choice.picked] === st.choice.correct ? 3 : 1)
       : st.order?.checked ? (st.order.ok ? 3 : 1)
       : st.sort?.checked ? (() => { const bad = st.sort.items.filter(it => st.sort.place[it.i] !== it.g).length; return bad === 0 ? 3 : bad === 1 ? 2 : 1; })()
@@ -591,8 +679,11 @@ export function renderStudy() {
       : d && !d.img && !d.gaveUp ? (() => { const avg = d.mistakes / Math.max(1, d.n); return avg === 0 && !d.peeked ? 3 : avg <= 2 && !(d.peeked && avg > 0) ? 2 : 1; })()
       : d?.gaveUp || st.gaveUp ? 1 : 0;
     const P = S.prefs.study, A = algo(c.deck_id);
-    const gs = P.buttons === 2 ? GRADES.filter(x => x.g === 1 || x.g === 3) : GRADES;
-    foot = `<div class="grades${gs.length === 2 ? ' two' : ''}">${gs.map(({ g, label }) => `<button class="grade g${g}${P.suggest && g === suggest ? ' suggested' : ''}" data-grade="${g}">${label}${P.showIntervals ? `<small>${fmtWhen(schedule(p, g, now, A).due, now)}</small>` : ''}</button>`).join('')}</div>`;
+    // Entender: Todavía no · A medias · Lo sé explicar (= Otra vez · Difícil · Bien)
+    const gs = ent ? ENT_GRADES : P.buttons === 2 ? GRADES.filter(x => x.g === 1 || x.g === 3) : GRADES;
+    foot = `<div class="grades${gs.length === 2 ? ' two' : gs.length === 3 ? ' three ent-grades' : ''}">${gs.map(({ g, label }) => `<button class="grade g${g}${P.suggest && g === suggest ? ' suggested' : ''}" data-grade="${g}">${label}${P.showIntervals ? `<small>${fmtWhen(schedule(p, g, now, A).due, now)}</small>` : ''}</button>`).join('')}</div>`;
+  } else if (ENT_MODES.includes(model.tpl.mode)) {
+    foot = `<button class="primary big" data-act="reveal">${entState(model, st).effects.length ? 'Comprobar' : 'Ver las ideas clave'}</button>`;
   } else if (NEEDS_ANSWER.includes(model.tpl.mode)) {
     foot = '<button class="ghost big" data-act="reveal" data-giveup="1">No lo sé, ver respuesta</button>';
   } else {
@@ -623,7 +714,7 @@ export function renderStudy() {
     const two = S.prefs.study.buttons === 2;
     const map = { left: 1, right: 3, up: 4, down: 2 };
     const sw = swipeable(main.querySelector('article.card'), {
-      dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
+      dirs: ENT_MODES.includes(model.tpl.mode) ? { left: 'Todavía no', right: 'Lo sé explicar', up: null, down: 'A medias' } : { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
       onCross: () => haptic('tick'),
       onSwipe: d => { countSwipe(); grade(map[d]); },
       // Mientras arrastras, las cuatro direcciones (si aún te hacen falta)
@@ -716,6 +807,7 @@ export function grade(g) {
   if (next.interval === 0 && next.due > now) ses.queue.splice(Math.min(ses.queue.length, g === 1 ? 3 : 6), 0, id);
   else ses.done++;
   ses.tally[g]++;
+  if (ENT_MODES.includes(cardModel(S.cards.get(id) || {}).tpl?.mode)) (ses.ent ||= []).push({ id, g });
   ses.revealed = false;
   ses.st = null;
   feedback(!ses.queue.length ? 'done' : g === 1 ? 'again' : 'ok', !ses.queue.length ? null : g);

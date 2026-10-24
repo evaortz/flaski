@@ -24,6 +24,8 @@ export const MODES = [
   { id: 'number', label: 'Respuesta numérica', help: 'Escribes un número o un año; se acepta con el margen que pongas.' },
   { id: 'conj', label: 'Conjugar', help: 'Escribes todas las formas de una tabla (persona → forma) y se corrigen una a una.' },
   { id: 'match', label: 'Emparejar', help: 'Unes cada elemento con su pareja. Una pareja por línea: «ev = casa».' },
+  { id: 'explain', label: 'Explícalo', builtinOnly: true, help: 'Lo explicas con tus palabras (escribiendo, dictando o pensándolo) y luego marcas qué ideas clave te salieron.' },
+  { id: 'whatif', label: '¿Qué pasaría si…?', builtinOnly: true, help: 'Un caso: dices qué sube, qué baja y qué se queda igual (o lo explicas) y lo comparas con las ideas clave.' },
   { id: 'occlusion', label: 'Tapar partes de una imagen', builtinOnly: true, help: 'Se tapan partes de una imagen y cada recuadro es una pregunta.' },
 ];
 export const NEEDS_ANSWER = ['type', 'choice', 'draw', 'listen', 'order', 'match', 'conj', 'sort', 'clozechoice', 'number'];
@@ -136,6 +138,19 @@ export const BUILTIN_TYPES = [
     description: 'Tapas partes de un mapa, un esquema o un diagrama. Cada recuadro es una pregunta.',
     fields: [F('img', 'Imagen'), F('m', 'Recuadros'), F('h', 'Pregunta (opcional)', { help: 'Ej.: ¿Qué río es?' }), F('n', 'Notas')],
     templates: Array.from({ length: 30 }, (_, k) => ({ id: 't' + (k + 1), name: `Recuadro ${k + 1}`, mode: 'occlusion', front: ['h'], back: ['n'], answer: 'm', image: 'img', mask: k })),
+  },
+  {
+    id: 'explain', builtin: true, scope: 'general', name: 'Explícalo con tus palabras', icon: '', lucide: 'lightbulb',
+    description: 'Lo explicas con tus palabras y marcas qué ideas clave te salieron.',
+    fields: [F('q', 'Pregunta'), F('k', 'Ideas clave', { help: 'Una por línea. Al repasar, marcas cuáles te salieron.' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Explícalo', mode: 'explain', front: ['q'], back: ['n'], answer: 'k' }],
+  },
+  {
+    id: 'whatif', builtin: true, scope: 'general', name: '¿Qué pasaría si…?', icon: '', lucide: 'circle-help',
+    description: 'Un caso: qué sube, qué baja y qué se queda igual, y por qué.',
+    fields: [F('s', 'Escenario'), F('p', 'Pregunta', { help: 'Por ejemplo, «¿Qué pasa con…?»' }), F('e', 'Efectos', { help: 'Uno por línea: «Inversión: baja», «Ahorro: sube», «Precios: igual». Al repasar eliges ↑ = ↓.' }),
+      F('k', 'Ideas clave', { help: 'Una por línea: el porqué.' }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: '¿Qué pasaría si…?', mode: 'whatif', front: ['s', 'p'], back: ['n'], answer: 'k' }],
   },
   {
     id: 'vocab', builtin: true, scope: 'lang', name: 'Vocabulario', icon: '', lucide: 'languages',
@@ -321,6 +336,8 @@ export function activeTemplates(type, fields) {
     if (t.mode === 'number') return !!strip(fields[t.front[0]]) && Number.isFinite(parseNumber(fields[t.answer]));
     if (t.mode === 'conj') return !!strip(fields[t.front[0]]) && parsePairs(fields[t.answer]).length >= 1;
     if (t.mode === 'occlusion') return !!imageIdIn(fields[t.image]) && parseMasks(fields[t.answer]).length > t.mask;
+    // Entender: la pregunta (o el caso) y sus ideas clave (o, en ¿Qué pasaría si…?, sus efectos)
+    if (t.mode === 'explain' || t.mode === 'whatif') return !!strip(fields[t.front[0]]) && (!!strip(fields[t.answer]) || (t.mode === 'whatif' && !!strip(fields.e)));
     const front = t.front.some(id => strip(fields[id]));
     if (!front) return false;
     if (t.choices && !canonChoice(t, fields[t.answer])) return false;
@@ -363,6 +380,7 @@ export function summarize(type, tpl, fields) {
   }
   if (tpl.mode === 'sort') return { front: join(tpl.front) || 'Clasificar', back: parseGroups(val(tpl.answer)).map(g => `${g.name}: ${g.items.join(', ')}`).join('\n'), note: join(tpl.back) };
   if (tpl.mode === 'clozechoice') { const x = val(tpl.answer); return { front: x.replace(CLOZE_RE, '[…]'), back: clozeAnswer(x), note: join(tpl.back) }; }
+  if (tpl.mode === 'whatif') return { front: join(tpl.front), back: [val('e'), val(tpl.answer)].filter(Boolean).join('\n'), note: join(tpl.back) };
   if (tpl.mode === 'number') return { front: join(tpl.front), back: [val(tpl.answer), fields.u].filter(Boolean).join(' ') + (fields.t ? ` (±${fields.t})` : ''), note: join(tpl.back) };
   if (tpl.mode === 'conj') {
     return { front: tpl.front.slice(0, 2).map(val).filter(Boolean).join(' · '), back: parsePairs(val(tpl.answer)).map(p => `${p.a} ${p.b}`).join('\n'), note: tpl.back.map(val).filter(Boolean).join('\n') };

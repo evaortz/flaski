@@ -2,6 +2,7 @@
 // primera tanda (la empieza la app). Usa el mismo diálogo a pantalla completa que la presentación (.ob).
 // No sabe nada del estado de la app: recibe lo que necesita y avisa con onFinish(elección).
 import { icon } from './icons.js';
+import { ideasFromAnswer } from './entender.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -28,7 +29,9 @@ export function temaCards(list) {
     // Clasificar solo si cada parte es «grupo: elementos»; si no, una básica con la lista
     if (x.tipo === 'sort' && items(a).every(g => g.includes(':'))) return { typeId: 'sort', fields: { q, g: items(a).join('\n') }, answer: items(a)[0].split(':').pop().split(',')[0].trim() };
     if (x.tipo === 'sort') return { typeId: 'basic', fields: { q, a: items(a).map(i => '- ' + i).join('\n') }, answer: items(a)[0] };
-    // Básica, y también Explícalo y ¿Qué pasaría si…? (aún no son tipos de Flaski)
+    // Explícalo y ¿Qué pasaría si…?: sus ideas clave salen de la respuesta
+    if (x.tipo === 'explain') return { typeId: 'explain', fields: { q, k: ideasFromAnswer(a).join('\n'), n: '' }, answer: a };
+    if (x.tipo === 'whatif') return { typeId: 'whatif', fields: { s: q, p: '', e: '', k: ideasFromAnswer(a).join('\n'), n: '' }, answer: a };
     return { typeId: 'basic', fields: { q, a }, answer: a };
   });
 }

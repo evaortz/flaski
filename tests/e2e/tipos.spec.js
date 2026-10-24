@@ -27,7 +27,7 @@ test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los 
   // Los 4 de una lista de idiomas, con el del idioma; «Más tipos» abre el selector por grupos
   await expect(page.locator('.ed-segs [data-set-type]')).toHaveText(['Vocabulario', 'Básica', 'Escribir respuesta', 'Sustantivo alemán']);
   await page.locator('[data-act="pick-type"]').click();
-  expect(await groupNames(page)).toEqual(['Recordar', 'Escribir', 'Elegir', 'Completar', 'Relacionar y ordenar', 'Con imagen', 'Tus tipos']);
+  expect(await groupNames(page)).toEqual(['Recordar', 'Escribir', 'Elegir', 'Completar', 'Relacionar y ordenar', 'Entender', 'Con imagen', 'Tus tipos']);
   await expect(picker(page).locator('[data-pick-type="de-noun"]')).toContainText('alemán');
   await expect(picker(page).locator('[data-pick-type="kanji"]')).toHaveCount(0);
 

@@ -3,12 +3,12 @@ import * as api from '../api.js';
 import { toRow } from '../rows.js';
 import { loadPrefs, applyLook } from '../prefs.js';
 import { icon } from '../icons.js';
-import { LANGS } from '../cardtypes.js';
+import { LANGS, summarize } from '../cardtypes.js';
 import { setBaseRate } from '../tts.js';
 import { saveSnapshot, loadSnapshot, rememberUser } from '../snapshot.js';
 import { isRetryable } from '../outbox.js';
 import { openOnboarding } from '../onboarding.js';
-import { openFirstRun, TEMAS, fileKind } from '../primera-vez.js';
+import { openFirstRun, TEMAS, fileKind, temaCards } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
 import { folderKey } from '../plan.js';
 import { markdownToPage, titleFromFile } from '../notesio.js';
@@ -17,7 +17,7 @@ import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
-import { nativeLang, langLabel } from './estudio.js';
+import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
@@ -147,6 +147,7 @@ export async function onSignedIn(session) {
     migrateDeckLangs();
     dedupeTypes();
     if (!S.fromCache) dropEmptyPages();
+    if (!S.fromCache) migrateEntender();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
     restoredNotice();
@@ -183,6 +184,29 @@ function applyData(d) {
 function dropEmptyPages() {
   const used = new Set([...S.cards.values()].map(c => c.page_id));
   for (const p of [...S.pages.values()]) if (isEmptyPage(p, used.has(p.id))) { S.pages.delete(p.id); api.deletePage(p.id).catch(() => {}); }
+}
+
+// Las preguntas de los temas de ejemplo que se cargaron como básicas antes de que existieran «Explícalo» y
+// «¿Qué pasaría si…?» pasan a su tipo. Solo las que siguen tal cual (pregunta y respuesta del tema, sin nota ni
+// pista): una que ya editaste no se toca. Mantienen su id, así que su progreso sigue igual; si se repite, no cambia nada.
+export async function migrateEntender() {
+  const maybe = [...S.cards.values()].filter(c => c.type_id === 'basic' && /^(Explica|¿Qué pasaría)/.test(c.fields?.q || ''));
+  if (!maybe.length) return 0;
+  const lists = await Promise.all(TEMAS.map(t => fetch(t.cards).then(r => r.json()).catch(() => [])));
+  const want = new Map();
+  for (const list of lists) for (const [i, nu] of temaCards(list).entries()) if (nu.typeId === 'explain' || nu.typeId === 'whatif') want.set(list[i].pregunta, { ...nu, a: list[i].respuesta });
+  let n = 0;
+  for (const c of maybe) {
+    const nu = want.get(c.fields.q), f = c.fields;
+    if (!nu || f.a !== nu.a || (f.n || '') !== '' || (c.hint || '') !== '' || Object.keys(f).some(k => !['q', 'a', 'n'].includes(k))) continue;
+    const type = getType(nu.typeId), tpl = type.templates[0], sum = summarize(type, tpl, nu.fields);
+    const patch = { type_id: nu.typeId, template: tpl.id, fields: nu.fields, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000) };
+    Object.assign(c, patch);
+    api.updateCard(c.id, patch).catch(() => {});
+    n++;
+  }
+  if (n) saveSnap();
+  return n;
 }
 
 /* ===================== bienvenida ===================== */
