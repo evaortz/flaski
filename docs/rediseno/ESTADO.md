@@ -202,3 +202,21 @@
 - `sw.js` → `flaski-v133`.
 - Pruebas: unitarias 181 de 181. Batería e2e completa con `--workers=100%`: 284 pasan, 11 omitidas y 5 fallan (actualizar ×3, deslizar y sin conexión); repetidas solas pasan las 5 (8 de 8 en los dos proyectos). Son de carga (7,8 min).
 
+
+## Remates del paso 1 (primera vez)
+- Tema de ejemplo: la primera tanda son 5 preguntas cortas elegidas a mano (`"primera": true` en `temas/*.json`; `temaFirst` en `sugerencias.js`), unidas a su parte del apunte. «Ver las 5 antes» las crea y abre su lista. Con un archivo propio, `firstPicks` prefiere las marcadas y cortas (pregunta ≤ 90 letras, respuesta ≤ 120, una línea).
+- «¿Cuál?»: placeholder «Ej.: …» en gris (`--faint`). Mes del examen: selector propio (botón como campo, año con flechas y 12 meses; los pasados, apagados; Esc o tocar fuera lo cierra).
+- «¡Primera tanda hecha!»: píldoras de duración a 19 px, sin partir, con más aire.
+
+## Paso 2b · sugerencias sin IA (batería)
+- Medidor: `tests/sugerencias.mjs` (`node sugerencias.mjs --detalle`, desde `tests/`). Casa pregunta y respuesta por palabras (raíz de 5 letras, sin palabras vacías ni interrogativos) y tipo (o `tipo_alt`). Ruido revisado a mano una vez en `docs/rediseno/sugerencias/ruido/`. `unit/sugerencias.test.js` no deja bajar la cobertura ni subir el ruido.
+- Antes → después. Constitución: imprescindibles 7/18 (39 %) → 17/18 (94 %); total 8/35 → 21/35; ruido 22 → 3 (de 47 → 51 sugerencias). Olvido: imprescindibles 1/8 (13 %) → 8/8 (100 %); total 3/17 → 11/17; ruido 8 → 0 (19 → 14).
+- Reglas nuevas: fechas como «¿Cuándo…?» (fecha completa, mes y año, rangos «entre 1793 y 1794», una por frase y en todas las frases del párrafo; «X fue el 14 de julio» ya no es «¿Qué fue X?»), datos con nombre («**Publicación:** …», «Muerte de Colón»), cifras («**169 artículos**», «Reformas: tres»), formado/constituido por, misión, sujeto a, corresponde a, «X es **Y**», «…, la **ilusión de fluidez**: …», autor y año, enumeraciones de negritas en un hueco, huecos sin la cola («…, del que…»), «¿Qué artículo establece que…?» (sin marcar), «¿Qué garantiza…?» y viñetas o subpuntos sin huecos sueltos. «**Término:** definición» ya se reconoce.
+- En listas de idioma, fechas y cifras se miran antes que «Ordenar frase»; en un mismo bloque van primero. «Crear en» propone «Lista nueva» si el apunte no tiene lista (o la suya está archivada).
+- Falta: la imprescindible «La Constitución fue ratificada en referéndum el {{…}}» sale como «¿Cuándo ratificó el pueblo español la Constitución Española?» (básica, por la regla de «¿Cuándo…?»), y el medidor no la cuenta porque espera un hueco. Sin hacer: distractores del apunte (opción múltiple), verdadero o falso, emparejar reformas y años, Explícalo y ¿Qué pasaría si…?
+- Dudas: la regla de «¿Cuándo…?» da la vuelta a frases sencillas (sujeto + verbo en pasado); con presente («El tren sale el…») no pregunta.
+
+## Retoques de Estadísticas
+- Botón ‹ redondo para volver a Perfil en Estadísticas y en Ajustes (Ajustes no lo tenía). Periodos repartidos a lo ancho a 375 px, sin cortar «Todo». Eje de «Tu progreso»: separación según lo largo de la fecha (en 30 días, 2 fechas en el móvil). El filtro de listas ya agrupaba en Carpetas / Listas / Etiquetas (`optgroup`); no lo he cambiado.
+- `sw.js` → `flaski-v136`.
+- Pruebas al terminar: unitarias 186 de 186. Batería e2e completa con `--workers=100%`: 283 pasan, 11 omitidas y 6 fallan (icono con tu imagen, deslizar, amigos y 3 de sin conexión); repetidas solas pasan las 6 (10 de 10). Son de carga (8,6 min).
