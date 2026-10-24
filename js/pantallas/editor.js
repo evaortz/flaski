@@ -400,7 +400,7 @@ function fieldInputs(type, values) {
       </div>
       <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
       ${fieldRoles(type, f.id).includes('huecos') ? `<div class="ef-cz" data-cz-for="${f.id}" aria-hidden="true" ${/\{\{.+?\}\}/.test(values[f.id] || '') ? '' : 'hidden'}>${czHTML(values[f.id])}</div>` : ''}
-      ${cjk ? `<div class="ef-ruby" data-ruby-for=""${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
+      ${cjk ? `<div class="ef-ruby" data-ruby-for="${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
       ${help ? `<p class="ef-help">${esc(help)}</p>` : ''}
     </div>`;
   }).join('');

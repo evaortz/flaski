@@ -28,7 +28,7 @@ for (const modern of [false, true]) {
 
     // El progreso de Anki: la primera tarjeta ya se ha repasado
     await page.locator('#main .row').first().click();
-    await expect(page.locator('[data-act="reset-card"]')).toBeVisible();
+    await expect(page.locator('[data-act="ask-reset-card"]')).toBeVisible();
     await page.locator('[data-act="close-sheet"]').first().click();
 
     // Y el historial llega a Estadísticas
