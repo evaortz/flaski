@@ -660,3 +660,23 @@ test('sugerencias: la lista se desplaza con la rueda del ratón', async ({ page 
   await page.mouse.wheel(0, 900);
   await expect.poll(() => main.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
 });
+
+test('un título largo pasa a varias líneas sin cortarse, e Intro no añade un salto', async ({ page }) => {
+  await openApp(page);
+  const long = 'La Revolución francesa y sus consecuencias en Europa';
+  await newPage(page, long);
+  const t = page.locator('#pgTitle');
+  await t.press('End');
+  await t.press('Enter');
+  await expect(t).toHaveValue(long);
+  await expect(t).not.toBeFocused();
+  const m = await t.evaluate(el => ({ h: el.clientHeight, sh: el.scrollHeight, sw: el.scrollWidth, cw: el.clientWidth, lh: parseFloat(getComputedStyle(el).lineHeight) }));
+  expect(m.sw).toBeLessThanOrEqual(m.cw);
+  expect(m.sh).toBeLessThanOrEqual(m.h + 1);   // se ve entero
+  if (page.viewportSize().width < 500) expect(m.h).toBeGreaterThan(m.lh * 1.5);   // en el móvil, en más de una línea
+  // Al volver a abrirlo, sigue a su altura
+  await nav(page, 'Biblioteca');
+  await page.locator('[data-page]').first().click();
+  await expect(t).toHaveValue(long);
+  await expect.poll(() => t.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+});

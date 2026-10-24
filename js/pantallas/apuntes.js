@@ -179,7 +179,7 @@ export function renderPage() {
     <div class="pg-head">
       ${p.icon ? `<button type="button" class="pg-icon" data-act="page-icon" aria-label="Cambiar el icono">${esc(p.icon)}</button>`
         : `<button type="button" class="pg-addicon" data-act="page-icon">${icon('smile-plus', { size: 16 })} Añadir icono</button>`}
-      <input id="pgTitle" class="pg-title" maxlength="120" placeholder="Sin título" aria-label="Título" value="${esc(p.title || '')}">
+      <textarea id="pgTitle" class="pg-title" rows="1" maxlength="120" placeholder="Sin título" aria-label="Título" enterkeyhint="done">${esc(p.title || '')}</textarea>
     </div>
     <div class="pg-props">
       ${prop('layers', 'Lista', `<select id="pgDeck" class="prop-select" aria-label="Lista donde van las preguntas de este apunte"><option value="">Sin lista</option>${deckOptions(p.deck_id)}</select>`)}
@@ -220,6 +220,7 @@ export function renderPage() {
     </div>`;
   histStart(p);
   if (S.bsel?.pageId !== p.id) S.bsel = null;
+  growTitle();
   afterBlocksDrawn();
   if (S.focusBlock) {
     revealBlock(S.focusBlock);
@@ -229,6 +230,16 @@ export function renderPage() {
   }
 }
 export const curPage = () => S.pages.get(S.pageId);
+// El título es un cuadro de varias líneas que crece con el texto (en el móvil, uno largo no se corta)
+export function growTitle() {
+  const t = $('#pgTitle');
+  if (!t) return;
+  t.style.height = 'auto';
+  t.style.height = t.scrollHeight + 'px';
+}
+addEventListener('resize', () => { if (S.view === 'page') growTitle(); });
+// Intro en el título no añade una línea: termina de escribirlo
+document.addEventListener('keydown', e => { if (e.target.id === 'pgTitle' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
 // Quitar del DOM el bloque que tiene el foco dispara «focusout» a mitad del cambio: mientras se
 // repinta, ese aviso se ignora (lo escrito ya se ha guardado antes).
 let repainting = false;

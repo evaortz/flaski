@@ -24,7 +24,7 @@ import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesS
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
-import { pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
+import { growTitle, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
@@ -716,6 +716,9 @@ document.addEventListener('input', e => {
     return;
   }
   if (e.target.id === 'pgTitle') {
+    // Un solo renglón de texto (aunque se vea en varias líneas): lo pegado con saltos se junta
+    if (/[\r\n]/.test(e.target.value)) e.target.value = e.target.value.replace(/\s*[\r\n]+\s*/g, ' ');
+    growTitle();
     const p = curPage();
     if (p) { p.title = e.target.value; savePageSoon(p); const cur = document.querySelector('.pg-top .crumbs .crumb-cur:last-child'); if (cur) cur.textContent = pageTitle(p); }
     return;
