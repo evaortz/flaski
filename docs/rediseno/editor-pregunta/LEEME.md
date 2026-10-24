@@ -9,7 +9,7 @@ antiguo: etiquetas de campo de colores (anverso / reverso / respuesta / idioma) 
   fase 8 (tipos-movil / tipos-escritorio).
 - Campos con su nombre normal (Anverso, Reverso, Ejemplo · opcional, Nota · solo la ves al dar la vuelta).
   Qué campo sale en qué cara se ve en la vista previa, no con etiquetas en cada campo.
-- Pronunciación: generada (con la voz del idioma) · Grabar · Generar.
+- Pronunciación: generada con la voz del idioma · «Volver a generar». Sin grabar (la app no graba audio).
 - Etiquetas: pegatinas con ✕ y «+ etiqueta» (ver docs/rediseno/etiquetas).
 - Vista previa (escritorio a la derecha; móvil, debajo con Anverso | Reverso): como se verá en la tanda,
   con los 4 botones. Si el tipo crea también la inversa, una línea lo dice.

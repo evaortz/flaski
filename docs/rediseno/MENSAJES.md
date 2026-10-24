@@ -1,6 +1,6 @@
 # Cola del rediseño · 5 pasos (en orden · una conversación nueva por paso)
 
-Hechas: 1–6, 3b, 4b, 4c. En curso: 4d (con sus remates).
+Hechos: pasos 1, 2 y 3 (y el logo). Siguiente: paso 4.
 
 Reglas para que no se eternice:
 - Un paso = una conversación. Los remates que salgan se pegan al principio del paso siguiente.
@@ -32,15 +32,24 @@ b) Modo Repasar dentro del apunte (los 4 botones de la tanda) y el atajo >> / <>
 c) «Explícalo» y «¿Qué pasaría si…?».
 Antes de programar, dime en un solo mensaje cómo agrupas las preguntas en casillas con los datos que ya hay y cómo se corrigen las preguntas de entender, y espera mi OK. Después haz a, b y c seguidas.
 
-## 4 · Plan de estudio completo y Explorar (OK)
-Lee docs/rediseno/ESTADO.md y docs/rediseno/plan-explorar/LEEME.md con sus pantallas.
+## 4 · Plan de estudio completo, Explorar y simulacro (OK)
+Remates de Explorar (cada uno con su e2e), antes de empezar:
+- Las listas que ya tienes dicen «Ver». Pon «La tienes» en la fila y quita «Se copiará a tu cuenta…» de su hoja.
+- Vista previa de notas con varias plantillas: una fila por nota («die Wohnung · el piso»), no una por cara.
+- «Tus listas compartidas» vacía: «Aún no has compartido ninguna. Abre una lista y pulsa «Compartir»».
+- Búsqueda sin resultados: un solo mensaje, «Ninguna lista con «…»», no «Nada por aquí.» en cada sección.
+- Si ya la tienes, «48 preguntas · tú tienes 56».
+
+Lee docs/rediseno/ESTADO.md, docs/rediseno/plan-explorar/LEEME.md y docs/rediseno/simulacro/LEEME.md, con sus pantallas.
 a) Tu semana con días especiales, Hoy toca (la tanda de Hoy usa los minutos del día) y las pantallas de examen.
 b) Etapas: lista, editar, tira en móvil y planificador por meses y semanas en escritorio, orden de temas, «cuando no llegas» y la primera vez. Sin etapas, todo debe seguir funcionando como ahora.
 c) Explorar.
-Antes de programar, dime en un solo mensaje cómo guardarás week, special y stages en prefs, cómo encaja con plan.js y cómo lo resuelves por día, y espera mi OK. Después haz a, b y c seguidas.
-
-## Logo (va con el paso que toque, es corto)
-Lee docs/rediseno/logo/LEEME.md y usa sus archivos: cambia el favicon, el apple-touch-icon y los iconos del manifest, y pon la marca en la cabecera móvil y en la barra lateral (en línea, con el color de acento). Sube la versión del service worker para que se refresquen los iconos.
+d) Simulacro de examen: bloque en la ficha del examen, preparar, pregunta, «¿Entregas ya?», nota, «Las respuestas» y escritorio con teclado.
+Antes de programar, dime en un solo mensaje:
+- cómo guardarás week, special y stages en prefs, cómo encaja con plan.js y cómo lo resuelves por día;
+- dónde guardas los simulacros (sin cambiar Supabase si se puede; si hace falta, dime qué cambio y espera);
+- qué tipos de pregunta entran y cómo se corrigen.
+Espera mi OK. Después haz a, b, c y d seguidas.
 
 ## 5 · Perfil, Ajustes, Amigos y cierre (OK solo para Supabase)
 Lee docs/rediseno/ESTADO.md, docs/rediseno/perfil-ajustes/LEEME.md y docs/rediseno/amigos/LEEME.md con sus pantallas.
