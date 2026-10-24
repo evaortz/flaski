@@ -2519,3 +2519,17 @@ body.in-study .done .tally b{font-size:20px;font-weight:600}
   .frow-cheer{font-size:16px;padding:7px 10px}
 }
 .hoy-cheer > svg{fill:currentColor;fill-opacity:.35}
+/* Móvil: lo que se toca mide al menos 44 px de alto. Donde el aspecto no debe cambiar, la zona crece
+   con relleno y un margen negativo igual (se toca más, se ve igual) */
+@media (max-width:699px){
+  .pg-top{min-height:44px;gap:4px}
+  .pg-top .iconbtn,.pg-top .small-btn{height:44px;min-height:44px;min-width:36px;border-color:transparent;background:transparent}
+  .pg-top .pg-suggest{padding:0;width:36px;justify-content:center}
+  .pg-top .crumb{display:inline-flex;align-items:center;min-height:44px}
+  .pg-top .crumbs .crumb:first-child{flex-shrink:0;overflow:visible}
+  .pg-top .crumbs .crumb-cur{min-width:0}
+  .set-toc a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px}
+  .st-filters .seg.seg-text .seg-b{min-height:44px;border-radius:22px;padding:0 12px}
+  .st-selects select{min-height:44px}
+  .hoy-hm-foot .link[data-act="goal-change"]{display:inline-block;padding:12px 4px;margin:-12px -4px}
+}
