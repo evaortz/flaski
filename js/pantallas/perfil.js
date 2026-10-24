@@ -230,7 +230,7 @@ const setRow = (label, hint, control, { id = '', off = false } = {}) => {
   return `<div class="set-row${off ? ' is-off' : ''}"${id ? ` id="${id}"` : ''}><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
 };
 const setSec = (ic, title, body, id = '') => `<section class="set-sec"${id ? ` id="${id}"` : ''}><h2>${icon(ic, { size: 18 })} ${title}</h2><div class="set-body">${body}</div></section>`;
-const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Hoy'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
+const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Tanda'], ['s-voice', 'Voz'], ['s-home', 'Hoy'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
 
 // Simulación: intervalos de una tarjeta que aciertas siempre con «Bien»
 function algoPreview(A) {
@@ -326,7 +326,7 @@ export function renderSettings() {
       ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
       ${setRow('Tu idioma', 'En las listas de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
     ${setSec('bell', 'Avisos', remindRows(), 's-remind')}
-    ${setSec('layers', 'Durante la sesión', `
+    ${setSec('layers', 'Durante la tanda', `
       ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
       ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la pregunta.', sw('study.showIntervals'))}
       ${setRow('Resaltar la nota sugerida', 'En preguntas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
