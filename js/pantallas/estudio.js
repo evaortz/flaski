@@ -59,8 +59,9 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const v = val(id);
     if (!v.trim()) return '';
     const label = !main && fdef(id) ? `<div class="fld-l">${esc(fdef(id).name)}</div>` : '';
-    // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal
-    const plain = stripRuby(v), lang = fdef(id)?.lang || '';
+    // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal.
+    // Se mira el texto que se ve: sin etiquetas ni saltos de línea al principio o al final (frecuentes al importar de Anki)
+    const plain = stripRuby(v).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(), lang = fdef(id)?.lang || '';
     const ja = /^ja/.test(lang) || (!lang && /[぀-ヿ]/.test(plain)) ? ' fld-ja' : '';
     const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
     return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${extra}</div></div>`;
@@ -104,7 +105,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const lang = fdef(tpl.answer)?.lang || '';
     if (!st.revealed) {
       ask += `<${preview ? 'div' : 'form data-form="typed"'} class="typed" autocomplete="off">
-        <input id="typed" ${lang ? `lang="${lang}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false"  placeholder="${tpl.mode === 'listen' ? 'Escribe lo que oyes' : `Escribe: ${esc(fdef(tpl.answer)?.name || 'la respuesta')}`}" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>
+        <input id="typed" ${lang ? `lang="${lang}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false"  placeholder="${tpl.mode === 'listen' ? 'Escribe lo que oyes' : 'Escribe la respuesta'}" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>
         <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>
         ${preview || !charsFor(lang).length ? '' : `<div class="chars chars-study" role="group" aria-label="Letras especiales">${charsFor(lang).map(ch => `<button type="button" data-char="${ch}">${ch}</button>`).join('')}</div>`}`;
     } else if (st.typed) {
