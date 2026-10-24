@@ -2570,6 +2570,7 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
 .dk-top .dk-more{width:44px;height:44px;border:0;background:transparent;color:var(--fg)}
 .dk-head{display:flex;flex-direction:column;gap:20px}
 .dk-title{margin:0;font-family:var(--font-hand);font-weight:400;font-size:44px;line-height:1.05;letter-spacing:0;overflow-wrap:anywhere}
+.dk-title.is-fit{white-space:nowrap;overflow:hidden}
 .dk-desc{margin:10px 0 0}
 .dk-meta{margin:4px 0 0;font-size:14px;color:var(--muted)}
 .dk-today{display:flex;flex-direction:column;gap:18px}
@@ -2615,6 +2616,7 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
 .cr-st{grid-area:st;justify-self:end;font-size:12.5px;color:var(--muted);white-space:nowrap}
 .cr-due{grid-area:due;justify-self:end;font-size:14px;font-weight:600;color:var(--fg);white-space:nowrap}
 .cr-due.is-today{font-family:var(--font-hand);font-weight:400;font-size:24px;line-height:1}
+.list > li.cr-sep{padding:16px 2px 8px;font-size:12.5px;font-weight:600;color:var(--muted)}
 .dk-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--muted)}
 .dk-foot .link{font-size:14px;min-height:44px}
 .dk-foot.is-limited{justify-content:center}
@@ -2658,11 +2660,15 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
 .dk-pop .dk-mt small{font-size:12.5px}
 @media (min-width:960px){
   .dk-top .dk-more{display:none}
-  .dk-head{flex-direction:row;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px 32px;padding-bottom:28px;border-bottom:1px solid var(--line-strong)}
-  .dk-id{flex:1 1 380px;min-width:0}
+  .dk-head{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title title" "desc today" "meta today";align-items:end;gap:0 32px;padding-bottom:28px;border-bottom:1px solid var(--line-strong)}
+  .dk-id{display:contents}
+  .dk-title{grid-area:title;min-width:0}
+  .dk-desc{grid-area:desc;min-width:0}
+  .dk-meta{grid-area:meta;min-width:0}
+  .dk-today{grid-area:today}
   .dk-title{font-size:58px}
   .dk-desc{margin-top:18px}
-  .dk-today{flex-direction:row;flex-wrap:wrap;justify-content:flex-end;align-items:flex-end;gap:16px 24px;margin-left:auto;max-width:100%}
+  .dk-today{flex-direction:row;flex-wrap:wrap;justify-content:flex-end;align-items:flex-end;gap:16px 24px;max-width:100%}
   .dk-num{display:grid;grid-template-columns:auto auto;align-items:end;gap:4px 14px}
   .dk-num b{grid-row:1 / 3;font-size:110px}
   .dk-para{font-size:38px}

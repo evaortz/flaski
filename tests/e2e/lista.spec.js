@@ -1,5 +1,5 @@
 // La pantalla de una lista: cabecera con lo de hoy, estado, preguntas con su tipo, menús «+» y «…» y apuntes vinculados
-import { test, expect, openApp, nav, addBuiltinDeck, pasteNotes, deckMenu } from './fixtures.js';
+import { test, expect, openApp, nav, answer, addBuiltinDeck, createDeck, pasteNotes, deckMenu } from './fixtures.js';
 
 test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async ({ page }) => {
   await openApp(page);
@@ -26,6 +26,8 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await page.locator('[data-act="cards-all"]').click();
   await expect(page.locator('#cardRows .row')).toHaveCount(48);
   await expect(page.locator('#cardRows')).toContainText('Sustantivo alemán');
+  // Las preguntas en sentido inverso se distinguen
+  await expect(page.locator('#cardRows .cr-t').filter({ hasText: 'Español → alemán' }).first()).toBeVisible();
   // Al buscar salen todas las que coinciden
   await page.locator('#cardSearch').fill('der');
   await expect(page.locator('#cardCount')).toHaveText(/de 48 preguntas/);
@@ -79,4 +81,32 @@ test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apun
   await expect(page.locator('.dk-notes')).toContainText('ev es casa');
   await page.locator('.dk-notes [data-page]').click();
   await expect(page.locator('#pgTitle')).toHaveValue('Gramática turca');
+});
+
+test('por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman aunque no se vean todas', async ({ page }) => {
+  await openApp(page);
+  await addBuiltinDeck(page, 'Alemán · A2');
+  await page.locator('#main [data-start]').click();
+  await answer(page, 3);
+  await answer(page, 3);
+  await page.locator('.studybar [data-act="exit"]').click();
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-open]').filter({ hasText: 'Alemán' }).click();
+  await expect(page.locator('#cardRows .cr-sep')).toHaveText('Nuevas · 46');
+  await expect(page.locator('#cardRows .row').first()).not.toContainText('nueva');
+  await expect(page.locator('#cardRows .cr-sep ~ li .row')).toHaveCount(8);
+  await expect(page.locator('#cardRows .cs-new')).not.toHaveCount(0);
+});
+
+test('en el ordenador el título largo baja de tamaño en vez de partirse', async ({ page }, info) => {
+  test.skip(info.project.name !== 'escritorio', 'solo en el ordenador');
+  await openApp(page);
+  await createDeck(page, 'Vocabulario Esencial del turco (121-160)');
+  const h = page.locator('.dk-title');
+  const { height, size } = await h.evaluate(el => ({ height: el.getBoundingClientRect().height, size: parseFloat(getComputedStyle(el).fontSize) }));
+  expect(size).toBeLessThan(58);
+  expect(height).toBeLessThan(size * 1.6);
+  // Uno corto, a su tamaño
+  await createDeck(page, 'Turco');
+  await expect(h).toHaveCSS('font-size', '58px');
 });

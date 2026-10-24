@@ -4,14 +4,14 @@ import { toRow } from '../rows.js';
 import { fmtWhen, dateKey } from '../srs.js';
 import { cardsToCSV } from '../csv.js';
 import { icon } from '../icons.js';
-import { LANGS } from '../cardtypes.js';
+import { LANGS, NATIVE } from '../cardtypes.js';
 import { folderPath, iconText } from '../org.js';
 import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
 import { pageTitle, pageSnippet } from '../pages.js';
 import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
-import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
+import { typeIcon, getType, deckLang, langLabel, nativeLang } from './estudio.js';
 import { previewImport } from './explorar.js';
 import { drag, savePageSoon } from './apuntes.js';
 import { seg } from './perfil.js';
@@ -86,7 +86,15 @@ export function renderDeck() {
   if (sort === 'az') rows.sort((a, b) => plain(a.front).localeCompare(plain(b.front), 'es'));
   if (sort === 'next') rows.sort((a, b) => (S.progress.get(a.id)?.due ?? Infinity) - (S.progress.get(b.id)?.due ?? Infinity) || a.position - b.position);
   const matching = rows.length, limited = !q && !S.cardAll && rows.length > SHOWN;
-  if (limited) rows = rows.slice(0, SHOWN);
+  // Por próximo repaso, las nuevas van al final tras «Nuevas · N»; si no se ven todas, asoman las primeras
+  const newSep = sort === 'next' && rows.some(x => S.progress.has(x.id)) && rows.some(x => !S.progress.has(x.id));
+  let seen = newSep ? rows.filter(x => S.progress.has(x.id)) : rows, fresh = newSep ? rows.filter(x => !S.progress.has(x.id)) : [];
+  const freshN = fresh.length;
+  if (limited) {
+    seen = seen.slice(0, SHOWN - Math.min(3, fresh.length));
+    fresh = fresh.slice(0, SHOWN - seen.length);
+  }
+  rows = [...seen, ...fresh];
   const fid = d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null;
   const path = fid ? folderPath(S.folders, fid) : [];
   const lang = deckLang(d.id);
@@ -94,13 +102,20 @@ export function renderDeck() {
   const split = [c.due && plural(c.due, 'repaso', 'repasos'), c.newToday && plural(c.newToday, 'nueva', 'nuevas')].filter(Boolean);
   const pages = deckPages(d.id);
   const count = limited ? `Mostrando ${rows.length} de ${matching}` : matching === all.length ? plural(all.length, 'pregunta', 'preguntas') : `${matching} de ${all.length} preguntas`;
+  // Una pregunta en sentido inverso (de tu idioma al que estudias): «Español → turco», con el icono de doble sentido
+  const reversed = (t, x) => {
+    const tpl = t.templates.find(y => y.id === x.template);
+    if (!tpl || tpl === t.templates[0]) return '';
+    if (t.id !== 'reverse' && t.fields.find(f => f.id === tpl.front[0])?.lang !== NATIVE) return '';
+    return lang ? `${langLabel(nativeLang()).split(' (')[0]} → ${langLabel(lang).split(' (')[0].toLowerCase()}` : tpl.name;
+  };
   const row = x => {
     const p = S.progress.get(x.id), st = stage.get(x.id);
     const t = (x.fields && Object.keys(x.fields).length ? getType(x.type_id) : null) || getType('basic');
-    const tpl = t.templates.length > 1 ? t.templates.find(y => y.id === x.template)?.name : '';
+    const tpl = t.templates.length > 1 ? t.templates.find(y => y.id === x.template)?.name : '', rev = reversed(t, x);
     const when = !p ? 'nueva' : p.due < endToday ? 'hoy' : `en ${fmtWhen(p.due, now)}`;
     return `<li><button class="row cr cs-${st}" data-card="${x.id}"><i class="cr-dot" aria-hidden="true"></i><span class="cr-f">${fmt(x.front)}</span><span class="cr-b">${fmt(x.back)}</span>
-      <span class="cr-t"${tpl ? ` title="${esc(tpl)}"` : ''}>${typeIcon(t, 14)} ${esc(t.name)}${tagChips(x.tags || [])}</span><span class="cr-st">${STAGES.find(([k]) => k === st)[2]}</span><span class="cr-due${when === 'hoy' ? ' is-today' : ''}">${when}</span></button></li>`;
+      <span class="cr-t"${tpl ? ` title="${esc(tpl)}"` : ''}>${rev ? `${icon('repeat-2', { size: 14 })} ${esc(rev)}` : `${typeIcon(t, 14)} ${esc(t.name)}`}${tagChips(x.tags || [])}</span><span class="cr-st">${STAGES.find(([k]) => k === st)[2]}</span><span class="cr-due${when === 'hoy' ? ' is-today' : ''}">${when}</span></button></li>`;
   };
   const more = `<button class="dk-more" data-act="deck-menu" aria-label="Más opciones" aria-haspopup="menu" title="Más opciones">${icon('ellipsis', { size: 22 })}</button>`;
   main.innerHTML = `<div class="dk">
@@ -129,7 +144,7 @@ export function renderDeck() {
       <div class="filters chips-scroll">${filters.filter(([k, , num]) => num || k === 'all' || k === f).map(([k, label, num]) => `<button class="fchip" data-cfilter="${k}" aria-pressed="${k === f}">${label} · ${num}</button>`).join('')}</div>
       <div class="org-bar"><label class="sort-inline">Orden: <select id="cardSort" aria-label="Ordenar las preguntas">${SORTS_CARDS.map(([k, label]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div>
       <div class="cr-head" aria-hidden="true"><span></span><span>Pregunta</span><span>Respuesta</span><span>Tipo</span><span>Estado</span><span>Repaso</span></div>
-      <ul class="list cr-list" id="cardRows">${rows.map(row).join('')}</ul>
+      <ul class="list cr-list" id="cardRows">${seen.map(row).join('')}${newSep ? `<li class="cr-sep">Nuevas · ${freshN}</li>` : ''}${fresh.map(row).join('')}</ul>
       ${rows.length ? '' : '<p class="muted small">Ninguna pregunta coincide.</p>'}
       <div class="dk-foot${limited ? ' is-limited' : ''}"><span id="cardCount">${count}</span>${limited ? `<button class="link" data-act="cards-all">Ver todas<span class="dk-m"> las ${matching} preguntas</span></button>` : ''}</div>`
       : '<div class="empty"><p class="muted">Esta lista aún no tiene preguntas. Añádelas con el botón +.</p></div>'}
@@ -139,7 +154,22 @@ export function renderDeck() {
         <span class="dk-nt"><b>${esc(pageTitle(p))}</b>${pageSnippet(p) ? `<small>${esc(pageSnippet(p))}</small>` : ''}</span>${icon('chevron-right', { size: 18 })}</button></li>`).join('')}</ul>` : ''}
       ${[...S.pages.values()].some(p => !pages.includes(p)) ? `<button class="link dk-link" data-act="link-note">${pages.length ? 'Vincular otro apunte' : 'Vincular un apunte'}</button>` : ''}</section>` : ''}
   </div>`;
+  fitDeckTitle();
+  document.fonts?.ready.then(fitDeckTitle);
 }
+
+// En el ordenador el título va en una línea: si no cabe, baja de tamaño (y solo si es muy largo, se parte, ya en pequeño)
+function fitDeckTitle() {
+  const h = main.querySelector('.dk-title');
+  if (!h) return;
+  h.style.fontSize = '';
+  h.classList.toggle('is-fit', matchMedia('(min-width:960px)').matches);
+  if (!h.classList.contains('is-fit')) return;
+  let size = parseFloat(getComputedStyle(h).fontSize);
+  while (h.scrollWidth > h.clientWidth && size > 36) h.style.fontSize = `${size -= 2}px`;
+  if (h.scrollWidth > h.clientWidth) h.classList.remove('is-fit');   // ni así cabe: se parte, ya en pequeño
+}
+addEventListener('resize', () => { if (S.view === 'deck') fitDeckTitle(); });
 
 /* ---------- «+» y «…»: hoja en el móvil, menú desplegable en el ordenador ---------- */
 const mItem = (attr, ic, title, sub = '', danger = false) => `<button type="button" role="menuitem" class="dk-mi${danger ? ' danger' : ''}" ${attr}>
