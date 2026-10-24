@@ -278,7 +278,7 @@ export async function importFile(file) {
 }
 /* ---------------- Importar de Anki ---------------- */
 async function importAnki(file) {
-  openSheet(`<h2>Importar de Anki</h2><p class="muted" role="status">Leyendo «${esc(file.name)}»…</p>`);
+  openSheet(`<h2 class="sheet-hand">Importar de Anki</h2><p class="muted" role="status">Leyendo «${esc(file.name)}»…</p>`);
   try {
     const col = await readApkg(new Uint8Array(await file.arrayBuffer()));
     const r = ankiToFlaski(col, { newImageId });
@@ -289,7 +289,7 @@ async function importAnki(file) {
     const sounds = col.notes.some(n => n.fields.some(f => f.includes('[sound:')));
     const sample = r.decks.flatMap(d => d.cards).slice(0, 5).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
     const names = ankiDeckNames(r.decks, base);
-    openSheet(`<h2>Importar de Anki</h2>
+    openSheet(`<h2 class="sheet-hand">Importar de Anki</h2>
       <p class="muted small">${plural(r.total, 'pregunta', 'preguntas')} de ${plural(r.notes, 'nota', 'notas')}${r.images.size ? ` · ${plural(r.images.size, 'imagen', 'imágenes')}` : ''}</p>
       <ul class="preview">${sample}</ul>
       <p class="anki-dest"><b>${r.decks.length === 1 ? 'Se creará la lista' : `Se crearán ${r.decks.length} listas en la carpeta «${esc(names.folder)}»`}</b></p>

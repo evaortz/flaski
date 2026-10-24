@@ -16,6 +16,15 @@ export const COLORS = [
   { id: 'red', label: 'Rojo' },
 ];
 export const colorVar = id => (id ? `var(--c-${id})` : 'var(--faint)');
+// Colores de carpeta: los 9 acentos (sin color, el del tema). Los de antes pasan al más parecido
+export const FOLDER_COLORS = [
+  { id: '', label: 'El del tema' }, { id: 'cobalto', label: 'Cobalto', hex: '#2F3DB5' }, { id: 'violeta', label: 'Violeta', hex: '#6338C2' }, { id: 'ciruela', label: 'Ciruela', hex: '#94307F' },
+  { id: 'frambuesa', label: 'Frambuesa', hex: '#BF2F5C' }, { id: 'teja', label: 'Teja', hex: '#B4482A' }, { id: 'oliva', label: 'Oliva', hex: '#5A7420' },
+  { id: 'bosque', label: 'Bosque', hex: '#1D7550' }, { id: 'laguna', label: 'Laguna', hex: '#106E7C' }, { id: 'tinta', label: 'Tinta', hex: '#3B4157' },
+];
+const OLD_FOLDER = { blue: 'cobalto', purple: 'violeta', pink: 'ciruela', red: 'frambuesa', orange: 'teja', brown: 'teja', yellow: 'oliva', green: 'bosque', gray: 'tinta' };
+export const folderColorId = id => (FOLDER_COLORS.some(c => c.id === id) ? id : OLD_FOLDER[id] || '');
+export const folderColor = id => FOLDER_COLORS.find(c => c.id === folderColorId(id))?.hex || '';
 
 // Etiquetas «pegatina»: siete colores suaves (el CSS pone fondo y texto con [data-tc])
 export const TAG_COLORS = [

@@ -1442,7 +1442,7 @@ export async function readPdfFile(file, status = () => {}) {
 export async function importPdf(file) {
   const target = curPage();
   if (!target) return;
-  openSheet(`<h2>Importar PDF</h2><p class="muted" role="status" id="pdfStatus">Abriendo «${esc(file.name)}»…</p>`);
+  openSheet(`<h2 class="sheet-hand">Importar PDF</h2><p class="muted" role="status" id="pdfStatus">Abriendo «${esc(file.name)}»…</p>`);
   const status = t => { const el = $('#pdfStatus'); if (el) el.textContent = t; };
   try {
     const { r, blocks, title, scanned } = await readPdfFile(file, status);
@@ -1630,7 +1630,7 @@ async function importNoteFiles(files, into) {
     if (!into) newPage({ title: titleFromFile(files[0].name) });
     return importPdf(files[0]);
   }
-  openSheet(`<h2>Importar</h2><p class="muted" role="status" id="impStatus">Leyendo…</p>`);
+  openSheet(`<h2 class="sheet-hand">Importar</h2><p class="muted" role="status" id="impStatus">Leyendo…</p>`);
   const status = t => { const el = $('#impStatus'); if (el) el.textContent = t; };
   const made = [], errors = [];
   for (const [k, f] of files.entries()) {

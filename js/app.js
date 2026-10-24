@@ -409,7 +409,12 @@ document.addEventListener('click', async e => {
       return toast('Copia lista: cambia lo que quieras y guarda');
     }
     case 'new-deck': return deckForm(null);
-    case 'new-folder': return folderForm(null);
+    case 'new-folder': {
+      // Desde «Mover a otra carpeta»: al crearla, se mueve ahí lo que se estaba moviendo
+      const mv = document.querySelector('#sheetBody .movelist')?.dataset.moving;
+      S.moveAfterFolder = mv ? JSON.parse(mv) : null;
+      return folderForm(null);
+    }
     case 'create-menu': return openSheet(createMenuHTML());
     case 'import-menu': return openSheet(importMenuHTML());
     case 'toggle-emoji': {
@@ -867,6 +872,7 @@ document.addEventListener('change', async e => {
     if (S.edit) { S.edit.dirty = true; readEditor(); redrawEditorFields(); }
   }
   if (['q-type', 'q-sep', 'q-deck'].includes(e.target.id)) drawQuick();
+  if (e.target.id === 'destDeck') { const w = $('#newDeckWrap'); if (w) w.hidden = !!e.target.value; }
   if (e.target.closest?.('.typeform') && (e.target.matches('select, input[type=checkbox]'))) { readTypeEditor(); const y = $('#sheetBody').scrollTop; drawTypeEditor(); $('#sheetBody').scrollTop = y; }
 });
 // Arrastrar y soltar (ordenador): un mazo encima de una carpeta o de la ruta

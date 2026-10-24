@@ -7,7 +7,7 @@ test('importar un CSV, revisar la vista previa y volver a exportarlo igual', asy
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#importFile').setInputFiles({ name: 'vocabulario-turco.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
-  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde CSV');
+  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde una tabla');
   await expect(page.locator('#sheetBody')).toContainText('Se han saltado 1 filas');
   await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'vocabulario turco' })).toBeVisible();

@@ -58,12 +58,13 @@ export async function openBuiltinPreview(file) {
 function showPreview(byline) {
   const p = S.preview;
   const sample = p.cards.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
-  openSheet(`<h2>${esc(p.name)}</h2><p class="muted small">${p.cards.length} preguntas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
+  openSheet(`<h2 class="sheet-hand">${esc(p.name)}</h2><p class="muted small">${p.cards.length} preguntas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
-      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
+      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
       : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
+    ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis listas</button></div>`);
@@ -82,7 +83,7 @@ export function previewImport(parsed, { source, baseName = 'Lista importada' }) 
   if (parsed.kind === 'csv') {
     const { cards, skipped } = cardsFromCSV(parsed.text);
     S.preview = { name: baseName.slice(0, 80), description: '', cards, skipped, source };
-    return showPreview('desde CSV');
+    return showPreview('desde una tabla');
   }
   if (isNotesDeck(parsed.data)) {
     const d = notesToDeck(parsed.data);
@@ -100,7 +101,7 @@ export function previewImport(parsed, { source, baseName = 'Lista importada' }) 
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */
 export function pasteSheet() {
-  openSheet(`<h2>Pegar una lista</h2>
+  openSheet(`<h2 class="sheet-hand">Pegar una lista</h2>
     <p class="muted small">Pega la lista que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
     <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto de la lista" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
     <p class="error" id="pasteError" role="alert" hidden></p>
@@ -125,12 +126,14 @@ export async function addPreview(btn) {
   try {
     if (p.source === 'pegado') S.pasteText = '';
     const dest = $('#destDeck')?.value;
+    const name = $('#newDeckName')?.value.trim();
+    if (!dest && name) p.name = name.slice(0, 80);
     const { deck, cards } = await importParsed(p, dest);
     if (dest) {
       toast(`${cards.length} preguntas añadidas`);
       return go('deck', { deckId: dest, cardQuery: '' });
     }
-    toast(`«${deck.name}» añadido`);
+    toast(`«${deck.name}» añadida`);
     go('deck', { deckId: deck.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis listas'; fail(e); }
 }

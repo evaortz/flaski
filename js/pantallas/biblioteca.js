@@ -2,7 +2,7 @@
 // Raíz: carpetas grandes y, debajo, «Sueltos» (lo que no está en ninguna). Dentro de una carpeta:
 // su cabecera azul y, mezclados, sus subcarpetas, apuntes y listas. Al buscar o filtrar, los resultados.
 import { icon } from '../icons.js';
-import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar } from '../org.js';
+import { SORTS, folderPath, descendants, sortDecks, matchesDeck, folderColor } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
 import { main, S, esc, norm, plain, cardList, tagChips, tagSticker, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
@@ -43,7 +43,7 @@ function examText(id, long = false) {
 }
 const bar = (c, young) => `<span class="lbar" aria-label="${pct(c.mature, c.total)} % consolidadas"><i style="width:${pct(c.mature, c.total)}%"></i><i style="width:${pct(young, c.total)}%"></i></span>`;
 // Color de la carpeta: el que eligió la persona (Editar carpeta) o, si no eligió ninguno, el cobalto del tema
-const foldColor = f => `--fold:${f.color ? colorVar(f.color) : 'var(--accent)'}`;
+const foldColor = f => `--fold:${folderColor(f.color) || 'var(--accent)'}`;
 // Lo que asoma por la esquina: el dibujo o la imagen de la carpeta, su emoji o, si no tiene, el icono de carpeta
 // (dentro de la carpeta: lo que se sale por el borde se corta)
 const deco = f => { const art = folderArt(f.icon, 'lfold-deco lfold-draw');
@@ -192,7 +192,7 @@ function renderFolder(folder) {
         ${c.total ? `${bar(c, young)}<ul class="lbar-key"><li><i></i>${c.mature} consolidadas</li><li><i></i>${young} jóvenes</li><li><i></i>${c.fresh} por aprender</li></ul>` : ''}
       </div>
       <div class="fhero-side">
-        <button class="fhero-study" data-start="folder:${folder.id}" ${n ? '' : 'disabled'}><span>Estudiar la carpeta</span><b>${n ? `${n} hoy` : all.length ? 'al día' : ''}</b><span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 18 })}</span></button>
+        ${all.length ? `<button class="fhero-study" data-start="folder:${folder.id}" ${n ? '' : 'disabled'}><span>Estudiar la carpeta</span><b>${n ? `${n} hoy` : 'al día'}</b><span class="go-dot" aria-hidden="true">${icon('chevron-right', { size: 18 })}</span></button>` : ''}
         <div class="fhero-add"><button data-act="new-page">+ Apunte</button><button data-act="new-deck">+ Lista</button></div>
       </div>
     </section>
@@ -203,12 +203,12 @@ function renderFolder(folder) {
 
 // «+»: crear un apunte o una lista (en la carpeta abierta)
 export function createMenuHTML() {
-  return `<h2>Crear</h2><div class="lib-pick">
+  return `<h2 class="sheet-hand">Crear</h2><div class="lib-pick">
     <button data-act="new-page">${icon('file-text', { size: 22 })}<span><b>Apunte</b><small>Escribe o pega tus apuntes</small></span></button>
     <button data-act="new-deck">${icon('copy', { size: 22 })}<span><b>Lista</b><small>Preguntas para repasar</small></span></button></div>`;
 }
 export function importMenuHTML() {
-  return `<h2>Importar</h2><div class="lib-pick">
+  return `<h2 class="sheet-hand">Importar</h2><div class="lib-pick">
     <button data-act="import-notes">${icon('file-text', { size: 22 })}<span><b>Apuntes</b><small>Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian</small></span></button>
     <button data-act="import">${icon('copy', { size: 22 })}<span><b>Listas</b><small>CSV, mazo de Anki o archivo de Flaski</small></span></button>
     <button data-act="paste">${icon('download', { size: 22 })}<span><b>Pegar preguntas</b><small>Texto o JSON copiado</small></span></button></div>`;

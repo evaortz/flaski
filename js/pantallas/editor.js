@@ -4,7 +4,7 @@ import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, detectSep, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
-import { COLORS, colorVar, TAG_COLORS, tagColor, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSVG, imageOf, iconText } from '../org.js';
+import { COLORS, colorVar, FOLDER_COLORS, folderColorId, TAG_COLORS, tagColor, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSVG, imageOf, iconText } from '../org.js';
 import { addImage, imgToken, imageIdsOf, deleteImage } from '../media.js';
 import { pageTitle } from '../pages.js';
 import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagSticker, deckIcon, folderIcon, folderArt, shareUrl, algo, counts } from '../comun.js';
@@ -121,9 +121,11 @@ export function setIcon(e) {
   for (const b of document.querySelectorAll('.draw-pick [data-drawing]')) b.setAttribute('aria-pressed', String(b.dataset.drawing === e));
   const panel = $('#emojiPanel'); panel.hidden = true; $('.icon-current').setAttribute('aria-expanded', 'false');
 }
-function colorPicker(current) {
-  return `<div class="colors" role="radiogroup" aria-label="Color">${COLORS.map(c => `<label class="cpick" title="${c.label}">
-    <input type="radio" name="f-color" value="${c.id}" ${c.id === (current || '') ? 'checked' : ''}><span style="background:${c.id ? colorVar(c.id) : 'transparent'}" class="${c.id ? '' : 'none'}"></span><span class="sr">${c.label}</span></label>`).join('')}</div>`;
+// palette: COLORS (listas) o FOLDER_COLORS (carpetas, los 9 acentos)
+function colorPicker(current, palette = COLORS) {
+  const cur = palette === FOLDER_COLORS ? folderColorId(current) : current || '';
+  return `<div class="colors" role="radiogroup" aria-label="Color">${palette.map(c => `<label class="cpick" title="${c.label}">
+    <input type="radio" name="f-color" value="${c.id}" ${c.id === cur ? 'checked' : ''}><span style="background:${c.id ? c.hex || colorVar(c.id) : 'transparent'}" class="${c.id ? '' : 'none'}"></span><span class="sr">${c.label}</span></label>`).join('')}</div>`;
 }
 export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna (en «Mis listas»)') {
   return `<select id="${id}"><option value="">${rootLabel}</option>${folderTree(S.folders, exclude).map(f =>
@@ -200,12 +202,12 @@ export function deckForm(d) {
 export function folderForm(f) {
   const parentDefault = f ? f.parent_id : S.folderId;
   S.folderPick = { orig: imageOf(f?.icon), picked: new Set() };
-  openSheet(`<h2>${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
+  openSheet(`<h2 class="sheet-hand">${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
     <form data-form="folder" data-id="${f ? f.id : ''}">
       <label for="fo-name">Nombre</label><input id="fo-name" maxlength="80" required value="${esc(f?.name || '')}">
       <label>Icono</label>${iconPicker(f?.icon, { drawings: true })}
-      <label>Color de la carpeta</label>${colorPicker(f?.color)}
-      <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna (en la raíz)')}
+      <label>Color de la carpeta</label>${colorPicker(f?.color, FOLDER_COLORS)}
+      <label for="fo-parent">Dentro de</label>${folderSelect('fo-parent', parentDefault || '', f?.id, 'Ninguna, en Biblioteca')}
       ${f ? '' : '<p class="hint">Las carpetas son comunes a listas y apuntes: un tema puede tener los dos.</p>'}
       <div class="btnrow" style="margin-top:14px">${f ? '<button type="button" class="ghost danger" data-act="ask-delete-folder">Eliminar carpeta</button>' : ''}<span class="spacer"></span>
         <button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
@@ -821,6 +823,10 @@ export async function saveFolderForm(form) {
   try {
     const f = id ? await api.updateFolder(id, fields) : await api.createFolder({ ...fields, owner: S.uid });
     S.folders.set(f.id, f);
+    // Creada desde «Mover a otra carpeta»: lo que se movía va a la carpeta nueva
+    const moving = !id && S.moveAfterFolder;
+    S.moveAfterFolder = null;
+    if (moving?.length) { await moveDecks(moving, f.id); return go('decks', { folderId: f.id }); }
     toast(id ? 'Carpeta guardada' : 'Carpeta creada');
     go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
@@ -849,10 +855,10 @@ export function moveSheet(ids) {
   const tree = folderTree(S.folders);
   const row = (id, label, depth, icon) => `<li><button class="moverow" data-move-to="${id}" ${id === cur ? 'aria-current="true"' : ''} style="padding-left:${10 + depth * 18}px">
     ${icon}<span>${label}</span>${id === cur ? '<span class="muted small">aquí está</span>' : ''}</button></li>`;
-  openSheet(`<h2>Mover ${decks.length === 1 ? `«${esc(decks[0].name)}»` : `${decks.length} listas`}</h2>
+  openSheet(`<h2 class="sheet-hand">Mover ${decks.length === 1 ? `«${esc(decks[0].name)}»` : `${decks.length} listas`}</h2>
     <p class="muted small">Toca la carpeta de destino.</p>
     <ul class="movelist" data-moving='${esc(JSON.stringify(ids))}'>
-      ${row('', 'Mis listas (sin carpeta)', 0, `<span class="icon">${icon('house', { size: 18 })}</span>`)}
+      ${row('', 'Sueltos', 0, `<span class="icon">${icon('house', { size: 18 })}</span>`)}
       ${tree.map(f => row(f.id, esc(f.name), f.depth + 1, folderIcon(S.folders.get(f.id)))).join('')}
     </ul>
     <div class="btnrow"><button class="ghost" data-act="new-folder">+ Carpeta nueva</button><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button></div>`);

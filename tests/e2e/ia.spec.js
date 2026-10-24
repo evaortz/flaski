@@ -95,7 +95,7 @@ test('JSON roto: el error dice la línea y no se cierra la hoja', async ({ page 
 test('pegar columnas de una hoja de cálculo (CSV)', async ({ page }) => {
   await openApp(page);
   await paste(page, 'pregunta\trespuesta\nev\tcasa\nkapı\tpuerta');
-  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde CSV');
+  await expect(page.locator('#sheetBody')).toContainText('2 preguntas · desde una tabla');
 });
 
 test('un archivo flaski-deck se sigue importando igual', async ({ page }) => {

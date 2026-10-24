@@ -294,16 +294,16 @@ test('borrar una carpeta no pierde sus apuntes ni sus listas: pasan a sueltos', 
 test('color de la carpeta: cobalto si no se elige ninguno; si no, el elegido', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
-  for (const [name, color] of [['Turco', ''], ['Macro', 'green']]) {
+  for (const [name, color] of [['Turco', ''], ['Macro', 'bosque']]) {
     await page.locator('#main [data-act="new-folder"]').click();
     await page.locator('#fo-name').fill(name);
     if (color) await page.locator(`input[name="f-color"][value="${color}"]`).check({ force: true });
     await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.locator('#main .fhero')).toHaveAttribute('style', color ? `--fold:var(--c-${color})` : '--fold:var(--accent)');
+    await expect(page.locator('#main .fhero')).toHaveAttribute('style', color ? '--fold:#1D7550' : '--fold:var(--accent)');
     await nav(page, 'Biblioteca');
   }
   await expect(page.locator('#main .lfold', { hasText: 'Turco' })).toHaveAttribute('style', '--fold:var(--accent)');
-  await expect(page.locator('#main .lfold', { hasText: 'Macro' })).toHaveAttribute('style', '--fold:var(--c-green)');
+  await expect(page.locator('#main .lfold', { hasText: 'Macro' })).toHaveAttribute('style', '--fold:#1D7550');
 });
 
 test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin dibujo, su emoji', async ({ page }) => {
