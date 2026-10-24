@@ -477,7 +477,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   await page.locator('[data-fmt="image"]').click();
   await (await chooser).setFiles(PNG);
   await expect(page.locator('#fld-q')).toHaveValue(/^!\[\]\(img:[a-z0-9]+\)$/);
-  await expect(page.locator('#pvBody img.media')).toHaveAttribute('src', /^blob:/);
+  await expect(page.locator('#pvBody img.media').first()).toHaveAttribute('src', /^blob:/);
   await page.locator('#fld-a').fill('Turquía');
   await page.locator('.ed-foot button[type="submit"]').click();
   await expect(page.locator('#sheet')).toBeHidden();

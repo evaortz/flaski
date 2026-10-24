@@ -225,16 +225,6 @@ export function tagsSheet(renaming = null) {
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="save-tags">Hecho</button></div>`);
   if (renaming) { const i = document.querySelector('.tl-rename .t-name'); i?.focus(); i?.select(); }
 }
-// Desplegable de tipos («Crear varias»): los que encajan con el mazo primero, el resto aparte
-function typeOptions(selected, deckId) {
-  const study = deckLang(deckId);
-  const own = [...S.types.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  const opt = t => `<option value="${t.id}" ${t.id === selected ? 'selected' : ''}>${esc(t.icon ? t.icon + ' ' : '')}${esc(t.name)}</option>`;
-  const fits = BUILTIN_TYPES.filter(t => typeFit(t, study) && (!typeHidden(t) || t.id === selected));
-  const rest = BUILTIN_TYPES.filter(t => !fits.includes(t));
-  const group = (label, list) => (list.length ? `<optgroup label="${label}">${list.map(opt).join('')}</optgroup>` : '');
-  return group(study ? `Para ${langLabel(study).toLowerCase()}` : 'Para esta lista', fits) + group('Tus tipos', own) + group('Otros', rest);
-}
 export function deckOptions(selected) {
   return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(d.name)}${d.archived ? ' (archivada)' : ''}</option>`).join('');
 }
@@ -263,49 +253,99 @@ function defaultTypeFor(deckId) {
   const fits = t => t && (typeFit(t, deckLang(deckId)) || !BUILTIN_TYPES.includes(t));
   return [lastTypeFor(deckId), ...suggestedTypes(deckId)].map(getType).find(fits) || BUILTIN_TYPES[0];
 }
-// Barra del editor: el tipo actual (abre el selector) y los que más usas en este mazo
-function typeBar(sel, deckId) {
-  const cur = getType(sel) || BUILTIN_TYPES[0];
-  const quick = [...new Set([...recentTypes(deckId), ...suggestedTypes(deckId)])].filter(id => id !== cur.id)
-    .map(getType).filter(t => t && !typeHidden(t) && (typeFit(t, deckLang(deckId)) || !t.builtin)).slice(0, 3);
-  return `<button type="button" class="ed-typesel" data-act="pick-type" aria-haspopup="dialog" title="Cambiar el tipo de pregunta">
-      <span class="tci">${typeIcon(cur, 18)}</span><span class="ed-typename">${esc(cur.name)}</span>${icon('chevron-down', { size: 16 })}</button>
-    ${quick.length ? `<span class="ed-quick" aria-label="Tipos que usas en esta lista">${quick.map(t => `<button type="button" class="tq" data-set-type="${t.id}" title="${esc(t.description || '')}">${typeIcon(t, 16)}<span>${esc(t.name)}</span></button>`).join('')}</span>` : ''}`;
+// Los 4 tipos a un toque, fijos según el idioma de la lista (el elegido, si no está entre ellos, ocupa el cuarto)
+const SHORT_NAME = { reverse: 'Con inversa', typing: 'Escribir respuesta' };
+function segTypes(deckId) {
+  const study = deckLang(deckId);
+  const base = study ? ['vocab', 'basic', 'typing', BUILTIN_TYPES.find(t => typeFit(t, study) === 'own' && !typeHidden(t))?.id || 'listen'] : ['basic', 'reverse', 'cloze', 'choice'];
+  const spare = study ? ['reverse', 'listen', 'cloze', 'choice'] : ['typing', 'truefalse', 'number', 'match'];
+  return [...new Set([...base, ...spare])].map(getType).filter(t => t && !typeHidden(t)).slice(0, 4).map(t => t.id);
 }
-// Selector de tipos (dentro del editor): agrupados según el idioma del mazo, con buscador
+// attr: el atributo con el que cada segmento cambia el tipo (data-set-type en el editor, data-quick-type en «Varias de golpe»)
+export function typeSegs(sel, deckId, attr = 'data-set-type') {
+  const ids = segTypes(deckId);
+  if (!ids.includes(sel)) ids[Math.min(3, ids.length)] = sel;
+  return `<div class="ed-segs" role="group" aria-label="Tipo de pregunta">${ids.map(id => {
+    const t = getType(id) || BUILTIN_TYPES[0];
+    return `<button type="button" class="ed-seg${id === sel ? ' ed-typesel' : ''}" ${attr}="${id}" aria-pressed="${id === sel}" title="${esc(t.name)}">${esc(SHORT_NAME[id] || t.name)}</button>`;
+  }).join('')}</div><button type="button" class="ed-seg-more" data-act="pick-type" aria-haspopup="dialog">Más tipos ${icon('chevron-down', { size: 15 })}</button>`;
+}
+// Todos los tipos, por lo que se hace con ellos (Explícalo y ¿Qué pasaría si…? llegarán con la fase 9)
+const TYPE_GROUPS = [
+  ['Recordar', ['basic', 'reverse', 'vocab', 'de-noun']],
+  ['Escribir', ['typing', 'kanji', 'handwrite', 'listen', 'conj', 'number']],
+  ['Elegir', ['choice', 'truefalse', 'clozechoice']],
+  ['Completar', ['cloze']],
+  ['Relacionar y ordenar', ['match', 'sort', 'order', 'steps']],
+  ['Con imagen', ['occlusion']],
+];
+const langOf = t => { const s = typeScope(t); return Array.isArray(s) && s.length === 1 ? (LANGS.find(l => l.id && baseLang(l.id) === s[0])?.label || '').toLowerCase() : ''; };
+const nWords = s => String(s).split(/\s+/).filter(Boolean).length;
+// Lo que encaja con lo seleccionado en un apunte: 3 tipos y por qué
+function fitTypes(text, study) {
+  const lines = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const own = BUILTIN_TYPES.find(t => typeFit(t, study) === 'own')?.id;
+  if (lines.length >= 2 && lines.every(l => /\s(=|→|-|–)\s|:\s/.test(l))) return { why: `${lines.length} líneas «palabra = significado»`, ids: study ? ['match', 'vocab', own || 'reverse'] : ['match', 'basic', 'sort'] };
+  if (lines.length >= 3) return { why: `${lines.length} pasos encadenados`, ids: ['steps', 'basic', 'cloze'] };
+  if (/\d/.test(text) && nWords(text) <= 25) return { why: 'una frase con un número', ids: ['number', 'cloze', 'basic'] };
+  return { why: nWords(text) <= 4 ? 'una palabra o un término' : 'una frase', ids: ['cloze', 'basic', 'choice'] };
+}
+// Selector de tipos («Más tipos»): S.pick = { deckId, sel, q, all, text, apply(id) }; en el editor y en «Varias de golpe»
 export function drawTypePicker() {
-  const box = $('#typePicker');
-  if (!box || !S.edit) return;
-  const deckId = edDeck(), study = deckLang(deckId);
-  const { q = '', all = false } = S.edit.pick || {};
-  const nq = norm(q.trim());
+  const box = $('#typePicker'), P = S.pick;
+  if (!box || !P) return;
+  const study = deckLang(P.deckId), nq = norm(P.q.trim());
   const match = t => !nq || norm(`${t.name} ${t.description || ''}`).includes(nq);
-  const shown = t => (nq || all || !typeHidden(t)) && (nq || all || typeFit(t, study) || !t.builtin);
-  const builtins = BUILTIN_TYPES.filter(match), own = [...S.types.values()].filter(match).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  const groups = [
-    study && [`Para ${langLabel(study).toLowerCase()}`, builtins.filter(t => typeFit(t, study) === 'own')],
-    study && ['Para idiomas', builtins.filter(t => typeFit(t, study) === 'lang')],
-    ['Para cualquier tema', builtins.filter(t => typeFit(t, study) === 'general')],
-    ['Tus tipos', own],
-  ].filter(Boolean).map(([h, list]) => [h, list.filter(shown)]);
-  const listed = new Set(groups.flatMap(g => g[1]).map(t => t.id));
-  if (all || nq) groups.push(['Otros', [...builtins, ...own].filter(t => !listed.has(t.id))]);
-  const item = t => {
-    const n = t.templates.length;
-    return `<li><button type="button" class="tp-item" data-pick-type="${t.id}" aria-pressed="${t.id === S.edit.typeId}">
-      <span class="tci">${typeIcon(t, 22)}</span><span class="tp-txt"><b>${esc(t.name)}</b><small>${esc(t.description || '')}${n > 1 && !/(dos|\d) preguntas/i.test(t.description || '') ? ` · Crea ${n} preguntas` : ''}</small></span></button></li>`;
-  };
-  const body = groups.filter(g => g[1].length).map(([h, list]) => `<h3 class="tp-h">${esc(h)}</h3><ul class="tp-list">${list.map(item).join('')}</ul>`).join('');
-  box.querySelector('.tp-body').innerHTML = body || '<p class="muted">Ningún tipo coincide con la búsqueda.</p>';
-  box.querySelector('.tp-note').textContent = study ? `Lista de ${langLabel(study).toLowerCase()}: se muestran los tipos que encajan.` : 'Esta lista no es de idiomas: se muestran los tipos generales.';
-  box.querySelector('[data-act="types-all"]').textContent = all ? 'Ver solo los de esta lista' : 'Ver todos los tipos';
+  // Sin buscar: los que encajan con la lista (sin los ocultos); «Ver todos» añade los de idiomas o los de otro idioma
+  const visible = t => match(t) && (nq || (!typeHidden(t) && (P.all || typeFit(t, study))));
+  const chip = t => `<button type="button" class="tp-chip" data-pick-type="${t.id}" aria-pressed="${t.id === P.sel}" title="${esc(t.description || '')}"><span class="tci">${typeIcon(t, 16)}</span>${esc(t.name)}${langOf(t) ? `<em>${esc(langOf(t))}</em>` : ''}</button>`;
+  let body = '';
+  const fit = !nq && fitTypes(P.text, study);
+  if (fit) {
+    const cards = fit.ids.map(getType).filter(t => t && !typeHidden(t));
+    body += `<h3 class="tp-h">Encaja con tu selección</h3><p class="tp-why">${icon('sugerencia', { size: 14 })} ${esc(fit.why)}</p>
+      <div class="tp-fits">${cards.map(t => `<button type="button" class="tp-fit" data-pick-type="${t.id}" aria-pressed="${t.id === P.sel}"><span class="tp-art">${typeIcon(t, 30)}</span><span class="tp-txt"><b>${esc(t.name)}</b><small>${esc(t.description || '')}</small></span><span class="tp-check" aria-hidden="true">${icon('check', { size: 15 })}</span></button>`).join('')}</div>`;
+  }
+  const groups = TYPE_GROUPS.map(([h, ids]) => [h, ids.map(getType).filter(t => t && visible(t))]).filter(g => g[1].length);
+  const listed = new Set(TYPE_GROUPS.flatMap(g => g[1]));
+  const extra = BUILTIN_TYPES.filter(t => !listed.has(t.id) && visible(t));   // por si llega un tipo nuevo sin grupo
+  if (extra.length) groups.push(['Otros', extra]);
+  const own = [...S.types.values()].filter(match).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const all = groups.map(([h, list]) => `<h4 class="tp-g">${esc(h)}</h4><div class="tp-chips">${list.map(chip).join('')}</div>`).join('')
+    + (nq && !own.length ? '' : `<h4 class="tp-g">Tus tipos</h4><div class="tp-chips">${own.map(chip).join('')}${nq ? '' : `<button type="button" class="tp-chip tp-new" data-act="manage-types">${icon('plus', { size: 15 })} Crear un tipo</button>`}</div>`);
+  body += `<div class="tp-allh"><h3 class="tp-h">Todos los tipos</h3>${nq ? '' : `<button type="button" class="link" data-act="types-all">${P.all ? 'Ver solo los que encajan' : study ? 'Ver todos' : 'Ver también los de idiomas'}</button>`}</div>${groups.length || own.length ? all : '<p class="muted">Ningún tipo coincide con la búsqueda.</p>'}`;
+  box.querySelector('.tp-body').innerHTML = body;
+  const cur = getType(P.sel);
+  box.querySelector('[data-act="use-type"]').textContent = cur ? `Usar «${cur.name}»` : 'Usar';
 }
-export function openTypePicker(open = true) {
-  if (!S.edit) return;
-  S.edit.pick = open ? { q: '', all: false } : null;
-  $('#typePicker').hidden = !open;
-  document.querySelector('form.ed')?.classList.toggle('picking', open);
+export function openTypePicker(open = true, ctx = null) {
+  const box = $('#typePicker');
+  if (!box) return;
+  S.pick = open ? { q: '', all: false, text: '', ...ctx } : null;
+  box.hidden = !open;
+  box.closest('form')?.classList.toggle('picking', open);
   if (open) { $('#typeSearch').value = ''; drawTypePicker(); if (matchMedia('(hover:hover)').matches) $('#typeSearch').focus(); }
+}
+// Toca un tipo para marcarlo; «Usar» (o Intro al buscar) lo aplica
+export function markPickedType(id, apply = false) {
+  if (!S.pick) return;
+  if (apply) { const fn = S.pick.apply; openTypePicker(false); return fn?.(id); }
+  S.pick.sel = id;
+  drawTypePicker();
+}
+export function useType() { if (S.pick?.sel) markPickedType(S.pick.sel, true); }
+const typePickerHTML = () => `<div class="ed-picker" id="typePicker" role="dialog" aria-label="Elige el tipo" hidden>
+      <div class="tp-top"><h2 class="tp-title">Elige el tipo</h2><button type="button" class="back-round" data-act="close-picker" aria-label="Cerrar">${icon('x', { size: 18 })}</button></div>
+      <label class="tp-search">${icon('search', { size: 17 })}<input id="typeSearch" type="search" placeholder="Buscar un tipo" aria-label="Buscar un tipo" autocomplete="off"></label>
+      <div class="tp-body"></div>
+      <div class="tp-foot"><button type="button" class="primary" data-act="use-type">Usar</button><button type="button" class="ghost" data-act="close-picker">Cancelar</button></div>
+    </div>`;
+// El selector desde el editor de una pregunta
+export function openEditorPicker() {
+  readEditor();
+  const vals = Object.values(S.edit.fields).filter(Boolean);
+  openTypePicker(true, { deckId: edDeck(), sel: S.edit.typeId, text: S.edit.source ? vals[0] || '' : '', apply: setEditorType });
 }
 // Mazo elegido en el editor de tarjetas
 export const edDeck = () => $('#c-deck')?.value || S.edit?.deckId || null;
@@ -337,19 +377,18 @@ function fieldPlaceholder(f, type) {
 }
 function fieldInputs(type, values) {
   const occ = type.templates.find(t => t.mode === 'occlusion');
-  return type.fields.map(f => {
+  return type.fields.map((f, i) => {
     // Imagen tapada: la imagen y sus recuadros se editan juntos, dibujando encima
     if (occ && f.id === occ.answer) return '';
     if (occ && f.id === occ.image) return occEditorHTML(values[occ.image], values[occ.answer]);
-    const roles = fieldRoles(type, f.id);
     const req = requiredField(type, f.id);
-    const lang = f.lang ? LANGS.find(l => l.id === f.lang)?.label || f.lang : '';
+    // Los campos que dan la pregunta llevan su nombre grande; los demás, «· opcional» (la nota, cuándo se ve)
+    const main = req || (i < 2 && fieldRoles(type, f.id).length > 0 && !/^nota$/i.test(f.name));
     const cjk = /^(ja|zh)/.test(f.lang || '');
     const help = f.help || (f.lang?.startsWith('ja') ? 'Furigana: escribe el kanji y pulsa 振 en la barra (o escribe 漢字[かんじ]).' : '');
-    return `<div class="ef${req ? ' ef-req' : ''}" data-ef="${f.id}">
+    return `<div class="ef${main ? ' ef-req' : ''}" data-ef="${f.id}">
       <div class="ef-head">
-        <label class="ef-name" for="fld-${f.id}">${esc(f.name)}${req ? '<span class="ef-dot" title="Necesario" aria-label="necesario">•</span>' : ''}</label>
-        <span class="ef-badges">${roles.map(r => `<span class="ef-role r-${r.replace(/\s/g, '')}">${r}</span>`).join('')}${lang ? `<span class="ef-lang">${esc(lang)}</span>` : ''}</span>
+        <label class="ef-name" for="fld-${f.id}">${esc(f.name)}${main ? '' : `<span class="ef-opt">${/^nota$/i.test(f.name) ? ' · solo la ves al dar la vuelta' : ' · opcional'}</span>`}</label>
         ${f.lang && ttsAvailable() ? `<button type="button" class="ef-say" data-say-input="${f.id}" aria-label="Escuchar ${esc(f.name)}" title="Escuchar">${SPEAK_ICON}</button>` : ''}
       </div>
       <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
@@ -410,44 +449,44 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     fields: { ...model.fields }, pv: model.tpl.id, pvSide: 'front', hint: prefill?.hint ?? c?.hint ?? '', tags: prefill?.tags ?? c?.tags ?? [] };
   const p = c && S.progress.get(c.id);
   const deck = S.decks.get(deckId);
-  openSheet(`<form data-form="card" data-id="${c ? c.id : ''}" class="ed" autocomplete="off">
+  const route = deck ? [...(deck.folder_id ? folderPath(S.folders, deck.folder_id).map(f => f.name) : []), deck.name].join(' / ') : '';
+  const title = c ? 'Editar pregunta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva pregunta';
+  openSheet(`<form data-form="card" data-id="${c ? c.id : ''}" class="ed${side ? '' : ' ed-page'}" autocomplete="off">
     <header class="ed-top">
-      <button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
-      <div class="ed-title"><span>${c ? 'Editar pregunta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva pregunta'}</span>
-        ${side && sourceName(source) ? `<small class="ed-from"><span>de:</span> <button type="button" class="link" data-act="goto-src">${esc(sourceName(source))}</button></small>` : ''}
-        <label class="ed-deck" title="Lista">${deck ? deckIcon(deck) : ''}<select id="c-deck" aria-label="Lista">${deckOptions(deckId)}</select></label></div>
-      <button type="submit" class="primary ed-save">Guardar</button>
+      <button type="button" class="back-round ed-x" data-act="close-sheet" aria-label="Cerrar">${icon(side ? 'x' : 'chevron-left', { size: 20 })}</button>
+      <div class="ed-title">${route && !side ? `<small class="ed-route">${esc(route)}</small>` : ''}<span>${title}</span>
+        ${side && sourceName(source) ? `<small class="ed-from"><span>de:</span> <button type="button" class="link" data-act="goto-src">${esc(sourceName(source))}</button></small>` : ''}</div>
+      ${side ? '' : '<button type="button" class="link ed-cancel" data-act="close-sheet">Cancelar</button>'}
     </header>
     <div class="ed-discard" id="edDiscard" hidden role="alert"><span>Tienes cambios sin guardar.</span>
       <button type="button" class="ghost small-btn" data-act="discard-edit">Descartar</button><button type="button" class="primary small-btn" data-act="keep-edit">Seguir editando</button></div>
     <div class="ed-body">
       <section class="ed-main">
+        <div class="ed-row"><label class="ed-lab" for="c-deck">Lista</label>
+          <label class="ed-deck">${icon('layers', { size: 18 })}<select id="c-deck" aria-label="Lista">${deckOptions(deckId)}</select></label></div>
         <input type="hidden" id="c-type" value="${model.type.id}">
-        <div class="ed-typebar" id="typeBar">${typeBar(model.type.id, deckId)}</div>
-        <p class="ed-typedesc" id="typeDesc">${esc(model.type.description || '')}</p>
+        <div class="ed-row"><span class="ed-lab" id="typeLab">Tipo de pregunta</span>
+          <div class="ed-typebar" id="typeBar">${typeSegs(model.type.id, deckId)}</div>
+          <p class="ed-typedesc" id="typeDesc">${esc(model.type.description || '')}</p></div>
         <div id="fieldsBox" class="ed-fields">${fieldInputs(typeIn(model.type, deckId), model.fields)}</div>
         <div id="toolsBox">${TOOLBAR(deckId)}</div>
         <div class="ed-props">
-          <div class="prop"><span class="prop-k">${icon('lightbulb', { size: 16 })} Pista</span><input id="c-hint" class="prop-v" maxlength="500" value="${esc(S.edit.hint)}" placeholder="Vacío · se puede ver antes de responder"></div>
-          <div class="prop prop-tags"><span class="prop-k">${icon('tag', { size: 16 })} Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
+          <div class="prop prop-tags"><span class="prop-k">Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
+          <div class="prop"><span class="prop-k">Pista · opcional</span><input id="c-hint" class="prop-v" maxlength="500" value="${esc(S.edit.hint)}" placeholder="Se puede ver antes de responder"></div>
           ${linkProp(source || (c?.page_id ? { page_id: c.page_id, block_id: c.block_id } : null))}
         </div>
         ${siblings.length > 1 ? `<p class="ed-note">Esta nota genera ${siblings.length} preguntas. Los cambios se aplican a todas.</p>` : ''}
+        ${side ? '' : '<p class="ed-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para guardar · <kbd>Esc</kbd> para cancelar</p>'}
       </section>
       <aside class="ed-side" aria-label="Vista previa">
-        <div class="pv-h"><span>Vista previa</span><span class="pv-count" id="pvCount"></span></div>
+        <div class="pv-h"><h2>Vista previa</h2><span class="pv-sub">así la verás al estudiar</span>
+          <div class="pv-sides" role="group" aria-label="Cara"><button type="button" data-pvside="front" aria-pressed="true">Anverso</button><button type="button" data-pvside="back" aria-pressed="false">Reverso</button></div></div>
         <div class="pv-tabs" id="pvTabs"></div>
         <div id="pvBody"></div>
-        <p class="ed-kbd">Toca la pregunta para darle la vuelta · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guarda</p>
+        <span class="pv-count" id="pvCount" hidden></span>
       </aside>
     </div>
-    <div class="ed-picker" id="typePicker" role="dialog" aria-label="Elegir tipo de pregunta" hidden>
-      <div class="tp-top"><button type="button" class="iconbtn" data-act="close-picker" aria-label="Volver">${icon('x', { size: 18 })}</button>
-        <input id="typeSearch" type="search" placeholder="Buscar tipo de pregunta" aria-label="Buscar tipo de pregunta" autocomplete="off"></div>
-      <p class="hint tp-note"></p>
-      <div class="tp-body"></div>
-      <div class="btnrow tp-foot"><button type="button" class="link" data-act="types-all"></button><span class="spacer"></span><button type="button" class="ghost small-btn" data-act="manage-types">Gestionar tipos…</button></div>
-    </div>
+    ${typePickerHTML()}
     <footer class="ed-foot">
       ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Eliminar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
@@ -455,12 +494,13 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
       ${side ? `<button type="submit" class="primary">Crear pregunta</button>
         <button type="button" class="ghost" data-act="save-card-more">Crear y otra</button><span class="spacer"></span><kbd class="ed-kb">Ctrl+Enter</kbd>`
       : `<span class="spacer"></span>
-      ${c || sugIndex != null ? '' : '<button type="button" class="ghost" data-act="save-card-more">Guardar y otra</button>'}
-      <button type="submit" class="primary">Guardar</button>`}
+      ${c || sugIndex != null ? '' : '<button type="button" class="soft ed-more" data-act="save-card-more">Guardar y añadir otra</button>'}
+      <button type="submit" class="primary ed-save">Guardar</button>`}
     </footer>
   </form>`, { full: true, side });
   if (side) document.querySelector(`[data-block="${source.block_id}"]`)?.classList.add('is-src');
   document.querySelectorAll('.ef-input').forEach(autoGrow);
+  showSelectedSeg();
   drawPreview();
   if (matchMedia('(hover:hover)').matches) setTimeout(() => document.querySelector('.ef-input')?.focus(), 40);
 }
@@ -485,12 +525,18 @@ export function setEditorType(id) {
 // Tipo, campos y barras del editor según el tipo y el mazo elegidos (el idioma del mazo cambia los campos)
 export function redrawEditorFields() {
   const deckId = edDeck(), t = getType(S.edit.typeId) || BUILTIN_TYPES[0];
-  $('#typeBar').innerHTML = typeBar(t.id, deckId);
+  $('#typeBar').innerHTML = typeSegs(t.id, deckId);
   $('#fieldsBox').innerHTML = fieldInputs(typeIn(t, deckId), S.edit.fields);
   $('#toolsBox').innerHTML = TOOLBAR(deckId);
   $('#typeDesc').textContent = t.description || '';
   document.querySelectorAll('.ef-input').forEach(autoGrow);
+  showSelectedSeg();
   drawPreview();
+}
+// El tipo elegido, a la vista en la barra de segmentos (en el móvil se desplaza)
+export function showSelectedSeg() {
+  const b = document.querySelector('.ed-segs [aria-pressed="true"]'), bar = b?.parentElement;
+  if (b && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = b.offsetLeft - (bar.clientWidth - b.offsetWidth) / 2;
 }
 // Formato sobre el campo activo
 export function applyFormat(kind) {
@@ -678,22 +724,40 @@ export function drawPreview() {
   const isActive = t => active.some(a => a.id === t.id);
   $('#pvTabs').innerHTML = tpls.length > 1 ? tpls.map(t => `<button type="button" class="pvtab${isActive(t) ? '' : ' off'}" data-pv="${t.id}" aria-pressed="${t.id === e.pv}" title="${isActive(t) ? 'Se creará' : 'Faltan campos para crear esta pregunta'}">${isActive(t) ? icon('check', { size: 13 }) + ' ' : ''}${esc(t.name)}</button>`).join('') : '';
   $('#pvCount').textContent = active.length ? `${active.length} ${active.length === 1 ? 'pregunta' : 'preguntas'}` : 'Faltan campos';
+  // En el móvil se ve una cara (Anverso | Reverso); en el ordenador, las dos
+  document.querySelectorAll('.pv-sides [data-pvside]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pvside === e.pvSide));
   const tpl = tpls.find(t => t.id === e.pv);
   const model = { type, tpl, fields: e.fields };
-  const st = { revealed: e.pvSide === 'back', typed: null, choice: null };
+  let choice = null;
   if (tpl.mode === 'choice' || tpl.mode === 'clozechoice') {
     const pool = cardList().filter(x => x.deck_id === $('#c-deck')?.value).map(x => x.back).filter(Boolean);
     while (pool.length < 3) pool.push(`Otra opción ${pool.length + 1}`);
-    st.choice = tpl.mode === 'clozechoice' ? clozeChoices(null, model, pool) : { ...choiceOptions(tpl, e.fields, pool), picked: -1 };
+    choice = tpl.mode === 'clozechoice' ? clozeChoices(null, model, pool) : { ...choiceOptions(tpl, e.fields, pool), picked: -1 };
   }
-  const f = faceHTML(model, st, { preview: true });
-  const modeLabel = MODES.find(m => m.id === tpl.mode)?.label || '';
-  box.innerHTML = `<div class="pv-card mode-${tpl.mode}" title="Toca para darle la vuelta">
-      <span class="pv-side">${e.pvSide === 'front' ? 'Anverso' : 'Reverso'} · ${esc(modeLabel)}</span>
-      <div class="front">${f.front || '<span class="muted">Rellena los campos…</span>'}</div>${f.ask}${f.answer ? `<div class="answer">${f.answer}</div>` : ''}
-      <button type="button" class="pv-flip-hint" data-act="pv-flip" aria-label="Dar la vuelta">${icon('rotate-cw', { size: 16 })}</button>
+  const face = revealed => faceHTML(model, { revealed, typed: null, choice }, { preview: true });
+  const f = face(false), b = face(true);
+  const state = e.cardId && S.progress.get(e.cardId) ? 'repaso' : 'nueva';
+  const reveal = ['flip', 'cloze', 'occlusion'].includes(tpl.mode) ? '<span class="pv-reveal">Ver respuesta</span>' : '';
+  const grades = `<div class="pv-grades" aria-hidden="true"><span class="g1">Otra vez</span><span class="g2">Difícil</span><span class="g3">Bien</span><span class="g4">Fácil</span></div>`;
+  const plainFront = plain(summarize(type, tpl, e.fields).front).slice(0, 40);
+  box.innerHTML = `<div class="pv-card pv-front mode-${tpl.mode}${e.pvSide === 'front' ? ' is-on' : ''}" title="Toca para darle la vuelta">
+      <div class="pv-meta"><span>anverso</span><span>${state}</span></div>
+      <div class="front">${f.front || '<span class="pv-empty">Rellena los campos…</span>'}</div>${f.ask}${reveal}
     </div>
-    ${!isActive(tpl) ? `<p class="hint pv-miss">Esta pregunta no se creará hasta que rellenes ${esc(missingFor(type, tpl, e.fields))}.</p>` : ''}`;
+    <div class="pv-card pv-back mode-${tpl.mode}${e.pvSide === 'back' ? ' is-on' : ''}" title="Toca para darle la vuelta">
+      <div class="pv-meta"><span>reverso</span><span>${esc(plainFront)}</span></div>
+      ${b.answer ? `<div class="answer">${b.answer}</div>` : `<div class="front">${b.front || ''}</div>`}
+      ${grades}
+    </div>
+    ${!isActive(tpl) ? `<p class="hint pv-miss">Esta pregunta no se creará hasta que rellenes ${esc(missingFor(type, tpl, e.fields))}.</p>` : ''}
+    ${active.length > 1 ? `<p class="pv-also">${alsoLine(type, active, tpl)}</p>` : ''}`;
+}
+// «Con «Doble sentido» también se crea la pregunta biblioteca → kütüphane.»
+function alsoLine(type, active, cur) {
+  const others = active.filter(t => t.id !== cur.id);
+  const s = summarize(type, others[0], S.edit.fields);
+  const one = `<b>${esc(plain(s.front).slice(0, 50))}</b> → <b>${esc(plain(s.back).split('\n')[0].slice(0, 50))}</b>`;
+  return others.length === 1 ? `Con «${esc(type.name)}» también se crea la pregunta ${one}.` : `Con «${esc(type.name)}» se crean ${active.length} preguntas.`;
 }
 export function confirmSheet(text, act, label) {
   openSheet(`<h2>${text}</h2><p class="muted">No se puede deshacer.</p>
@@ -882,23 +946,26 @@ export async function saveCardForm(form, more) {
 export function quickSheet() {
   const deckId = S.deckId;
   const t = defaultTypeFor(deckId);
-  openSheet(`<h2 class="sheet-hand">Crear varias preguntas</h2>
+  openSheet(`<form data-form="quick" class="cardform quickform">
+    <h2 class="sheet-hand">Varias de golpe</h2>
     <p class="muted small">Pega una lista con una pregunta por línea. Cada columna rellena un campo, en orden.</p>
-    <form data-form="quick" class="cardform">
-      <div class="two">
-        <div><label for="q-type">Tipo de pregunta</label><select id="q-type">${typeOptions(t.id, deckId)}</select></div>
-        <div><label for="q-sep">Separador</label><select id="q-sep">
-          <option value="auto">Detectar solo</option><option value="\t">Tabulador (copiado de Excel)</option><option value=" - ">Guion ( - )</option>
-          <option value=";">Punto y coma (;)</option><option value=",">Coma (,)</option><option value=" = ">Igual ( = )</option><option value="|">Barra (|)</option></select></div>
-      </div>
       <label for="q-deck">Lista</label><select id="q-deck">${deckOptions(deckId)}</select>
+      <span class="ed-lab">Tipo de pregunta</span>
+      <input type="hidden" id="q-type" value="${t.id}"><div class="ed-typebar" id="qTypes">${typeSegs(t.id, deckId, 'data-quick-type')}</div>
+      <label for="q-sep">Separador</label><select id="q-sep">
+          <option value="auto">Detectar solo</option><option value="	">Tabulador (copiado de Excel)</option><option value=" - ">Guion ( - )</option>
+          <option value=";">Punto y coma (;)</option><option value=",">Coma (,)</option><option value=" = ">Igual ( = )</option><option value="|">Barra (|)</option></select>
       <p class="hint" id="qMap"></p>
       <textarea id="q-text" rows="8"></textarea>
       <div id="qPrev"></div>
       <div class="btnrow" style="margin-top:8px"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary" id="qGo" disabled>Crear preguntas</button></div>
+      ${typePickerHTML()}
     </form>`);
   drawQuick();
 }
+// El tipo de «Varias de golpe» (los segmentos y «Más tipos»)
+export function setQuickType(id) { const i = $('#q-type'); if (!i || !getType(id)) return; i.value = id; drawQuick(); }
+export function openQuickPicker() { openTypePicker(true, { deckId: $('#q-deck').value, sel: $('#q-type').value, apply: setQuickType }); }
 // Ejemplo de la hoja según el tipo elegido y el idioma de la lista (una línea por nota)
 const QUICK_WORDS = {
   de: [['Haus', 'la casa'], ['Buch', 'el libro'], ['Wasser', 'el agua']], tr: [['ev', 'casa'], ['kitap', 'libro'], ['su', 'agua']],
@@ -934,6 +1001,8 @@ function quickRows() {
 }
 export function drawQuick() {
   const { type, notes, valid, sep } = quickRows();
+  $('#qTypes').innerHTML = typeSegs(type.id, $('#q-deck').value, 'data-quick-type');
+  showSelectedSeg();
   $('#qMap').innerHTML = type.fields.map((f, i) => `Columna ${i + 1} → <b>${esc(f.name)}</b>`).join(' · ')
     + ($('#q-sep').value === 'auto' && notes.length && sep !== 'auto' ? ` · separador: <b>${esc(SEP_NAMES[sep.trim() || sep] || `«${sep.trim()}»`)}</b>` : '');
   $('#q-text').placeholder = quickExample(type, $('#q-deck').value);

@@ -29,7 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
-import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -180,7 +180,8 @@ document.addEventListener('click', async e => {
     return renderStudy();
   }
   if (ds.setType) return setEditorType(ds.setType);
-  if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
+  if (ds.quickType) return setQuickType(ds.quickType);
+  if (ds.pickType) return markPickedType(ds.pickType);
   if (ds.page) return go('page', { pageId: ds.page });
   if (ds.cfilter) { Object.assign(S, { cardFilter: ds.cfilter, cardAll: false }); return renderDeck(); }
   if (ds.linkPage) return linkPage(ds.linkPage);
@@ -528,9 +529,10 @@ document.addEventListener('click', async e => {
     case 'sel-cloze': return cardFromSelection('cloze');
     case 'sel-done': document.activeElement?.blur(); return getSelection()?.removeAllRanges();
     case 'goto-src': return S.edit?.source && gotoBlock(S.edit.source.block_id);
-    case 'pick-type': return openTypePicker(true);
+    case 'pick-type': return document.querySelector('#q-type') ? openQuickPicker() : openEditorPicker();
+    case 'use-type': return useType();
     case 'close-picker': return openTypePicker(false);
-    case 'types-all': S.edit.pick.all = !S.edit.pick.all; return drawTypePicker();
+    case 'types-all': S.pick.all = !S.pick.all; return drawTypePicker();
     case 'new-type': return typeEditor(blankType());
     case 'add-field': { const t = readTypeEditor(); const id = nextId('f', t.fields); t.fields.push({ id, name: `Campo ${t.fields.length + 1}`, lang: '', autoplay: false, help: '' }); return drawTypeEditor(); }
     case 'add-template': { const t = readTypeEditor(); t.templates.push({ id: nextId('t', t.templates), name: `Pregunta ${t.templates.length + 1}`, mode: 'flip', front: [t.fields[0].id], back: t.fields.slice(1).map(f => f.id) }); return drawTypeEditor(); }
@@ -752,7 +754,7 @@ document.addEventListener('submit', async e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'f-newtag') return filterTagPicker();
-  if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
+  if (e.target.id === 'typeSearch' && S.pick) { S.pick.q = e.target.value; return drawTypePicker(); }
   if (e.target.matches?.('.tc')) { histRecord('type'); autoGrow(e.target); placeTblHandles(e.target.parentElement); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
   if (e.target.matches?.('[data-block-input]')) {
     const t = e.target, b = curPage()?.blocks.find(x => x.id === t.dataset.blockInput);
@@ -902,13 +904,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
     // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero
-    if (S.edit?.pick && e.key === 'Escape') { e.preventDefault(); return openTypePicker(false); }
+    if (S.pick && e.key === 'Escape') { e.preventDefault(); return openTypePicker(false); }
     if (e.target.id === 'rpIn' && (e.key === 'Enter' || e.key === 'Escape')) {
       e.preventDefault();
       if (e.key === 'Enter') return rubyApply();
       const t = S.rubyEdit?.t; rubyClose(); t?.focus(); return;
     }
-    if (S.edit?.pick && e.key === 'Enter' && e.target.id === 'typeSearch') { e.preventDefault(); document.querySelector('[data-pick-type]')?.click(); return; }
+    if (S.pick && e.key === 'Enter' && e.target.id === 'typeSearch') { e.preventDefault(); const id = document.querySelector('#typePicker [data-pick-type]')?.dataset.pickType; if (id) markPickedType(id, true); return; }
     if (e.key === 'Escape') requestClose();
     if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'i') && e.target.matches('.ef-input')) { e.preventDefault(); applyFormat(e.key === 'b' ? 'bold' : 'italic'); return; }
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { const f = document.querySelector('#sheetBody form[data-form]'); if (f) { e.preventDefault(); f.requestSubmit(); } }

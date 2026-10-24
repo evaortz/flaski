@@ -15,7 +15,7 @@ const PNG = { name: 'mapa.png', mimeType: 'image/png', buffer: png(400, 300) };
 async function newCardOfType(page, type) {
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
-  await page.locator(`[data-pick-type="${type}"]`).click();
+  await page.locator(`[data-pick-type="${type}"]`).click(); await page.locator('[data-act="use-type"]').click();
 }
 const save = async page => { await page.locator('.ed-foot button[type="submit"]').click(); await expect(page.locator('#sheet')).toBeHidden(); };
 const study = page => page.locator('#main [data-start]').first().click();

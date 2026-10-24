@@ -10,7 +10,7 @@ test('furigana en el editor: añadir, ver la vista previa y cambiarla', async ({
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
-  await page.locator('[data-pick-type="vocab"]').click();
+  await page.locator('[data-pick-type="vocab"]').click(); await page.locator('[data-act="use-type"]').click();
 
   // Kanji justo antes del cursor + 振 → recuadro con vista previa en directo
   await page.locator('#fld-w').fill('水を飲む');

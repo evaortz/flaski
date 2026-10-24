@@ -40,7 +40,7 @@ test('escribir 日 a mano: se corrige trazo a trazo y sin errores', async ({ pag
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
-  await page.locator('[data-pick-type="handwrite"]').click();
+  await page.locator('[data-pick-type="handwrite"]').click(); await page.locator('[data-act="use-type"]').click();
   await page.locator('#fld-q').fill('sol');
   await page.locator('#fld-a').fill('日');
   await page.locator('.ed-foot button[type="submit"]').click();

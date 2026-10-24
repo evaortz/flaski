@@ -15,7 +15,7 @@ async function newDeck(page, name, lang) {
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }
 const picker = page => page.locator('#typePicker');
-const groupNames = page => picker(page).locator('.tp-h').allInnerTexts();
+const groupNames = page => picker(page).locator('.tp-g').allTextContents();
 
 test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los de otros idiomas', async ({ page }) => {
   await openApp(page);
@@ -23,15 +23,15 @@ test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los 
   await expect(page.locator('.deckhead')).toContainText('Alemán');
   await newCard(page);
   await expect(page.locator('.ed-typesel')).toContainText('Sustantivo alemán');       // empieza por el tipo propio del idioma
-  await expect(page.locator('.ef-lang').first()).toContainText('Alemán');
-
+  await expect(page.locator('.ef-input[lang="de-DE"]').first()).toBeVisible();
+  // Los 4 de una lista de idiomas, con el del idioma; «Más tipos» abre el selector por grupos
+  await expect(page.locator('.ed-segs [data-set-type]')).toHaveText(['Vocabulario', 'Básica', 'Escribir respuesta', 'Sustantivo alemán']);
   await page.locator('[data-act="pick-type"]').click();
-  expect(await groupNames(page)).toEqual(['Para alemán', 'Para idiomas', 'Para cualquier tema']);
-  await expect(picker(page)).toContainText('Vocabulario');
+  expect(await groupNames(page)).toEqual(['Recordar', 'Escribir', 'Elegir', 'Completar', 'Relacionar y ordenar', 'Con imagen', 'Tus tipos']);
+  await expect(picker(page).locator('[data-pick-type="de-noun"]')).toContainText('alemán');
   await expect(picker(page).locator('[data-pick-type="kanji"]')).toHaveCount(0);
 
   await page.locator('[data-act="types-all"]').click();
-  expect(await groupNames(page)).toContain('Otros');
   await expect(picker(page).locator('[data-pick-type="kanji"]')).toHaveCount(1);
 
   await page.locator('#typeSearch').fill('dictado');
@@ -41,9 +41,9 @@ test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los 
   await expect(page.locator('.ed-typesel')).toContainText('Dictado');
   // Vocabulario en un mazo de alemán: la palabra en alemán y la traducción en tu idioma
   await page.locator('[data-act="pick-type"]').click();
-  await page.locator('[data-pick-type="vocab"]').click();
-  await expect(page.locator('[data-ef="w"] .ef-lang')).toHaveText('Alemán');
-  await expect(page.locator('[data-ef="t"] .ef-lang')).toHaveText('Español');
+  await page.locator('[data-pick-type="vocab"]').click(); await page.locator('[data-act="use-type"]').click();
+  await expect(page.locator('#fld-w')).toHaveAttribute('lang', 'de-DE');
+  await expect(page.locator('#fld-t')).toHaveAttribute('lang', /^es/);
 });
 
 test('mazo que no es de idiomas: solo tipos generales y sin audio', async ({ page }) => {
@@ -52,10 +52,36 @@ test('mazo que no es de idiomas: solo tipos generales y sin audio', async ({ pag
   await newCard(page);
   await expect(page.locator('.ed-typesel')).toContainText('Básica');
   await page.locator('[data-act="pick-type"]').click();
-  expect(await groupNames(page)).toEqual(['Para cualquier tema']);
+  await expect(page.locator('.ed-segs [data-set-type]')).toHaveText(['Básica', 'Con inversa', 'Huecos', 'Opción múltiple']);
   await expect(picker(page).locator('[data-pick-type="vocab"]')).toHaveCount(0);
-  await page.locator('[data-pick-type="reverse"]').click();
-  await expect(page.locator('.ef-lang')).toHaveCount(0);
+  await page.locator('[data-act="types-all"]').click();                               // «Ver también los de idiomas»
+  await expect(picker(page).locator('[data-pick-type="vocab"]')).toHaveCount(1);
+  await page.locator('[data-pick-type="reverse"]').click(); await page.locator('[data-act="use-type"]').click();
+  await expect(page.locator('.ed-typesel')).toHaveText('Con inversa');
+  await expect(page.locator('.ef-input[lang]')).toHaveCount(0);
+});
+
+test('el último tipo que usaste en la lista sale marcado; «Varias de golpe» usa los mismos segmentos y «Más tipos»', async ({ page }) => {
+  await openApp(page);
+  await newDeck(page, 'Historia', '');
+  await newCard(page);
+  await page.locator('[data-set-type="cloze"]').click();
+  await page.locator('#fld-x').fill('La {{Bastilla}} cayó en 1789');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await newCard(page);
+  await expect(page.locator('.ed-typesel')).toHaveText('Huecos');
+  await page.keyboard.press('Escape');
+  await page.locator('#main [data-act="add-menu"]').click();
+  await page.locator('#sheetBody [data-act="quick-add"], #dkPop:not([hidden]) [data-act="quick-add"]').click();
+  await expect(page.locator('.quickform .ed-typesel')).toHaveText('Huecos');
+  await page.locator('.quickform [data-act="pick-type"]').click();
+  await page.locator('#typePicker [data-pick-type="truefalse"]').click();
+  await expect(page.locator('[data-act="use-type"]')).toHaveText('Usar «Verdadero o falso»');
+  await page.locator('[data-act="use-type"]').click();
+  await expect(page.locator('#typePicker')).toBeHidden();
+  await expect(page.locator('.quickform .ed-typesel')).toHaveText('Verdadero o falso');
+  await expect(page.locator('#q-text')).toHaveAttribute('placeholder', /La Luna tiene luz propia/);
 });
 
 test('cambiar de mazo en el editor cambia el idioma de los campos', async ({ page }) => {
@@ -64,11 +90,11 @@ test('cambiar de mazo en el editor cambia el idioma de los campos', async ({ pag
   await newDeck(page, 'Francés', 'fr-FR');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
-  await page.locator('[data-pick-type="vocab"]').click();
+  await page.locator('[data-pick-type="vocab"]').click(); await page.locator('[data-act="use-type"]').click();
   await page.locator('#fld-w').fill('maison');
-  await expect(page.locator('[data-ef="w"] .ef-lang')).toHaveText('Francés');
+  await expect(page.locator('#fld-w')).toHaveAttribute('lang', 'fr-FR');
   await page.locator('#c-deck').selectOption({ label: 'Japonés' });
-  await expect(page.locator('[data-ef="w"] .ef-lang')).toHaveText('Japonés');
+  await expect(page.locator('#fld-w')).toHaveAttribute('lang', 'ja-JP');
   await expect(page.locator('#fld-w')).toHaveValue('maison');                       // lo escrito se conserva
   await expect(page.locator('[data-fmt="ruby"]')).toBeVisible();                     // furigana solo en japonés
 });

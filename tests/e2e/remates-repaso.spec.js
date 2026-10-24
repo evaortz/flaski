@@ -111,7 +111,7 @@ test('«Varias de golpe»: detecta la coma, el ejemplo sigue al tipo y el botón
   await page.locator('#main .ltile[data-open="de"]').click();
   await page.locator('#main [data-act="add-menu"]').click();
   await page.locator('#sheetBody [data-act="quick-add"], #dkPop:not([hidden]) [data-act="quick-add"]').click();
-  await page.locator('#q-type').selectOption('de-noun');
+  await page.locator('[data-quick-type="de-noun"]').click();
   await expect(page.locator('#q-text')).toHaveAttribute('placeholder', /^die - Wohnung - die Wohnungen - el piso/);
   await page.locator('#q-text').fill('die, Küche, die Küchen, la cocina\nder, Tisch, die Tische, la mesa\ndas, Bett, die Betten, la cama');
   await expect(page.locator('.qtable tbody tr').first().locator('td').nth(1)).toHaveText('Küche');
