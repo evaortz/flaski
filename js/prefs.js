@@ -29,7 +29,7 @@ export const DEFAULT_PREFS = {
   algo: { preset: 'fsrs', custom: { ...DEFAULT_ALGO }, retention: 0.9 },   // FSRS para quien empieza
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'
-    accent: 'blue',
+    accent: 'cobalto',
     font: 'system',         // 'system' | 'serif' | 'rounded' | 'mono'
     cardSize: 'm',          // tamaño del texto de las preguntas: s | m | l | xl
     density: 'comfy',       // 'comfy' | 'compact'
@@ -41,12 +41,14 @@ export const DEFAULT_PREFS = {
 };
 
 export const ACCENTS = [
-  { id: 'blue', label: 'Azul' }, { id: 'indigo', label: 'Índigo' }, { id: 'purple', label: 'Morado' },
-  { id: 'pink', label: 'Rosa' }, { id: 'rose', label: 'Frambuesa' }, { id: 'red', label: 'Rojo' },
-  { id: 'orange', label: 'Naranja' }, { id: 'amber', label: 'Ámbar' }, { id: 'lime', label: 'Lima' },
-  { id: 'green', label: 'Verde' }, { id: 'teal', label: 'Turquesa' }, { id: 'cyan', label: 'Cian' },
-  { id: 'brown', label: 'Marrón' }, { id: 'gray', label: 'Grafito' },
+  { id: 'cobalto', label: 'Cobalto' }, { id: 'violeta', label: 'Violeta' }, { id: 'ciruela', label: 'Ciruela' },
+  { id: 'frambuesa', label: 'Frambuesa' }, { id: 'teja', label: 'Teja' }, { id: 'oliva', label: 'Oliva' },
+  { id: 'bosque', label: 'Bosque' }, { id: 'laguna', label: 'Laguna' }, { id: 'tinta', label: 'Tinta' },
 ];
+// Los colores de antes pasan al más parecido de los de ahora
+const OLD_ACCENTS = { blue: 'cobalto', indigo: 'cobalto', purple: 'violeta', pink: 'ciruela', rose: 'frambuesa', red: 'frambuesa',
+  orange: 'teja', amber: 'teja', brown: 'teja', lime: 'oliva', green: 'bosque', teal: 'laguna', cyan: 'laguna', gray: 'tinta' };
+export const accentId = id => (ACCENTS.some(a => a.id === id) ? id : OLD_ACCENTS[id] || 'cobalto');
 export const FONTS = [
   { id: 'system', label: 'Inter (la de la app)', short: 'Inter' }, { id: 'legible', label: 'Atkinson Hyperlegible, pensada para leerse sin esfuerzo', short: 'Legible' }, { id: 'native', label: 'La del dispositivo', short: 'Sistema' }, { id: 'serif', label: 'Serif' },
   { id: 'rounded', label: 'Redondeada' }, { id: 'mono', label: 'Monoespaciada', short: 'Mono' },
@@ -80,6 +82,7 @@ export function mergePrefs(base, saved) {
 export const loadPrefs = saved => {
   const p = mergePrefs(DEFAULT_PREFS, saved || {});
   if (saved && Object.keys(saved).length && !saved.algo?.preset) p.algo.preset = 'standard';
+  p.look.accent = accentId(p.look.accent);
   // Las claves del plan son ids de mazos y carpetas: mergePrefs solo conserva las que ya existen
   const nodes = saved?.plan?.nodes;
   p.plan.nodes = nodes && typeof nodes === 'object' && !Array.isArray(nodes) ? { ...nodes } : {};
@@ -109,7 +112,7 @@ const CARD_SCALE = { s: 0.85, m: 1, l: 1.2, xl: 1.45 };
 export function applyLook(look) {
   const root = document.documentElement;
   if (look.theme === 'system') root.removeAttribute('data-theme'); else root.dataset.theme = look.theme;
-  root.dataset.accent = look.accent || 'blue';
+  root.dataset.accent = accentId(look.accent);
   root.style.setProperty('--card-font', FONT_STACKS[look.font] || FONT_STACKS.system);
   root.style.setProperty('--card-scale', CARD_SCALE[look.cardSize] || 1);
   root.classList.toggle('dense', look.density === 'compact');

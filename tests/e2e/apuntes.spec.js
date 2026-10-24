@@ -317,16 +317,16 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await page.locator('[data-icon-tab="draw"]').click();
   await expect(page.locator('.draw-pick [data-drawing]')).toHaveCount(8);
   await page.locator('[data-drawing="d:economia"]').click();
-  await expect(page.locator('.icon-current img')).toHaveAttribute('src', 'img/carpetas/economia.svg');
+  await expect(page.locator('.icon-current svg.dw')).toHaveAttribute('data-dw', 'economia');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await expect(page.locator('#main .fhero .lfold-draw')).toHaveAttribute('src', 'img/carpetas/economia.svg');
+  await expect(page.locator('#main .fhero .lfold-draw')).toHaveAttribute('data-dw', 'economia');
   await expect(page.locator('#main .lib-top .crumbs')).not.toContainText('d:');
   await pasteNotes(page, '# Tema 1\n\nTexto.');
   await expect(page.locator('.pg-top .crumbs')).toHaveText(/Biblioteca\s*\/\s*Macro\s*\/\s*Tema 1/);
   await nav(page, 'Biblioteca');
   const card = page.locator('#main .lfold', { hasText: 'Macro' });
-  await expect(card.locator('img.lfold-draw')).toHaveAttribute('src', 'img/carpetas/economia.svg');
-  expect(await card.locator('img.lfold-draw').evaluate(i => i.complete && i.naturalWidth > 0)).toBe(true);   // el archivo existe
+  await expect(card.locator('svg.lfold-draw')).toHaveAttribute('data-dw', 'economia');
+  expect(await card.locator('svg.lfold-draw').evaluate(i => i.getBoundingClientRect().width > 0)).toBe(true);   // se ve
   // Quitar el dibujo y poner un emoji: asoma el emoji
   await card.click();
   await page.locator('#main [data-act="edit-folder"]').click();
@@ -335,7 +335,7 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await page.locator('[data-act="toggle-emoji"]').first().click();
   await page.locator('#emojiPanel [data-emoji]').first().click();
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await expect(page.locator('#main .fhero img.lfold-draw')).toHaveCount(0);
+  await expect(page.locator('#main .fhero svg.lfold-draw')).toHaveCount(0);
   await expect(page.locator('#main .fhero span.lfold-deco')).not.toBeEmpty();
 });
 

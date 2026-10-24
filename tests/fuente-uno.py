@@ -1,4 +1,5 @@
-# Genera fonts/flaski-uno.woff2: solo el «1», dibujado como un palo con un trazo corto arriba
+# Genera fonts/flaski-uno.woff2: el «1», dibujado como un palo con un trazo corto arriba, y el «#» de las
+# etiquetas, con cuatro trazos un poco torcidos (el de Gochi Hand es casi el de una letra normal)
 import math, sys
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -25,13 +26,21 @@ W = 150
 capsule(pen, (430, 20), (470, 960), W)      # el palo, apenas inclinado
 capsule(pen, (470, 960), (310, 830), W)     # el trazo corto arriba
 one = pen.glyph()
+pen = TTGlyphPen(None)
+H = 110
+capsule(pen, (330, 60), (420, 860), H)      # las dos rayas que suben, inclinadas y no del todo paralelas
+capsule(pen, (610, 40), (690, 880), H)
+capsule(pen, (150, 600), (860, 640), H)     # las dos que cruzan, una algo más corta
+capsule(pen, (110, 310), (800, 290), H)
+hashg = pen.glyph()
 nd = TTGlyphPen(None).glyph()
 fb = FontBuilder(2048, isTTF=True)
-fb.setupGlyphOrder(['.notdef', 'one'])
-fb.setupCharacterMap({0x31: 'one'})
-fb.setupGlyf({'.notdef': nd, 'one': one})
+fb.setupGlyphOrder(['.notdef', 'one', 'numbersign'])
+fb.setupCharacterMap({0x31: 'one', 0x23: 'numbersign'})
+fb.setupGlyf({'.notdef': nd, 'one': one, 'numbersign': hashg})
 g = fb.font['glyf']['one']; g.recalcBounds(fb.font['glyf'])
-fb.setupHorizontalMetrics({'.notdef': (827, 0), 'one': (827, g.xMin)})
+h = fb.font['glyf']['numbersign']; h.recalcBounds(fb.font['glyf'])
+fb.setupHorizontalMetrics({'.notdef': (827, 0), 'one': (827, g.xMin), 'numbersign': (980, h.xMin)})
 fb.setupHorizontalHeader(ascent=1579, descent=-835)
 fb.setupNameTable({'familyName': 'Flaski Uno', 'styleName': 'Regular'})
 fb.setupOS2(sTypoAscender=1579, sTypoDescender=-835, usWinAscent=1579, usWinDescent=835)

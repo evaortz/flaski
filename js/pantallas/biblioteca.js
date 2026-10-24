@@ -4,7 +4,7 @@
 import { icon } from '../icons.js';
 import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
-import { main, S, esc, norm, plain, cardList, tagChips, counts, planNodes, folderIcon, folderArt } from '../comun.js';
+import { main, S, esc, norm, plain, cardList, tagChips, tagSticker, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
 import { todayQueue } from './estudio.js';
 
@@ -63,15 +63,17 @@ function folderCard(f) {
 }
 
 // Una ficha: apunte (esquina doblada), lista (con otras debajo) o subcarpeta
-// Estado a mano (en la raíz): «N hoy» (cobalto), «al día» (verde), «vacío/vacía» o «sin preguntas» (lavanda)
-const handState = (n, total, empty) => `<span class="lt-hand ${n ? 'is-due' : total ? 'is-ok' : 'is-empty'}">${n ? `${n} hoy` : total ? 'al día' : empty}</span>`;
+// Estado a mano (en la raíz): «N hoy» (color del tema), «N nuevas» si hoy no toca nada pero quedan sin estudiar,
+// «al día» (verde), «vacío/vacía» o «sin preguntas» (lavanda)
+const handState = (n, total, empty, fresh = 0) => `<span class="lt-hand ${n || fresh ? 'is-due' : total ? 'is-ok' : 'is-empty'}">${n ? `${n} hoy` : fresh ? plural(fresh, 'nueva', 'nuevas') : total ? 'al día' : empty}</span>`;
+const freshIn = cards => cards.filter(c => !S.progress.has(c.id)).length;
 // Un apunte con algo escrito (o una imagen); sin nada, «vacío» con borde discontinuo
 const hasText = p => (p.blocks || []).some(b => b.type === 'img' || (b.type !== 'hr' && plain(String(b.text || '')).trim()));
 function pageTile(p, { hand, where }) {
   const twin = twinOf(p), mine = c => c.page_id === p.id || (twin && c.deck_id === twin.id);
   const cards = cardList().filter(mine), st = statusOf(cards), blank = !cards.length && !hasText(p);
   const n = hoyIn(mine);
-  const foot = hand ? handState(n, cards.length, blank ? 'vacío' : 'sin preguntas')
+  const foot = hand ? handState(n, cards.length, blank ? 'vacío' : 'sin preguntas', freshIn(cards))
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '';
   return `<li data-kind="notes"><button class="ltile lt-note${blank ? ' is-empty' : ''}" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
     <span class="lt-name">${esc(pageTitle(p))}</span>
@@ -79,7 +81,7 @@ function pageTile(p, { hand, where }) {
 }
 function deckTile(d, { hand, where }) {
   const c = counts(d.id), n = d.archived ? dueOf(c) : hoyIn(x => x.deck_id === d.id), st = statusOf(cardList().filter(x => x.deck_id === d.id));
-  const foot = hand ? handState(n, c.total, 'vacía')
+  const foot = hand ? handState(n, c.total, 'vacía', d.archived ? 0 : freshIn(cardList().filter(x => x.deck_id === d.id)))
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '<span class="lt-st">vacía</span>';
   return `<li data-kind="lists" draggable="true" data-drag-deck="${d.id}"><button class="ltile lt-list" data-open="${d.id}"><span class="lt-ic" aria-hidden="true">${d.icon ? esc(d.icon) : icon('copy', { size: 24 })}</span>
     <span class="lt-name">${esc(d.name)}</span>
@@ -127,7 +129,7 @@ function renderRoot() {
   const where = x => (filtering && inFolder(x) ? `${folderPath(S.folders, x.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '');
   const tiles = [...pages.map(p => pageTile(p, { hand: true, where })), ...decks.map(d => deckTile(d, { hand: true, where }))].join('');
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
-    `<button class="fchip" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${esc(t.name)}</button>`).join('');
+    `<button class="tagbtn" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${tagSticker(t, { big: true })}</button>`).join('');
   const studyTag = o.tagIds.length === 1 && !o.archived ? (() => { const c = counts('tag:' + o.tagIds[0]), n = dueOf(c);
     return `<div class="btnrow"><button class="primary" data-start="tag:${o.tagIds[0]}" ${n ? '' : 'disabled'}>Estudiar #${esc(S.tags.get(o.tagIds[0])?.name || '')}${n ? ' · ' + n : ''}</button></div>`; })() : '';
   const empty = filtering ? 'Nada coincide con la búsqueda o el filtro.' : 'Aún no tienes apuntes ni listas. Crea uno o busca listas en Explorar.';

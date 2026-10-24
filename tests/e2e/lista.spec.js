@@ -5,7 +5,7 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await openApp(page);
   await addBuiltinDeck(page, 'Alemán · A2');
   await expect(page.locator('.dk-meta')).toContainText('Alemán · 48 preguntas · editado el');
-  await expect(page.locator('.dk-num')).toContainText('15');
+  await expect(page.locator('.dk-num')).toContainText('30');   // todas sus nuevas (una por nota): desde la lista no hay límite del día
   await expect(page.locator('.dk-num')).toContainText('para hoy');
   await expect(page.locator('.dk-key')).toContainText('48');
   // El selector «Lista | Mapa» existe pero no sale hasta que haya mapa
@@ -18,10 +18,10 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await expect(page.locator('#cardRows')).toContainText('nueva');
   // Filtros
   await page.locator('[data-cfilter="today"]').click();
-  await expect(page.locator('[data-cfilter="today"]')).toHaveText('Para hoy · 15');
+  await expect(page.locator('[data-cfilter="today"]')).toHaveText('Para hoy · 30');
   await expect(page.locator('[data-cfilter="today"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-act="cards-all"]').click();
-  await expect(page.locator('#cardRows .row')).toHaveCount(15);
+  await expect(page.locator('#cardRows .row')).toHaveCount(30);
   await page.locator('[data-cfilter="all"]').click();
   await page.locator('[data-act="cards-all"]').click();
   await expect(page.locator('#cardRows .row')).toHaveCount(48);

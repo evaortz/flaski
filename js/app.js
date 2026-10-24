@@ -29,7 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
-import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -126,6 +126,11 @@ document.addEventListener('click', async e => {
   if (ds.export) return exportPage(ds.export);
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
+  if (ds.remindAt) {
+    Object.assign(S.prefs.remind, { on: true, time: ds.remindAt }); savePrefsSoon();
+    const box = $('#firstRemind'); if (box) box.innerHTML = `<h3>Te avisaremos a las ${esc(ds.remindAt)}</h3><p>Si ese día ya lo tienes todo hecho, no avisa. Lo cambias en Ajustes › Avisos.</p>`;
+    return pushAllow();
+  }
   if (ds.tandaMin) {
     const m = Number(ds.tandaMin);
     S.prefs.study.tandaMin = m; S.prefs.study.tandaAsked = true; savePrefsSoon();
@@ -295,9 +300,12 @@ document.addEventListener('click', async e => {
       for (const p of S.pages.values()) if ((p.tags || []).includes(id)) { p.tags = p.tags.filter(x => x !== id); savePageSoon(p, 0); }
       S.org.tagIds = S.org.tagIds.filter(x => x !== id);
       S.noteOrg.tagIds = S.noteOrg.tagIds.filter(x => x !== id);
+      toast('Etiqueta borrada');
       return tagsSheet();
     } catch (err) { return fail(err); }
   }
+  if (ds.renameTag) return tagsSheet(ds.renameTag);
+  if (ds.tagColor) { try { await updateTagFields(ds.tagColor, { color: ds.color }); } catch (err) { fail(err); } return; }
   if (ds.card) return cardForm(S.cards.get(ds.card));
   if (ds.pub) return openPublicPreview(ds.pub);
   if (ds.builtin) return openBuiltinPreview(ds.builtin);
@@ -369,10 +377,19 @@ document.addEventListener('click', async e => {
       S.session = null;
       return pid && S.pages.has(pid) ? go('page', { pageId: pid }) : go('home');
     }
-    case 'more': { addExtraNew(10); return startSession(S.session?.scope || 'all'); }
+    case 'more': { addExtraNew(Number(b.dataset.more) || 10); return startSession(S.session?.scope || 'all'); }
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
     case 'tanda-short': return S.prefs.study.tandaAsked ? startSession('all', { minutes: S.prefs.study.tandaMin }) : tandaSheet();
     case 'tanda-min': return tandaSheet();
+    case 'first-done': S.session = null; return go('home');
+    case 'remind-other': {
+      const box = $('#firstRemind'), times = [];
+      for (let h = 6; h <= 23; h++) for (const m of ['00', '30']) times.push(`${String(h).padStart(2, '0')}:${m}`);
+      if (box) box.innerHTML = `<h3>¿A qué hora te aviso?</h3><div class="first-opts"><select id="firstTime" aria-label="Hora del aviso">${times.map(t => `<option ${t === S.prefs.remind.time ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <button type="button" class="first-yes" data-act="remind-pick">Avísame</button></div>`;
+      return;
+    }
+    case 'remind-pick': { const t = $('#firstTime')?.value; if (t) { b.dataset.remindAt = t; b.click(); } return; }
     case 'atrasos': return backlogSheet();
     case 'atrasos-all': { backlogOff(); closeSheet(); return render(); }
     case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: S.prefs.study.tandaMin }); }
@@ -539,7 +556,8 @@ document.addEventListener('click', async e => {
     case 'add-tag-inline': {
       const input = $('#f-newtag');
       try {
-        const t = await addTag(input.value);
+        const color = document.querySelector('input[name="f-newtag-color"]:checked')?.value;
+        const t = await addTag(input.value, color);
         if (!t) return;
         const checked = [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value);
         if (!checked.includes(t.id)) checked.push(t.id);
@@ -713,7 +731,14 @@ document.addEventListener('submit', async e => {
     return reveal();
   }
   if (kind === 'newtag') {
-    try { const t = await addTag($('#nt-name').value, $('#nt-color').value); if (t) tagsSheet(); } catch (err) { fail(err); }
+    try { const t = await addTag($('#nt-name').value); if (t) tagsSheet(); } catch (err) { fail(err); }
+    return;
+  }
+  if (kind === 'renametag') {
+    const name = form.querySelector('.t-name').value.trim().slice(0, 40);
+    if (!name) return;
+    if ([...S.tags.values()].some(t => t.id !== form.dataset.id && t.name.toLocaleLowerCase() === name.toLocaleLowerCase())) return toast('Ya tienes una etiqueta con ese nombre');
+    try { await updateTagFields(form.dataset.id, { name }); } catch (err) { fail(err); }
     return;
   }
   if (kind === 'card') return S.edit?.sugIndex != null ? saveSugEditor() : saveCardForm(form, false);
@@ -726,6 +751,7 @@ document.addEventListener('submit', async e => {
 });
 
 document.addEventListener('input', e => {
+  if (e.target.id === 'f-newtag') return filterTagPicker();
   if (e.target.id === 'typeSearch' && S.edit?.pick) { S.edit.pick.q = e.target.value; return drawTypePicker(); }
   if (e.target.matches?.('.tc')) { histRecord('type'); autoGrow(e.target); placeTblHandles(e.target.parentElement); return saveGrid(e.target.closest('[data-table-ed]').dataset.tableEd); }
   if (e.target.matches?.('[data-block-input]')) {

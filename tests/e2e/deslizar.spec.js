@@ -30,10 +30,13 @@ const drag = (page, id, end = false) => page.locator('article.card .front').eval
 test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta', async ({ page }, info) => {
   await seed(page);
   if (info.project.name === 'escritorio') { await expect(page.locator('.grades')).toBeVisible(); await expect(hints(page)).toHaveCount(0); return; }
-  await expect(hints(page).locator('span')).toHaveText(['← Otra vez', 'Bien →', '↑ Fácil', '↓ Difícil']);
-  // «↓ Difícil», encima de los botones (sin taparlos)
-  const down = await hints(page).locator('.sh-down').boundingBox(), grades = await page.locator('.grades').boundingBox();
-  expect(down.y + down.height).toBeLessThanOrEqual(grades.y);
+  await expect(hints(page).locator(':scope > span')).toHaveText(['←Otra vez', '→Bien', '↑ Fácil', '↓ Difícil']);
+  // En los bordes de la pantalla, sin tapar el contenido: los lados fuera de los botones y «↓ Difícil» debajo
+  const box = sel => hints(page).locator(sel).boundingBox(), grades = await page.locator('.grades').boundingBox();
+  const [left, right, down] = [await box('.sh-left'), await box('.sh-right'), await box('.sh-down')];
+  expect(left.x + left.width).toBeLessThanOrEqual(grades.x + 1);
+  expect(right.x).toBeGreaterThanOrEqual(grades.x + grades.width - 1);
+  expect(down.y).toBeGreaterThanOrEqual(grades.y + grades.height);
   await page.waitForTimeout(800);
   expect(Number(await hints(page).evaluate(el => getComputedStyle(el).opacity))).toBeCloseTo(0.35, 1);
   await expect(hints(page)).toHaveCount(0, { timeout: 4000 });

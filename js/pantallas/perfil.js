@@ -242,6 +242,8 @@ function algoPreview(A) {
 // Avisos: el recordatorio diario (a tu hora, si te toca repasar o vas a perder la racha) y cuando alguien
 // te anima. Se guardan en este dispositivo (ver js/push.js)
 const remindBlock = () => pushBlocker({ cloud: !!api.push });
+// Se pueden ofrecer los avisos en este dispositivo (con cuenta y un navegador que los admita)
+export const remindOffer = () => !!api.push && !remindBlock();
 function remindRows() {
   const R = S.prefs.remind, why = remindBlock(), times = [];
   for (let h = 6; h <= 23; h++) for (const m of ['00', '30']) times.push(`${String(h).padStart(2, '0')}:${m}`);
@@ -302,14 +304,15 @@ export function renderSettings() {
   loadAiGuide();   // para que «Copiar instrucciones» copie al instante (Safari lo exige)
   const P = S.prefs, A = algoFor(P, null);
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
-  const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
+  const ring = '<svg class="sw-ring" viewBox="0 0 66 66" aria-hidden="true"><path d="M36 4.5c14 1.5 25.5 12 25.5 28 0 16-12.5 29-29 29C17 61.5 4.5 49 4.5 33 4.5 17.5 16 5 31 4.2c3-.2 6 .3 8.5 1.3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}"><span class="sw-ball">${ring}${icon('check', { size: 22 })}</span><span aria-hidden="true">${a.label}</span></button>`).join('');
   rowSeq = 0; tocLock = null;
   main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sugerencia', { size: 14 })} Ver las últimas novedades</button></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
     <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
     ${setSec('palette', 'Apariencia', `
       ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
-      ${setRow('Color de acento', 'Botones principales, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
+      ${setRow('Color de acento', 'Botones, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
       ${setRow('Tamaño del texto', 'Tamaño de las preguntas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
       ${setRow('Letra de las preguntas', 'Tipo de letra de las preguntas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])))}
       ${setRow('Alineación', 'Cómo se coloca el texto dentro de la pregunta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}

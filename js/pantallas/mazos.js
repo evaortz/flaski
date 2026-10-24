@@ -10,8 +10,8 @@ import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
 import { pageTitle, pageSnippet } from '../pages.js';
-import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
-import { typeIcon, getType, deckLang, langLabel, nativeLang } from './estudio.js';
+import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagChips, algo } from '../comun.js';
+import { typeIcon, getType, deckLang, langLabel, nativeLang, todayQueue } from './estudio.js';
 import { previewImport } from './explorar.js';
 import { drag, savePageSoon } from './apuntes.js';
 import { seg } from './perfil.js';
@@ -71,12 +71,13 @@ export function renderDeck() {
   if (S.deckShown !== d.id) Object.assign(S, { deckShown: d.id, cardFilter: 'all', cardAll: false });
   const now = Date.now(), endToday = new Date().setHours(24, 0, 0, 0);
   const all = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position);
-  const c = counts(d.id), avail = c.due + c.newToday;
+  // Lo que da «Estudiar»: lo que toca y todas las nuevas (desde la lista no hay límite del día)
+  const tq = todayQueue(d.id), c = { due: tq.due, newToday: tq.fresh }, avail = tq.ids.length;
   const stage = new Map(all.map(x => [x.id, stageOf(S.progress.get(x.id))]));
   const n = Object.fromEntries(STAGES.map(([k]) => [k, 0]));
   for (const k of stage.values()) n[k]++;
-  // Para hoy: las que tocan y las nuevas que entran hoy (las primeras de la lista)
-  const today = new Set([...all.filter(x => { const p = S.progress.get(x.id); return p && p.due <= now; }), ...all.filter(x => !S.progress.has(x.id)).slice(0, c.newToday)].map(x => x.id));
+  // Para hoy: las de «Estudiar»
+  const today = new Set(tq.ids);
   const filters = [['all', 'Todas', all.length], ['today', 'Para hoy', today.size], ...STAGES.map(([k, , , label]) => [k, label, n[k]])];
   const f = filters.some(([k, , num]) => k === S.cardFilter && (num || k === 'all')) ? S.cardFilter : 'all';
   const q = norm(S.cardQuery.trim());

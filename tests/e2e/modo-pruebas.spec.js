@@ -22,7 +22,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
   await expect(page.locator('#main')).toContainText('Todavía no tienes listas');
 
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
-  await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas');
+  await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas y 2 apuntes');
   await expect(page.locator('.hero-num')).toBeVisible();
   await expect(page.locator('#pgHost .lv-n')).not.toHaveText('0');      // «Cómo va lo que sabes» con progreso
   await expect(page.locator('.hoy-act .hm.l1, .hoy-act .hm.l2, .hoy-act .hm.l3, .hoy-act .hm.l4').first()).toBeAttached();
@@ -65,7 +65,7 @@ test.describe('con la bienvenida a la vista', () => {
     await page.goto('/?local');
     await expect(page.locator('.ob')).toBeVisible();
     await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
-    await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas');
+    await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas y 2 apuntes');
     await expect(page.locator('.ob')).toHaveCount(0);          // ni la bienvenida ni Novedades
     await expect(page.locator('body')).toHaveAttribute('data-view', 'home');
     await expect(page.locator('.hero-num')).toBeVisible();

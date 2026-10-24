@@ -8,13 +8,20 @@ import { setBaseRate } from '../tts.js';
 import { saveSnapshot, loadSnapshot, rememberUser } from '../snapshot.js';
 import { isRetryable } from '../outbox.js';
 import { openOnboarding } from '../onboarding.js';
+import { openFirstRun, TEMAS, fileKind } from '../primera-vez.js';
+import { DRAWING_SVG } from '../dibujos.js';
+import { folderKey } from '../plan.js';
+import { markdownToPage, titleFromFile } from '../notesio.js';
+import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
 import { nativeLang, langLabel } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
-import { newPage } from './apuntes.js';
+import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
+import { suggestFor, makeSuggested, firstPicks, openSuggestions, drawSuggestions } from './sugerencias.js';
+import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
 import { loadFriends, inviteSheet } from './amigos.js';
@@ -175,7 +182,7 @@ function applyData(d) {
 const INTRO_KEY = 'flaski-intro-done';
 const introDone = () => S.prefs.intro.done || (() => { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return false; } })();
 function maybeIntro() {
-  if (!introDone() && S.decks.size === 0 && S.pages.size === 0 && !S.session && !S.recovery) showIntro();
+  if (!introDone() && S.decks.size === 0 && S.pages.size === 0 && !S.session && !S.recovery) showFirstRun();
 }
 const isDark = () => {
   const t = document.documentElement.dataset.theme;
@@ -209,10 +216,13 @@ export async function showIntro() {
     onFinish: introChosen,
   });
 }
-async function introChosen(choice) {
+function introSeen() {
   S.prefs.intro.done = true;
   try { localStorage.setItem(INTRO_KEY, '1'); } catch {}
   savePrefsSoon();
+}
+async function introChosen(choice) {
+  introSeen();
   const kind = choice?.kind;
   if (kind === 'lang') {
     try {
@@ -228,6 +238,79 @@ async function introChosen(choice) {
   if (kind === 'ia') { go('decks', { folderId: null }); return pasteSheet(); }
   if (kind === 'explore') return go('explore');
   go('home');
+}
+
+/* ===================== primera vez ===================== */
+// Un tema de ejemplo como apunte (también para los datos de ejemplo de ?local)
+export async function readTema(t) {
+  const md = await (await fetch(t.file, { cache: 'no-cache' })).text();
+  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example' };
+}
+// Apartados de un apunte (los títulos de más arriba), cuántas preguntas salen y con cuántas se empieza
+function analyzePage(page) {
+  const top = ['h1', 'h2', 'h3'].find(h => page.blocks.some(b => b.type === h));
+  const list = suggestCards({ id: 'nuevo', ...page }, { native: nativeLang() });
+  return { sections: top ? page.blocks.filter(b => b.type === top).map(b => b.text.replace(/[*_]/g, '').trim()).filter(Boolean) : [], total: list.length, first: firstPicks(list).length };
+}
+export function showFirstRun() {
+  if (document.querySelector('.ob')) return;
+  const drawings = Object.fromEntries(Object.entries(DRAWING_SVG).map(([k, v]) => [k, v.replace('<svg', '<svg class="dw"')]));
+  openFirstRun({
+    langs: LANGS.filter(l => l.id && l.id !== nativeLang()),
+    examples: () => S.builtin || [],
+    defaultLang: nativeLang().startsWith('en') ? 'es-ES' : 'en-GB',
+    drawings,
+    async readFile(file, say) {
+      const kind = fileKind(file.name);
+      if (kind === 'pdf') {
+        const { r, blocks, title } = await readPdfFile(file, say);
+        return { title: title || titleFromFile(file.name), blocks, name: file.name, kind, pages: r.pages.length };
+      }
+      const [p] = await fileToPages(file);
+      return { ...p, title: p?.title || titleFromFile(file.name), name: file.name, kind };
+    },
+    readText(text) { const p = markdownToPage(text); return { ...p, title: p.title || 'Mis apuntes', name: p.title || 'Texto pegado', kind: 'txt' }; },
+    readExample: readTema,
+    analyze: analyzePage,
+    onFinish: firstRunChosen,
+  });
+  // Las listas de ejemplo de cada idioma: si ya están al elegir el idioma, salen (y si llegan luego, al cambiarlo)
+  if (!S.builtin) fetch('decks/index.json', { cache: 'no-cache' }).then(r => r.json()).then(x => { S.builtin = x; document.querySelector('.fr #frLang')?.dispatchEvent(new Event('change', { bubbles: true })); }).catch(() => {});
+}
+async function firstRunChosen(choice) {
+  const kind = choice?.kind;
+  if (kind === 'anki') document.querySelector('#importFile')?.click();   // antes de esperar a nada: el navegador solo abre el selector justo tras el toque
+  introSeen();
+  if (!kind) return go('home');
+  if (kind === 'lang' || kind === 'example') return introChosen(choice);
+  try {
+    // La carpeta de la oposición o del examen, con su fecha en el Plan de estudio (el día 1 de ese mes)
+    let folderId = null;
+    if (choice.folder) {
+      const f = await api.createFolder({ name: choice.folder.name, owner: S.uid, color: '', icon: choice.folder.icon || '', parent_id: null });
+      S.folders.set(f.id, f);
+      folderId = f.id;
+      if (choice.folder.exam) { S.prefs.plan.nodes[folderKey(f.id)] = { ...(S.prefs.plan.nodes[folderKey(f.id)] || {}), exam: choice.folder.exam + '-01' }; savePrefsSoon(); }
+    }
+    if (kind === 'anki') return go('decks', { folderId });
+    if (kind === 'ia') { go('decks', { folderId }); return pasteSheet(); }
+    const { title, blocks } = choice.page;
+    const p = { id: api.newId(), owner: S.uid, title: title || '', icon: '', deck_id: null, folder_id: folderId, tags: [], blocks };
+    S.pages.set(p.id, p);
+    savePageSoon(p, 0);
+    const picks = firstPicks(suggestFor(p, ''));
+    if (kind === 'tanda' && picks.length) {
+      await makeSuggested(p, picks, 'new');
+      return startSession('page:' + p.id, { firstRun: true });
+    }
+    go('page', { pageId: p.id });
+    if (kind === 'review' && picks.length) {
+      openSuggestions();
+      const ids = new Set(picks.map(x => x.id));
+      for (const x of S.sug?.list || []) x.selected = ids.has(x.id);
+      drawSuggestions();
+    }
+  } catch (e) { fail(e); }
 }
 
 /* ===================== sin conexión ===================== */

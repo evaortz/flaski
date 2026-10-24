@@ -4,7 +4,9 @@ import { toRow } from '../rows.js';
 import { dateKey } from '../srs.js';
 import { S, toast, fail } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
-import { onSignedIn } from './cuenta.js';
+import { onSignedIn, readTema } from './cuenta.js';
+import { TEMAS } from '../primera-vez.js';
+import { TAG_COLORS, tagColor } from '../org.js';
 import { closeSheet } from './editor.js';
 
 const DAY = 864e5;
@@ -61,7 +63,8 @@ export function inventProgress(uid, deckId, cardIds, { share = 0.6, seed = 1, no
   return { progress, events };
 }
 
-// Las listas incluidas en la app, con progreso inventado en casi todas. Las que ya estén no se repiten.
+// Las listas incluidas en la app, con progreso inventado en casi todas, y los temas de ejemplo como apuntes.
+// Lo que ya esté no se repite.
 export async function loadSampleData(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Cargando…'; }
   try {
@@ -87,13 +90,24 @@ export async function loadSampleData(btn) {
       await api.mergeLog(S.uid, [...days].map(([day, n]) => ({ day, count: (S.log[day] || 0) + n })));
       added++;
     }
+    // Etiquetas sin color (las de antes salían grises): cada una de un color de la paleta, variados
+    const grey = [...S.tags.values()].filter(t => tagColor(t.color) === 'gris');
+    for (const [i, t] of grey.entries()) await api.updateTag(t.id, { color: TAG_COLORS[i % (TAG_COLORS.length - 1)].id });
+    let notes = 0;
+    const titles = new Set([...S.pages.values()].map(p => p.title));
+    for (const t of TEMAS) {
+      const { title, blocks } = await readTema(t);
+      if (titles.has(title)) continue;
+      await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks });
+      notes++;
+    }
     // Se vuelve a cargar todo, como al entrar, y se abre Hoy (sin la bienvenida, que ya no hace falta)
     document.querySelector('.ob')?.dispatchEvent(new Event('ob-close'));
     closeSheet();
     Object.assign(S, { uid: null, view: 'home', session: null, noNews: true });
     await onSignedIn(await api.auth.session());
     window.scrollTo(0, 0);
-    toast(added ? `Datos de ejemplo cargados: ${added === 1 ? '1 lista' : `${added} listas`}` : 'Los datos de ejemplo ya estaban');
+    toast(added || notes ? `Datos de ejemplo cargados: ${[added && (added === 1 ? '1 lista' : `${added} listas`), notes && (notes === 1 ? '1 apunte' : `${notes} apuntes`)].filter(Boolean).join(' y ')}` : 'Los datos de ejemplo ya estaban');
   } catch (e) { fail(e); }
   finally { if (btn?.isConnected) { btn.disabled = false; btn.textContent = 'Cargar datos de ejemplo'; } }
 }

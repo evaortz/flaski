@@ -1,4 +1,5 @@
 // Iconos de la interfaz: Lucide (https://lucide.dev, licencia ISC).
+import { OWN_SVG } from './dibujos.js';
 // Solo se incluyen los que usa la app. Para añadir uno, copia el contenido de su SVG aquí.
 const P = {
   'heart': '<path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" />',
@@ -92,11 +93,12 @@ const P = {
 };
 
 // icon('pin') → <svg> en línea que hereda el color del texto
-// Iconos propios a color (img/iconos): sugerencias, racha (encendida y apagada) y comodín
-const OWN = { sugerencia: 'sugerencia.svg', racha: 'racha.svg', 'racha-apagada': 'racha-apagada.svg', comodin: 'comodin.svg' };
+// Iconos propios a color (en línea, en dibujos.js): sugerencias, racha (encendida y apagada) y comodín.
+// Su trazo azul sale del color del tema (clase .dw)
+const OWN = OWN_SVG;
 
 export function icon(name, { size = 20, cls = '', label = '' } = {}) {
-  if (OWN[name]) return `<img class="lu ic-own ${cls}" src="img/iconos/${OWN[name]}" width="${size}" height="${size}" ${label ? `alt="${label}"` : 'alt="" aria-hidden="true"'} draggable="false">`;
+  if (OWN[name]) return OWN[name].replace('<svg', `<svg class="lu dw ic-own ${cls}" data-ic="${name}" width="${size}" height="${size}" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}`);
   const body = P[name];
   if (!body) return '';
   return `<svg class="lu ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${body}</svg>`;

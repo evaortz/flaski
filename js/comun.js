@@ -4,7 +4,7 @@ import { loadPrefs, algoFor } from './prefs.js';
 import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder } from './plan.js';
 import { backlogPlan, backlogActive, BACKLOG_DAYS } from './atrasos.js';
 import { icon } from './icons.js';
-import { colorVar, decksInFolder, drawingOf, drawingSrc, imageOf, iconText } from './org.js';
+import { colorVar, tagColor, tagTilt, decksInFolder, drawingOf, drawingSVG, imageOf, iconText } from './org.js';
 import { hydrate, stripImages } from './media.js';
 import { toHTML, toPlain } from './inline.js';
 import { pageTitle, sectionIds, cardsStatus } from './pages.js';
@@ -97,7 +97,7 @@ export function deckIcon(d, big = false) {
 // El dibujo o la imagen propia de una carpeta (o '' si su icono es un emoji o no tiene)
 export function folderArt(ic, cls = 'draw-ic', alt = '') {
   const dr = drawingOf(ic), im = imageOf(ic);
-  return dr ? `<img class="${cls}" src="${drawingSrc(dr)}" alt="${esc(alt)}">` : im ? `<img class="${cls} own-ic" data-img="${im}" alt="${esc(alt)}">` : '';
+  return dr ? drawingSVG(dr, cls, esc(alt)) : im ? `<img class="${cls} own-ic" data-img="${im}" alt="${esc(alt)}">` : '';
 }
 export function folderIcon(f, big = false) {
   const art = folderArt(f.icon);
@@ -105,9 +105,12 @@ export function folderIcon(f, big = false) {
   return iconText(f.icon) ? `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${esc(f.icon)}</span>`
     : `<span class="ficon${big ? ' icon-big' : ''}" style="color:${f.color ? colorVar(f.color) : 'var(--muted)'}">${icon('folder', { size: big ? 30 : 20 })}</span>`;
 }
+// Una etiqueta como pegatina: a mano, con «#», de su color y un poco torcida (big: la del filtro y el editor)
+export function tagSticker(t, { big = false } = {}) {
+  return `<span class="tag${big ? ' tag-big' : ''}" data-tc="${tagColor(t.color)}" style="--tilt:${tagTilt(t.name)}deg"><i aria-hidden="true">#</i>${esc(t.name)}</span>`;
+}
 export function tagChips(ids = []) {
-  return ids.map(id => S.tags.get(id)).filter(Boolean)
-    .map(t => `<span class="tag" style="--tag-bg:var(--tag-${t.color || 'gray'}-bg);--tag-fg:var(--tag-${t.color || 'gray'})">${esc(t.name)}</span>`).join('');
+  return ids.map(id => S.tags.get(id)).filter(Boolean).map(t => tagSticker(t)).join('');
 }
 // Ámbito de estudio: 'all', un id de mazo, o 'folder:<id>' / 'tag:<id>'
 // Lo que está en pausa (Plan de estudio) no entra, salvo si estudias ese mazo en concreto

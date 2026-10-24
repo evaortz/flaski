@@ -15,12 +15,23 @@ test('tu actividad: los últimos 6 meses con los colores del diseño y la meta d
   await expect(act.locator('.hoy-streak .st-freeze')).toContainText('Comodín de la semana disponible');
   await expect(act.locator('.hoy-hm-foot')).toContainText('Sin meta diaria · poner una');
   expect(await page.locator('#hmHost rect.hm:not(.is-out)').count()).toBeLessThanOrEqual(26 * 7);
-  // Hoy: estudiado (relleno sin borde de la escala) y con el anillo cobalto
+  // Hoy: estudiado (relleno sin borde de la escala, sale del color del tema) y con el anillo del color del tema
   const today = page.locator('#hmHost rect.hm-today');
-  const st = el => { const c = getComputedStyle(el); return { fill: c.fill, stroke: c.stroke, w: c.strokeWidth }; };
-  expect(await today.evaluate(st)).toEqual({ fill: 'rgb(85, 96, 194)', stroke: 'rgb(47, 61, 181)', w: '1.5px' });
+  const st = el => {
+    const c = getComputedStyle(el), cx = document.createElement('canvas').getContext('2d');
+    const rgb = v => { cx.fillStyle = '#000'; cx.fillStyle = v; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    return { fill: rgb(c.fill), stroke: rgb(c.stroke), w: c.strokeWidth };
+  };
+  const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 10);
+  const t = await today.evaluate(st);
+  expect(near(t.fill, [85, 96, 194]), `relleno ${t.fill}`).toBe(true);
+  expect(t.stroke).toEqual([47, 61, 181]);
+  expect(t.w).toBe('1.5px');
   // Un día sin estudio: blanco con borde
-  expect(await page.locator('#hmHost rect.hm.l0:not(.is-out)').first().evaluate(st)).toEqual({ fill: 'rgb(255, 255, 255)', stroke: 'rgb(213, 215, 238)', w: '1px' });
+  const off = await page.locator('#hmHost rect.hm.l0:not(.is-out)').first().evaluate(st);
+  expect(off.fill).toEqual([255, 255, 255]);
+  expect(near(off.stroke, [213, 215, 238]), `borde ${off.stroke}`).toBe(true);
+  expect(off.w).toBe('1px');
   // Sin meta: se ofrece ponerla; con meta, el día que se llega lleva un punto
   await expect(act.locator('.hoy-hm-foot')).toContainText('Sin meta diaria');
   await expect(page.locator('#hmHost .hm-dot')).toHaveCount(0);

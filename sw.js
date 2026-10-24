@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v131';
+const VERSION = 'flaski-v132';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -11,9 +11,6 @@ const SHELL = [
   './fonts/atkinson-400-latin.woff2', './fonts/atkinson-400-latin-ext.woff2', './fonts/atkinson-700-latin.woff2', './fonts/atkinson-700-latin-ext.woff2',
   './fonts/atkinson-400-italic-latin.woff2', './fonts/atkinson-400-italic-latin-ext.woff2', './fonts/atkinson-700-italic-latin.woff2', './fonts/atkinson-700-italic-latin-ext.woff2',
   './fonts/gochi-hand-400-latin.woff2', './fonts/flaski-uno.woff2', './fonts/inter-latin.woff2', './fonts/inter-latin-ext.woff2', 
-  './img/carpetas/bandera-turquia.svg', './img/carpetas/bandera-japon.svg', './img/carpetas/gramatica-japones.svg', './img/carpetas/clase-online.svg',
-  './img/carpetas/economia.svg', './img/carpetas/balanza-color.svg', './img/carpetas/derecho.svg', './img/carpetas/brujula.svg',
-  './img/iconos/sugerencia.svg', './img/iconos/racha.svg', './img/iconos/racha-apagada.svg', './img/iconos/comodin.svg',
   './js/app.js',
   './js/comun.js', './js/pantallas/cuenta.js', './js/pantallas/inicio.js', './js/pantallas/estudio.js', './js/pantallas/mazos.js', './js/pantallas/biblioteca.js', './js/pantallas/explorar.js', './js/pantallas/apuntes.js', './js/pantallas/apuntes-tablas.js', './js/pantallas/apuntes-ayuda.js', './js/pantallas/sugerencias.js', './js/pantallas/perfil.js', './js/pantallas/editor.js', './js/pantallas/amigos.js', './js/pantallas/pruebas.js',
   './js/api.js', './js/push.js', './js/plan.js',
@@ -30,7 +27,8 @@ const SHELL = [
   './js/cardtypes.js',
   './js/tts.js',
   './js/handwriting.js',
-  './js/icons.js',
+  './js/icons.js', './js/dibujos.js', './js/primera-vez.js',
+  './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md',
   './js/vendor/hanzi-writer.min.js',
   './js/vendor/supabase.js',
   './js/outbox.js',

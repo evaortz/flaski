@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { schedule, fmtWhen, dateKey, startOfDay, GRADES } from '../srs.js';
 import { shares, allocate } from '../plan.js';
-import { pace, tandaSize, composeShort } from '../tanda.js';
+import { pace, tandaSize, composeShort, TANDA_MINUTES } from '../tanda.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, legacyFields, choiceOptions, resolveType, parsePairs, parseMasks, imageIdIn, parseGroups, clozeAnswer } from '../cardtypes.js';
 import { isShortText } from '../inline.js';
@@ -12,7 +12,7 @@ import { buzz, swipeable, chime } from '../feel.js';
 import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan, nearDecks, seenToday } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
-import { seg, numIn, savePrefsSoon } from './perfil.js';
+import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
 import { openSheet, charsFor, hasRuby } from './editor.js';
 import { go } from '../app.js';
 
@@ -380,8 +380,8 @@ function buildSession(scope, size = 0) {
   // Cuántas de cada mazo: el plan de estudio (solo mazos activos, según el foco y los exámenes).
   // Tarjetas hermanas (misma nota): solo una nueva por sesión, para no ver la respuesta en la otra;
   // se descartan antes de contar, para que no gasten hueco.
-  // Desde un apunte (o un apartado) se puede estudiar todo lo nuevo, sin el límite del día
-  const quota = newPlan(scope), all = scope.startsWith('page:'), seenNotes = new Set(), perDeck = new Map();
+  // Desde una lista o un apunte (o un apartado) se puede estudiar todo lo nuevo, sin el límite del día
+  const quota = newPlan(scope), all = scope.startsWith('page:') || S.decks.has(scope), seenNotes = new Set(), perDeck = new Map();
   const byDeck = new Map();
   for (const c of fresh) {
     const used = perDeck.get(c.deck_id) || 0;
@@ -406,6 +406,19 @@ function buildSession(scope, size = 0) {
   }
   return q;
 }
+// Nuevas que aún quedan en un ámbito y que podrían salir hoy (una por nota si las hermanas esperan, y ninguna
+// de una nota que ya viste hoy): las de «N nuevas más» al final de la tanda
+export function freshLeft(scope) {
+  const bury = S.prefs.study.burySiblings, pool = cardList().filter(scopeTest(scope)), notes = new Set();
+  if (bury) for (const c of pool) { const p = S.progress.get(c.id); if (c.note_id && p && seenToday(p)) notes.add(c.note_id); }
+  let n = 0;
+  for (const c of pool) {
+    if (S.progress.get(c.id)) continue;
+    if (bury && c.note_id) { if (notes.has(c.note_id)) continue; notes.add(c.note_id); }
+    n++;
+  }
+  return n;
+}
 // Lo que sale hoy en un ámbito, con las mismas reglas que la tanda: { ids, due, fresh } (Hoy, Biblioteca, apuntes)
 export function todayQueue(scope = 'all') {
   const ids = buildSession(scope);
@@ -419,10 +432,11 @@ function segBar(ses) {
   return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${ses.done}">${Array.from({ length: total }, (_, i) => `<i${i < ses.done ? ' class="on"' : ''}></i>`).join('')}</div>`;
 }
 // minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
-export function startSession(scope = 'all', { minutes = 0 } = {}) {
+// firstRun: la primera tanda (tras la primera vez): explica los botones y al final pregunta la duración y el aviso
+export function startSession(scope = 'all', { minutes = 0, firstRun = false } = {}) {
   const queue = buildSession(scope, minutes ? shortSize(minutes) : 0);
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
-  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes };
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun };
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
@@ -485,6 +499,19 @@ export function renderStudy() {
     const tally = `<div class="tally">${GRADES.map(({ g, label }) => `<span class="g${g}"><b>${t[g]}</b>${label}</span>`).join('')}</div>`;
     const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>`;
     const again = ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : '';
+    // La primera tanda: cuánto suele durar tu rato de estudio y si te avisamos mañana a esta hora
+    if (ses.firstRun) {
+      const at = new Date(), time = `${String(at.getHours()).padStart(2, '0')}:${String(Math.floor(at.getMinutes() / 5) * 5).padStart(2, '0')}`;
+      const cur = S.prefs.study.tandaAsked ? S.prefs.study.tandaMin : 10;
+      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done done-first">${DONE_FACE}<h2>¡Primera tanda hecha!</h2>${sub}${tally}
+        <section class="first-box"><h3>¿Cuánto suele durar tu rato de estudio?</h3>
+          <div class="first-opts" role="group" aria-label="Duración de la tanda">${TANDA_MINUTES.map(m => `<button type="button" class="tanda-opt" data-tanda-min="${m}" aria-pressed="${m === cur}">${m} min</button>`).join('')}</div>
+          <p>Haremos tandas que quepan en ese rato.</p></section>
+        ${remindOffer() ? `<section class="first-box" id="firstRemind"><h3>¿Te aviso mañana a las ${time}?</h3><p>Es la hora a la que has estudiado hoy.</p>
+          <div class="first-opts"><button type="button" class="first-yes" data-remind-at="${time}">Sí, avísame</button><button type="button" class="first-other" data-act="remind-other">Otra hora</button></div></section>` : ''}
+        <div class="done-go"><button class="primary big" data-act="first-done">Listo, ir a Hoy</button></div>${again}</div>`;
+      return;
+    }
     // Tanda corta: lo que queda para hoy y otra tanda igual
     if (ses.minutes) {
       const left = todayQueue('all').ids.length, done = doneToday(), tandas = tandasToday();
@@ -496,8 +523,9 @@ export function renderStudy() {
           : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
       return;
     }
+    const more = Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}
-      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost big" data-act="more">10 nuevas más</button></div>${again}</div>`;
+      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];
@@ -537,6 +565,7 @@ export function renderStudy() {
   main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, ses.done + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
       ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
+      ${ses.firstRun && ses.revealed && ses.done === 0 ? `<div class="first-tip" role="note"><b>¿Cómo te ha ido?</b><p>Sin trampas: según lo que elijas, Flaski decide cuándo volver a preguntártelo. Si te costó, pronto; si fue fácil, dentro de unos días.</p></div>` : ''}
       ${answer ? `<div class="answer"><div class="ans-l">respuesta</div>${answer}</div>` : ''}
     </article>${foot}
     <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar pregunta</button></span></div>`;
@@ -577,13 +606,10 @@ function showSwipeHints({ up, down }, { hold = false } = {}) {
   const box = document.createElement('div');
   box.className = `swipe-hints${hold ? ' is-hold' : ''}`;
   box.setAttribute('aria-hidden', 'true');
-  box.innerHTML = `<span class="sh-left">← Otra vez</span><span class="sh-right">Bien →</span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}${down ? '<span class="sh-down">↓ Difícil</span>' : ''}`;
+  box.innerHTML = `<span class="sh-left"><i>←</i><em>Otra vez</em></span><span class="sh-right"><i>→</i><em>Bien</em></span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}${down ? '<span class="sh-down">↓ Difícil</span>' : ''}`;
   box.addEventListener('animationend', () => box.remove());
   document.querySelector('.swipe-hints')?.remove();
   document.body.append(box);   // fuera de main: no se borran si la pantalla se vuelve a pintar
-  // «↓ Difícil», justo encima de los botones
-  const g = main.querySelector('.grades');
-  if (g) box.style.setProperty('--sh-down', `${Math.max(12, innerHeight - g.getBoundingClientRect().top + 10)}px`);
 }
 function countSwipe() {
   const P = S.prefs.study;

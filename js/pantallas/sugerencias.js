@@ -196,6 +196,38 @@ export function saveSugEditor() {
   toast('Sugerencia guardada');
 }
 export function readSugEdit() {}
+// Crea las preguntas de unas sugerencias del apunte (en una lista nueva con su nombre si deckId es 'new')
+export async function makeSuggested(p, picked, deckId) {
+  if (deckId === 'new' || !deckId) {
+    const deck = await api.createDeck({ owner: S.uid, name: pageTitle(p).slice(0, 80) || 'Apuntes', description: '', source: 'apuntes', folder_id: p.folder_id || null });
+    S.decks.set(deck.id, { tags: [], ...deck });
+    deckId = deck.id;
+  }
+  const base = Date.now() / 1000, rows = [];
+  for (const [i, s] of picked.entries()) {
+    const type = typeIn(getType(s.typeId), deckId);
+    const note = api.newId();
+    for (const t of activeTemplates(type, s.fields)) {
+      const sum = summarize(type, t, s.fields);
+      rows.push({ deck_id: deckId, owner: S.uid, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000),
+        position: base + i / 1000 + rows.length / 1e6, note_id: note, type_id: s.typeId, template: t.id, fields: s.fields, hint: s.hint || '', tags: [], page_id: p.id, block_id: s.blockId });
+    }
+  }
+  const made = await api.createCards(rows);
+  for (const c of made) S.cards.set(c.id, c);
+  if (!p.deck_id) { p.deck_id = deckId; savePageSoon(p, 0); }
+  migrateDeckLangs();
+  return { deckId, made };
+}
+// Las primeras de un apunte para empezar (la primera vez): del principio, una por bloque y sin las que
+// solo preguntan una etiqueta («{{Referéndum:}} …»); si no llegan a n, se completan con las demás
+export function firstPicks(list, n = 5) {
+  const label = x => /\{\{[^}]*:\s*\}\}/.test(x.fields?.x || '');
+  const good = list.filter(x => !label(x)), out = [], blocks = new Set();
+  for (const x of good) if (out.length < n && !blocks.has(x.blockId)) { out.push(x); blocks.add(x.blockId); }
+  for (const x of [...good, ...list]) if (out.length < n && !out.includes(x)) out.push(x);
+  return out;
+}
 export async function createSuggested(btn) {
   const g = S.sug, p = S.pages.get(g?.pageId);
   if (!g || !p) return;
@@ -204,26 +236,7 @@ export async function createSuggested(btn) {
   if (!picked.length) return;
   btn.disabled = true; btn.textContent = 'Creando…';
   try {
-    let deckId = g.deckId;
-    if (deckId === 'new') {
-      const deck = await api.createDeck({ owner: S.uid, name: pageTitle(p).slice(0, 80) || 'Apuntes', description: '', source: 'apuntes', folder_id: p.folder_id || null });
-      S.decks.set(deck.id, { tags: [], ...deck });
-      deckId = deck.id;
-    }
-    const base = Date.now() / 1000, rows = [];
-    for (const [i, s] of picked.entries()) {
-      const type = typeIn(getType(s.typeId), deckId);
-      const note = api.newId();
-      for (const t of activeTemplates(type, s.fields)) {
-        const sum = summarize(type, t, s.fields);
-        rows.push({ deck_id: deckId, owner: S.uid, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000),
-          position: base + i / 1000 + rows.length / 1e6, note_id: note, type_id: s.typeId, template: t.id, fields: s.fields, hint: s.hint || '', tags: [], page_id: p.id, block_id: s.blockId });
-      }
-    }
-    const made = await api.createCards(rows);
-    for (const c of made) S.cards.set(c.id, c);
-    if (!p.deck_id) { p.deck_id = deckId; savePageSoon(p, 0); }
-    migrateDeckLangs();
+    const { deckId, made } = await makeSuggested(p, picked, g.deckId);
     S.sug = null;
     closeSheet();
     toast(`${plural(made.length, 'pregunta creada', 'preguntas creadas')} en «${S.decks.get(deckId)?.name || 'la lista'}»`);

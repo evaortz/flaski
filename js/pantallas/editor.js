@@ -4,10 +4,10 @@ import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, detectSep, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
-import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, imageOf, iconText } from '../org.js';
+import { COLORS, colorVar, TAG_COLORS, tagColor, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSVG, imageOf, iconText } from '../org.js';
 import { addImage, imgToken, imageIdsOf, deleteImage } from '../media.js';
 import { pageTitle } from '../pages.js';
-import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, folderArt, shareUrl, algo, counts } from '../comun.js';
+import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagSticker, deckIcon, folderIcon, folderArt, shareUrl, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, typeIn, langLabel, cardModel, SPEAK_ICON, faceHTML, occlusionHTML, clozeChoices } from './estudio.js';
 import { plural, renderDeck } from './mazos.js';
 import { savePageSoon } from './apuntes.js';
@@ -64,7 +64,7 @@ export function charsFor(lang) {
   return CHARS_BY_LANG[lang.split('-')[0]] || [];
 }
 
-// El icono elegido: un emoji o, en las carpetas, uno de los dibujos de img/carpetas o una imagen propia
+// El icono elegido: un emoji o, en las carpetas, uno de los dibujos de Flaski o una imagen propia
 const iconShown = e => folderArt(e, 'draw-ic', drawingOf(e)?.label || (imageOf(e) ? 'Tu imagen' : '')) || (e ? esc(e) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`);
 // En las carpetas, tres maneras: Emoji (por defecto) · Dibujos de Flaski · Tu imagen
 const ICON_TABS = [['emoji', 'Emoji'], ['draw', 'Dibujos de Flaski'], ['img', 'Tu imagen']];
@@ -78,7 +78,7 @@ export function iconPicker(current, { drawings = false } = {}) {
       <div class="iconfield-txt"><button type="button" class="link" data-act="toggle-emoji">${current ? 'Cambiar icono' : 'Elegir un emoji'}</button>
         ${current ? '<button type="button" class="link" data-act="clear-icon">Quitar</button>' : ''}</div>
     </div>
-    ${drawings ? `<div class="draw-pick" role="group" aria-label="Dibujos de Flaski" data-icon-pane="draw" ${tab === 'draw' ? '' : 'hidden'}>${DRAWINGS.map(d => `<button type="button" data-drawing="d:${d.id}" aria-pressed="${current === 'd:' + d.id}" title="${esc(d.label)}" aria-label="${esc(d.label)}"><img src="${drawingSrc(d)}" alt=""></button>`).join('')}</div>
+    ${drawings ? `<div class="draw-pick" role="group" aria-label="Dibujos de Flaski" data-icon-pane="draw" ${tab === 'draw' ? '' : 'hidden'}>${DRAWINGS.map(d => `<button type="button" data-drawing="d:${d.id}" aria-pressed="${current === 'd:' + d.id}" title="${esc(d.label)}" aria-label="${esc(d.label)}">${drawingSVG(d)}</button>`).join('')}</div>
     <div class="own-pick" data-icon-pane="img" ${tab === 'img' ? '' : 'hidden'}><button type="button" class="ghost small-btn" data-act="folder-image">${icon('image', { size: 16 })} ${imageOf(current) ? 'Cambiar la imagen' : 'Subir una imagen'}</button>
       <span class="hint">Se recorta cuadrada.</span></div>` : ''}
     <div class="emoji-panel" id="emojiPanel" hidden></div>`;
@@ -126,11 +126,32 @@ export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna 
   return `<select id="${id}"><option value="">${rootLabel}</option>${folderTree(S.folders, exclude).map(f =>
     `<option value="${f.id}" ${f.id === selected ? 'selected' : ''}>${'   '.repeat(f.depth)}${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</option>`).join('')}</select>`;
 }
-export function tagPicker(selected = []) {
+// Selector de etiquetas: buscar o crear arriba, las pegatinas (tocar para elegir) y el color de la que se cree
+export function tagPicker(selected = [], color = nextTagColor()) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  return `<div class="tagpick" id="tagPick">${tags.map(t => `<label class="tagopt"><input type="checkbox" name="f-tag" value="${t.id}" ${selected.includes(t.id) ? 'checked' : ''}>
-      <span class="tag" style="--tag-bg:var(--tag-${t.color || 'gray'}-bg);--tag-fg:var(--tag-${t.color || 'gray'})">${esc(t.name)}</span></label>`).join('')}
-    <span class="newtag"><input id="f-newtag" maxlength="40" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta"><button type="button" class="ghost small-btn" data-act="add-tag-inline">Añadir</button></span></div>`;
+  return `<div class="tagpick" id="tagPick">
+    <input id="f-newtag" maxlength="40" placeholder="Buscar o crear etiqueta" aria-label="Buscar o crear etiqueta" autocomplete="off">
+    <div class="tagpick-list">${tags.map(t => `<label class="tagopt" data-tag-name="${esc(norm(t.name))}"><input type="checkbox" name="f-tag" value="${t.id}" ${selected.includes(t.id) ? 'checked' : ''}>${tagSticker(t, { big: true })}</label>`).join('')}
+      <button type="button" class="link tag-create" data-act="add-tag-inline" hidden>Crear</button></div>
+    <div class="tagpick-colors" role="radiogroup" aria-label="Color de la etiqueta nueva"><span>Color</span>${TAG_COLORS.map(c => `<label class="tcdot" data-tc="${c.id}" title="${c.label}"><input type="radio" name="f-newtag-color" value="${c.id}" ${c.id === color ? 'checked' : ''}><span class="sr">${c.label}</span></label>`).join('')}</div>
+  </div>`;
+}
+// Al escribir en «Buscar o crear»: solo las que encajan y, si no hay una que se llame así, «Crear #…»
+export function filterTagPicker() {
+  const q = norm($('#f-newtag')?.value.trim() || ''), btn = document.querySelector('#tagPick .tag-create');
+  let exact = false;
+  for (const l of document.querySelectorAll('#tagPick .tagopt')) { l.hidden = !!q && !l.dataset.tagName.includes(q); exact ||= l.dataset.tagName === q; }
+  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${$('#f-newtag').value.trim()}`; }
+}
+// El color de una etiqueta nueva: el primero que aún no usa ninguna (si están todos, por orden)
+export function nextTagColor() {
+  const used = [...S.tags.values()].map(t => tagColor(t.color));
+  return TAG_COLORS.find(c => !used.includes(c.id))?.id || TAG_COLORS[used.length % TAG_COLORS.length].id;
+}
+// Cuántas preguntas llevan la etiqueta: las que la tienen y las de las listas que la tienen
+function tagCount(id) {
+  const decks = new Set([...S.decks.values()].filter(d => (d.tags || []).includes(id)).map(d => d.id));
+  return [...S.cards.values()].filter(c => decks.has(c.deck_id) || (c.tags || []).includes(id)).length;
 }
 
 // «¿Qué vas a estudiar?»: un idioma (cuál) u otra cosa. Para un mazo nuevo, lo que más usas.
@@ -188,19 +209,21 @@ export function folderForm(f) {
       ${f ? '<p class="hint">Al eliminarla, sus listas, apuntes y subcarpetas no se borran: pasan a la carpeta de arriba.</p>' : ''}
     </form>`);
 }
-export function tagsSheet() {
+// Gestionar etiquetas: cada una con su pegatina, cuántas preguntas la llevan, sus 7 colores, Renombrar y Borrar
+export function tagsSheet(renaming = null) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  const colorOpts = sel => COLORS.filter(c => c.id).map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${c.label}</option>`).join('');
-  openSheet(`<h2>Etiquetas</h2>
-    <p class="muted small">Sirven para agrupar listas de distintas carpetas (por ejemplo, <i>examen</i> o <i>verbos</i>) y estudiarlos juntos.</p>
-    <ul class="taglist">${tags.map(t => `<li data-tag-row="${t.id}">
-      <span class="tag" style="--tag-bg:var(--tag-${t.color}-bg);--tag-fg:var(--tag-${t.color})">${esc(t.name)}</span>
-      <input class="t-name" value="${esc(t.name)}" maxlength="40" aria-label="Nombre de la etiqueta">
-      <select class="t-color" aria-label="Color">${colorOpts(t.color)}</select>
-      <button class="ghost small-btn danger" data-del-tag="${t.id}" aria-label="Eliminar etiqueta">Eliminar</button></li>`).join('') || '<li class="muted small">Aún no tienes etiquetas.</li>'}</ul>
-    <form data-form="newtag" class="newtag-row"><input id="nt-name" maxlength="40" placeholder="Nombre de la etiqueta nueva" aria-label="Nueva etiqueta">
-      <select id="nt-color" aria-label="Color">${colorOpts('blue')}</select><button class="ghost" type="submit">Añadir</button></form>
-    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="save-tags">Hecho</button></div>`);
+  const row = t => `<li data-tag-row="${t.id}">
+      ${renaming === t.id ? `<form data-form="renametag" data-id="${t.id}" class="tl-rename"><input class="t-name" value="${esc(t.name)}" maxlength="40" aria-label="Nombre de la etiqueta" required><button class="primary small-btn" type="submit">Guardar</button><button type="button" class="link" data-act="manage-tags">Cancelar</button></form>`
+        : `<span class="tl-tag">${tagSticker(t, { big: true })}</span>`}
+      <span class="tl-n">${plural(tagCount(t.id), 'pregunta', 'preguntas')}</span>
+      <span class="tl-colors" role="group" aria-label="Color de #${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
+      <span class="tl-acts">${renaming === t.id ? '' : `<button type="button" class="link" data-rename-tag="${t.id}">Renombrar</button>`}<button type="button" class="link danger" data-del-tag="${t.id}">Borrar</button></span></li>`;
+  openSheet(`<h2 class="hand-h">Gestionar etiquetas</h2>
+    <p class="muted small">Sirven para juntar listas y apuntes de distintas carpetas (<i>examen junio</i>, <i>verbos</i>…) y estudiarlos juntos. Al borrar una, las preguntas se quedan: solo pierden la etiqueta.</p>
+    <ul class="taglist">${tags.map(row).join('') || '<li class="muted small">Aún no tienes etiquetas.</li>'}</ul>
+    <form data-form="newtag" class="newtag-row"><input id="nt-name" maxlength="40" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta"><button class="primary" type="submit">Crear</button></form>
+    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="save-tags">Hecho</button></div>`);
+  if (renaming) { const i = document.querySelector('.tl-rename .t-name'); i?.focus(); i?.select(); }
 }
 // Desplegable de tipos («Crear varias»): los que encajan con el mazo primero, el resto aparte
 function typeOptions(selected, deckId) {
@@ -733,7 +756,7 @@ export async function saveFolderForm(form) {
     go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
 }
-export async function addTag(name, color = 'gray') {
+export async function addTag(name, color = nextTagColor()) {
   name = name.trim().slice(0, 40);
   if (!name) return null;
   const existing = [...S.tags.values()].find(t => t.name.toLocaleLowerCase() === name.toLocaleLowerCase());
@@ -742,16 +765,13 @@ export async function addTag(name, color = 'gray') {
   S.tags.set(t.id, t);
   return t;
 }
-export async function saveTagsSheet() {
-  const rows = document.querySelectorAll('[data-tag-row]');
-  try {
-    for (const r of rows) {
-      const t = S.tags.get(r.dataset.tagRow);
-      const name = r.querySelector('.t-name').value.trim().slice(0, 40), color = r.querySelector('.t-color').value;
-      if (t && name && (name !== t.name || color !== t.color)) S.tags.set(t.id, await api.updateTag(t.id, { name, color }));
-    }
-    closeSheet(); render();
-  } catch (e) { fail(e); }
+export async function saveTagsSheet() { closeSheet(); render(); }
+// Cambia el nombre o el color de una etiqueta y vuelve a pintar la hoja
+export async function updateTagFields(id, fields) {
+  const t = S.tags.get(id);
+  if (!t) return;
+  S.tags.set(id, await api.updateTag(id, fields));
+  tagsSheet();
 }
 export function moveSheet(ids) {
   const decks = ids.map(id => S.decks.get(id)).filter(Boolean);

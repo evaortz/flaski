@@ -1401,6 +1401,22 @@ export function newPage({ title = '', blocks = null, folder } = {}) {
   if (title || blocks?.length) return;
   setTimeout(() => $('#pgTitle')?.focus(), 30);
 }
+// Lee un PDF y lo convierte en bloques (las páginas escaneadas, como imágenes ya guardadas)
+export async function readPdfFile(file, status = () => {}) {
+  const r = await readPdf(new Uint8Array(await file.arrayBuffer()), { onPage: (i, n) => status(`Leyendo la página ${i} de ${n}…`) });
+  const { blocks: raw, title } = pdfToBlocks(r.pages, { newBlock });
+  const scanned = raw.filter(b => b.type === 'img').length;
+  for (const b of raw) {
+    if (b.type !== 'img') continue;
+    const blob = r.pages[b.image]?.image;
+    delete b.image;
+    if (blob) { const id = newImageId(); await storeImage(id, blob, blob.type || 'image/jpeg'); b.src = id; }
+  }
+  const blocks = raw.filter(b => b.type !== 'img' || b.src);
+  if (!blocks.length) throw new Error('No se ha encontrado nada que convertir en este PDF.');
+  flushUploads();
+  return { r, blocks, title: title || r.title || '', scanned };
+}
 // Un PDF → un apunte: títulos, párrafos y listas; las páginas escaneadas, como imágenes
 export async function importPdf(file) {
   const target = curPage();
@@ -1408,25 +1424,14 @@ export async function importPdf(file) {
   openSheet(`<h2>Importar PDF</h2><p class="muted" role="status" id="pdfStatus">Abriendo «${esc(file.name)}»…</p>`);
   const status = t => { const el = $('#pdfStatus'); if (el) el.textContent = t; };
   try {
-    const r = await readPdf(new Uint8Array(await file.arrayBuffer()), { onPage: (i, n) => status(`Leyendo la página ${i} de ${n}…`) });
-    const { blocks: raw, title } = pdfToBlocks(r.pages, { newBlock });
-    const scanned = raw.filter(b => b.type === 'img').length;
-    for (const b of raw) {
-      if (b.type !== 'img') continue;
-      const blob = r.pages[b.image]?.image;
-      delete b.image;
-      if (blob) { const id = newImageId(); await storeImage(id, blob, blob.type || 'image/jpeg'); b.src = id; }
-    }
-    const blocks = raw.filter(b => b.type !== 'img' || b.src);
-    if (!blocks.length) throw new Error('No se ha encontrado nada que convertir en este PDF.');
-    flushUploads();
+    const { r, blocks, title, scanned } = await readPdfFile(file, status);
     const open = document.querySelector('[data-block-input]');
     if (open) commitBlockEl(open);
     const empty = !target.blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr');
     if (empty) target.blocks = blocks;
     // Añadido a un apunte que ya tiene contenido: el título del PDF encabeza lo añadido
-    else target.blocks.push(...((title || r.title) ? [newBlock('h1', title || r.title)] : []), ...blocks);
-    if (!String(target.title || '').trim()) target.title = title || r.title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim();
+    else target.blocks.push(...(title ? [newBlock('h1', title)] : []), ...blocks);
+    if (!String(target.title || '').trim()) target.title = title || file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim();
     savePageSoon(target, 0);
     closeSheet();
     if (S.view === 'page' && S.pageId === target.id) {
@@ -1554,7 +1559,7 @@ async function storeImages(blocks) {
 }
 const EXT = name => String(name).split('.').pop().toLowerCase();
 // Un archivo → [{ title, blocks }] (un .zip puede traer varios apuntes)
-async function fileToPages(file) {
+export async function fileToPages(file) {
   const ext = EXT(file.name), title = titleFromFile(file.name);
   if (ext === 'docx') {
     const html = await docxToHTML(await bytesOf(file));
@@ -1672,8 +1677,8 @@ export function blockCardsSheet(blockId) {
 // Móvil: mientras escribes en un apunte con el teclado abierto, la barra de abajo se esconde (taparía la línea
 // que estás editando). Con el teclado cerrado vuelve, aunque el cursor siga en el bloque
 const typingIn = el => !!el?.closest?.('#pgBlocks, .pg-head') && (el.isContentEditable || el.matches('textarea, input'));
-const kbOpen = () => !!window.visualViewport && visualViewport.height < innerHeight - 120;
+const kbOpen = () => { try { return !!window.visualViewport && visualViewport.height < innerHeight - 120; } catch { return false; } };
 const syncTyping = (el = document.activeElement) => document.body.classList.toggle('pg-typing', typingIn(el) && kbOpen());
 document.addEventListener('focusin', e => syncTyping(e.target));
 document.addEventListener('focusout', e => syncTyping(e.relatedTarget));
-window.visualViewport?.addEventListener('resize', () => syncTyping());
+try { window.visualViewport?.addEventListener('resize', () => syncTyping()); } catch { /* sin visualViewport: la barra no se esconde */ }

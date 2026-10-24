@@ -1,5 +1,6 @@
 // Organización: carpetas, etiquetas, colores, orden y filtros.
 // Funciones puras (no tocan la pantalla ni la base de datos), fáciles de probar.
+import { DRAWING_SVG } from './dibujos.js';
 
 // Paleta de colores de Notion: nombre → variable CSS
 export const COLORS = [
@@ -16,23 +17,40 @@ export const COLORS = [
 ];
 export const colorVar = id => (id ? `var(--c-${id})` : 'var(--faint)');
 
+// Etiquetas «pegatina»: siete colores suaves (el CSS pone fondo y texto con [data-tc])
+export const TAG_COLORS = [
+  { id: 'lavanda', label: 'Lavanda' }, { id: 'rosa', label: 'Rosa' }, { id: 'limon', label: 'Limón' },
+  { id: 'salvia', label: 'Salvia' }, { id: 'agua', label: 'Agua' }, { id: 'arena', label: 'Arena' }, { id: 'gris', label: 'Gris' },
+];
+// Los colores de antes (los de Notion) pasan al más parecido
+const OLD_TAG = { purple: 'lavanda', pink: 'rosa', red: 'rosa', yellow: 'limon', orange: 'limon', green: 'salvia', blue: 'agua', brown: 'arena', gray: 'gris', default: 'gris' };
+export const tagColor = c => (TAG_COLORS.some(t => t.id === c) ? c : OLD_TAG[c] || 'gris');
+// Cada pegatina sale un poco torcida, entre 1° y 2° a un lado u otro, y siempre igual: el giro sale del nombre
+export function tagTilt(name) {
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) | 0;
+  h = Math.abs(h);
+  return (h % 2 ? -1 : 1) * (10 + (h >> 1) % 11) / 10;
+}
+
 // Iconos sugeridos (se puede escribir cualquier emoji)
 export const ICONS = ['📘', '📗', '📕', '📙', '📓', '🗂️', '🧠', '🎯', '⭐', '🔥', '💬', '🗣️', '✍️', '🔤', '🔢', '🧮',
   '🧪', '🧬', '🌍', '🗺️', '🏛️', '🎵', '🎨', '💻', '⚖️', '🩺', '📈', '🍳', '🇹🇷', '🇪🇸', '🇬🇧', '🇫🇷', '🇩🇪', '🇮🇹', '🇯🇵', '🇨🇳'];
 
-// Dibujos para las carpetas (img/carpetas). Se guardan en el icono como «d:id», que cabe en sus 16 caracteres
+// Dibujos para las carpetas (en línea, en dibujos.js). Se guardan en el icono como «d:id», que cabe en sus 16 caracteres
 export const DRAWINGS = [
-  { id: 'turquia', file: 'bandera-turquia.svg', label: 'Bandera de Turquía' },
-  { id: 'japon', file: 'bandera-japon.svg', label: 'Bandera de Japón' },
-  { id: 'gramatica', file: 'gramatica-japones.svg', label: 'Gramática japonesa' },
-  { id: 'clase', file: 'clase-online.svg', label: 'Clase en línea' },
-  { id: 'economia', file: 'economia.svg', label: 'Economía' },
-  { id: 'balanza', file: 'balanza-color.svg', label: 'Balanza' },
-  { id: 'derecho', file: 'derecho.svg', label: 'Derecho' },
-  { id: 'brujula', file: 'brujula.svg', label: 'Brújula' },
+  { id: 'turquia', svg: 'bandera-turquia', label: 'Bandera de Turquía' },
+  { id: 'japon', svg: 'bandera-japon', label: 'Bandera de Japón' },
+  { id: 'gramatica', svg: 'gramatica-japones', label: 'Gramática japonesa' },
+  { id: 'clase', svg: 'clase-online', label: 'Clase en línea' },
+  { id: 'economia', svg: 'economia', label: 'Economía' },
+  { id: 'balanza', svg: 'balanza-color', label: 'Balanza' },
+  { id: 'derecho', svg: 'derecho', label: 'Derecho' },
+  { id: 'brujula', svg: 'brujula', label: 'Brújula' },
 ];
 export const drawingOf = ic => DRAWINGS.find(d => 'd:' + d.id === ic) || null;
-export const drawingSrc = d => 'img/carpetas/' + d.file;
+// El dibujo en línea: lo que era cobalto toma el color del tema (clase .dw)
+export const drawingSVG = (d, cls = '', label = '') => DRAWING_SVG[d.svg].replace('<svg', `<svg class="dw ${cls}" data-dw="${d.id}" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}`);
 // Una imagen propia de la carpeta: «i:<id>» (el id de media.js, de 14 letras, cabe en los 16 del icono)
 export const imageOf = ic => (/^i:[\w-]{4,14}$/.test(ic || '') ? ic.slice(2) : null);
 // El icono como texto (rutas, desplegables): el emoji; un dibujo o una imagen no se pueden escribir
