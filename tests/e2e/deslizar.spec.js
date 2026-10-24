@@ -22,7 +22,10 @@ const hints = page => page.locator('.swipe-hints');
 test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta', async ({ page }, info) => {
   await seed(page);
   if (info.project.name === 'escritorio') { await expect(page.locator('.grades')).toBeVisible(); await expect(hints(page)).toHaveCount(0); return; }
-  await expect(hints(page).locator('span')).toHaveText(['← Otra vez', 'Bien →', '↑ Fácil']);
+  await expect(hints(page).locator('span')).toHaveText(['← Otra vez', 'Bien →', '↑ Fácil', '↓ Difícil']);
+  // «↓ Difícil», encima de los botones (sin taparlos)
+  const down = await hints(page).locator('.sh-down').boundingBox(), grades = await page.locator('.grades').boundingBox();
+  expect(down.y + down.height).toBeLessThanOrEqual(grades.y);
   await page.waitForTimeout(800);
   expect(Number(await hints(page).evaluate(el => getComputedStyle(el).opacity))).toBeCloseTo(0.35, 1);
   await expect(hints(page)).toHaveCount(0, { timeout: 4000 });
@@ -36,6 +39,16 @@ test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cue
   });
   await expect(page.locator('.studybar .left')).toContainText('pregunta 2 de 2');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).settings.prefs.study.swipeCount)).toBe(1);
+  // Hacia abajo: «Difícil»
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('article.card .front').evaluate(el => {
+    const r = el.getBoundingClientRect(), x = r.x + r.width / 2, y0 = r.y + r.height / 2;
+    const ev = (type, y) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: 8, clientX: x, clientY: y }));
+    ev('pointerdown', y0);
+    for (let k = 1; k <= 12; k++) ev('pointermove', y0 + k * 20);
+    ev('pointerup', y0 + 240);
+  });
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).events.map(e => e.grade))).toEqual([3, 2]);
 });
 
 test('tras 10 deslizamientos ya no salen', async ({ page }, info) => {

@@ -332,7 +332,7 @@ export function renderSettings() {
       ${setRow('Resaltar la nota sugerida', 'En preguntas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
       ${setRow('Una nueva por nota', 'Si una nota genera varias preguntas (p. ej. ida y vuelta), solo sale una nueva por tanda.', sw('study.burySiblings'))}
       ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la pregunta qué teclas puedes usar.', sw('study.shortcuts'))}
-      ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: izquierda «Otra vez», derecha «Bien», arriba «Fácil».', sw('study.swipe'))}
+      ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: izquierda «Otra vez», derecha «Bien», arriba «Fácil», abajo «Difícil».', sw('study.swipe'))}
       ${canVibrate() ? setRow('Vibración', 'Una vibración muy breve al responder y al trazar kanji o hanzi.', sw('study.haptics')) : ''}
       ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`) : ''}`, 's-session')}
     ${setSec('volume-2', 'Voz', `

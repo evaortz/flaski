@@ -530,32 +530,36 @@ export function renderStudy() {
   if (!ses.revealed && model.tpl.mode === 'type' && matchMedia('(hover:hover)').matches) $('#typed')?.focus();
   if (!ses.revealed && model.tpl.mode === 'conj' && matchMedia('(hover:hover)').matches) $('.conj-in')?.focus();
   if (!ses.revealed && model.tpl.mode === 'number' && matchMedia('(hover:hover)').matches) $('#numIn')?.focus();
-  // Móvil: con la respuesta a la vista, deslizar la tarjeta valora (izquierda «Otra vez», derecha «Bien», arriba «Fácil»)
+  // Móvil: con la respuesta a la vista, deslizar la tarjeta valora (izquierda «Otra vez», derecha «Bien», arriba «Fácil», abajo «Difícil»)
   if (ses.revealed && S.prefs.study.swipe) {
     const two = S.prefs.study.buttons === 2;
-    const map = { left: 1, right: 3, up: 4 };
+    const map = { left: 1, right: 3, up: 4, down: 2 };
     const sw = swipeable(main.querySelector('article.card'), {
-      dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil' },
+      dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
       onCross: () => haptic('tick'),
       onSwipe: d => { countSwipe(); grade(map[d]); },
     });
-    if (!st.hinted && swipeHintsDue()) { st.hinted = true; showSwipeHints(!!sw?.up); }
+    if (!st.hinted && swipeHintsDue()) { st.hinted = true; showSwipeHints(sw || {}); }
   }
 }
-// Pistas de deslizar: al ver la respuesta, en cada borde la dirección y su botón, tenues, y se van solas.
+// Pistas de deslizar (la chuleta de las cuatro direcciones): al ver la respuesta, en cada borde la dirección
+// y su botón, tenues, y se van solas.
 // Solo en el móvil (táctil) y hasta haber deslizado 10 veces; vuelven tras 30 días sin deslizar.
 function swipeHintsDue() {
   const P = S.prefs.study;
   return matchMedia('(pointer: coarse) and (hover: none)').matches && ((P.swipeCount || 0) < 10 || Date.now() - (P.swipeLast || 0) > 30 * 864e5);
 }
-function showSwipeHints(up) {
+function showSwipeHints({ up, down }) {
   const box = document.createElement('div');
   box.className = 'swipe-hints';
   box.setAttribute('aria-hidden', 'true');
-  box.innerHTML = `<span class="sh-left">← Otra vez</span><span class="sh-right">Bien →</span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}`;
+  box.innerHTML = `<span class="sh-left">← Otra vez</span><span class="sh-right">Bien →</span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}${down ? '<span class="sh-down">↓ Difícil</span>' : ''}`;
   box.addEventListener('animationend', () => box.remove());
   document.querySelector('.swipe-hints')?.remove();
   document.body.append(box);   // fuera de main: no se borran si la pantalla se vuelve a pintar
+  // «↓ Difícil», justo encima de los botones
+  const g = main.querySelector('.grades');
+  if (g) box.style.setProperty('--sh-down', `${Math.max(12, innerHeight - g.getBoundingClientRect().top + 10)}px`);
 }
 function countSwipe() {
   const P = S.prefs.study;

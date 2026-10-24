@@ -105,17 +105,17 @@ export function chime(kind) {
 }
 
 /* ---------------- Deslizar ---------------- */
-// Hace «deslizable» una tarjeta. dirs: { left, right, up } → etiqueta de cada dirección (o nada si no se usa).
+// Hace «deslizable» una tarjeta. dirs: { left, right, up, down } → etiqueta de cada dirección (o nada si no se usa).
 // onSwipe(dir) se llama cuando la tarjeta sale de la pantalla. onCross() al cruzar el umbral (para vibrar).
-// Devuelve { up }: si se puede deslizar hacia arriba (para las pistas).
+// Devuelve { up, down }: si se puede deslizar hacia arriba y hacia abajo (para las pistas).
 // Solo con el dedo o el lápiz: con el ratón ya están el teclado y los botones.
 const SKIP = 'button, a, input, textarea, select, canvas, label, [contenteditable], .say, .hw-box';
 export function swipeable(el, { dirs, onSwipe, onCross }) {
   if (!el) return;
-  // Si la página no necesita scroll, también se puede deslizar hacia arriba; si no, el gesto vertical es para hacer scroll
+  // Si la página no necesita scroll, también se puede deslizar hacia arriba y hacia abajo; si no, el gesto vertical es para hacer scroll
   const fits = document.documentElement.scrollHeight <= innerHeight + 4;
-  const allowUp = !!dirs.up && fits;
-  el.style.touchAction = allowUp ? 'none' : 'pan-y';
+  const allowUp = !!dirs.up && fits, allowDown = !!dirs.down && fits;
+  el.style.touchAction = allowUp || allowDown ? 'none' : 'pan-y';
   el.classList.add('swipeable');
 
   let start = null, axis = null, dir = null, armed = false;
@@ -141,11 +141,11 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
     if (!axis) {
       if (Math.hypot(dx, dy) < 10) return;
       axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-      if (axis === 'y' && !(allowUp && dy < 0)) { start = null; return; }   // es un scroll, no un gesto
+      if (axis === 'y' && !(dy < 0 ? allowUp : allowDown)) { start = null; return; }   // es un scroll, no un gesto
       try { el.setPointerCapture(e.pointerId); } catch {}
     }
-    const d = axis === 'x' ? dx : Math.min(0, dy);
-    dir = axis === 'x' ? (dx < 0 ? 'left' : 'right') : 'up';
+    const d = axis === 'x' ? dx : dy;
+    dir = axis === 'x' ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
     if (!dirs[dir]) { el.style.transform = `translate(${axis === 'x' ? d * 0.15 : 0}px, ${axis === 'y' ? d * 0.15 : 0}px)`; return; }
     const p = Math.min(1, Math.abs(d) / limit());
     el.style.transform = axis === 'x' ? `translateX(${dx}px) rotate(${dx / 22}deg)` : `translateY(${dy}px)`;
@@ -158,7 +158,7 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
   const end = e => {
     if (!start || e.pointerId !== start.id) return;
     if (armed && dir && dirs[dir]) {
-      const out = dir === 'left' ? 'translateX(-130vw) rotate(-18deg)' : dir === 'right' ? 'translateX(130vw) rotate(18deg)' : 'translateY(-130vh)';
+      const out = { left: 'translateX(-130vw) rotate(-18deg)', right: 'translateX(130vw) rotate(18deg)', up: 'translateY(-130vh)', down: 'translateY(130vh)' }[dir];
       const d = dir;
       el.style.transition = 'transform .2s ease-in';
       el.style.transform = out;
@@ -168,5 +168,5 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', () => { if (start) reset(); });
-  return { up: allowUp };
+  return { up: allowUp, down: allowDown };
 }

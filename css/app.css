@@ -2123,6 +2123,7 @@ body.in-study .num-in input{flex:1;min-width:0;width:auto}
 .swipe-hints .sh-left{left:8px;top:45%;color:#FF9F92}
 .swipe-hints .sh-right{right:8px;top:45%;color:#8EE3B5}
 .swipe-hints .sh-up{left:50%;top:calc(118px + env(safe-area-inset-top,0px));transform:translateX(-50%);color:#9ED4FF}
+.swipe-hints .sh-down{left:50%;bottom:var(--sh-down,calc(170px + env(safe-area-inset-bottom,0px)));transform:translateX(-50%);color:#FFC36B}
 @keyframes sh-fade{0%{opacity:0}12%,75%{opacity:.35}100%{opacity:0}}
 /* Los botones, abajo: la pregunta ocupa el alto que sobra */
 /* (el alto va en .app, descontando el relleno de body, para que una pregunta corta quepa sin scroll y se pueda deslizar hacia arriba) */
