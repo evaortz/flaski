@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v126';
+const VERSION = 'flaski-v127';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -107,12 +107,15 @@ self.addEventListener('fetch', e => {
 });
 
 // Archivos de la propia app: primero la red (para tener siempre lo último), si falla, la copia guardada.
-// Todo lo demás (Supabase, otras fuentes, librerías) va directo a la red.
+// A la red se pregunta siempre (cache: 'no-cache'): una copia vieja en la caché del navegador mezclaría
+// módulos de dos versiones. Todo lo demás (Supabase, otras fuentes, librerías) va directo a la red.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // (una petición de navegación no se puede copiar con opciones: se pide por su dirección)
+  const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(
-    fetch(e.request)
+    fresh
       .then(res => {
         if (res.ok) {
           const copy = res.clone();

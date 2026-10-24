@@ -108,6 +108,29 @@
 <input id="noteFile" type="file" multiple accept=".pdf,.docx,.md,.markdown,.txt,.html,.htm,.csv,.tsv,.zip,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain,text/html,text/csv,application/zip" hidden>
   <input id="importFile" type="file" accept=".csv,.tsv,.txt,.json,.apkg,.colpkg,text/csv,text/plain,application/json" hidden>
 
+<script>
+// Si un archivo de la app no carga o no casa con los demás (una versión vieja guardada que pide un archivo
+// que ya no existe, o módulos de dos versiones), se borra lo guardado y se recarga, una sola vez
+(function () {
+  var KEY = 'flaski-recover';
+  function recover() {
+    if (navigator.onLine === false) return;   // sin conexión, lo guardado es lo único que hay
+    try { if (sessionStorage.getItem(KEY)) return; sessionStorage.setItem(KEY, '1'); } catch (e) { return; }
+    var jobs = [];
+    if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+    if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^flaski-v/.test(k); }).map(function (k) { return caches.delete(k); })); }));
+    Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+  }
+  addEventListener('error', function (e) {
+    var t = e.target, src = t && (t.src || t.href) || '';
+    if ((t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && t.rel === 'modulepreload')) && /\/js\//.test(src))
+      || /does not provide an export named/.test(e.message || '')
+      || (/Failed to fetch dynamically imported module/.test(e.message || '') && (e.message || '').indexOf(location.origin + '/js/') >= 0)) recover();
+  }, true);
+  // Si la app arranca bien, se puede volver a intentar en otra ocasión
+  addEventListener('load', function () { setTimeout(function () { try { if (document.querySelector('#main > *')) sessionStorage.removeItem(KEY); } catch (e) {} }, 3000); });
+})();
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
