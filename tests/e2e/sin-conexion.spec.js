@@ -90,3 +90,28 @@ test('una imagen añadida sin conexión se sube al volver la red y se descarga e
   await page.evaluate(i => document.body.insertAdjacentHTML('beforeend', `<img id="probe" class="media" data-img="${i}">`), id);
   await expect(page.locator('#probe')).toHaveAttribute('src', /^blob:/);
 });
+
+test('con cuenta, cambiar la imagen de una carpeta borra la anterior también de la nube', async ({ page }) => {
+  const PNG = { name: 'a.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64') };
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await nav(page, 'Biblioteca');
+  const pick = async () => {
+    await page.locator('[data-icon-tab="img"]').click();
+    const ch = page.waitForEvent('filechooser');
+    await page.locator('[data-act="folder-image"]').click();
+    await (await ch).setFiles(PNG);
+    await expect(page.locator('#f-icon')).toHaveValue(/^i:/);
+    return (await page.locator('#f-icon').inputValue()).slice(2);
+  };
+  await page.locator('#main [data-act="new-folder"]').first().click();
+  await page.locator('#fo-name').fill('Viajes');
+  const first = await pick();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(() => [...srv.files.keys()]).toContain(`media/${UID}/${first}`);
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await page.locator('[data-act="clear-icon"]').click();
+  const second = await pick();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(() => [...srv.files.keys()]).toEqual([`media/${UID}/${second}`]);
+});

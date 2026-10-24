@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
 import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, imageOf, iconText } from '../org.js';
-import { addImage, imgToken } from '../media.js';
+import { addImage, imgToken, imageIdsOf, deleteImage } from '../media.js';
 import { pageTitle } from '../pages.js';
 import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, folderArt, shareUrl, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, typeIn, langLabel, cardModel, SPEAK_ICON, faceHTML, occlusionHTML, clozeChoices } from './estudio.js';
@@ -36,6 +36,13 @@ function closeSheetOnly() {
   document.documentElement.classList.remove('side-open');
   document.querySelectorAll('.nb.is-src').forEach(el => el.classList.remove('is-src'));
   if (S.edit) S.edit.open = false;
+  if (S.folderPick) { const fp = S.folderPick; S.folderPick = null; dropFolderImages(fp); }
+}
+// Al cerrar el formulario de una carpeta: se borran la imagen que tenía y las que se subieron para probar,
+// si ya no las usa nada (otra carpeta, una pregunta o un apunte)
+function dropFolderImages({ orig, picked }) {
+  const used = imageIdsOf({ cards: cardList(), pages: [...S.pages.values()], folders: [...S.folders.values()] });
+  for (const id of new Set([orig, ...picked])) if (id && !used.has(id)) deleteImage(id);
 }
 // Cerrar pidiendo confirmación si hay cambios sin guardar en el editor de tarjetas
 export function requestClose() {
@@ -98,6 +105,7 @@ export function pickFolderImage() {
       bmp.close?.();
       const blob = await new Promise(ok => c.toBlob(b => (b?.type === 'image/webp' ? ok(b) : c.toBlob(ok, 'image/jpeg', 0.88)), 'image/webp', 0.88));
       const id = await addImage(blob);
+      S.folderPick?.picked.add(id);
       if ($('#f-icon')) { setIcon('i:' + id); const b = $('[data-act="folder-image"]'); if (b) b.lastChild.textContent = ' Cambiar la imagen'; }
     } catch (e) { fail(e); }
   });
@@ -167,6 +175,7 @@ export function deckForm(d) {
 }
 export function folderForm(f) {
   const parentDefault = f ? f.parent_id : S.folderId;
+  S.folderPick = { orig: imageOf(f?.icon), picked: new Set() };
   openSheet(`<h2>${f ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
     <form data-form="folder" data-id="${f ? f.id : ''}">
       <label for="fo-name">Nombre</label><input id="fo-name" maxlength="80" required value="${esc(f?.name || '')}">

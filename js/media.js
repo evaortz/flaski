@@ -118,6 +118,14 @@ export async function storeImage(id, bytes, type) {
   await putRec({ id, blob, pending: !!remote });
 }
 
+// Borra una imagen que ya no usa nada: del navegador y, con cuenta, de la nube (si falla, queda allí sin más)
+export async function deleteImage(id) {
+  if (flushing) await flushing.catch(() => {});   // que no se suba después de borrarla
+  if (urls.has(id)) { URL.revokeObjectURL(urls.get(id)); urls.delete(id); }
+  await tx('readwrite', s => s.delete(id)).catch(() => {});
+  if (remote?.remove) await remote.remove(id).catch(() => {});
+}
+
 const loading = new Map();
 // URL para mostrar una imagen (o null si no se encuentra)
 export function imageUrl(id) {

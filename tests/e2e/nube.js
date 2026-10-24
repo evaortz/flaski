@@ -43,6 +43,11 @@ export async function mockCloud(page) {
     const obj = /^\/storage\/v1\/object\/(?:authenticated\/)?(.+)$/.exec(path);
     if (obj) {
       const key = decodeURIComponent(obj[1]);
+      // Borrar: DELETE /storage/v1/object/<almacén> con { prefixes: [rutas] }
+      if (req.method() === 'DELETE') {
+        const gone = (req.postDataJSON()?.prefixes || []).map(p => `${key}/${p}`).filter(k => srv.files.delete(k));
+        return json(gone.map(name => ({ name })));
+      }
       if (req.method() === 'GET') {
         const f = srv.files.get(key);
         return f ? route.fulfill({ status: 200, contentType: f.type, body: f.body }) : json({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);
@@ -72,6 +77,20 @@ export async function mockCloud(page) {
       return json(srv.tables[path] || []);
     }
     srv.writes.push([method, path, req.postData() ? req.postDataJSON() : null]);
+    // Carpetas: si se pide la fila de vuelta (insert/update + select), se guarda en la tabla y se devuelve
+    if (path === 'folders' && (req.headers().prefer || '').includes('return=representation') && ['POST', 'PATCH'].includes(method)) {
+      const body = req.postDataJSON(), single = (req.headers().accept || '').includes('vnd.pgrst.object');
+      let rows;
+      if (method === 'POST') {
+        rows = (Array.isArray(body) ? body : [body]).map(r => ({ id: globalThis.crypto.randomUUID(), created_at: new Date().toISOString(), ...r }));
+        srv.tables[path].push(...rows);
+      } else {
+        const id = /^eq\.(.+)$/.exec(u.searchParams.get('id') || '')?.[1];
+        rows = srv.tables[path].filter(r => r.id === id);
+        rows.forEach(r => Object.assign(r, body));
+      }
+      return json(single ? rows[0] : rows, method === 'POST' ? 201 : 200);
+    }
     return route.fulfill({ status: method === 'DELETE' ? 204 : 201, body: '' });
   });
   return srv;

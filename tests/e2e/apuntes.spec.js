@@ -376,6 +376,26 @@ test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la 
   await page.locator('#main [data-act="edit-folder"]').click();
   await expect(page.locator('[data-icon-tab="img"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-act="folder-image"]')).toContainText('Cambiar la imagen');
+  // Cambiar la imagen borra la anterior (ya no la usa nada); una subida y descartada con «Cancelar» tampoco se queda
+  const stored = () => page.evaluate(() => new Promise(ok => { const r = indexedDB.open('flaski-media', 1); r.onsuccess = () => { const q = r.result.transaction('img').objectStore('img').getAllKeys(); q.onsuccess = () => ok(q.result); }; }));
+  const first = (await page.locator('#f-icon').inputValue()).slice(2);
+  expect(await stored()).toContain(first);
+  const upload = async () => {
+    const ch = page.waitForEvent('filechooser');
+    await page.locator('[data-act="folder-image"]').click();
+    await (await ch).setFiles({ name: 'otra.png', mimeType: 'image/png', buffer: Buffer.from(png) });
+    await expect(page.locator('#f-icon')).not.toHaveValue(`i:${first}`);
+    return (await page.locator('#f-icon').inputValue()).slice(2);
+  };
+  const second = await upload();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(stored).not.toContain(first);
+  expect(await stored()).toContain(second);
+  await page.locator('#main [data-act="edit-folder"]').click();
+  const tried = await upload();
+  await page.locator('#sheetBody').getByRole('button', { name: 'Cancelar' }).click();
+  await expect.poll(stored).not.toContain(tried);
+  expect(await stored()).toContain(second);
 });
 
 test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {

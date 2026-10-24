@@ -311,6 +311,10 @@ export function imageStore(uid) {
       if (error) throw error;
       return data;
     },
+    async remove(id) {
+      const { error } = await bucket().remove([`${uid}/${id}`]);
+      if (error) throw error;
+    },
   };
 }
 
