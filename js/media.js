@@ -15,9 +15,10 @@ export function imageIds(...texts) {
   for (const t of texts.flat(Infinity)) for (const m of String(t ?? '').matchAll(IMG_RE)) out.add(m[2]);
   return out;
 }
-// Ids de imagen de unas tarjetas (sus campos) y unos apuntes (sus bloques)
-export function imageIdsOf({ cards = [], pages = [] } = {}) {
+// Ids de imagen de unas tarjetas (sus campos), unos apuntes (sus bloques) y unas carpetas (su icono «i:<id>»)
+export function imageIdsOf({ cards = [], pages = [], folders = [] } = {}) {
   const out = new Set();
+  for (const f of folders) { const m = /^i:([\w-]{4,14})$/.exec(f.icon || ''); if (m) out.add(m[1]); }
   for (const c of cards) for (const id of imageIds(c.front, c.back, c.note, c.hint, Object.values(c.fields || {}))) out.add(id);
   for (const p of pages) for (const b of p.blocks || []) { if (b.src) out.add(b.src); for (const id of imageIds(b.text)) out.add(id); }
   return out;

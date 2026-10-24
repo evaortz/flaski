@@ -29,7 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
-import { openSheet, closeSheet, requestClose, iconPicker, setIcon, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
 /* ===================== navegación ===================== */
@@ -257,6 +257,7 @@ document.addEventListener('click', async e => {
   if (ds.folder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.folder || null }); }
   if (ds.libkind) { S.libKind = ds.libkind; return renderLibrary(); }
   if (ds.drawing) return setIcon(ds.drawing);
+  if (ds.iconTab) return showIconTab(ds.iconTab);
   if (ds.tagfilter) {
     const t = ds.tagfilter, list = S.org.tagIds;
     S.org.tagIds = list.includes(t) ? list.filter(x => x !== t) : [...list, t];
@@ -374,6 +375,7 @@ document.addEventListener('click', async e => {
       return;
     }
     case 'clear-icon': return setIcon('');
+    case 'folder-image': return pickFolderImage();
     case 'move-deck': return moveSheet([S.deckId]);
     case 'add-decks-here': return addDecksSheet();
     case 'confirm-add-decks': {

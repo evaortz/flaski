@@ -4,10 +4,10 @@ import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
-import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, iconText } from '../org.js';
+import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, imageOf, iconText } from '../org.js';
 import { addImage, imgToken } from '../media.js';
 import { pageTitle } from '../pages.js';
-import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, shareUrl, algo, counts } from '../comun.js';
+import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, folderArt, shareUrl, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, typeIn, langLabel, cardModel, SPEAK_ICON, faceHTML, occlusionHTML, clozeChoices } from './estudio.js';
 import { plural, renderDeck } from './mazos.js';
 import { savePageSoon } from './apuntes.js';
@@ -57,17 +57,51 @@ export function charsFor(lang) {
   return CHARS_BY_LANG[lang.split('-')[0]] || [];
 }
 
-// El icono elegido: un emoji o, en las carpetas, uno de los dibujos de img/carpetas
-const iconShown = e => { const dr = drawingOf(e); return dr ? `<img class="draw-ic" src="${drawingSrc(dr)}" alt="${esc(dr.label)}">` : e ? esc(e) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`; };
+// El icono elegido: un emoji o, en las carpetas, uno de los dibujos de img/carpetas o una imagen propia
+const iconShown = e => folderArt(e, 'draw-ic', drawingOf(e)?.label || (imageOf(e) ? 'Tu imagen' : '')) || (e ? esc(e) : `<span class="muted">${icon('smile-plus', { size: 22 })}</span>`);
+// En las carpetas, tres maneras: Emoji (por defecto) · Dibujos de Flaski · Tu imagen
+const ICON_TABS = [['emoji', 'Emoji'], ['draw', 'Dibujos de Flaski'], ['img', 'Tu imagen']];
+const iconTab = e => (drawingOf(e) ? 'draw' : imageOf(e) ? 'img' : 'emoji');
 export function iconPicker(current, { drawings = false } = {}) {
+  const tab = iconTab(current);
   return `<input type="hidden" id="f-icon" value="${esc(current || '')}">
-    <div class="iconfield">
+    ${drawings ? `<div class="seg icon-tabs" role="group" aria-label="Tipo de icono">${ICON_TABS.map(([id, l]) => `<button type="button" class="seg-b" data-icon-tab="${id}" aria-pressed="${id === tab}">${l}</button>`).join('')}</div>` : ''}
+    <div class="iconfield"${drawings ? ` data-tab="${tab}"` : ''}>
       <button type="button" class="icon-current" data-act="toggle-emoji" aria-expanded="false" aria-label="Elegir icono">${iconShown(current)}</button>
       <div class="iconfield-txt"><button type="button" class="link" data-act="toggle-emoji">${current ? 'Cambiar icono' : 'Elegir un emoji'}</button>
         ${current ? '<button type="button" class="link" data-act="clear-icon">Quitar</button>' : ''}</div>
     </div>
-    ${drawings ? `<div class="draw-pick" role="group" aria-label="Dibujos">${DRAWINGS.map(d => `<button type="button" data-drawing="d:${d.id}" aria-pressed="${current === 'd:' + d.id}" title="${esc(d.label)}" aria-label="${esc(d.label)}"><img src="${drawingSrc(d)}" alt=""></button>`).join('')}</div>` : ''}
+    ${drawings ? `<div class="draw-pick" role="group" aria-label="Dibujos de Flaski" data-icon-pane="draw" ${tab === 'draw' ? '' : 'hidden'}>${DRAWINGS.map(d => `<button type="button" data-drawing="d:${d.id}" aria-pressed="${current === 'd:' + d.id}" title="${esc(d.label)}" aria-label="${esc(d.label)}"><img src="${drawingSrc(d)}" alt=""></button>`).join('')}</div>
+    <div class="own-pick" data-icon-pane="img" ${tab === 'img' ? '' : 'hidden'}><button type="button" class="ghost small-btn" data-act="folder-image">${icon('image', { size: 16 })} ${imageOf(current) ? 'Cambiar la imagen' : 'Subir una imagen'}</button>
+      <span class="hint">Se recorta cuadrada.</span></div>` : ''}
     <div class="emoji-panel" id="emojiPanel" hidden></div>`;
+}
+// Cambiar de pestaña: en «Emoji» se abre la lista de emojis
+export function showIconTab(id) {
+  for (const b of document.querySelectorAll('[data-icon-tab]')) b.setAttribute('aria-pressed', String(b.dataset.iconTab === id));
+  for (const p of document.querySelectorAll('[data-icon-pane]')) p.hidden = p.dataset.iconPane !== id;
+  const field = document.querySelector('.iconfield[data-tab]'); if (field) field.dataset.tab = id;
+  const panel = $('#emojiPanel');
+  if (panel && (id === 'emoji') === panel.hidden) $('.icon-current')?.click();
+}
+// «Tu imagen»: se recorta cuadrada por el centro, se reduce a 256 px y se guarda como las demás imágenes
+// (en el navegador y, con cuenta, en la nube: así se ve sin conexión y en otros dispositivos)
+export function pickFolderImage() {
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
+  inp.addEventListener('change', async () => {
+    const file = inp.files?.[0];
+    if (!file) return;
+    try {
+      const bmp = await createImageBitmap(file), s = Math.min(bmp.width, bmp.height), N = Math.min(256, s);
+      const c = Object.assign(document.createElement('canvas'), { width: N, height: N });
+      c.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, N, N);
+      bmp.close?.();
+      const blob = await new Promise(ok => c.toBlob(b => (b?.type === 'image/webp' ? ok(b) : c.toBlob(ok, 'image/jpeg', 0.88)), 'image/webp', 0.88));
+      const id = await addImage(blob);
+      if ($('#f-icon')) { setIcon('i:' + id); const b = $('[data-act="folder-image"]'); if (b) b.lastChild.textContent = ' Cambiar la imagen'; }
+    } catch (e) { fail(e); }
+  });
+  inp.click();
 }
 export function setIcon(e) {
   $('#f-icon').value = e;

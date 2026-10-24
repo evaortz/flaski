@@ -21,6 +21,12 @@ test('ids de imagen de tarjetas y apuntes', () => {
   assert.deepEqual([...ids].sort(), ['aaaa11', 'bbbb22', 'cccc33', 'dddd44']);
 });
 
+test('ids de imagen de las carpetas: solo su icono «i:<id>» (no los emojis ni los dibujos)', () => {
+  const ids = imageIdsOf({ folders: [{ icon: 'i:abcdefgh123456' }, { icon: 'd:economia' }, { icon: '📚' }, { icon: '' }] });
+  assert.deepEqual([...ids], ['abcdefgh123456']);
+  assert.equal(`i:${newImageId()}`.length <= 16, true);   // cabe en el icono de la carpeta (16 letras)
+});
+
 test('apuntes: un bloque de imagen va y vuelve en Markdown', () => {
   const page = { title: 'Mapa', blocks: [{ id: 'a', type: 'p', text: 'Antes' }, imageBlock('abcd1234', 'Turquía'), imageBlock('efgh5678')] };
   const md = pageToMarkdown(page);

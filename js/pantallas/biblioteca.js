@@ -2,9 +2,9 @@
 // Raíz: carpetas grandes y, debajo, «Sueltos» (lo que no está en ninguna). Dentro de una carpeta:
 // su cabecera azul y, mezclados, sus subcarpetas, apuntes y listas. Al buscar o filtrar, los resultados.
 import { icon } from '../icons.js';
-import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar, drawingOf, drawingSrc } from '../org.js';
+import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
-import { main, S, esc, norm, cardList, tagChips, counts, planNodes, folderIcon } from '../comun.js';
+import { main, S, esc, norm, cardList, tagChips, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
 
 const ST_LABEL = { ok: 'al día', due: 'toca repasar', weak: 'te cuesta', new: 'sin estudiar' };
@@ -36,10 +36,10 @@ function examText(id, long = false) {
 const bar = (c, young) => `<span class="lbar" aria-label="${pct(c.mature, c.total)} % consolidadas"><i style="width:${pct(c.mature, c.total)}%"></i><i style="width:${pct(young, c.total)}%"></i></span>`;
 // Color de la carpeta: el que eligió la persona (Editar carpeta) o, si no eligió ninguno, el cobalto del tema
 const foldColor = f => `--fold:${f.color ? colorVar(f.color) : 'var(--accent)'}`;
-// Lo que asoma por la esquina: el dibujo de la carpeta, su emoji o, si no tiene, el icono de carpeta
-const deco = f => { const dr = drawingOf(f.icon);
-  return dr ? `<img class="lfold-deco lfold-draw" src="${drawingSrc(dr)}" alt="" aria-hidden="true">`
-    : `<span class="lfold-deco" aria-hidden="true">${f.icon ? esc(f.icon) : icon('folder', { size: 72 })}</span>`; };
+// Lo que asoma por la esquina: el dibujo o la imagen de la carpeta, su emoji o, si no tiene, el icono de carpeta
+// (dentro de la carpeta: lo que se sale por el borde se corta)
+const deco = f => { const art = folderArt(f.icon, 'lfold-deco lfold-draw');
+  return `<span class="lfold-clip" aria-hidden="true">${art || `<span class="lfold-deco">${f.icon ? esc(f.icon) : icon('folder', { size: 72 })}</span>`}</span>`; };
 
 // Carpeta grande de la raíz
 function folderCard(f) {

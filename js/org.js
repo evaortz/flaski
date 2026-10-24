@@ -33,8 +33,10 @@ export const DRAWINGS = [
 ];
 export const drawingOf = ic => DRAWINGS.find(d => 'd:' + d.id === ic) || null;
 export const drawingSrc = d => 'img/carpetas/' + d.file;
-// El icono como texto (rutas, desplegables): el emoji; un dibujo no se puede escribir
-export const iconText = ic => (ic && !String(ic).startsWith('d:') ? ic : '');
+// Una imagen propia de la carpeta: «i:<id>» (el id de media.js, de 14 letras, cabe en los 16 del icono)
+export const imageOf = ic => (/^i:[\w-]{4,14}$/.test(ic || '') ? ic.slice(2) : null);
+// El icono como texto (rutas, desplegables): el emoji; un dibujo o una imagen no se pueden escribir
+export const iconText = ic => (ic && !/^[di]:/.test(String(ic)) ? ic : '');
 
 export const SORTS = [
   { id: 'manual', label: 'Fijados primero' },

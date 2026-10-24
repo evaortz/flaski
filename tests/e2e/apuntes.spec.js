@@ -311,6 +311,10 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').click();
   await page.locator('#fo-name').fill('Macro');
+  // Tres maneras: Emoji (por defecto) · Dibujos de Flaski · Tu imagen
+  await expect(page.locator('[data-icon-tab]')).toHaveText(['Emoji', 'Dibujos de Flaski', 'Tu imagen']);
+  await expect(page.locator('[data-icon-tab="emoji"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-icon-tab="draw"]').click();
   await expect(page.locator('.draw-pick [data-drawing]')).toHaveCount(8);
   await page.locator('[data-drawing="d:economia"]').click();
   await expect(page.locator('.icon-current img')).toHaveAttribute('src', 'img/carpetas/economia.svg');
@@ -333,6 +337,45 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
   await expect(page.locator('#main .fhero img.lfold-draw')).toHaveCount(0);
   await expect(page.locator('#main .fhero span.lfold-deco')).not.toBeEmpty();
+});
+
+test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la carpeta y sigue ahí al recargar', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('#fo-name').fill('Viajes');
+  await page.locator('[data-icon-tab="img"]').click();
+  // Una foto apaisada de 600×300
+  const png = await page.evaluate(async () => {
+    const c = Object.assign(document.createElement('canvas'), { width: 600, height: 300 });
+    const g = c.getContext('2d'); g.fillStyle = '#e33'; g.fillRect(0, 0, 600, 300); g.fillStyle = '#33e'; g.fillRect(150, 0, 300, 300);
+    return [...new Uint8Array(await (await new Promise(ok => c.toBlob(ok, 'image/png'))).arrayBuffer())];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('[data-act="folder-image"]').click();
+  await (await chooser).setFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(png) });
+  await expect(page.locator('#f-icon')).toHaveValue(/^i:[\w-]{14}$/);
+  const shown = page.locator('.icon-current img.own-ic');
+  await expect(shown).toHaveAttribute('src', /^blob:/);
+  // Cuadrada, de 256 px y recortada por el centro (azul)
+  expect(await shown.evaluate(async i => { await i.decode(); return [i.naturalWidth, i.naturalHeight]; })).toEqual([256, 256]);
+  const mid = await shown.evaluate(i => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.drawImage(i, 0, 0); return [...g.getImageData(10, 128, 1, 1).data.slice(0, 3)]; });
+  expect(mid[2]).toBeGreaterThan(150);
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#main .fhero img.lfold-draw.own-ic')).toHaveAttribute('src', /^blob:/);
+  await page.reload();
+  await nav(page, 'Biblioteca');
+  const card = page.locator('#main .lfold', { hasText: 'Viajes' });
+  await expect(card.locator('img.own-ic')).toHaveAttribute('src', /^blob:/);
+  // Asoma por la esquina sin salirse de la carpeta: lo de fuera se corta
+  const [cb, clip] = [await card.boundingBox(), await card.locator('.lfold-clip').boundingBox()];
+  expect(clip).toEqual(cb);
+  await expect(card.locator('.lfold-clip')).toHaveCSS('overflow', 'hidden');
+  // Al editarla, se abre en «Tu imagen»
+  await card.click();
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await expect(page.locator('[data-icon-tab="img"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-act="folder-image"]')).toContainText('Cambiar la imagen');
 });
 
 test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {

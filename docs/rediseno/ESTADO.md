@@ -88,3 +88,10 @@
 ## Fase 6b · dudas resueltas
 - Se quedan los botones «Estudiar N» de cada apartado; no se añade el texto de estado bajo cada uno.
 - Entre 700 y 960 px, «Nueva pregunta» sale como la hoja del móvil (desde abajo); el panel lateral solo desde 960 px. `sw.js` → `flaski-v103`.
+
+## Remates tras la fase 6
+- Barra inferior del móvil: el bloque de usuario del ordenador se colaba invisible (104 → 60 px); en el ordenador abre Perfil. Pestaña activa con fondo azul claro (`--soft`) y cobalto.
+- Racha: el «·» va delante del comodín y se recorta si baja de línea. «Escribir la respuesta»: el texto corto se mide sin etiquetas ni saltos de línea sobrantes (Anki) y el campo dice «Escribe la respuesta». Título del apunte en Gochi Hand. Capturas de tipos en la fase 8.
+- «Lo que flojea»: además de apartados de apuntes, las listas con preguntas sueltas que te cuestan (misma regla `cardsStatus` 'weak'; «toca repasar» no cuenta en listas). Orden: te cuesta → más preguntas que cuestan → último fallo (`progress.last`; no hay fecha por fallo).
+- Icono de carpeta: Emoji · Dibujos de Flaski · Tu imagen. La imagen se recorta cuadrada a 256 px, se guarda con `media.js` (sin conexión y en la nube) y va en `icon` como «i:<id>» (16 letras; sin cambios en el esquema). Entra en la copia de seguridad. Lo que asoma en la carpeta se corta en su borde (`.lfold-clip`). `sw.js` → `flaski-v106`.
+- Pendiente: no se borran del almacenamiento las imágenes de carpeta que se sustituyen. Duda: `carpetas-dibujos.zip` no estaba en Descargas; se usan los 8 SVG que ya había en `img/carpetas/`.

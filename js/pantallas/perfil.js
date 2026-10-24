@@ -425,7 +425,7 @@ export async function backupData() {
     events: S.events.map(({ t, user_id, ...e }) => e),
     log: Object.entries(S.log).map(([day, count]) => ({ day, count })),
     local: api.dumpLocal(),
-    images: await exportImages(imageIdsOf({ cards: cardList(), pages: [...S.pages.values()] })),
+    images: await exportImages(imageIdsOf({ cards: cardList(), pages: [...S.pages.values()], folders: [...S.folders.values()] })),
   };
 }
 

@@ -3,7 +3,7 @@ import { startOfDay, dateKey } from './srs.js';
 import { loadPrefs, algoFor } from './prefs.js';
 import { deckState, shares, allocate, examFloors } from './plan.js';
 import { icon } from './icons.js';
-import { colorVar, decksInFolder, drawingOf, drawingSrc, iconText } from './org.js';
+import { colorVar, decksInFolder, drawingOf, drawingSrc, imageOf, iconText } from './org.js';
 import { hydrate, stripImages } from './media.js';
 import { toHTML, toPlain } from './inline.js';
 import { pageTitle, sectionIds, cardsStatus } from './pages.js';
@@ -93,9 +93,14 @@ export function deckIcon(d, big = false) {
   return d.icon ? `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${esc(d.icon)}</span>`
     : `<span class="dot${big ? ' dot-big' : ''}" style="background:${deckColor(d.id)}"></span>`;
 }
+// El dibujo o la imagen propia de una carpeta (o '' si su icono es un emoji o no tiene)
+export function folderArt(ic, cls = 'draw-ic', alt = '') {
+  const dr = drawingOf(ic), im = imageOf(ic);
+  return dr ? `<img class="${cls}" src="${drawingSrc(dr)}" alt="${esc(alt)}">` : im ? `<img class="${cls} own-ic" data-img="${im}" alt="${esc(alt)}">` : '';
+}
 export function folderIcon(f, big = false) {
-  const dr = drawingOf(f.icon);
-  if (dr) return `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true"><img class="draw-ic" src="${drawingSrc(dr)}" alt=""></span>`;
+  const art = folderArt(f.icon);
+  if (art) return `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${art}</span>`;
   return iconText(f.icon) ? `<span class="icon${big ? ' icon-big' : ''}" aria-hidden="true">${esc(f.icon)}</span>`
     : `<span class="ficon${big ? ' icon-big' : ''}" style="color:${f.color ? colorVar(f.color) : 'var(--muted)'}">${icon('folder', { size: big ? 30 : 20 })}</span>`;
 }
