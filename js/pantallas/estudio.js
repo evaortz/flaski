@@ -59,7 +59,8 @@ export function faceHTML(model, st, { preview = false } = {}) {
     ? `<button type="button" class="say" ${preview ? 'data-say-input' : 'data-say'}="${id}" aria-label="Escuchar ${esc(fdef(id).name)}" title="Escuchar">${SPEAK_ICON}</button>` : '');
   const block = (id, main, extra = '') => {
     const v = val(id);
-    if (!v.trim()) return '';
+    // Vacío también si solo lleva etiquetas o espacios (p. ej. «<br>» al importar de Anki): no deja una fila en blanco
+    if (!v.trim() || (!/<img/i.test(v) && !v.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim())) return '';
     const label = !main && fdef(id) ? `<div class="fld-l">${esc(fdef(id).name)}</div>` : '';
     // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal.
     // Se mira el texto que se ve: sin etiquetas ni saltos de línea al principio o al final (frecuentes al importar de Anki)
@@ -75,12 +76,13 @@ export function faceHTML(model, st, { preview = false } = {}) {
     return chars.length && chars.length <= 6 ? `<button type="button" class="say" data-strokes="${id}" aria-label="Ver orden de trazos" title="Orden de trazos">${BRUSH_ICON}</button>` : '';
   };
 
-  // Escribir, dictado, ordenar o dibujar ya resueltos y sin más campos que enseñar: sin caja de respuesta;
-  // su altavoz (y el orden de trazos) va junto a la pregunta, en lugar del de la pregunta: un solo altavoz,
-  // el del texto en el idioma de estudio (si la respuesta no tiene idioma, se queda el de la pregunta)
+  // Escribir, dictado, ordenar o dibujar ya resueltos: la respuesta ya está arriba, así que su altavoz (y el
+  // orden de trazos) va junto a la pregunta, en lugar del de la pregunta: un solo altavoz, el del texto en el
+  // idioma de estudio (si la respuesta no tiene idioma, se queda el de la pregunta). En la caja de respuesta,
+  // solo los demás campos (artículo, plural…); sin ninguno, no hay caja
   const rest = tpl.back.filter(x => x !== tpl.answer).map(id => block(id, false)).join('');
   const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
-  const sayAns = st.revealed && ['type', 'listen', 'order', 'draw'].includes(tpl.mode) && resolved && !rest ? say(tpl.answer) + strokesBtn(tpl.answer) : '';
+  const sayAns = st.revealed && ['type', 'listen', 'order', 'draw'].includes(tpl.mode) && resolved ? say(tpl.answer) + strokesBtn(tpl.answer) : '';
 
   // Anverso
   let front;
@@ -225,8 +227,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     else if (['cloze', 'choice', 'match', 'occlusion', 'conj', 'sort', 'clozechoice', 'number'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
-      const sayAgain = fdef(tpl.answer)?.lang ? `<div class="fld"><div class="fld-v">${say(tpl.answer)}${strokesBtn(tpl.answer)}</div></div>` : '';
-      answer = sayAns ? '' : (resolved ? sayAgain : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest;
+      answer = sayAns ? rest : (resolved ? '' : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest;
     }
   }
   return { front, ask, answer };
@@ -366,17 +367,25 @@ function buildSession(scope, size = 0) {
     const q = allocate(cap, sh, byDeck, floors), used = new Map();
     dueCards = dueCards.filter(c => { if (seenToday(S.progress.get(c.id))) return true; const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
   }
+  // Hermanas (ida y vuelta de una nota): una sola por tanda. Si una ya sale (o la viste hoy), la otra espera:
+  // un repaso de la misma nota, a otra tanda; una nueva, a otro día
+  const notes = new Set();
+  if (P.burySiblings) {
+    for (const c of pool) if (c.note_id && S.progress.get(c.id) && seenToday(S.progress.get(c.id)) && !(S.progress.get(c.id).due <= now)) notes.add(c.note_id);
+    dueCards = dueCards.filter(c => !c.note_id || (!notes.has(c.note_id) && notes.add(c.note_id)));
+  }
   const due = dueCards.map(c => c.id);
-  let fresh = pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position);
+  let fresh = pool.filter(c => !S.progress.get(c.id) && !notes.has(c.note_id)).sort((a, b) => a.position - b.position);
   if (P.newOrder === 'random') shuffle(fresh);
   // Cuántas de cada mazo: el plan de estudio (solo mazos activos, según el foco y los exámenes).
   // Tarjetas hermanas (misma nota): solo una nueva por sesión, para no ver la respuesta en la otra;
   // se descartan antes de contar, para que no gasten hueco.
-  const quota = newPlan(scope), seenNotes = new Set(), perDeck = new Map();
+  // Desde un apunte (o un apartado) se puede estudiar todo lo nuevo, sin el límite del día
+  const quota = newPlan(scope), all = scope.startsWith('page:'), seenNotes = new Set(), perDeck = new Map();
   const byDeck = new Map();
   for (const c of fresh) {
     const used = perDeck.get(c.deck_id) || 0;
-    if (used >= (quota.get(c.deck_id) || 0)) continue;
+    if (!all && used >= (quota.get(c.deck_id) || 0)) continue;
     if (P.burySiblings && c.note_id) { if (seenNotes.has(c.note_id)) continue; seenNotes.add(c.note_id); }
     perDeck.set(c.deck_id, used + 1);
     if (!byDeck.has(c.deck_id)) byDeck.set(c.deck_id, []);
@@ -396,6 +405,12 @@ function buildSession(scope, size = 0) {
     if (j < fresh.length) q.push(fresh[j++]);
   }
   return q;
+}
+// Lo que sale hoy en un ámbito, con las mismas reglas que la tanda: { ids, due, fresh } (Hoy, Biblioteca, apuntes)
+export function todayQueue(scope = 'all') {
+  const ids = buildSession(scope);
+  const due = ids.filter(id => S.progress.get(id)).length;
+  return { ids, due, fresh: ids.length - due };
 }
 // La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
 function segBar(ses) {
@@ -472,11 +487,12 @@ export function renderStudy() {
     const again = ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : '';
     // Tanda corta: lo que queda para hoy y otra tanda igual
     if (ses.minutes) {
-      const c = counts('all'), left = c.due + c.newToday, done = doneToday(), tandas = tandasToday();
+      const left = todayQueue('all').ids.length, done = doneToday(), tandas = tandasToday();
       main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}
-        ${left ? `<div class="done-left"><small>Para hoy</small><b>te quedan ${left}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
+        ${left ? `<div class="done-left"><small>Para hoy</small><b>${left === 1 ? 'te queda 1' : `te quedan ${left}`}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
-        <div class="done-go">${left ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
+        <div class="done-go">${left > 1 ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
+          : left ? `<button class="primary big" data-start="all">Hacer la que queda</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
           : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
       return;
     }
@@ -542,20 +558,24 @@ export function renderStudy() {
       dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
       onCross: () => haptic('tick'),
       onSwipe: d => { countSwipe(); grade(map[d]); },
+      // Mientras arrastras, las cuatro direcciones (si aún te hacen falta)
+      onDrag: on => { if (!on) hideSwipeHints(); else if (swipeHintsDue()) showSwipeHints(sw || {}, { hold: true }); },
     });
-    if (!st.hinted && swipeHintsDue()) { st.hinted = true; showSwipeHints(sw || {}); }
+    // La primera vez, solas un momento para que sepas que se puede deslizar
+    if (!st.hinted && !S.prefs.study.swipeShown && swipeHintsDue()) { st.hinted = true; S.prefs.study.swipeShown = true; savePrefsSoon(); showSwipeHints(sw || {}); }
   }
 }
-// Pistas de deslizar (la chuleta de las cuatro direcciones): al ver la respuesta, en cada borde la dirección
-// y su botón, tenues, y se van solas.
+// Pistas de deslizar (la chuleta de las cuatro direcciones): en cada borde la dirección y su botón, tenues.
+// La primera vez salen solas un momento al ver la respuesta; después, solo mientras arrastras (no tapan nada).
 // Solo en el móvil (táctil) y hasta haber deslizado 10 veces; vuelven tras 30 días sin deslizar.
 function swipeHintsDue() {
   const P = S.prefs.study;
   return matchMedia('(pointer: coarse) and (hover: none)').matches && ((P.swipeCount || 0) < 10 || Date.now() - (P.swipeLast || 0) > 30 * 864e5);
 }
-function showSwipeHints({ up, down }) {
+function hideSwipeHints() { document.querySelector('.swipe-hints')?.remove(); }
+function showSwipeHints({ up, down }, { hold = false } = {}) {
   const box = document.createElement('div');
-  box.className = 'swipe-hints';
+  box.className = `swipe-hints${hold ? ' is-hold' : ''}`;
   box.setAttribute('aria-hidden', 'true');
   box.innerHTML = `<span class="sh-left">← Otra vez</span><span class="sh-right">Bien →</span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}${down ? '<span class="sh-down">↓ Difícil</span>' : ''}`;
   box.addEventListener('animationend', () => box.remove());

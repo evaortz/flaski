@@ -10,9 +10,9 @@ import { htmlToBlocks } from '../paste.js';
 import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, titleFromFile, markdownImageRefs } from '../notesio.js';
 import { readZip } from '../zip.js';
 import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, parseTable, isTableText, tableToMarkdown, cardsStatus, sectionIds, STATUS, pageToMarkdown } from '../pages.js';
-import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, algo } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
-import { deckLang } from './estudio.js';
+import { deckLang, todayQueue } from './estudio.js';
 import { plural, statusChip, download } from './mazos.js';
 import { seg } from './perfil.js';
 import { openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage } from './editor.js';
@@ -82,7 +82,8 @@ function tableHTML(text) {
 const statusOf = cards => cardsStatus(cards.map(c => S.progress.get(c.id) || null));
 const statusLabel = st => STATUS.find(s => s.id === st)?.label || '';
 // Tarjetas que tocan ahora en un ámbito (repasos + nuevas que caben hoy)
-const pendingIn = scope => { const c = counts(scope); return c.due + c.newToday; };
+// Lo que saldría al estudiar el apunte o el apartado (todo lo nuevo, sin el límite del día; como la tanda)
+const pendingIn = scope => todayQueue(scope).ids.length;
 // Texto de ayuda de un bloque vacío, según su tipo
 const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño', li: 'Viñetas', ol: 'Numeración', todo: 'Por hacer',
   quote: 'Cita', callout: 'Escribe algo que quieras destacar', code: 'Código', table: BLOCK_PH, img: 'Pie de foto (opcional)' };
@@ -148,14 +149,14 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
   return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${bar}${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
     ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'pregunta sale', 'preguntas salen')} de esta parte" aria-label="${plural(n, 'pregunta', 'preguntas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}"><i aria-hidden="true"></i>${n}</button>` : ''}</div>`;
 }
-// Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
+// Resumen arriba del apunte: cuántas preguntas llevas al día, cuáles te cuestan… y estudiarlo entero
 function pageStatusHTML(p, cards) {
   const byStatus = new Map();
-  for (const list of cards.values()) { const st = statusOf(list); if (st) byStatus.set(st, (byStatus.get(st) || 0) + 1); }
+  for (const list of cards.values()) for (const c of list) { const st = statusOf([c]); if (st) byStatus.set(st, (byStatus.get(st) || 0) + 1); }
   if (!byStatus.size) return '';
   const pend = pendingIn(`page:${p.id}`);
   const chips = STATUS.filter(s => byStatus.has(s.id)).map(s => `<span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${byStatus.get(s.id)} ${s.label.toLowerCase()}</span>`).join('');
-  return `<div class="pg-status" aria-label="Cómo llevas este apunte, por partes">${chips}<span class="spacer"></span>
+  return `<div class="pg-status" aria-label="Cómo llevas las preguntas de este apunte">${chips}<span class="spacer"></span>
     ${pend ? `<button class="primary small-btn" data-start="page:${p.id}">Estudiar este apunte · ${pend}</button>` : '<span class="muted small">Todo al día</span>'}</div>`;
 }
 export function renderPage() {
@@ -239,7 +240,13 @@ export function growTitle() {
 }
 addEventListener('resize', () => { if (S.view === 'page') growTitle(); });
 // Intro en el título no añade una línea: termina de escribirlo
-document.addEventListener('keydown', e => { if (e.target.id === 'pgTitle' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
+// Intro en el título: termina de escribirlo y baja al primer bloque de texto
+document.addEventListener('keydown', e => {
+  if (e.target.id !== 'pgTitle' || e.key !== 'Enter' || e.isComposing) return;
+  e.preventDefault(); e.target.blur();
+  const first = curPage()?.blocks.find(b => !NO_TEXT.includes(b.type));
+  if (first) editBlock(first.id);
+});
 // Quitar del DOM el bloque que tiene el foco dispara «focusout» a mitad del cambio: mientras se
 // repinta, ese aviso se ignora (lo escrito ya se ha guardado antes).
 let repainting = false;
@@ -1662,3 +1669,11 @@ export function blockCardsSheet(blockId) {
     <ul class="list">${list.map(c => `<li><button class="row" data-card="${c.id}"><span class="f">${fmt(c.front)}</span>${statusChip(c.id)}<span class="b">${fmt(c.back)}</span></button></li>`).join('')}</ul>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
 }
+// Móvil: mientras escribes en un apunte con el teclado abierto, la barra de abajo se esconde (taparía la línea
+// que estás editando). Con el teclado cerrado vuelve, aunque el cursor siga en el bloque
+const typingIn = el => !!el?.closest?.('#pgBlocks, .pg-head') && (el.isContentEditable || el.matches('textarea, input'));
+const kbOpen = () => !!window.visualViewport && visualViewport.height < innerHeight - 120;
+const syncTyping = (el = document.activeElement) => document.body.classList.toggle('pg-typing', typingIn(el) && kbOpen());
+document.addEventListener('focusin', e => syncTyping(e.target));
+document.addEventListener('focusout', e => syncTyping(e.relatedTarget));
+window.visualViewport?.addEventListener('resize', () => syncTyping());

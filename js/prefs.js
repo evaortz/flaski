@@ -17,6 +17,7 @@ export const DEFAULT_PREFS = {
     swipe: true,            // móvil: deslizar la pregunta para valorarla
     swipeCount: 0,          // cuántas veces has deslizado (hasta 10: las pistas de deslizar dejan de salir)
     swipeLast: 0,           // cuándo deslizaste por última vez (tras 30 días sin deslizar vuelven las pistas)
+    swipeShown: false,      // ya salieron solas las pistas de deslizar (la primera vez); luego, solo al arrastrar
     haptics: true,          // móvil: vibración breve al responder y al trazar
     sound: true,            // efectos de sonido al valorar preguntas
     nativeLang: 'es-ES',    // tu idioma: el de las traducciones en las listas de idiomas

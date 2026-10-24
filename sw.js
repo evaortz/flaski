@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v130';
+const VERSION = 'flaski-v131';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -10,7 +10,7 @@ const SHELL = [
   './css/app.css', './css/fonts.css',
   './fonts/atkinson-400-latin.woff2', './fonts/atkinson-400-latin-ext.woff2', './fonts/atkinson-700-latin.woff2', './fonts/atkinson-700-latin-ext.woff2',
   './fonts/atkinson-400-italic-latin.woff2', './fonts/atkinson-400-italic-latin-ext.woff2', './fonts/atkinson-700-italic-latin.woff2', './fonts/atkinson-700-italic-latin-ext.woff2',
-  './fonts/gochi-hand-400-latin.woff2', './fonts/inter-latin.woff2', './fonts/inter-latin-ext.woff2', 
+  './fonts/gochi-hand-400-latin.woff2', './fonts/flaski-uno.woff2', './fonts/inter-latin.woff2', './fonts/inter-latin-ext.woff2', 
   './img/carpetas/bandera-turquia.svg', './img/carpetas/bandera-japon.svg', './img/carpetas/gramatica-japones.svg', './img/carpetas/clase-online.svg',
   './img/carpetas/economia.svg', './img/carpetas/balanza-color.svg', './img/carpetas/derecho.svg', './img/carpetas/brujula.svg',
   './img/iconos/sugerencia.svg', './img/iconos/racha.svg', './img/iconos/racha-apagada.svg', './img/iconos/comodin.svg',

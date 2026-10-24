@@ -392,6 +392,13 @@ export function legacyFields(card) {
 }
 
 // Separa una línea de «creación rápida» en columnas
+// «Detectar solo» con todas las líneas: el separador que sale en todas, las mismas veces (si no, el que sale en todas)
+const QUICK_SEPS = ['	', ' | ', ' = ', ' - ', ' – ', ' — ', ';', ' : ', ',', '|', ':'];
+export function detectSep(lines) {
+  const n = (l, s) => l.split(s).length - 1;
+  const inAll = QUICK_SEPS.filter(s => lines.length && lines.every(l => n(l, s) > 0));
+  return inAll.find(s => lines.every(l => n(l, s) === n(lines[0], s))) || inAll[0] || '';
+}
 export function splitQuick(line, sep) {
   if (sep === 'auto') {
     for (const s of ['\t', ' | ', ' = ', ' - ', ' – ', ' — ', ';', ' : ']) if (line.includes(s)) return splitQuick(line, s);

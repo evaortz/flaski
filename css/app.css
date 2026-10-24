@@ -1447,8 +1447,9 @@ mark.hl{color:inherit;border-radius:3px;padding:0 1px;box-decoration-break:clone
 .pg-toc[hidden]{display:none}
 .pg-toc:not(.pop){display:none}
 .pg-toc.pop{position:fixed;top:64px;right:12px;z-index:50;width:min(280px,calc(100vw - 24px));max-height:65vh;overflow:auto;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14)}
-@media (min-width:1180px){
-  .pg-toc,.pg-toc:not(.pop){display:block;position:fixed;top:110px;left:calc(50% + 370px);right:auto;width:210px;max-height:calc(100vh - 220px);overflow:auto;padding:0;background:none;border:0;box-shadow:none}
+/* Índice fijo a la derecha solo si cabe junto al apunte (barra lateral 240 + apunte 760 + índice): si no, su botón */
+@media (min-width:1500px){
+  .pg-toc,.pg-toc:not(.pop){display:block;position:fixed;top:150px;left:calc(50% + 120px + 380px + 32px);right:auto;width:210px;max-height:calc(100vh - 220px);overflow:auto;padding:0;background:none;border:0;box-shadow:none}
   .pg-toc[hidden]{display:none}
   .pg-tocbtn{display:none}
 }
@@ -1729,7 +1730,7 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
    (Gochi Hand) en las cifras grandes y los títulos. El color sale de Ajustes → Color.
    ====================================================================== */
 :root{
-  --font-hand:'Gochi Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  --font-hand:'Flaski Uno', 'Gochi Hand', 'Segoe Print', 'Comic Sans MS', cursive;
   --font:'Inter', 'Noto Color Emoji', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   --font-head:var(--font);
   --fg:color-mix(in oklab, var(--accent) 88%, #0B0B2A);
@@ -2131,6 +2132,8 @@ body.in-study .num-in input{flex:1;min-width:0;width:auto}
 .swipe-hints .sh-up{left:50%;top:calc(118px + env(safe-area-inset-top,0px));transform:translateX(-50%);color:#9ED4FF}
 .swipe-hints .sh-down{left:50%;bottom:var(--sh-down,calc(170px + env(safe-area-inset-bottom,0px)));transform:translateX(-50%);color:#FFC36B}
 @keyframes sh-fade{0%{opacity:0}12%,75%{opacity:.35}100%{opacity:0}}
+.swipe-hints.is-hold{animation:sh-in .15s ease forwards}
+@keyframes sh-in{to{opacity:.35}}
 /* Los botones, abajo: la pregunta ocupa el alto que sobra */
 /* (el alto va en .app, descontando el relleno de body, para que una pregunta corta quepa sin scroll y se pueda deslizar hacia arriba) */
 body.in-study .app{min-height:calc(100dvh - 46px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
@@ -2729,3 +2732,7 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
   .lfolds .lfold-name{font-size:36px}
   .ltiles{grid-template-columns:repeat(5,minmax(0,1fr));gap:22px}
 }
+/* Móvil: escribiendo en un apunte, sin la barra de abajo (taparía la línea que editas) */
+@media (max-width:959px){body[data-view="page"].pg-typing .nav{display:none}}
+/* Títulos de hoja con la letra a mano (como «Añadir preguntas») */
+.sheet-card h2.sheet-hand{font-family:var(--font-hand);font-weight:400;font-size:34px;line-height:1.1;margin:0 0 6px;overflow-wrap:anywhere}

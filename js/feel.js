@@ -110,7 +110,7 @@ export function chime(kind) {
 // Devuelve { up, down }: si se puede deslizar hacia arriba y hacia abajo (para las pistas).
 // Solo con el dedo o el lápiz: con el ratón ya están el teclado y los botones.
 const SKIP = 'button, a, input, textarea, select, canvas, label, [contenteditable], .say, .hw-box';
-export function swipeable(el, { dirs, onSwipe, onCross }) {
+export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
   if (!el) return;
   // Si la página no necesita scroll, también se puede deslizar hacia arriba y hacia abajo; si no, el gesto vertical es para hacer scroll
   const fits = document.documentElement.scrollHeight <= innerHeight + 4;
@@ -125,6 +125,7 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
     el.style.transform = '';
     el.style.removeProperty('--swipe');
     delete el.dataset.swipe; delete el.dataset.swipeLabel;
+    if (axis) onDrag?.(false);
     start = axis = dir = null; armed = false;
   };
 
@@ -143,6 +144,7 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
       axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
       if (axis === 'y' && !(dy < 0 ? allowUp : allowDown)) { start = null; return; }   // es un scroll, no un gesto
       try { el.setPointerCapture(e.pointerId); } catch {}
+      onDrag?.(true);
     }
     const d = axis === 'x' ? dx : dy;
     dir = axis === 'x' ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
@@ -163,6 +165,7 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
       el.style.transition = 'transform .2s ease-in';
       el.style.transform = out;
       start = null;
+      onDrag?.(false);
       setTimeout(() => onSwipe(d), 170);
     } else reset();
   };

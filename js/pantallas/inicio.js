@@ -11,7 +11,7 @@ import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortInfo } from './estudio.js';
+import { shortInfo, todayQueue } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES, tandaSize } from '../tanda.js';
 
@@ -26,8 +26,9 @@ export function renderHome() {
       <div class="btnrow"><button class="primary" data-nav="explore">Ver listas para empezar</button><button class="ghost" data-act="new-deck">Crear una lista</button></div></div>`;
     return;
   }
-  const all = counts('all');
-  const avail = all.due + all.newToday;
+  // Lo que sale hoy, contado con las mismas reglas que la tanda (límites, hermanas…): como Biblioteca
+  const all = counts('all'), q = todayQueue('all');
+  const avail = q.ids.length;
   const H = S.prefs.home;
   const folders = pendingFolders(), b = backlog(), late = b ? all.dueAll - all.due : 0;
   const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
@@ -40,7 +41,7 @@ export function renderHome() {
         <div class="hero-side">
           <span class="hero-word">${avail ? (avail === 1 ? 'pregunta!' : 'preguntas!') : 'al día'}</span>
           <span class="hero-band">para hoy</span>
-          ${avail ? `<span>${all.due} por repasar</span><span>${newLine(all.newToday, folders, b)}</span>` : ''}
+          ${avail ? `<span>${q.due} por repasar</span><span>${newLine(q, folders, b)}</span>` : ''}
           ${late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : ''}
         </div>
       </div>
@@ -64,12 +65,13 @@ export function renderHome() {
 }
 
 // La línea de las nuevas: cuántas y de dónde (el examen cercano o cuántas carpetas); sin nuevas mientras se reparte lo atrasado
-function newLine(n, folders, b) {
+function newLine(q, folders, b) {
+  const n = q.fresh;
   if (!n && b) return 'sin nuevas hasta ponerte al día';
   if (!n && backlogNoNew()) return 'sin nuevas por hoy';
   const ex = nextExam(planNodes(), S.decks, S.folders);
   let k = 0;
-  if (n && ex && ex.days <= EXAM_NEAR) { const ids = examDeckIds(ex.key); for (const [id, x] of newPlan('all')) if (ids.has(id)) k += x; }
+  if (n && ex && ex.days <= EXAM_NEAR) { const ids = examDeckIds(ex.key); k = q.ids.filter(id => !S.progress.get(id) && ids.has(S.cards.get(id)?.deck_id)).length; }
   // Las del examen, las mismas que le da el plan: «15 nuevas · 6 de Alemán · A2» (todas: «6 nuevas · Alemán · A2»)
   const from = k ? ` · ${k < n ? `${k} de ` : ''}${esc(examName(ex.key))}` : folders ? ` · ${plural(folders, 'carpeta', 'carpetas')}` : '';
   return `${plural(n, 'nueva', 'nuevas')}${from}`;
@@ -169,7 +171,7 @@ function examHTML() {
   // Si se reparte lo atrasado, sus repasos también van repartidos
   const b = backlog(), reviews = b ? Math.ceil(dueNow / daysLeft(b.until, now)) : dueNow;
   const need = ex.days >= 1 && ex.days <= EXAM_NEAR ? ex.need + reviews : 0;
-  const [cls, say] = ex.late ? ['hoy-late', 'así no te da tiempo'] : need ? ['hoy-tight', `necesitas unas ${need} al día`] : ex.tight ? ['hoy-tight', 'vas con el tiempo justo'] : ['hoy-ok', 'vas a buen ritmo'];
+  const [cls, say] = ex.late ? ['hoy-late', 'así no te da tiempo'] : need ? ['hoy-tight', `necesitas ${need === 1 ? '' : 'unas '}${need} al día`] : ex.tight ? ['hoy-tight', 'vas con el tiempo justo'] : ['hoy-ok', 'vas a buen ritmo'];
   return `<button class="hoy-exam" data-nav="plan">
     <span class="hoy-cal" aria-hidden="true"><i></i><b>${d.getDate()}</b></span>
     <span class="hoy-exam-t"><small>Examen de ${esc(examName(next.key))} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>

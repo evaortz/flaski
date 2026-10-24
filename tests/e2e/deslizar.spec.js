@@ -1,4 +1,4 @@
-// Pistas de deslizar en la tanda: solo en el móvil, hasta deslizar 10 veces y otra vez tras 30 días sin deslizar
+// Pistas de deslizar en la tanda: solo en el móvil; la primera vez solas y luego al arrastrar, hasta deslizar 10 veces y otra vez tras 30 días sin deslizar
 import { test, expect, startTanda } from './fixtures.js';
 
 const DAY = 864e5, T0 = Date.now() - 30 * DAY;
@@ -18,6 +18,14 @@ async function seed(page, study = {}) {
   await page.locator('[data-act="reveal"]').click();
 }
 const hints = page => page.locator('.swipe-hints');
+// Empieza a arrastrar la pregunta hacia la derecha (sin soltar) o suelta el arrastre
+const drag = (page, id, end = false) => page.locator('article.card .front').evaluate((el, [id, end]) => {
+  const r = el.getBoundingClientRect(), y = r.y + r.height / 2, x0 = r.x + r.width / 2;
+  const ev = (type, x) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: id, clientX: x, clientY: y }));
+  if (end) return ev('pointercancel', x0);
+  ev('pointerdown', x0);
+  for (let k = 1; k <= 3; k++) ev('pointermove', x0 + k * 10);
+}, [id, end]);
 
 test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta', async ({ page }, info) => {
   await seed(page);
@@ -39,8 +47,15 @@ test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cue
   });
   await expect(page.locator('.studybar .left')).toContainText('pregunta 2 de 2');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).settings.prefs.study.swipeCount)).toBe(1);
-  // Hacia abajo: «Difícil»
+  // Después ya no salen solas (no tapan nada): solo mientras arrastras
   await page.locator('[data-act="reveal"]').click();
+  await expect(page.locator('.grades')).toBeVisible();
+  await expect(hints(page)).toHaveCount(0);
+  await drag(page, 9);
+  await expect(hints(page)).toHaveCount(1);
+  await drag(page, 9, true);
+  await expect(hints(page)).toHaveCount(0);
+  // Hacia abajo: «Difícil»
   await page.locator('article.card .front').evaluate(el => {
     const r = el.getBoundingClientRect(), x = r.x + r.width / 2, y0 = r.y + r.height / 2;
     const ev = (type, y) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: 8, clientX: x, clientY: y }));
@@ -56,11 +71,17 @@ test('tras 10 deslizamientos ya no salen', async ({ page }, info) => {
   await seed(page, { swipeCount: 10, swipeLast: Date.now() - 2 * DAY });
   await expect(page.locator('.grades')).toBeVisible();
   await expect(hints(page)).toHaveCount(0);
+  await drag(page, 5);
+  await page.waitForTimeout(300);
+  await expect(hints(page)).toHaveCount(0);
 });
 
 test('vuelven si llevas 30 días sin deslizar', async ({ page }, info) => {
   test.skip(info.project.name === 'escritorio', 'solo en el móvil');
-  await seed(page, { swipeCount: 10, swipeLast: Date.now() - 31 * DAY });
+  await seed(page, { swipeCount: 10, swipeLast: Date.now() - 31 * DAY, swipeShown: true });
+  await expect(page.locator('.grades')).toBeVisible();
+  await expect(hints(page)).toHaveCount(0);
+  await drag(page, 5);
   await expect(hints(page)).toHaveCount(1);
 });
 

@@ -6,6 +6,7 @@ import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar } from
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
 import { main, S, esc, norm, plain, cardList, tagChips, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
+import { todayQueue } from './estudio.js';
 
 const ST_LABEL = { ok: 'al día', due: 'toca repasar', weak: 'te cuesta', new: 'sin estudiar' };
 const parentOf = f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null);
@@ -13,6 +14,13 @@ const inFolder = x => (x.folder_id && S.folders.has(x.folder_id) ? x.folder_id :
 const statusOf = cards => cardsStatus(cards.map(c => S.progress.get(c.id) || null));
 const pct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
 const dueOf = c => c.due + c.newToday;
+// «N hoy» de cada ficha: lo que sale hoy en Hoy (la misma cola), para que las fichas sumen lo mismo
+let today = new Set();
+const hoyIn = test => { let n = 0; for (const id of today) { const c = S.cards.get(id); if (c && test(c)) n++; } return n; };
+// Un apunte y la lista que se creó con él (mismo nombre, mismo sitio): una sola ficha, la del apunte
+const same = (a, b) => norm(a).trim() === norm(b).trim();
+const twinOf = p => { const d = p.deck_id && S.decks.get(p.deck_id); return d && !d.archived && inFolder(d) === inFolder(p) && same(d.name, pageTitle(p)) ? d : null; };
+const twinDecks = pages => new Set(pages.map(twinOf).filter(Boolean).map(d => d.id));
 
 // Lo que hay dentro de una carpeta, a cualquier profundidad
 function folderInfo(id) {
@@ -43,7 +51,7 @@ const deco = f => { const art = folderArt(f.icon, 'lfold-deco lfold-draw');
 
 // Carpeta grande de la raíz
 function folderCard(f) {
-  const { decks, pages, c, young } = folderInfo(f.id), n = dueOf(c);
+  const { decks, pages, c, young } = folderInfo(f.id), ids = new Set(decks.map(d => d.id)), n = hoyIn(x => ids.has(x.deck_id));
   const what = [pages.length && plural(pages.length, 'apunte', 'apuntes'), decks.length && plural(decks.length, 'lista', 'listas')].filter(Boolean).join(' · ') || 'vacía';
   return `<li><button class="lfold" data-folder="${f.id}" style="${foldColor(f)}"><span class="lfold-tab" aria-hidden="true"></span>${deco(f)}
     <span class="lfold-k">carpeta${examText(f.id)}</span>
@@ -60,8 +68,9 @@ const handState = (n, total, empty) => `<span class="lt-hand ${n ? 'is-due' : to
 // Un apunte con algo escrito (o una imagen); sin nada, «vacío» con borde discontinuo
 const hasText = p => (p.blocks || []).some(b => b.type === 'img' || (b.type !== 'hr' && plain(String(b.text || '')).trim()));
 function pageTile(p, { hand, where }) {
-  const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards), blank = !cards.length && !hasText(p);
-  const n = cards.length ? dueOf(counts('page:' + p.id)) : 0;
+  const twin = twinOf(p), mine = c => c.page_id === p.id || (twin && c.deck_id === twin.id);
+  const cards = cardList().filter(mine), st = statusOf(cards), blank = !cards.length && !hasText(p);
+  const n = hoyIn(mine);
   const foot = hand ? handState(n, cards.length, blank ? 'vacío' : 'sin preguntas')
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '';
   return `<li data-kind="notes"><button class="ltile lt-note${blank ? ' is-empty' : ''}" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
@@ -69,7 +78,7 @@ function pageTile(p, { hand, where }) {
     <span class="lt-foot"><span class="lt-meta">${where(p)}apunte${hand ? ` · ${cards.length}` : ` · ${plural(cards.length, 'pregunta', 'preguntas')}`}</span>${foot}</span></button></li>`;
 }
 function deckTile(d, { hand, where }) {
-  const c = counts(d.id), n = dueOf(c), st = statusOf(cardList().filter(x => x.deck_id === d.id));
+  const c = counts(d.id), n = d.archived ? dueOf(c) : hoyIn(x => x.deck_id === d.id), st = statusOf(cardList().filter(x => x.deck_id === d.id));
   const foot = hand ? handState(n, c.total, 'vacía')
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '<span class="lt-st">vacía</span>';
   return `<li data-kind="lists" draggable="true" data-drag-deck="${d.id}"><button class="ltile lt-list" data-open="${d.id}"><span class="lt-ic" aria-hidden="true">${d.icon ? esc(d.icon) : icon('copy', { size: 24 })}</span>
@@ -94,6 +103,7 @@ function sortPages(list, sort) {
 }
 
 export function renderLibrary() {
+  today = new Set(todayQueue('all').ids);
   if (S.folderId && !S.folders.has(S.folderId)) S.folderId = null;
   return S.folderId ? renderFolder(S.folders.get(S.folderId)) : renderRoot();
 }
@@ -111,7 +121,8 @@ function renderRoot() {
     pages = [...S.pages.values()].filter(p => !inFolder(p));
     folders = [...S.folders.values()].filter(f => !parentOf(f)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
-  decks = sortDecks(decks, o.sort, stats);
+  const twins = twinDecks(pages);
+  decks = sortDecks(decks.filter(d => !twins.has(d.id)), o.sort, stats);
   pages = sortPages(pages, o.sort);
   const where = x => (filtering && inFolder(x) ? `${folderPath(S.folders, x.folder_id).map(f => esc(f.name)).join(' / ')} · ` : '');
   const tiles = [...pages.map(p => pageTile(p, { hand: true, where })), ...decks.map(d => deckTile(d, { hand: true, where }))].join('');
@@ -151,13 +162,14 @@ function renderFolder(folder) {
   const stats = new Map([...S.decks.values()].map(d => [d.id, counts(d.id)]));
   const subs = [...S.folders.values()].filter(f => parentOf(f) === folder.id).sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const pages = sortPages([...S.pages.values()].filter(p => inFolder(p) === folder.id), S.org.sort);
-  const decks = sortDecks([...S.decks.values()].filter(d => !d.archived && inFolder(d) === folder.id), S.org.sort, stats);
-  const kind = S.libKind || 'all';
+  const kind = S.libKind || 'all', twins = kind === 'lists' ? new Set() : twinDecks(pages);
+  const here = [...S.decks.values()].filter(d => !d.archived && inFolder(d) === folder.id);
+  const decks = sortDecks(here.filter(d => !twins.has(d.id)), S.org.sort, stats);
   const show = k => kind === 'all' || kind === k;
   const where = () => '';
   const tiles = [show('subs') ? subs.map(subTile).join('') : '', show('notes') ? pages.map(p => pageTile(p, { where })).join('') : '', show('lists') ? decks.map(d => deckTile(d, { where })).join('') : ''].join('');
   const chip = (k, label, num) => `<button class="fchip" data-libkind="${k}" aria-pressed="${kind === k}">${label} · ${num}</button>`;
-  const what = [plural(pages.length, 'apunte', 'apuntes'), plural(decks.length, 'lista', 'listas'), subs.length && plural(subs.length, 'subcarpeta', 'subcarpetas'), c.total && plural(c.total, 'pregunta', 'preguntas')].filter(Boolean).join(' · ');
+  const what = [plural(pages.length, 'apunte', 'apuntes'), plural(here.length, 'lista', 'listas'), subs.length && plural(subs.length, 'subcarpeta', 'subcarpetas'), c.total && plural(c.total, 'pregunta', 'preguntas')].filter(Boolean).join(' · ');
   const path = folderPath(S.folders, folder.id);
   const crumbs = [`<button class="crumb" data-folder="">Biblioteca</button>`, ...path.slice(0, -1).map(f => `<button class="crumb" data-folder="${f.id}">${esc(f.name)}</button>`), `<span class="crumb crumb-cur">${esc(folder.name)}</span>`];
 
@@ -181,7 +193,7 @@ function renderFolder(folder) {
         <div class="fhero-add"><button data-act="new-page">+ Apunte</button><button data-act="new-deck">+ Lista</button></div>
       </div>
     </section>
-    <div class="filters chips-scroll">${chip('all', 'Todo', subs.length + pages.length + decks.length)}${chip('notes', 'Apuntes', pages.length)}${chip('lists', 'Listas', decks.length)}${subs.length ? chip('subs', 'Subcarpetas', subs.length) : ''}</div>
+    <div class="filters chips-scroll">${chip('all', 'Todo', subs.length + pages.length + decks.length)}${chip('notes', 'Apuntes', pages.length)}${chip('lists', 'Listas', here.length)}${subs.length ? chip('subs', 'Subcarpetas', subs.length) : ''}</div>
     ${tiles ? `<ul class="ltiles">${tiles}</ul>` : `<div class="empty"><p class="muted">${kind === 'all' ? 'Esta carpeta está vacía. Crea un apunte o una lista con el botón +.' : 'Aquí no hay nada de este tipo.'}</p></div>`}
     <div class="btnrow btnrow-sm"><button class="ghost small-btn" data-act="new-folder">+ Carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir listas aquí</button><button class="ghost small-btn" data-act="import-menu">Importar</button></div>`;
 }

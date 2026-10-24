@@ -164,3 +164,20 @@
 - Pruebas: `unit/atrasos.test.js` nueva y más casos en `plan.test.js`; e2e en `hoy.spec.js` (atrasos, examen cerca, comodín) y `apuntes.spec.js` (Biblioteca). `tanda-corta.spec.js` siembra un día de estudio ayer para que sus 40 atrasadas no se repartan. `sw.js` → `flaski-v130`.
 - Dudas: el reparto vive en cada dispositivo y se calcula el primer rato del día; si pones o cambias un examen a mitad del día, el tope cambia al día siguiente. «vas un poco justa» del diseño queda «vas con el tiempo justo» (sin género).
 - Pruebas al terminar: unitarias 178 de 178. Batería e2e completa con `--workers=100%`: 256 pasan, 11 omitidas y 21 fallan; las 21, repetidas solas, pasan todas (44 de 44). Son de carga (13,9 min).
+
+## Remates del repaso
+- Hermanas (ida y vuelta de una nota): una sola por tanda también si una es repaso y la otra nueva (antes solo se miraban dos nuevas). Si una ya sale o la viste hoy, la otra espera: un repaso, a otra tanda; una nueva, a otro día. Pasaba con los datos de ejemplo, que dan progreso a una hermana y dejan nueva la otra.
+- Hoy, Biblioteca, el fin de tanda y los apuntes cuentan con la misma cola que la tanda (`todayQueue` en `estudio.js`): las fichas de Biblioteca suman lo que dice Hoy (antes cada lista se llevaba todas las nuevas que quedaban del día: «1 hoy» en todas).
+- Desde un apunte o un apartado se estudia todo lo nuevo, sin el límite del día. El resumen del apunte cuenta preguntas («4 sin estudiar»), no partes.
+- Biblioteca: el apunte y la lista creada con él (mismo nombre y sitio) salen en una sola ficha, la del apunte; en «Listas» sigue saliendo la lista.
+- Pistas de deslizar: solas solo la primera vez (`prefs.study.swipeShown`); luego, solo mientras arrastras (`onDrag` en `swipeable`). Siguen dejando de salir tras 10 deslizamientos y volviendo tras 30 días.
+- Escribir la respuesta: tras comprobar, el altavoz de la respuesta va junto a la pregunta también si hay más campos; la caja «respuesta» solo lleva los demás (artículo, plural…). Un campo con solo etiquetas (`<br>`) cuenta como vacío.
+- Fin de tanda: «te queda 1» y, con una sola, «Hacer la que queda» en vez de «Otra tanda · 10 min».
+- Apuntes: Intro en el título baja al primer bloque; en el móvil la barra de abajo se esconde mientras escribes con el teclado abierto (`visualViewport`; con el teclado cerrado vuelve aunque el cursor siga en el bloque); el índice fijo a la derecha solo desde 1500 px (con la barra lateral no cabía y tapaba «Sugerir preguntas» y el texto), más estrecho va en su botón.
+- «necesitas 1 al día» (sin «unas» con 1).
+- El «1» a mano: `fonts/flaski-uno.woff2`, una fuente con solo el «1» dibujado por mí (palo con un trazo corto arriba), delante de Gochi Hand en `--font-hand` (`unicode-range: U+0031`). Se genera con `tests/fuente-uno.py` (fontTools). En el `SHELL`.
+- «Varias de golpe»: «Detectar solo» mira todas las líneas (`detectSep`: el separador que sale en todas las mismas veces, también la coma) y dice cuál ha detectado; el ejemplo sigue al tipo y al idioma de la lista; «Crear 3 notas · 6 preguntas» (si cada nota da una, «Crear 3 preguntas»); título con la letra a mano.
+- Japonés de ejemplo: sin emojis en los tipos (🗾 🎧 🧱); sin icono sale el genérico.
+- Pruebas: e2e nueva `remates-repaso.spec.js`; `deslizar.spec.js` y `cardtypes.test.js` ampliadas. `sw.js` → `flaski-v131`.
+- Dudas: la hermana de una nota que ya repasaste hoy no sale hasta mañana aunque toque (como en Anki). Los tipos ya importados antes guardan su emoji: solo cambia el archivo de ejemplo.
+- Pruebas al terminar: unitarias 179 de 179. Batería e2e completa con `--workers=100%`: 282 pasan, 11 omitidas y 5 fallan. Repetidas solas, 2 pasan (icono de carpeta e importar PDF, de carga) y 3 del móvil fallaban de verdad: la barra de abajo se quedaba escondida tras escribir en un apunte. Arreglado (solo con el teclado abierto) y pasan las 3 y `remates-repaso.spec.js` (15 de 15).

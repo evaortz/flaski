@@ -134,3 +134,13 @@ test('tipos nuevos: grupos, hueco con opciones, números y pasos', async () => {
   assert.equal(m.activeTemplates(t('sort'), { g: 'A: 1' }).length, 0);
   assert.equal(m.activeTemplates(t('number'), { q: '¿?', a: 'mil' }).length, 0);
 });
+
+test('«Detectar solo» mira todas las líneas: la coma, si sale igual en todas', async () => {
+  const { detectSep, splitQuick } = await import('../../js/cardtypes.js');
+  const lines = ['die, Wohnung, die Wohnungen, el piso', 'der, Bahnhof, die Bahnhöfe, la estación de tren'];
+  assert.equal(detectSep(lines), ',');
+  assert.deepEqual(splitQuick(lines[0], detectSep(lines)), ['die', 'Wohnung', 'die Wohnungen', 'el piso']);
+  assert.equal(detectSep(['ev - casa', 'kitap - libro']), ' - ');
+  assert.equal(detectSep(['a\tb', 'c\td, e']), '\t');
+  assert.equal(detectSep(['solo una palabra']), '');
+});

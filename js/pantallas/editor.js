@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
+import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, detectSep, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
 import { COLORS, colorVar, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSrc, imageOf, iconText } from '../org.js';
 import { addImage, imgToken, imageIdsOf, deleteImage } from '../media.js';
@@ -862,7 +862,7 @@ export async function saveCardForm(form, more) {
 export function quickSheet() {
   const deckId = S.deckId;
   const t = defaultTypeFor(deckId);
-  openSheet(`<h2>Crear varias preguntas</h2>
+  openSheet(`<h2 class="sheet-hand">Crear varias preguntas</h2>
     <p class="muted small">Pega una lista con una pregunta por línea. Cada columna rellena un campo, en orden.</p>
     <form data-form="quick" class="cardform">
       <div class="two">
@@ -873,33 +873,58 @@ export function quickSheet() {
       </div>
       <label for="q-deck">Lista</label><select id="q-deck">${deckOptions(deckId)}</select>
       <p class="hint" id="qMap"></p>
-      <textarea id="q-text" rows="8" placeholder="ev - casa&#10;kitap - libro&#10;su - agua"></textarea>
+      <textarea id="q-text" rows="8"></textarea>
       <div id="qPrev"></div>
       <div class="btnrow" style="margin-top:8px"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button type="submit" class="primary" id="qGo" disabled>Crear preguntas</button></div>
     </form>`);
   drawQuick();
 }
+// Ejemplo de la hoja según el tipo elegido y el idioma de la lista (una línea por nota)
+const QUICK_WORDS = {
+  de: [['Haus', 'la casa'], ['Buch', 'el libro'], ['Wasser', 'el agua']], tr: [['ev', 'casa'], ['kitap', 'libro'], ['su', 'agua']],
+  ja: [['家', 'casa'], ['本', 'libro'], ['水', 'agua']], en: [['house', 'casa'], ['book', 'libro'], ['water', 'agua']],
+  fr: [['maison', 'casa'], ['livre', 'libro'], ['eau', 'agua']], it: [['casa', 'casa'], ['libro', 'libro'], ['acqua', 'agua']],
+  pt: [['casa', 'casa'], ['livro', 'libro'], ['água', 'agua']],
+};
+function quickExample(type, deckId) {
+  const words = QUICK_WORDS[deckLang(deckId).split('-')[0]];
+  const rows = {
+    basic: [['¿Capital de Francia?', 'París'], ['¿Cuántos lados tiene un hexágono?', '6']],
+    typing: [['¿Capital de Francia?', 'París'], ['¿Capital de Italia?', 'Roma']],
+    'de-noun': [['die', 'Wohnung', 'die Wohnungen', 'el piso'], ['der', 'Bahnhof', 'die Bahnhöfe', 'la estación de tren'], ['das', 'Haus', 'die Häuser', 'la casa']],
+    truefalse: [['El agua hierve a 100 °C a nivel del mar', 'V'], ['La Luna tiene luz propia', 'F']],
+    number: [['¿En qué año cayó Constantinopla?', '1453'], ['¿Cuántos lados tiene un hexágono?', '6']],
+  }[type.id] || (['reverse', 'vocab', 'listen'].includes(type.id) ? words : null);
+  // Sin ejemplo para este tipo: los nombres de sus columnas
+  return rows ? rows.map(r => r.join(' - ')).join('\n') : type.fields.map(f => f.name.toLocaleLowerCase()).join(' - ');
+}
+const SEP_NAMES = { '\t': 'tabulador', ',': 'coma', ';': 'punto y coma', '|': 'barra', ':': 'dos puntos' };
 function quickRows() {
   const type = getType($('#q-type').value) || BUILTIN_TYPES[0];
-  const sep = $('#q-sep').value;
   const lines = $('#q-text').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  // «Detectar solo» mira todas las líneas a la vez (así también la coma, si sale igual en todas)
+  const sep = $('#q-sep').value === 'auto' ? detectSep(lines) || 'auto' : $('#q-sep').value;
   const notes = lines.map(l => {
     const cols = splitQuick(l, sep);
     const fields = {};
     type.fields.forEach((f, i) => { fields[f.id] = i === type.fields.length - 1 && cols.length > type.fields.length ? cols.slice(i).join(' ') : (cols[i] || ''); });
     return fields;
   });
-  return { type, notes, valid: notes.filter(f => activeTemplates(type, f).length) };
+  return { type, notes, sep, valid: notes.filter(f => activeTemplates(type, f).length) };
 }
 export function drawQuick() {
-  const { type, notes, valid } = quickRows();
-  $('#qMap').innerHTML = type.fields.map((f, i) => `Columna ${i + 1} → <b>${esc(f.name)}</b>`).join(' · ');
+  const { type, notes, valid, sep } = quickRows();
+  $('#qMap').innerHTML = type.fields.map((f, i) => `Columna ${i + 1} → <b>${esc(f.name)}</b>`).join(' · ')
+    + ($('#q-sep').value === 'auto' && notes.length && sep !== 'auto' ? ` · separador: <b>${esc(SEP_NAMES[sep.trim() || sep] || `«${sep.trim()}»`)}</b>` : '');
+  $('#q-text').placeholder = quickExample(type, $('#q-deck').value);
   const cards = valid.reduce((n, f) => n + activeTemplates(type, f).length, 0);
   $('#qPrev').innerHTML = notes.length ? `<div class="qtable-wrap"><table class="qtable"><thead><tr>${type.fields.map(f => `<th>${esc(f.name)}</th>`).join('')}</tr></thead>
     <tbody>${notes.slice(0, 5).map(f => `<tr class="${activeTemplates(type, f).length ? '' : 'bad'}">${type.fields.map(x => `<td>${esc(f[x.id] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <p class="hint">${notes.length > 5 ? `…y ${notes.length - 5} líneas más. ` : ''}Se crearán <b>${cards}</b> ${cards === 1 ? 'pregunta' : 'preguntas'}${notes.length - valid.length ? ` (${notes.length - valid.length} líneas incompletas se saltarán)` : ''}.</p>` : '';
   $('#qGo').disabled = !valid.length;
-  $('#qGo').textContent = cards ? `Crear ${cards} ${cards === 1 ? 'pregunta' : 'preguntas'}` : 'Crear preguntas';
+  // Cada línea es una nota; según el tipo, una nota da una o varias preguntas
+  const nq = `${cards} ${cards === 1 ? 'pregunta' : 'preguntas'}`;
+  $('#qGo').textContent = !cards ? 'Crear preguntas' : cards === valid.length ? `Crear ${nq}` : `Crear ${valid.length} ${valid.length === 1 ? 'nota' : 'notas'} · ${nq}`;
 }
 export async function saveQuick(form) {
   const { type, valid } = quickRows();

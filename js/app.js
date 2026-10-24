@@ -838,7 +838,7 @@ document.addEventListener('change', async e => {
     if (ic && d) ic.outerHTML = deckIcon(d);
     if (S.edit) { S.edit.dirty = true; readEditor(); redrawEditorFields(); }
   }
-  if (['q-type', 'q-sep'].includes(e.target.id)) drawQuick();
+  if (['q-type', 'q-sep', 'q-deck'].includes(e.target.id)) drawQuick();
   if (e.target.closest?.('.typeform') && (e.target.matches('select, input[type=checkbox]'))) { readTypeEditor(); const y = $('#sheetBody').scrollTop; drawTypeEditor(); $('#sheetBody').scrollTop = y; }
 });
 // Arrastrar y soltar (ordenador): un mazo encima de una carpeta o de la ruta

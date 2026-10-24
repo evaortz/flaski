@@ -8,7 +8,7 @@
     {
       "id": "jp-vocab",
       "name": "Vocabulario japonés",
-      "icon": "🗾",
+      "icon": "",
       "description": "Palabra con furigana. Reconocer (furigana oculto delante) y recordar con opción múltiple.",
       "fields": [
         {
@@ -74,7 +74,7 @@
     {
       "id": "jp-listen",
       "name": "Dictado japonés",
-      "icon": "🎧",
+      "icon": "",
       "description": "Escuchas japonés y lo escribes en kana. Necesita el teclado japonés.",
       "fields": [
         {
@@ -116,7 +116,7 @@
     {
       "id": "jp-order",
       "name": "Ordenar frase japonesa",
-      "icon": "🧱",
+      "icon": "",
       "description": "Colocas los bloques de la frase en orden. Separa los bloques con «/».",
       "fields": [
         {

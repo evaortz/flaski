@@ -94,6 +94,16 @@
   font-display: swap;
   src: url(../fonts/general-sans-700.woff2) format('woff2');
 }
+/* El «1» a mano: en Gochi Hand se lee como un 7; este es un palo con un trazo corto arriba (dibujo propio,
+   tests/fuente-uno.py). Va delante de Gochi Hand en --font-hand y solo se usa para el «1» */
+@font-face {
+  font-family: 'Flaski Uno';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/flaski-uno.woff2) format('woff2');
+  unicode-range: U+0031;
+}
 /* Gochi Hand (Juan Pablo del Peral, licencia SIL Open Font License 1.1): el toque «a mano» de las cifras grandes y los títulos */
 @font-face {
   font-family: 'Gochi Hand';
