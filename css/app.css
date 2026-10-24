@@ -3062,3 +3062,8 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
   #selBar .sb-card{padding:0 12px}
   #selBar .sb-done{padding:0 8px}
 }
+
+/* Con 2 botones, «Otra vez» y «Bien» se reparten el ancho */
+.grades.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* Un hueco y la puntuación que lo sigue van juntos */
+.cz-nw{white-space:nowrap}

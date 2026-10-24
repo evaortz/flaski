@@ -66,7 +66,8 @@ function folderCard(f) {
 // Estado a mano (en la raíz): «N hoy» (color del tema), «N nuevas» si hoy no toca nada pero quedan sin estudiar,
 // «al día» (verde), «vacío/vacía» o «sin preguntas» (lavanda)
 const handState = (n, total, empty, fresh = 0) => `<span class="lt-hand ${n || fresh ? 'is-due' : total ? 'is-ok' : 'is-empty'}">${n ? `${n} hoy` : fresh ? plural(fresh, 'nueva', 'nuevas') : total ? 'al día' : empty}</span>`;
-const freshIn = cards => cards.filter(c => !S.progress.has(c.id)).length;
+// Nuevas como las da «Estudiar»: una por nota (la ida y la vuelta de una nota cuentan una)
+const freshIn = cards => new Set(cards.filter(c => !S.progress.has(c.id)).map(c => c.note_id || c.id)).size;
 // Un apunte con algo escrito (o una imagen); sin nada, «vacío» con borde discontinuo
 const hasText = p => (p.blocks || []).some(b => b.type === 'img' || (b.type !== 'hr' && plain(String(b.text || '')).trim()));
 function pageTile(p, { hand, where }) {

@@ -42,9 +42,13 @@ export const SPEAK_ICON = icon('volume-2', { size: 18 });
 function clozeHTML(text, reveal) {
   let out = '', last = 0;
   String(text || '').replace(CLOZE_RE, (m, ans, hint, at) => {
+    if (at < last) return m;
     out += fmt(text.slice(last, at));
-    out += reveal ? `<span class="blank on">${fmt(ans)}</span>` : `<span class="blank">${hint ? esc(hint) : '…'}</span>`;
-    last = at + m.length;
+    const hole = reveal ? `<span class="blank on">${fmt(ans)}</span>` : `<span class="blank">${hint ? esc(hint) : '…'}</span>`;
+    // La puntuación que va justo detrás no se queda sola en otra línea
+    const punct = /^[.,;:!?…»”)\]]+/.exec(text.slice(at + m.length))?.[0] || '';
+    out += punct ? `<span class="cz-nw">${hole}${esc(punct)}</span>` : hole;
+    last = at + m.length + punct.length;
     return m;
   });
   return out + fmt(String(text || '').slice(last));

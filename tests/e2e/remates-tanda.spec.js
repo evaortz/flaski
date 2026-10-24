@@ -1,5 +1,5 @@
 // Remates de la tanda: contador tras «Otra vez», volver a donde empezó, «No lo sé» en las de elegir y la hoja de editar
-import { test, expect, openApp, nav, createDeck, newCard, addBasicCards } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, newCard, addBasicCards, addBuiltinDeck } from './fixtures.js';
 
 const left = page => page.locator('.studybar .left');
 const study = page => page.locator('#main [data-start]').first().click();
@@ -55,4 +55,41 @@ test('editar una pregunta dentro de la tanda: colores de siempre, título a la v
   await page.keyboard.press('Escape');
   await expect(page.locator('#sheet')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/in-study/);
+});
+
+test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.prefs.study.buttons = 2; });
+  await createDeck(page, 'Capitales');
+  await addBasicCards(page, [['Francia', 'París']]);
+  await study(page);
+  await page.locator('[data-act="reveal"]').click();
+  const [row, a, b] = await Promise.all(['.grades', '.grade.g1', '.grade.g3'].map(s => page.locator(s).boundingBox()));
+  expect(Math.abs(a.width - b.width)).toBeLessThan(2);
+  expect(a.width + b.width).toBeGreaterThan(row.width * 0.9);
+});
+
+test('Biblioteca cuenta las nuevas como «Estudiar» (una por nota)', async ({ page }) => {
+  await openApp(page);
+  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
+  await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.newPerDay = 0; });   // hoy no toca ninguna: la ficha dice «N nuevas»
+  await nav(page, 'Biblioteca');
+  const hand = await page.locator('#main .lt-list').filter({ hasText: 'Japonés' }).locator('.lt-hand').textContent();
+  const n = Number(/(\d+) nuevas/.exec(hand)?.[1]);
+  expect(n).toBeGreaterThan(0);
+  await page.locator('#main .lt-list').filter({ hasText: 'Japonés' }).click();
+  await study(page);
+  await expect(left(page)).toContainText(`de ${n}`);
+});
+
+test('huecos: la puntuación de detrás va pegada al hueco', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await newCard(page);
+  await page.locator('[data-set-type="cloze"]').click();
+  await page.locator('#fld-x').fill('El Terror lo dirigió {{Robespierre}}.');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await study(page);
+  await expect(page.locator('.card .cz-nw')).toHaveText('….');
 });
