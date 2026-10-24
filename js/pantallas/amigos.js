@@ -54,7 +54,7 @@ function weekBars(week) {
 }
 
 // Ánimos: lo que se ve de cada tipo (los tres que guarda Supabase)
-export const CHEERS = [['clap', '¡Ánimo!'], ['go', '¡Tú puedes!'], ['fire', '🔥']];
+export const CHEERS = [['clap', '¡Ánimo!'], ['go', '¡Tú puedes!'], ['fire', icon('racha', { size: 18, label: 'Fuego' })]];
 const cheerText = kind => (CHEERS.find(c => c[0] === kind) || CHEERS[0])[1];
 // «hace 2 h»
 function ago(t) {
@@ -74,7 +74,7 @@ export function homeFriendsHTML() {
   }
   const c = f.cheers[0];
   const cheer = c ? `<div class="hoy-cheer" role="status">${avatar(c.name)}
-    <span><b>${esc(c.name || 'Alguien')}</b> te ha animado: «${esc(cheerText(c.kind))}»</span><small>${ago(c.created_at)}</small><button class="link hoy-thanks" data-act="cheers-seen">Gracias</button></div>` : '';
+    <span><b>${esc(c.name || 'Alguien')}</b> te ha animado: «${cheerText(c.kind)}»</span><small>${ago(c.created_at)}</small><button class="link hoy-thanks" data-act="cheers-seen">Gracias</button></div>` : '';
   // A quién animar: primero quien aún no ha estudiado hoy
   const shared = f.list.filter(x => x.shared), cheered = cheeredToday();
   const p = shared.find(x => !x.today && !cheered.has(x.id)) || shared.find(x => !x.today) || shared[0];
@@ -111,7 +111,7 @@ export function renderFriends() {
     const langs = langNames(p.langs);
     return `<li class="fr-card">
       <div class="fr-top">${avatar(p.name)}<div class="fr-who"><b>${esc(p.name || 'Sin nombre')}</b>
-        ${p.shared ? `<span class="fr-meta"><span class="fr-streak">${icon('fire', { size: 14 })} ${plural(p.streak, 'día', 'días')}</span>
+        ${p.shared ? `<span class="fr-meta"><span class="fr-streak">${icon(p.streak ? 'racha' : 'racha-apagada', { size: 14 })} ${plural(p.streak, 'día', 'días')}</span>
           <span class="${p.today ? 'fr-today' : 'muted'}">${p.today ? `${icon('check', { size: 13 })} Hoy, ${plural(p.today, 'repaso', 'repasos')}` : 'Hoy aún no ha estudiado'}</span></span>`
           : '<span class="fr-meta muted">No comparte su actividad</span>'}</div>
         <button type="button" class="iconbtn" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name)}" title="Opciones">${icon('ellipsis', { size: 18 })}</button></div>

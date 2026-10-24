@@ -25,6 +25,7 @@ Flaski es gratis, de código abierto y sin ánimo de lucro, para gente con poco 
 - Botón principal: cobalto con sombra `0 4px 0 #1A247A`.
 - Las carpetas son azules, con un dibujo cartoon de colores asomando. Gustan mucho: se mantienen.
 - Solo microcopy real y breve. Nada de textos explicativos de diseñador.
+- Nada de emojis en la interfaz salvo los que elige la persona (icono de carpeta). Iconos de línea: Lucide, trazo 1,8. Propios a color: sugerencia, racha y comodín (`img/iconos/`; hoja en `pantallas/hoja-iconos.jpg`).
 
 ## Hoy (`hoy-movil.jpg`, `hoy-escritorio.jpg`)
 De arriba abajo:

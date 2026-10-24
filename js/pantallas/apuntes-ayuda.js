@@ -136,7 +136,7 @@ function helpContent() {
     preguntas: sec('preguntas', 'Preguntas desde los apuntes', `<ul class="help-list">
         <li class="help-item">Selecciona un trozo de texto y pulsa <b>Crear pregunta</b> (lo seleccionado será la respuesta) o <b>Hueco</b> (el bloque entero con eso oculto: ${c('Ev{{de}}yim')}).</li>
         <li class="help-item"><b>Sugerir preguntas</b> (arriba) propone preguntas a partir de cómo está escrito el apunte. Las revisas, retocas o descartas, y creas las que quieras. Si cambias el apunte, ${icon('refresh-cw', { size: 13 })} las actualiza sin perder lo retocado.</li>
-        <li class="help-item">Una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta (aparece mientras escribes). Tócala para ver las de esa parte.</li>
+        <li class="help-item">Una ${icon('sugerencia', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta (aparece mientras escribes). Tócala para ver las de esa parte.</li>
         <li class="help-item">Cada pregunta queda unida a su parte del apunte. Al estudiarla, <b>Ver en los apuntes</b> te trae justo ahí.</li>
         <li class="help-item">Arriba, en <b>Lista</b>, eliges dónde van las preguntas de este apunte.</li>
         <li class="help-item">El número a la derecha de un bloque es cuántas preguntas salen de él; tócalo para verlas.</li>

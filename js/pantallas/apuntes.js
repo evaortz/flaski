@@ -173,7 +173,7 @@ export function renderPage() {
         <button type="button" class="iconbtn" data-act="pg-redo" aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled>${icon('redo-2', { size: 18 })}</button></span>
       <button type="button" class="iconbtn pg-tocbtn" data-act="toc" aria-label="Índice" title="Índice del apunte" aria-haspopup="true" hidden>${icon('list', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="find" aria-label="Buscar en el apunte" title="Buscar y reemplazar (Ctrl+F)">${icon('search', { size: 18 })}</button>
-      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone preguntas a partir de este apunte">${icon('sparkles', { size: 15 })} <span>Sugerir preguntas</span></button>
+      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone preguntas a partir de este apunte">${icon('sugerencia', { size: 15 })} <span>Sugerir preguntas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
     <div class="pg-head">

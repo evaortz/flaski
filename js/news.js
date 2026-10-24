@@ -20,7 +20,7 @@ const SLIDES = [
     text: 'Escribe celda a celda, como en una hoja de cálculo. Añade filas y columnas con el «+», y desde el menú de cada columna ordénala, alinéala o muévela. Puedes pegar celdas de Excel o Google Sheets.',
     alt: 'Una tabla en edición con el menú de una columna abierto' },
   { id: 'sugerencias', title: 'Preguntas sugeridas, sin IA',
-    text: 'Flaski lee tus apuntes y te propone preguntas: definiciones, lo que destacas, viñetas, tablas, fechas… Mientras escribes, una ✨ marca las partes de las que saldrá alguna pregunta. Y si quieres que salgan más, unos consejos te dicen cómo escribir tus apuntes.',
+    text: `Flaski lee tus apuntes y te propone preguntas: definiciones, lo que destacas, viñetas, tablas, fechas… Mientras escribes, una ${icon('sugerencia', { size: 16 })} marca las partes de las que saldrá alguna pregunta. Y si quieres que salgan más, unos consejos te dicen cómo escribir tus apuntes.`,
     alt: 'La ventana de preguntas sugeridas a partir de unos apuntes de biología' },
   { id: 'tipos', title: 'Ocho tipos de pregunta nuevos',
     text: 'Emparejar, verdadero o falso, tapar partes de una imagen, conjugación, clasificar en grupos, hueco con opciones, ordenar los pasos y respuesta numérica.',
@@ -51,10 +51,10 @@ export function openNews(opts) {
   const last = SLIDES.length - 1;
   const img = id => `img/novedades/${id}-${opts.dark() ? 'dark' : 'light'}.jpg`;
   const intro = () => `
-    <div class="ob-hero"><div class="ob-mark" aria-hidden="true">${icon('sparkles', { size: 32 })}</div>
+    <div class="ob-hero"><div class="ob-mark" aria-hidden="true">${icon('sugerencia', { size: 32 })}</div>
       <h1>Novedades en Flaski</h1>
       <p class="ob-lead">Hemos mejorado mucho los apuntes y el estudio. Esto es lo más importante:</p>
-      <ul class="ob-feats news-list">${SLIDES.slice(1).map((s, k) => `<li><button type="button" class="news-jump" data-ob-to="${k + 1}">${icon(['pencil', 'blocks', 'table', 'sparkles', 'layers', 'brain', 'download', 'book-open-check'][k], { size: 20 })}<span><b>${s.title}</b></span>${icon('chevron-right', { size: 16, cls: 'chev' })}</button></li>`).join('')}</ul></div>`;
+      <ul class="ob-feats news-list">${SLIDES.slice(1).map((s, k) => `<li><button type="button" class="news-jump" data-ob-to="${k + 1}">${icon(['pencil', 'blocks', 'table', 'sugerencia', 'layers', 'brain', 'download', 'book-open-check'][k], { size: 20 })}<span><b>${s.title}</b></span>${icon('chevron-right', { size: 16, cls: 'chev' })}</button></li>`).join('')}</ul></div>`;
   const shot = s => `
     <figure class="ob-shot"><div class="ob-phone"><img src="${img(s.id)}" alt="${s.alt}" width="390" height="760" decoding="async"></div></figure>
     <div class="ob-copy"><h2>${s.title}</h2><p>${s.text}</p></div>`;

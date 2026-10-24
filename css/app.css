@@ -2443,3 +2443,6 @@ html.side-open .pg-suggest span{display:none}
 .lfold-clip .lfold-draw{top:-12px;right:-14px}
 .lfold-clip .lfold-draw.own-ic{top:-14px;right:-14px}
 @media (min-width:700px){.fhero .lfold-clip .lfold-draw{top:-18px}.fhero .lfold-clip .lfold-draw.own-ic{top:-18px}}
+/* Iconos propios a color (img/iconos): no siguen el color del texto */
+img.ic-own{display:inline-block;vertical-align:-3px;object-fit:contain;flex:none}
+.hoy-cheer-b img.ic-own{vertical-align:-4px}

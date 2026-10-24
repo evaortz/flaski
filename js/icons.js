@@ -87,16 +87,13 @@ const P = {
 };
 
 // icon('pin') → <svg> en línea que hereda el color del texto
-// Iconos rellenos a color (no siguen el color del texto): Fluent Emoji Flat de Microsoft (MIT)
-const FILLED = {
-  fire: { box: 32, body: '<path fill="#FF6723" d="M26 19.34c0 6.1-5.05 11.005-11.15 10.641c-6.269-.374-10.56-6.403-9.752-12.705c.489-3.833 2.286-7.12 4.242-9.67c.34-.445.689 3.136 1.038 2.742c.35-.405 3.594-6.019 4.722-7.991a.694.694 0 0 1 1.028-.213C18.394 3.854 26 10.277 26 19.34" /> <path fill="#FFB02E" d="M23 21.851c0 4.042-3.519 7.291-7.799 7.144c-4.62-.156-7.788-4.384-7.11-8.739C9.07 14.012 15.48 10 15.48 10S23 14.707 23 21.851" />' },
-};
+// Iconos propios a color (img/iconos): sugerencias, racha (encendida y apagada) y comodín
+const OWN = { sugerencia: 'sugerencia.svg', racha: 'racha.svg', 'racha-apagada': 'racha-apagada.svg', comodin: 'comodin.svg' };
 
 export function icon(name, { size = 20, cls = '', label = '' } = {}) {
-  const f = FILLED[name];
-  if (f) return `<svg class="lu ${cls}" width="${size}" height="${size}" viewBox="0 0 ${f.box} ${f.box}" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${f.body}</svg>`;
+  if (OWN[name]) return `<img class="lu ic-own ${cls}" src="img/iconos/${OWN[name]}" width="${size}" height="${size}" ${label ? `alt="${label}"` : 'alt="" aria-hidden="true"'} draggable="false">`;
   const body = P[name];
   if (!body) return '';
-  return `<svg class="lu ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${body}</svg>`;
+  return `<svg class="lu ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${body}</svg>`;
 }
-export const hasIcon = name => !!(P[name] || FILLED[name]);
+export const hasIcon = name => !!(P[name] || OWN[name]);

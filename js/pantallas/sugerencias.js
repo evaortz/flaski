@@ -116,11 +116,11 @@ export function drawSuggestions() {
   const how = `<details class="sug-how"${list.length ? '' : ' open'}><summary>${icon('circle-help', { size: 16 })} ¿Cómo se eligen las sugerencias?</summary>
       <p class="muted small">Salen de cómo están escritos los apuntes, sin inteligencia artificial: se fijan en lo que la propia forma del texto señala como importante. Si escribes así, saldrán solas:</p>
       <table class="help-tbl sug-how-tbl"><thead><tr><th>Si escribes</th><th>Sale</th></tr></thead><tbody>${SUG_HOW.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody></table>
-      <p class="muted small">En el apunte, una ${icon('sparkles', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta. <label class="sug-marks-opt"><input type="checkbox" id="sugMarksOpt" ${sugMarksOn() ? 'checked' : ''}> Mostrarla</label></p></details>`;
+      <p class="muted small">En el apunte, una ${icon('sugerencia', { size: 13 })} junto a un bloque indica que de ahí sale alguna pregunta. <label class="sug-marks-opt"><input type="checkbox" id="sugMarksOpt" ${sugMarksOn() ? 'checked' : ''}> Mostrarla</label></p></details>`;
   const body = !list.length
     ? `<div class="sug-empty"><p><b>${g.only ? 'Esta parte del apunte ya no da sugerencias.' : all.length ? '' : 'No he encontrado nada claro que convertir en preguntas.'}</b></p>${tipBox}
         <p class="muted">También puedes seleccionar cualquier texto del apunte y pulsar «Crear pregunta».</p></div>`
-    : `${g.only ? `<div class="sug-only">${icon('sparkles', { size: 15 })} <span>Las de esta parte del apunte</span><button type="button" class="link small" data-act="sug-all">Ver todas (${all.length})</button></div>` : ''}
+    : `${g.only ? `<div class="sug-only">${icon('sugerencia', { size: 15 })} <span>Las de esta parte del apunte</span><button type="button" class="link small" data-act="sug-all">Ver todas (${all.length})</button></div>` : ''}
        ${typeIds.length > 1 ? `<div class="sug-filters" role="group" aria-label="Filtrar por tipo de pregunta">${typeIds.map(id => { const t = getType(id); return `<button type="button" class="chip-btn" data-sug-type="${id}" aria-pressed="${!g.types || g.types.has(id)}">${typeIcon(t, 14)} ${esc(t?.name || id)} <span>${list.filter(x => x.typeId === id).length}</span></button>`; }).join('')}</div>` : ''}
        ${group(g.only ? 'Sugerencias' : 'Recomendadas', g.only ? visible : rec, g.only ? 'all' : 'rec')}
        ${g.only ? '' : more.length ? (g.showMore ? group('Otras posibles', more, 'more') + (rec.length >= 5 ? '<button type="button" class="link sug-toggle" data-act="sug-more">Ocultar las otras posibles</button>' : '')
@@ -168,7 +168,7 @@ export function paintSugMarks() {
   for (const [id, n] of count) {
     const nb = box.querySelector(`.nb[data-block="${id}"]`);
     if (!nb) continue;
-    nb.insertAdjacentHTML('beforeend', `<button type="button" class="nb-sugdot" data-sug-block="${id}" tabindex="-1" title="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')} de esta parte" aria-label="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')}">${icon('sparkles', { size: 13 })}</button>`);
+    nb.insertAdjacentHTML('beforeend', `<button type="button" class="nb-sugdot" data-sug-block="${id}" tabindex="-1" title="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')} de esta parte" aria-label="${plural(n, 'pregunta sugerida', 'preguntas sugeridas')}">${icon('sugerencia', { size: 15 })}</button>`);
   }
 }
 const sugScroll = () => { const m = $('#sugMain'); if (m && S.sug) S.sug.scroll = m.scrollTop; };

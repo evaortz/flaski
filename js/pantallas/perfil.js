@@ -33,14 +33,14 @@ export function renderProfile() {
   const num = (n, l) => `<div class="pf-num"><b>${n}</b><span>${l}</span></div>`;
   main.innerHTML = `<h1>Perfil</h1>
     <div class="pf-head"><span class="pf-av" aria-hidden="true">${esc((who || '?').trim().charAt(0).toUpperCase())}</span>
-      <div class="pf-who"><b>${esc(who)}</b><span>${icon('fire', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha</span></div></div>
+      <div class="pf-who"><b>${esc(who)}</b><span>${icon(st.current ? 'racha' : 'racha-apagada', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha</span></div></div>
     <div class="pf-nums">${num(total, total === 1 ? 'pregunta' : 'preguntas')}${num(S.decks.size, S.decks.size === 1 ? 'lista' : 'listas')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
     <ul class="list linklist">
       <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="plan">${icon('list-checks', { size: 20 })}<span><b>Plan de estudio</b><small>Qué estudias ahora, el foco de cada lista y tus fechas de examen</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, lista y tipo de pregunta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-act="news">${icon('sparkles', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
+      <li><button class="row-link" data-act="news">${icon('sugerencia', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
     </ul>
     <form class="pf-sec" data-form="profile">
@@ -304,7 +304,7 @@ export function renderSettings() {
   const presets = [...Object.entries(ALGO_PRESETS), ['custom', { label: 'Personalizado', help: 'Ajusta cada parámetro a mano.' }]];
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}" title="${a.label}"></button>`).join('');
   rowSeq = 0; tocLock = null;
-  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sparkles', { size: 14 })} Ver las últimas novedades</button></div>
+  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sugerencia', { size: 14 })} Ver las últimas novedades</button></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
     <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
     ${setSec('palette', 'Apariencia', `

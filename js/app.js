@@ -69,7 +69,7 @@ function navMe() {
   const el = $('#navMe');
   if (!el) return;
   const who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]) || 'Tú', st = streaks(S.log).current;
-  el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon('fire', { size: 13 })} ${plural(st, 'día', 'días')}</span></span>`;
+  el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon(st ? 'racha' : 'racha-apagada', { size: 14 })} ${plural(st, 'día', 'días')}</span></span>`;
 }
 
 /* ===================== eventos ===================== */
@@ -445,7 +445,7 @@ document.addEventListener('click', async e => {
     case 'save-page-icon': { const p = curPage(); p.icon = readIcon(); savePageSoon(p); closeSheet(); return renderPage(); }
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
-        <li><button class="row-link" data-act="suggest-cards">${icon('sparkles', { size: 20 })}<span><b>Sugerir preguntas</b><small>Propone preguntas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
+        <li><button class="row-link" data-act="suggest-cards">${icon('sugerencia', { size: 20 })}<span><b>Sugerir preguntas</b><small>Propone preguntas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
         <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
         <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
