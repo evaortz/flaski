@@ -4,6 +4,7 @@
 //   - en la nube (Supabase Storage, carpeta de cada cuenta), si hay cuenta. Las que se añaden sin
 //     conexión quedan marcadas como pendientes y se suben al volver la red.
 // Las funciones puras van arriba (sin navegador), para poder probarlas aparte.
+import { MEDIA_DB } from './modo.js';
 
 export const IMG_RE = /!\[([^\]\n]*)\]\(img:([\w-]{4,64})\)/g;
 export const imgToken = (id, caption = '') => `![${String(caption).replace(/[\]\n]/g, ' ')}](img:${id})`;
@@ -30,7 +31,7 @@ export function newImageId() {
 }
 
 /* ---------------- Guardado en el navegador ---------------- */
-const DB = 'flaski-media', STORE = 'img';
+const DB = MEDIA_DB, STORE = 'img';   // en el modo de pruebas, otra base (ver modo.js)
 let dbp = null;
 function db() {
   if (!dbp) dbp = new Promise((ok, ko) => {

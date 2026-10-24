@@ -3,10 +3,11 @@
 // Sirve para probar y mejorar la app en tu ordenador antes de desplegarla.
 // Expone exactamente las mismas funciones que backend-supabase.js.
 import { toRow } from './rows.js';
+import { LOCAL_KEY, localTest } from './modo.js';
 
 export const mode = 'local';
 
-const KEY = 'flaski-local-v1';
+const KEY = LOCAL_KEY;   // en el modo de pruebas, otra clave (ver modo.js)
 const UID = 'local';
 const EMPTY = () => ({
   profile: { id: UID, display_name: '' },
@@ -17,7 +18,7 @@ const EMPTY = () => ({
 function read() {
   try {
     // 'kartlar-local-v1' es el nombre antiguo de la app: se migra solo
-    const raw = localStorage.getItem(KEY) ?? localStorage.getItem('kartlar-local-v1');
+    const raw = localStorage.getItem(KEY) ?? (localTest ? null : localStorage.getItem('kartlar-local-v1'));
     return raw ? { ...EMPTY(), ...JSON.parse(raw) } : EMPTY();
   } catch {
     return EMPTY();

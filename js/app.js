@@ -30,6 +30,7 @@ import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
 /* ===================== navegación ===================== */
@@ -57,7 +58,7 @@ export function render() {
     const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
-  $('#banner').hidden = !(api.mode === 'local' && S.view === 'home');
+  $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
@@ -303,6 +304,7 @@ document.addEventListener('click', async e => {
   switch (ds.act) {
     case 'auth-mode': S.authMode = ds.mode; return renderAuth();
     case 'reload': S.uid = null; return onSignedIn(await api.auth.session());
+    case 'sample-data': return loadSampleData(b);
     case 'reveal': return reveal();
     case 'show-hint': {
       // Sin volver a pintar la tarjeta, para no borrar lo que estés dibujando
@@ -880,6 +882,8 @@ initProgressHover();
   const inv = parseInvite(location.hash);
   if (inv) { S.pendingFriend = inv; history.replaceState(null, '', location.pathname + location.search); }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // Modo local de pruebas (localhost con «?local»): aviso fijo en lugar del de «Modo local»
+  if (api.testMode) { mountTestBar(); return onSignedIn(await api.auth.session()); }
   if (api.mode === 'local') {
     const b = $('#banner');
     b.innerHTML = icon('lightbulb', { size: 18 }) + '<span><b>Modo local.</b> Tus datos se guardan solo en este navegador. Para tener cuentas y compartir con amigos, rellena <code>js/config.js</code> (ver README).</span>';

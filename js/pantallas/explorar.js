@@ -51,10 +51,7 @@ export async function openPublicPreview(id) {
 export async function openBuiltinPreview(file) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
-    if (!/^[\w.-]+\.json$/.test(file)) throw new Error('Archivo no válido');
-    const raw = await (await fetch('decks/' + file)).json();
-    const d = isNotesDeck(raw) ? notesToDeck(raw) : parseDeckFile(raw);   // también en formato por notas
-    S.preview = { ...d, source: 'incluido:' + file };
+    S.preview = { ...await readBuiltin(file), source: 'incluido:' + file };
     showPreview('incluida en la app');
   } catch (e) { closeSheet(); fail(e); }
 }
@@ -126,28 +123,43 @@ export async function addPreview(btn) {
   if (!p) return;
   btn.disabled = true; btn.textContent = 'Añadiendo…';
   try {
-    const typeMap = await adoptTypes(p.types);
-    if (p.images) await importImages(p.images);   // las imágenes que vienen dentro del archivo
-    // Etiquetas por nombre (formato por notas): se crean las que falten y se reutilizan las que ya tengas
-    let cards = p.cards;
-    if (p.tagNames?.length) {
-      const ids = new Map();
-      for (const name of p.tagNames) { const t = await addTag(name); if (t) ids.set(name.toLocaleLowerCase(), t.id); }
-      cards = cards.map(c => ({ ...c, tags: (c.tagNames || []).map(n => ids.get(n.toLocaleLowerCase())).filter(Boolean) }));
-    }
     if (p.source === 'pegado') S.pasteText = '';
     const dest = $('#destDeck')?.value;
+    const { deck, cards } = await importParsed(p, dest);
     if (dest) {
-      const created = await api.importCards(S.uid, dest, cards, typeMap);
-      for (const c of created) S.cards.set(c.id, c);
-      toast(`${created.length} preguntas añadidas`);
+      toast(`${cards.length} preguntas añadidas`);
       return go('deck', { deckId: dest, cardQuery: '' });
     }
-    const { deck, cards: made } = await api.importDeck(S.uid, { ...p, lang: p.lang || undefined, cards, typeMap });
-    S.decks.set(deck.id, { tags: [], ...deck });
-    for (const c of made) S.cards.set(c.id, c);
-    migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
     toast(`«${deck.name}» añadido`);
     go('deck', { deckId: deck.id, cardQuery: '' });
   } catch (e) { btn.disabled = false; btn.textContent = 'Añadir a mis listas'; fail(e); }
+}
+// Copia a la cuenta una lista ya leída (archivo, pegada o incluida): sus tipos, imágenes y etiquetas.
+// Con dest, las preguntas se añaden a esa lista; si no, se crea una nueva. Devuelve { deck, cards }.
+export async function importParsed(p, dest = '') {
+  const typeMap = await adoptTypes(p.types);
+  if (p.images) await importImages(p.images);   // las imágenes que vienen dentro del archivo
+  // Etiquetas por nombre (formato por notas): se crean las que falten y se reutilizan las que ya tengas
+  let cards = p.cards;
+  if (p.tagNames?.length) {
+    const ids = new Map();
+    for (const name of p.tagNames) { const t = await addTag(name); if (t) ids.set(name.toLocaleLowerCase(), t.id); }
+    cards = cards.map(c => ({ ...c, tags: (c.tagNames || []).map(n => ids.get(n.toLocaleLowerCase())).filter(Boolean) }));
+  }
+  if (dest) {
+    const created = await api.importCards(S.uid, dest, cards, typeMap);
+    for (const c of created) S.cards.set(c.id, c);
+    return { deck: S.decks.get(dest), cards: created };
+  }
+  const { deck, cards: made } = await api.importDeck(S.uid, { ...p, lang: p.lang || undefined, cards, typeMap });
+  S.decks.set(deck.id, { tags: [], ...deck });
+  for (const c of made) S.cards.set(c.id, c);
+  migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
+  return { deck, cards: made };
+}
+// Lee una de las listas incluidas en la app (decks/)
+export async function readBuiltin(file) {
+  if (!/^[\w.-]+\.json$/.test(file)) throw new Error('Archivo no válido');
+  const raw = await (await fetch('decks/' + file)).json();
+  return isNotesDeck(raw) ? notesToDeck(raw) : parseDeckFile(raw);   // también en formato por notas
 }

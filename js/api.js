@@ -1,14 +1,17 @@
 // Capa de datos de la app. Elige el backend:
 //  - Si js/config.js tiene los datos de Supabase → backend-supabase.js (cuentas, nube)
-//  - Si no → backend-local.js (todo en este navegador, para probar en local)
+//  - Si no, o con «?local» en localhost (modo de pruebas, ver modo.js) → backend-local.js (todo en este navegador)
 // Los dos backends exponen las mismas funciones, así que app.js no nota la diferencia.
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { localTest } from './modo.js';
 export { fromRow } from './rows.js';
 
 export const configured =
   !!SUPABASE_URL && !SUPABASE_URL.includes('TU-PROYECTO') && !!SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('PEGA');
 
-const impl = configured ? await import('./backend-supabase.js') : await import('./backend-local.js');
+// Con «?local» en localhost (modo de pruebas), el local aunque haya Supabase
+export const testMode = localTest;
+const impl = configured && !testMode ? await import('./backend-supabase.js') : await import('./backend-local.js');
 
 export const mode = impl.mode;               // 'cloud' o 'local'
 export const auth = impl.auth;
