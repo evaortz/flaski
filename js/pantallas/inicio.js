@@ -1,17 +1,19 @@
-// Flaski · pantalla de Inicio (sale de app.js)
-import { dateKey } from '../srs.js';
+// Flaski · pantalla Hoy (sale de app.js)
 import { drawStats } from '../stats.js';
-import { heatmapView, HM_PERIODS, progressSeries, progressView, innerW, nextLine, PG_PERIODS, streaks, scrollChartsToEnd } from '../charts.js';
+import { heatmapView, progressSeries, progressView, innerW, streaks, scrollChartsToEnd } from '../charts.js';
 import { icon } from '../icons.js';
-import { sortDecks } from '../org.js';
-import { $, main, S, esc, cardList, deckIcon, deckName, capNote, counts, planMeta } from '../comun.js';
+import { folderPath } from '../org.js';
+import { pageTitle, STATUS } from '../pages.js';
+import { examStatus, daysTo } from '../plan.js';
+import { weekDays } from '../friends.js';
+import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections } from '../comun.js';
 import { plural } from './mazos.js';
-import { H } from './apuntes.js';
-import { statsData, tabs, pushAskHTML } from './perfil.js';
+import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { go } from '../app.js';
 
-/* ===================== inicio ===================== */
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/* ===================== Hoy ===================== */
 export function renderHome() {
   if (S.decks.size === 0) {
     main.innerHTML = `<div class="panel">
@@ -22,83 +24,129 @@ export function renderHome() {
   }
   const all = counts('all');
   const avail = all.due + all.newToday;
-  const homeStats = new Map([...S.decks.values()].map(d => [d.id, counts(d.id)]));
-  const decks = sortDecks([...S.decks.values()].filter(d => !d.archived), 'due', homeStats).map(d => {
-    const c = homeStats.get(d.id); const n = c.due + c.newToday;
-    return `<li><button class="deck" data-start="${d.id}" ${n ? '' : 'disabled'}>${deckIcon(d)}
-      <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''} · ${c.newToday} nuevas · ${c.total} en total${planMeta(d)}</span></span>
-      <span class="go">${n ? 'Estudiar' : c.total ? 'Al día' : 'Vacío'}</span></button></li>`;
-  }).join('');
-  const h = new Date().getHours();
-  const hello = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
   const H = S.prefs.home;
-  const st = streaks(S.log);
-  // Meta diaria (Ajustes → Estudio diario): respuestas de hoy frente a la meta
-  const doneToday = S.log[dateKey(Date.now())] || 0;
-  const goal = H.goal > 0 ? `<div class="goal" aria-label="Meta diaria"><div class="goal-h"><span>Meta diaria</span><b>${doneToday >= H.goal ? `${icon('check', { size: 14 })} ` : ''}${Math.min(doneToday, H.goal)} / ${H.goal}</b></div>
-      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${H.goal}" aria-valuenow="${Math.min(doneToday, H.goal)}"><span style="width:${Math.min(100, Math.round((doneToday / H.goal) * 100))}%"></span></div></div>` : '';
+  const folders = pendingFolders();
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      <h1 class="hero-hi">${hello}${S.name ? ', ' + esc(S.name) : ''}${avail ? ', tienes' : ''}</h1>
+      <h1 class="hero-hi">Hola${S.name ? ' ' + esc(S.name) : ''}${avail ? ', hoy tienes' : ''}</h1>
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
           <span class="hero-word">${avail ? (avail === 1 ? 'pregunta!' : 'preguntas!') : 'al día'}</span>
           <span class="hero-band">para hoy</span>
-          ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}</span>` : ''}
+          ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}${folders ? ` · ${plural(folders, 'carpeta', 'carpetas')}` : ''}</span>` : ''}
         </div>
       </div>
       ${avail
-        ? `<button class="primary big hero-go" data-start="all">Empezar a estudiar</button>${capNote(all)}`
+        ? `<button class="primary big hero-go" data-start="all">Empezar una tanda</button>${capNote(all)}`
         : `<p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
-      ${goal}
+      ${lastPageHTML()}
     </section>
+    ${weakHTML()}
     </div>
     <div class="home-r">
     ${pushAskHTML()}
+    ${examHTML()}
+    ${H.forecast ? '<section class="hoy-sec lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
+    ${H.activity ? activityHTML() : ''}
     ${homeFriendsHTML()}
-    ${H.activity ? `<section class="chart-card lv" data-live aria-labelledby="h-act">
-      <div class="lv-h"><h2 class="lv-k" id="h-act">Actividad<span class="lv-day"></span></h2>${tabs('home.activityPeriod', HM_PERIODS.map(p => [p.id, p.short]))}</div>
-      <div class="lv-big"><b class="lv-n">${st.current}</b><span class="lv-of">${st.current === 1 ? 'día' : 'días'} de racha${st.current ? ` ${icon('fire', { size: 16, cls: 'flame' })}` : ''}</span></div>
-      <p class="lv-sub" id="hmSum"></p>
-      <div id="hmHost" class="hm-host"></div>
-    </section>` : ''}
-    ${H.forecast ? '<section class="chart-card lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
-    </div>
-    ${H.decks ? `<div class="home-decks"><div class="section-h"><h2>Tus listas</h2><button class="link small" data-nav="decks">ver todas</button></div>
-    <ul class="list">${decks}</ul></div>` : ''}`;
+    </div>`;
   drawHeatmap();
   drawProgress();
 }
-// «mar 14» a partir de una clave AAAA-MM-DD
-const fmtDay = k => { const d = new Date(k + 'T12:00:00'); return `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}`; };
-// Calendario de actividad: el periodo elegido (al cambiarlo, los cuadrados se recolocan con una transición)
+
+// Carpetas (de primer nivel) con algo que estudiar hoy
+function pendingFolders() {
+  const live = scopeDecks('all'), now = Date.now(), decks = new Set();
+  for (const [id, n] of newPlan('all')) if (n > 0) decks.add(id);
+  for (const c of S.cards.values()) { const p = S.progress.get(c.id); if (p && p.due <= now && live.has(c.deck_id)) decks.add(c.deck_id); }
+  const roots = new Set();
+  for (const id of decks) { const top = folderPath(S.folders, S.decks.get(id)?.folder_id)[0]; if (top) roots.add(top.id); }
+  return roots.size;
+}
+
+// «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
+function lastPageHTML() {
+  const last = [...S.pages.values()].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
+  if (!last) return '';
+  return `<button class="hoy-last" data-page="${last.id}"><span class="hoy-last-k">Lo dejaste aquí</span><b>${esc(pageTitle(last))}</b>${icon('chevron-right', { size: 16 })}</button>`;
+}
+
+// «Lo que flojea»: los apartados de tus apuntes que te cuestan o toca repasar
+function weakHTML() {
+  const rows = weakSections();
+  if (!rows.length) return '';
+  const label = st => STATUS.find(s => s.id === st)?.label.toLowerCase() || '';
+  const items = rows.slice(0, 3).map(r => {
+    const where = [...folderPath(S.folders, r.page.folder_id).map(f => f.name), ...(r.block ? [pageTitle(r.page)] : [])].join(' › ');
+    const title = r.block ? plain(r.block.text).trim() || pageTitle(r.page) : pageTitle(r.page);
+    return `<li><button class="hoy-weak st-${r.status}" data-open-page="${r.page.id}" data-open-block="${r.block?.id || ''}">
+      <i class="hoy-dot" aria-hidden="true"></i><span class="hoy-weak-t"><b>${esc(title)}</b>${where ? `<small>${esc(where)}</small>` : ''}</span>
+      <span class="hoy-pill">${label(r.status)}</span></button></li>`;
+  }).join('');
+  const c = counts('weak'), n = c.due + c.newToday;
+  return `<section class="hoy-sec hoy-flojea" aria-labelledby="h-weak">
+    <h2 class="hoy-t hoy-t-line" id="h-weak">Lo que flojea</h2>
+    <ul class="hoy-weak-list">${items}</ul>
+    ${n ? `<button class="pill-tint hoy-weak-go" data-start="weak">Repasar solo lo que flojea · ${n}</button>` : ''}
+  </section>`;
+}
+
+// El examen más cercano del plan de estudio
+function examHTML() {
+  const N = planNodes(), now = Date.now();
+  const next = Object.entries(N).map(([key, n]) => ({ key, exam: n?.exam, days: daysTo(n?.exam, now) }))
+    .filter(x => x.days != null && x.days >= 0 && (x.key.startsWith('f:') ? S.folders.has(x.key.slice(2)) : S.decks.has(x.key)))
+    .sort((a, b) => a.days - b.days)[0];
+  if (!next) return '';
+  const perDay = newPlan('all', { steady: true }), remaining = freshByDeck(c => S.decks.get(c.deck_id) && !S.decks.get(c.deck_id).archived);
+  const ex = examStatus(next.key, { decks: S.decks, folders: S.folders, nodes: N, remaining, perDay, now });
+  const name = next.key.startsWith('f:') ? S.folders.get(next.key.slice(2)).name : S.decks.get(next.key).name;
+  const d = new Date(next.exam + 'T12:00:00');
+  const left = ex.days === 0 ? 'es hoy' : ex.days === 1 ? 'falta 1 día' : `faltan ${ex.days} días`;
+  return `<button class="hoy-exam" data-nav="plan">
+    <span class="hoy-cal" aria-hidden="true"><i></i><b>${d.getDate()}</b></span>
+    <span class="hoy-exam-t"><small>Examen de ${esc(name)} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>
+      <span class="${ex.late ? 'hoy-late' : 'hoy-ok'}">${ex.late ? 'así no te da tiempo' : 'vas a buen ritmo'} · ver el plan</span></span>
+    ${icon('chevron-right', { size: 18 })}</button>`;
+}
+
+// «Tu actividad»: esta semana, el calendario de 6 meses y la meta diaria
+function activityHTML() {
+  const week = weekDays().map(k => S.log[k] || 0), days = week.filter(Boolean).length, total = week.reduce((a, n) => a + n, 0);
+  const goal = S.prefs.home.goal;
+  const keys = [1, 2, 3, 4].map(l => `<i class="hm-key l${l}"></i>`).join('');
+  return `<section class="hoy-sec hoy-act" aria-labelledby="h-act">
+    <div class="hoy-h"><h2 class="hoy-t" id="h-act">Tu actividad</h2><span class="hoy-note">últimos 6 meses</span></div>
+    <p class="hoy-week">esta semana: ${plural(days, 'día', 'días')} · ${plural(total, 'pregunta', 'preguntas')}</p>
+    <div id="hmHost" class="hm-host"></div>
+    <div class="hoy-hm-foot">
+      <span>${goal > 0 ? `Meta: <b>${goal} al día</b> · <button class="link" data-act="goal-change">cambiar</button>` : `Sin meta diaria · <button class="link" data-act="goal-change">poner una</button>`}</span>
+      <span class="hoy-key">nada <i class="hm-key l0"></i> · ${keys}${goal > 0 ? ' <i class="hm-key hm-key-goal"></i> · meta' : ''}</span>
+    </div>
+  </section>`;
+}
+
+// Calendario de actividad: los últimos 6 meses, con los días en que llegaste a la meta
 export function drawHeatmap() {
   const host = $('#hmHost');
   if (!host) return;
-  const st = streaks(S.log);
-  const r = heatmapView(host, S.log, S.prefs.home.activityPeriod || 'y1', Math.floor(host.clientWidth), st.frozen);
-  const sum = $('#hmSum');
-  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js)
-  const fz = st.freeze.available ? 'Comodín de la semana disponible' : `Comodín usado el ${fmtDay(st.freeze.usedOn)}`;
-  if (sum) sum.innerHTML = `<span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span> · Mejor racha: ${plural(st.best, 'día', 'días')} · ${plural(r.active, 'día', 'días')} estudiando · ${plural(r.total, 'repaso', 'repasos')} en ${r.text}`;
+  heatmapView(host, S.log, 'm6', Math.floor(host.clientWidth) + 28, streaks(S.log).frozen, { goal: S.prefs.home.goal, below: true });
   scrollChartsToEnd(host);
 }
-// Tu progreso: cuántas tarjetas te sabes cada día del periodo y lo que te queda por aprender
+// Cómo va lo que sabes: consolidadas, jóvenes y por aprender (lo que estás aprendiendo cuenta como por aprender)
 export function drawProgress({ animate = true } = {}) {
   const host = $('#pgHost');
   if (!host) return;
   const cards = cardList(), period = S.prefs.home.progressPeriod || 'm3';
-  const focused = host.contains(document.activeElement) && document.activeElement.dataset.v;
+  const series = progressSeries({ events: S.events, cards, progress: S.progress, period }).map(x => ({ ...x, m1: 0 }));
   progressView(host, {
-    series: progressSeries({ events: S.events, cards, progress: S.progress, period }),
-    width: Math.max(280, innerW(host)), title: 'Tu progreso', animate,
-    tabs: tabs('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])),
-    next: cards.length ? nextLine(cards, S.progress) : '', deckName: id => S.decks.get(id)?.name || '',
+    series, width: Math.max(280, innerW(host)), title: 'Cómo va lo que sabes', animate,
+    tabs: '<span class="hoy-note">todas las carpetas</span>', deckName: id => S.decks.get(id)?.name || '',
   });
-  if (focused) host.querySelector(`[data-v="${focused}"]`)?.focus();
+  host.querySelector('.lv-k')?.setAttribute('id', 'h-pg');
 }
 
 let resizeT;

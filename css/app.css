@@ -1975,11 +1975,8 @@ body.in-study code{background:var(--soft);color:#FFFFFF}
 body.in-study .bar{height:5px;border-radius:3px}
 @media (min-width:960px){body.in-study .app{max-width:960px}.studybar .sb-info{align-items:flex-start}}
 
-/* Inicio: en el móvil, una columna (hoy, amigos, gráficos y tus mazos); en el ordenador, dos */
+/* Hoy: en el móvil, una columna; en el ordenador, dos */
 .home-l,.home-r{display:contents}
-.home-decks{display:flex;flex-direction:column;gap:4px}
-.home-decks .deck .dot,.home-decks .deck .icon{display:none}
-.home-decks .section-h{align-items:baseline}
 
 /* ---------- Ordenador: la barra de abajo pasa a ser una barra lateral ---------- */
 .nav-brand,.nav-me{display:none}
@@ -2008,7 +2005,6 @@ body.in-study .bar{height:5px;border-radius:3px}
   body[data-view="home"] main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"l r" "d r";column-gap:48px;row-gap:28px;align-items:start}
   .home-l{display:flex;flex-direction:column;gap:28px;grid-area:l}
   .home-r{display:flex;flex-direction:column;gap:24px;grid-area:r}
-  .home-decks{grid-area:d}
   .hero-num{font-size:200px}
   .hero-side .hero-word{font-size:48px}
   .hero-hi{font-size:22px}
@@ -2172,3 +2168,86 @@ body.in-study .answer .fld-main .fld-v{font-family:'Gochi Hand',var(--card-font)
 .draw-pick button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
 .draw-pick img{width:34px;height:34px;object-fit:contain}
 @media (min-width:700px){.fhero .lfold-draw{width:170px;top:-34px}}
+
+/* ---------- Hoy (fase 4 del rediseño): flojea, examen, lo que sabes, actividad y amigos ---------- */
+body[data-view="home"] main{gap:40px}
+.hoy-sec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.hoy-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.hoy-t,.hoy-sec .lv-k{font-family:var(--font-hand);font-weight:400;font-size:34px;line-height:1.05;letter-spacing:0;color:var(--fg)}
+.hoy-t-line{align-self:flex-start;text-decoration:underline;text-decoration-color:#FF9F92;text-decoration-thickness:3px;text-underline-offset:7px;text-decoration-skip-ink:none}
+.hoy-note{font-size:12px;color:var(--muted);text-align:right}
+.hoy-h .link{font-size:14px}
+/* «Lo dejaste aquí»: una fila discreta debajo del botón */
+.hoy-last{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 2px;border:0;background:none;color:var(--fg);font-size:14px;text-align:left;min-width:0;cursor:pointer}
+.hoy-last-k{flex:none;color:var(--muted);font-size:13px}
+.hoy-last b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.hoy-last svg{flex:none;color:var(--muted)}
+.hoy-last:hover b{text-decoration:underline;text-underline-offset:3px}
+/* Lo que flojea */
+.hoy-weak-list{list-style:none;margin:0;padding:0}
+.hoy-weak{display:flex;align-items:center;gap:14px;width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);text-align:left;cursor:pointer}
+.hoy-dot{flex:none;width:16px;height:16px;border-radius:50%;background:#FF9F92}
+.hoy-weak.st-due .hoy-dot{background:#FFC36B}
+.hoy-weak-t{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.hoy-weak-t b{font-size:15px;font-weight:600}
+.hoy-weak-t small{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hoy-pill{flex:none;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:99px;background:#FFE1DC;color:#5A1F16}
+.hoy-weak.st-due .hoy-pill{background:#FFEDCC;color:#57390A}
+.hoy-weak:hover .hoy-weak-t b{text-decoration:underline;text-underline-offset:3px}
+.hoy-weak-go{align-self:flex-start;margin-top:8px;font-size:14px;padding:0 20px;min-height:46px}
+/* Examen */
+.hoy-exam{display:flex;align-items:center;gap:16px;width:100%;padding:16px 18px 16px 20px;border:1.5px solid var(--fg);border-radius:20px;background:var(--bg);color:var(--fg);text-align:left;cursor:pointer}
+.hoy-exam > svg{flex:none;margin-left:auto}
+.hoy-cal{flex:none;position:relative;width:44px;height:42px;border:2px solid var(--fg);border-radius:6px;display:grid;place-items:end center;padding-bottom:4px;box-sizing:border-box}
+.hoy-cal i{position:absolute;left:0;right:0;top:0;height:9px;background:#FF9F92;border-bottom:2px solid var(--fg)}
+.hoy-cal b{font-size:14px;font-weight:600;line-height:1}
+.hoy-exam-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hoy-exam-t small{font-size:12.5px}
+.hoy-exam-t b{font-family:var(--font-hand);font-weight:400;font-size:30px;line-height:1}
+.hoy-exam-t span{font-size:12.5px;font-weight:600}
+.hoy-ok{color:#1F7A47}
+.hoy-late{color:#B23A28}
+/* Cómo va lo que sabes */
+.hoy-sec.pg-card .lv-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.hoy-sec.pg-card .lv-sub,.hoy-sec.pg-card .lv-day{display:none}
+.hoy-sec.pg-card.is-live .lv-day,.hoy-sec.pg-card:has(.is-hover) .lv-day{display:inline}
+/* Tu actividad: día sin estudio en blanco con borde; con estudio, cinco azules; hoy, con anillo */
+.hoy-week{font-family:var(--font-hand);font-size:24px;line-height:1.15;margin:0}
+.hoy-act{--a0:#FFFFFF;--a0-line:#D5D7EE;--a1:#B8BDE6;--a2:#8C95E0;--a3:#5560C2;--a4:#2F3DB5;--a5:#1A247A}
+.hoy-act .hm-days,.hoy-act .hm-legend{display:none}
+.hoy-act .hm{fill:var(--a0);stroke:var(--a0-line);stroke-width:1}
+.hoy-act .hm.l1{fill:var(--a1);stroke:none}.hoy-act .hm.l2{fill:var(--a2);stroke:none}.hoy-act .hm.l3{fill:var(--a3);stroke:none}.hoy-act .hm.l4{fill:var(--a4);stroke:none}
+.hoy-act .hm.hm-goal{fill:var(--a5);stroke:none}
+.hoy-act .hm.hm-today{stroke:var(--a4);stroke-width:1.5;paint-order:stroke}
+.hoy-act .hm.is-hot,.hoy-act .hm:hover{stroke:var(--fg);stroke-width:1.5}
+.hoy-act .hm-dot{fill:#FFFFFF;pointer-events:none}
+.hoy-act .ax{font-size:11px}
+.hoy-hm-foot{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;font-size:13px}
+.hoy-hm-foot .link{font-size:13px;padding:0;min-height:0;border:0;background:none;cursor:pointer}
+.hoy-key{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:var(--muted)}
+.hoy-key .hm-key{width:10px;height:10px;border-radius:2px}
+.hoy-key .hm-key.l0{background:var(--a0);box-shadow:inset 0 0 0 1px var(--a0-line)}
+.hoy-key .hm-key.l1{background:var(--a1)}.hoy-key .hm-key.l2{background:var(--a2)}.hoy-key .hm-key.l3{background:var(--a3)}.hoy-key .hm-key.l4{background:var(--a4)}
+.hoy-key .hm-key-goal{background:radial-gradient(circle,#FFFFFF 0 1.6px,var(--a5) 2px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hoy-act{--a0:var(--bg);--a0-line:var(--line-strong);--a1:color-mix(in oklab,var(--accent) 35%,var(--bg));--a2:color-mix(in oklab,var(--accent) 60%,var(--bg));--a3:color-mix(in oklab,var(--accent) 85%,var(--bg));--a4:color-mix(in oklab,var(--accent) 80%,#FFFFFF);--a5:color-mix(in oklab,var(--accent) 45%,#FFFFFF)}}
+:root[data-theme="dark"] .hoy-act{--a0:var(--bg);--a0-line:var(--line-strong);--a1:color-mix(in oklab,var(--accent) 35%,var(--bg));--a2:color-mix(in oklab,var(--accent) 60%,var(--bg));--a3:color-mix(in oklab,var(--accent) 85%,var(--bg));--a4:color-mix(in oklab,var(--accent) 80%,#FFFFFF);--a5:color-mix(in oklab,var(--accent) 45%,#FFFFFF)}
+/* Tus amigos */
+.hoy-fr .hoy-h{padding-bottom:12px;border-bottom:1px solid var(--line)}
+.hoy-cheer{display:flex;align-items:center;gap:12px;padding:4px 0 14px;border-bottom:1px solid var(--line);font-size:14px}
+.hoy-cheer > span:not(.fr-av){flex:1;min-width:0}
+.hoy-cheer small{flex:none;font-size:12px;color:var(--muted)}
+.hoy-friend{display:flex;align-items:flex-start;gap:14px;padding-top:4px}
+.hoy-friend-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hoy-friend-t b{font-size:16px;font-weight:600}
+.hoy-friend-t > span{font-size:13.5px}
+.hoy-cheers{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.hoy-cheer-b{border:0;border-radius:99px;background:var(--soft);color:var(--fg);font-family:var(--font-hand);font-size:21px;line-height:1;padding:10px 18px;min-height:44px;cursor:pointer}
+.hoy-cheer-b[data-cheer-kind="fire"]{width:44px;padding:0;display:grid;place-items:center;font-family:inherit;font-size:18px}
+.hoy-cheer-b:hover{background:var(--hover)}
+@media (min-width:960px){
+  body[data-view="home"] main{grid-template-areas:"l r";row-gap:0;column-gap:64px}
+  .home-l{gap:40px}
+  .home-r{gap:40px}
+  .hero-num{font-size:180px}
+  .hoy-t,.hoy-sec .lv-k{font-size:32px}
+}

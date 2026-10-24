@@ -156,7 +156,7 @@ test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes
 
   // Al estudiarla, «Ver en los apuntes» lleva al bloque y se puede volver al estudio
   await page.locator('#nav').getByRole('button', { name: 'Hoy' }).click();
-  await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
+  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
   await page.locator('[data-act="reveal"]').click();
   await page.getByRole('button', { name: 'Ver en los apuntes' }).click();
   await expect(page.locator('#pgTitle')).toHaveValue('Casos');

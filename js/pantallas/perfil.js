@@ -230,7 +230,7 @@ const setRow = (label, hint, control, { id = '', off = false } = {}) => {
   return `<div class="set-row${off ? ' is-off' : ''}"${id ? ` id="${id}"` : ''}><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
 };
 const setSec = (ic, title, body, id = '') => `<section class="set-sec"${id ? ` id="${id}"` : ''}><h2>${icon(ic, { size: 18 })} ${title}</h2><div class="set-body">${body}</div></section>`;
-const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Inicio'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
+const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Sesión'], ['s-voice', 'Voz'], ['s-home', 'Hoy'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
 
 // Simulación: intervalos de una tarjeta que aciertas siempre con «Bien»
 function algoPreview(A) {
@@ -320,7 +320,7 @@ export function renderSettings() {
       ${setRow('Plan de estudio', 'Qué listas estudias ahora, cuánto foco le das a cada una y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
       ${setRow('Preguntas nuevas al día', 'Entre 10 y 20 va bien. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
-      ${setRow('Meta diaria', 'Respuestas al día. Aparece como barra de progreso en Inicio. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
+      ${setRow('Meta diaria', 'Respuestas al día. Los días que llegas salen marcados en «Tu actividad», en Hoy. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
       ${setRow('Orden de las nuevas', 'En qué orden salen las preguntas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en la lista'], ['random', 'Al azar']]))}
       ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
       ${setRow('Tu idioma', 'En las listas de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
@@ -337,12 +337,11 @@ export function renderSettings() {
     ${setSec('volume-2', 'Voz', `
       ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la pregunta.', sw('study.autoplay'))}
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
-    ${setSec('house', 'Inicio', `
-      ${setRow('Calendario de actividad', 'Los días que has estudiado y tus rachas.', sw('home.activity'))}
-      ${setRow('Tu progreso', 'Cuántas preguntas te sabes, cómo ha ido creciendo y lo que te toca los próximos días.', sw('home.forecast'))}
-      ${setRow('Periodo de «Tu progreso»', 'Lo que abarca el gráfico (también se cambia en el propio gráfico).', seg('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
-      ${setRow('Tus listas', 'Tus listas con lo que toca hoy en cada una.', sw('home.decks'))}
-      ${api.social ? setRow('Amigos', 'La clasificación de la semana con tus amigos y sus ánimos.', sw('home.friends')) : ''}`, 's-home')}
+    ${setSec('sun', 'Hoy', `
+      ${setRow('Tu actividad', 'Los días que has estudiado en los últimos 6 meses y tu meta diaria.', sw('home.activity'))}
+      ${setRow('Cómo va lo que sabes', 'Cuántas preguntas te sabes y cómo ha ido creciendo.', sw('home.forecast'))}
+      ${setRow('Periodo de «Cómo va lo que sabes»', 'Lo que abarca el gráfico.', seg('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
+      ${api.social ? setRow('Tus amigos', 'El último ánimo que te han mandado y un amigo al que animar.', sw('home.friends')) : ''}`, 's-home')}
     ${setSec('brain', 'Ritmo de repaso', `
       <p class="muted small set-intro">Decide cada cuánto vuelven las preguntas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada lista puede usar otro ritmo en sus opciones.</p>
       <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>

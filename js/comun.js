@@ -6,7 +6,7 @@ import { icon } from './icons.js';
 import { colorVar, decksInFolder, drawingOf, drawingSrc, iconText } from './org.js';
 import { hydrate, stripImages } from './media.js';
 import { toHTML, toPlain } from './inline.js';
-import { pageTitle, sectionIds } from './pages.js';
+import { pageTitle, sectionIds, cardsStatus } from './pages.js';
 
 export const $ = s => document.querySelector(s);
 export const main = $('#main');
@@ -113,9 +113,39 @@ export function scopeDecks(scope = 'all') {
   if (scope.startsWith('tag:')) { const t = scope.slice(4); return new Set(active.filter(d => (d.tags || []).includes(t)).map(d => d.id)); }
   return new Set([scope]);
 }
-// Qué tarjetas entran en un ámbito. Además de los de mazos: 'page:<id>' (las de unos apuntes) y
-// 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él).
+// «Lo que flojea»: los apartados de los apuntes cuyas preguntas te cuestan o toca repasar (primero los que
+// te cuestan). Si un título tiene debajo otro que también flojea, sale el de debajo, que es más concreto;
+// un apunte sin apartados que flojeen sale entero si sus preguntas flojean. → [{ page, block, status, cards }]
+export function weakSections(now = Date.now()) {
+  const live = scopeDecks('all'), byPage = new Map();
+  for (const c of S.cards.values()) if (c.page_id && live.has(c.deck_id) && S.pages.has(c.page_id)) {
+    if (!byPage.has(c.page_id)) byPage.set(c.page_id, []);
+    byPage.get(c.page_id).push(c);
+  }
+  const flojea = list => { const st = cardsStatus(list.map(c => S.progress.get(c.id) || null), now); return st === 'weak' || st === 'due' ? st : null; };
+  const out = [];
+  for (const [pid, cards] of byPage) {
+    const p = S.pages.get(pid), rows = [];
+    for (const b of p.blocks || []) {
+      if (!['h1', 'h2', 'h3'].includes(b.type)) continue;
+      const ids = new Set(sectionIds(p.blocks, b.id)), list = cards.filter(c => ids.has(c.block_id)), status = list.length && flojea(list);
+      if (status) rows.push({ page: p, block: b, ids, status, cards: list });
+    }
+    const keep = rows.filter(r => !rows.some(o => o !== r && r.ids.has(o.block.id)));
+    if (keep.length) out.push(...keep);
+    else { const status = flojea(cards); if (status) out.push({ page: p, block: null, status, cards }); }
+  }
+  const rank = { weak: 0, due: 1 };
+  return out.sort((a, b) => rank[a.status] - rank[b.status] || b.cards.length - a.cards.length);
+}
+// Qué tarjetas entran en un ámbito. Además de los de mazos: 'page:<id>' (las de unos apuntes),
+// 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él) y 'weak' (las ya
+// estudiadas de lo que flojea).
 export function scopeTest(scope = 'all') {
+  if (scope === 'weak') {
+    const ids = new Set(weakSections().flatMap(r => r.cards.filter(c => S.progress.has(c.id)).map(c => c.id)));
+    return c => ids.has(c.id);
+  }
   if (scope.startsWith('page:')) {
     const [, pid, bid] = scope.split(':');
     const p = S.pages.get(pid), live = scopeDecks('all');
@@ -126,6 +156,7 @@ export function scopeTest(scope = 'all') {
   return c => ids.has(c.deck_id);
 }
 export function scopeName(scope = 'all') {
+  if (scope === 'weak') return 'Lo que flojea';
   if (scope.startsWith('page:')) {
     const [, pid, bid] = scope.split(':'), p = S.pages.get(pid);
     const b = bid && p?.blocks.find(x => x.id === bid);

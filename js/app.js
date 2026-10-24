@@ -210,10 +210,11 @@ document.addEventListener('click', async e => {
   if (ds.cheer) {
     const p = S.friends?.list.find(x => x.id === ds.cheer);
     e.target.closest('button').disabled = true;
-    try { await api.social.cheer(ds.cheer); } catch (err) { e.target.closest('button').disabled = false; return fail(err); }
+    try { await api.social.cheer(ds.cheer, ds.cheerKind || 'clap'); } catch (err) { e.target.closest('button').disabled = false; return fail(err); }
     markCheered(ds.cheer);
     toast(`Le has mandado ánimos a ${p?.name || 'tu amigo'} 👏`);
     if (S.view === 'friends') renderFriends();
+    if (S.view === 'home') friendsChanged();
     return;
   }
   if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
@@ -536,6 +537,7 @@ document.addEventListener('click', async e => {
     case 'fr-accept-invite': closeSheet(); return addFriend(ds.code);
     case 'push-allow': return pushAllow();
     case 'push-later': { try { localStorage.setItem(PUSH_ASK, 'no'); } catch { /* sin almacenamiento */ } $('#pushAsk')?.remove(); return; }
+    case 'goal-change': { go('settings'); $('#s-study')?.scrollIntoView(); return; }
     case 'cheers-seen': {
       const ids = (S.friends?.cheers || []).map(c => c.id);
       S.friends.cheers = [];

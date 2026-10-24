@@ -18,7 +18,6 @@ async function setState(page, name, label) {
   if (!(await r.evaluate(el => el.open))) await r.locator('summary').click();
   await row(page, name).locator('[data-plstate]').getByRole('button', { name: label, exact: true }).click();
 }
-const deckMeta = (page, name) => page.locator('#main .deck').filter({ hasText: name }).locator('.meta');
 
 test('en pausa: sale de lo de hoy y de las sesiones de «Todo», y se recuerda', async ({ page }) => {
   await twoDecks(page);
@@ -26,7 +25,6 @@ test('en pausa: sale de lo de hoy y de las sesiones de «Todo», y se recuerda',
   await setState(page, JA, 'En pausa');
   await expect(row(page, JA).locator('.pl-meta')).toContainText('En pausa');
   await nav(page, 'Hoy');
-  await expect(deckMeta(page, JA)).toContainText('en pausa');
   // La sesión de «Todo» no trae tarjetas del mazo en pausa
   await page.locator('#main [data-start="all"]').click();
   for (let i = 0; i < 4; i++) {
@@ -46,9 +44,9 @@ test('solo repasos: ese mazo ya no da nuevas', async ({ page }) => {
   await twoDecks(page);
   await openPlan(page);
   await setState(page, TR, 'Solo repasos');
-  await nav(page, 'Hoy');
-  await expect(deckMeta(page, TR)).toContainText('0 nuevas');
-  await expect(deckMeta(page, TR)).toContainText('solo repasos');
+  await expect(row(page, TR).locator('.pl-meta')).toContainText('Solo repasos');
+  await expect(row(page, TR).locator('.pl-meta')).not.toContainText('nueva');
+  await expect(row(page, JA).locator('.pl-meta')).toContainText('≈ 15 nuevas al día');
 });
 
 test('el foco reparte las nuevas de cada día entre los mazos', async ({ page }) => {

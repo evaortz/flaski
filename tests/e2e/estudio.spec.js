@@ -19,7 +19,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('0');
-  await expect(page.locator('.list .deck .go')).toHaveText('Al día');
+  await expect(page.locator('.hero-word')).toHaveText('al día');
 });
 
 test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» la recupera', async ({ page }) => {
@@ -47,7 +47,7 @@ test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía',
   await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveText('15');
 
-  await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
+  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
   for (let i = 0; i < 15; i++) {
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="4"]').click();

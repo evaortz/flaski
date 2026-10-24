@@ -107,22 +107,23 @@ export const HM_PERIODS = [
 ];
 const HM_WEEKS = 53, HM_TOP = 18, HM_LEFT = 28;
 // Las celdas llenan el ancho; si quedan muy anchas (periodos cortos), son rectángulos de altura limitada
-function hmGeom(weeks, width) {
+function hmGeom(weeks, width, top = HM_TOP) {
   const avail = Math.max(180, width - HM_LEFT);
   // Siempre cuadrados: llenan el ancho, pero en los periodos cortos con un tamaño máximo (y centrados)
   const sx = Math.max(6, Math.min(weeks <= 5 ? 46 : weeks <= 13 ? 34 : 60, Math.floor((avail + 3) / weeks)));
   const gap = sx >= 36 ? 6 : sx >= 22 ? 4 : 3;
   const cw = sx - gap, ch = cw, sy = sx;
-  return { sx, sy, gap, cw, ch, W: weeks * sx - gap, H: HM_TOP + 7 * sy - gap };
+  return { sx, sy, gap, cw, ch, W: weeks * sx - gap, H: top + 7 * sy - gap + (top ? 0 : 18) };
 }
 // Pinta (la primera vez) o recoloca (las siguientes) el calendario en el contenedor; devuelve { total, active }
-export function heatmapView(host, log, periodId, width, frozen = new Set()) {
+// opts: { goal: respuestas de la meta diaria (los días que se llega, con un punto), below: meses debajo }
+export function heatmapView(host, log, periodId, width, frozen = new Set(), { goal = 0, below = false } = {}) {
   const p = HM_PERIODS.find(x => x.id === periodId) || HM_PERIODS[3];
   const today = startOfDay();
   const dow = (new Date(today).getDay() + 6) % 7;
   const start = today - (dow + (HM_WEEKS - 1) * 7) * DAY;
   const firstShown = HM_WEEKS - p.weeks;
-  const g = hmGeom(p.weeks, width);
+  const top = below ? 0 : HM_TOP, g = hmGeom(p.weeks, width, top);
   // Los niveles de color, según lo que se ve
   const days = [];
   for (let w = 0; w < HM_WEEKS; w++) for (let d = 0; d < 7; d++) {
@@ -134,22 +135,24 @@ export function heatmapView(host, log, periodId, width, frozen = new Set()) {
   const level = n => (n <= 0 ? 0 : max <= 4 ? Math.min(4, n) : Math.min(4, Math.ceil((n / max) * 4)));
   const pos = x => {
     const k = x.w - firstShown, on = k >= 0;
-    return { x: k * g.sx, y: HM_TOP + x.d * g.sy, on };
+    return { x: k * g.sx, y: top + x.d * g.sy, on };
   };
   const rx = Math.max(1, Math.min(g.cw, g.ch) / 4);
   let svg = host.querySelector('.hm-svg');
   if (!svg) {
     host.innerHTML = `<div class="hm-wrap"><svg class="hm-days" aria-hidden="true"></svg>
       <div class="hm-scroll" data-scroll-end><svg class="hm-svg" role="img">${days.map(x => `<rect class="hm${x.t === today ? ' hm-today' : ''}" data-k="${x.w * 7 + x.d}"
-        data-tip-v="${plural(x.n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(x.t)}"></rect>`).join('')}<g class="hm-months"></g></svg></div></div>
+        data-tip-v="${plural(x.n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(x.t)}"></rect>`).join('')}<g class="hm-dots"></g><g class="hm-months"></g></svg></div></div>
       <div class="hm-legend"><span>Menos</span>${[0, 1, 2, 3, 4].map(l => `<span class="hm-key l${l}"></span>`).join('')}<span>Más</span><span class="hm-key hm-key-fz"></span><span>comodín</span></div>`;
     svg = host.querySelector('.hm-svg');
   }
   const rects = svg.querySelectorAll('rect.hm');
+  let dots = '';
   days.forEach((x, i) => {
     const r = rects[i], q = pos(x);
-    const fz = !x.n && frozen.has(dateKey(x.t));
-    r.setAttribute('class', `hm l${level(x.n)}${x.t === today ? ' hm-today' : ''}${fz ? ' hm-frozen' : ''}${q.on ? '' : ' is-out'}`);
+    const fz = !x.n && frozen.has(dateKey(x.t)), met = goal > 0 && x.n >= goal;
+    r.setAttribute('class', `hm l${level(x.n)}${met ? ' hm-goal' : ''}${x.t === today ? ' hm-today' : ''}${fz ? ' hm-frozen' : ''}${q.on ? '' : ' is-out'}`);
+    if (met && q.on) dots += `<circle class="hm-dot" cx="${q.x + g.cw / 2}" cy="${q.y + g.ch / 2}" r="${Math.max(1, g.cw / 9)}"></circle>`;
     if (fz) r.setAttribute('data-tip-x', 'Comodín: la racha siguió'); else r.removeAttribute('data-tip-x');
     // Como atributo (para cualquier navegador) y como estilo (para que se anime)
     for (const [k, v] of [['x', q.on ? q.x : q.x - 40], ['y', q.y], ['width', g.cw], ['height', g.ch], ['rx', rx]]) { r.setAttribute(k, v); r.style.setProperty(k, `${v}px`); }
@@ -161,16 +164,17 @@ export function heatmapView(host, log, periodId, width, frozen = new Set()) {
     const t = startOfDay(start + w * 7 * DAY + DAY / 2), m = new Date(t).getMonth();
     if (m !== last) {
       const x = (w - firstShown) * g.sx;
-      if ((last !== -1 || new Date(t).getDate() <= 7 || p.weeks <= 5) && x < g.W - 18) months += `<text class="ax" x="${x}" y="10">${MONTHS[m]}</text>`;
+      if ((last !== -1 || new Date(t).getDate() <= 7 || p.weeks <= 5) && x < g.W - 18) months += `<text class="ax" x="${x}" y="${top ? 10 : 7 * g.sy - g.gap + 14}">${MONTHS[m]}</text>`;
       last = m;
     }
   }
   svg.querySelector('.hm-months').innerHTML = months;
+  svg.querySelector('.hm-dots').innerHTML = dots;
   for (const [k, v] of [['width', g.W], ['height', g.H]]) { svg.setAttribute(k, v); svg.style.setProperty(k, `${v}px`); }
   svg.setAttribute('viewBox', `0 0 ${g.W} ${g.H}`);
   const dsvg = host.querySelector('.hm-days');
   dsvg.setAttribute('width', HM_LEFT); dsvg.setAttribute('height', g.H); dsvg.style.height = `${g.H}px`;
-  dsvg.innerHTML = ['lun', '', 'mié', '', 'vie', '', ''].map((s, i) => (s ? `<text class="ax" x="0" y="${HM_TOP + i * g.sy + g.ch / 2 + 3.5}">${s}</text>` : '')).join('');
+  dsvg.innerHTML = ['lun', '', 'mié', '', 'vie', '', ''].map((s, i) => (s ? `<text class="ax" x="0" y="${top + i * g.sy + g.ch / 2 + 3.5}">${s}</text>` : '')).join('');
   const total = shown.reduce((a, x) => a + x.n, 0), active = shown.filter(x => x.n).length;
   svg.setAttribute('aria-label', `Calendario de actividad: ${plural(total, 'repaso', 'repasos')} en ${plural(active, 'día', 'días')} en ${p.text}`);
   return { total, active, text: p.text };

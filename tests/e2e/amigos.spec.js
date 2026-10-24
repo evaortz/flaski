@@ -58,19 +58,21 @@ test('amigos: código para invitar, aceptar una petición, ver cómo van, animar
   await expect.poll(() => rpcs(srv, 'remove_friend')).toEqual([{ p_other: CARLOS.id }]);
 });
 
-test('Inicio: ánimos recibidos y clasificación de la semana', async ({ page }) => {
+test('Hoy: «Tus amigos» con el último ánimo recibido y un amigo al que animar', async ({ page }) => {
   const srv = await mockCloud(page);
-  Object.assign(srv.social, { friends: [ANA, CARLOS], cheers: [{ id: 'h1', name: 'Ana', kind: 'clap', created_at: '2026-10-08T08:00:00Z' }] });
+  const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', today: 0 };
+  Object.assign(srv.social, { friends: [ANA, CARLOS, DORA], cheers: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: new Date(Date.now() - 2 * 36e5).toISOString() }] });
   await openCloud(page);
-  const rank = page.locator('.rank li');
-  await expect(rank).toHaveCount(2);   // Carlos no comparte: no sale
-  await expect(rank.nth(0)).toContainText('Ana');
-  await expect(rank.nth(0)).toContainText('47 repasos');
-  await expect(rank.nth(1)).toContainText('Tú');
-  await expect(page.locator('.cheer-banner')).toContainText('Ana te anima a seguir estudiando');
-  await page.locator('[data-act="cheers-seen"]').click();
-  await expect(page.locator('.cheer-banner')).toHaveCount(0);
-  await expect.poll(() => sent(srv, 'cheers').map(w => w[0])).toEqual(['PATCH']);
+  const fr = page.locator('#homeFriends');
+  await expect(fr.locator('.hoy-t')).toHaveText('Tus amigos');
+  await expect(fr.locator('.hoy-cheer')).toContainText('Ana te ha animado: «¡Tú puedes!»');
+  await expect(fr.locator('.hoy-cheer')).toContainText('hace 2 h');
+  // Primero quien aún no ha estudiado hoy (Carlos no comparte su actividad: no sale)
+  await expect(fr.locator('.hoy-friend')).toContainText('Dora');
+  await expect(fr.locator('.hoy-friend')).toContainText('No ha estudiado hoy');
+  await fr.getByRole('button', { name: '¡Tú puedes!' }).click();
+  await expect(fr.locator('.hoy-friend')).toContainText('Ánimo enviado');
+  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'go' }]);
 });
 
 test('un enlace de invitación ofrece añadir a quien lo manda', async ({ page }) => {
@@ -89,7 +91,7 @@ test('sin las funciones de amigos en Supabase, lo explica (y la app sigue funcio
   srv.social.missing = true;
   await openCloud(page);
   await expect(page.locator('.hero-num')).toHaveText('3');
-  await expect(page.locator('.rank')).toHaveCount(0);
+  await expect(page.locator('#homeFriends .hoy-t')).toHaveCount(0);
   await nav(page, 'Perfil');
   await page.locator('[data-nav="friends"]').first().click();
   await expect(page.locator('#main')).toContainText('ejecuta otra vez supabase/schema.sql');

@@ -10,7 +10,7 @@ test('estudiar sin conexión: los cambios esperan y se envían al volver la red'
   await context.setOffline(true);
   srv.reachable = false;
   await expect(page.locator('#net')).toContainText('Sin conexión');
-  await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
+  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
   await answer(page, 3);
   await answer(page, 3);
   await expect(page.locator('#net')).toContainText('por enviar');
@@ -34,7 +34,7 @@ test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al 
   await expect(page.locator('.hero-num')).toHaveText('3');
   await expect(page.locator('#net')).toContainText('Sin conexión');
 
-  await page.getByRole('button', { name: 'Empezar a estudiar' }).click();
+  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
   await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();
   await expect(page.locator('.hero-num')).toHaveText('2');

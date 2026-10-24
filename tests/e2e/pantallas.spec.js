@@ -28,11 +28,11 @@ test('estadísticas con datos: los filtros de periodo funcionan', async ({ page 
   }
 });
 
-test('un ajuste de Inicio se guarda, se aplica y sobrevive a recargar', async ({ page }) => {
+test('un ajuste de Hoy se guarda, se aplica y sobrevive a recargar', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await nav(page, 'Hoy');
-  await expect(page.getByRole('heading', { name: 'Actividad' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tu actividad' })).toBeVisible();
 
   await nav(page, 'Perfil');
   await page.locator('[data-nav="settings"]').click();
@@ -44,8 +44,8 @@ test('un ajuste de Inicio se guarda, se aplica y sobrevive a recargar', async ({
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
   await nav(page, 'Hoy');
-  await expect(page.getByRole('heading', { name: 'Tus listas' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Actividad' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Cómo va lo que sabes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tu actividad' })).toHaveCount(0);
 });
 
 test('el mazo de demostración de japonés se añade y se puede abrir una sesión', async ({ page }) => {
