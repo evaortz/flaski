@@ -73,6 +73,10 @@ test('Hoy: «Tus amigos» con el último ánimo recibido y un amigo al que anima
   await fr.getByRole('button', { name: '¡Tú puedes!' }).click();
   await expect(fr.locator('.hoy-friend')).toContainText('Ánimo enviado');
   expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'go' }]);
+  // «Gracias»: el ánimo queda visto y desaparece de Hoy
+  await fr.locator('[data-act="cheers-seen"]').click();
+  await expect(fr.locator('.hoy-cheer')).toHaveCount(0);
+  await expect.poll(() => sent(srv, 'cheers').map(w => w[0])).toEqual(['PATCH']);
 });
 
 test('un enlace de invitación ofrece añadir a quien lo manda', async ({ page }) => {

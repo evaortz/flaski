@@ -2223,7 +2223,10 @@ body[data-view="home"] main{gap:40px}
 .hoy-act .hm-dot{fill:#FFFFFF;pointer-events:none}
 .hoy-act .ax{font-size:11px}
 .hoy-hm-foot{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;font-size:13px}
-.hoy-hm-foot .link{font-size:13px;padding:0;min-height:0;border:0;background:none;cursor:pointer}
+.hoy-hm-foot .link{font-size:13px;padding:0;margin:0;min-height:0;border:0;background:none;cursor:pointer}
+.hoy-streak{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:-6px 0 0;font-size:13px;color:var(--muted)}
+.hoy-streak > span{display:inline-flex;align-items:center;gap:4px}
+.hoy-streak > span:first-child{color:var(--fg);font-weight:600}
 .hoy-key{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:var(--muted)}
 .hoy-key .hm-key{width:10px;height:10px;border-radius:2px}
 .hoy-key .hm-key.l0{background:var(--a0);box-shadow:inset 0 0 0 1px var(--a0-line)}
@@ -2236,6 +2239,7 @@ body[data-view="home"] main{gap:40px}
 .hoy-cheer{display:flex;align-items:center;gap:12px;padding:4px 0 14px;border-bottom:1px solid var(--line);font-size:14px}
 .hoy-cheer > span:not(.fr-av){flex:1;min-width:0}
 .hoy-cheer small{flex:none;font-size:12px;color:var(--muted)}
+.hoy-thanks{flex:none;font-size:12.5px;min-height:32px;padding:4px 8px;margin:0}
 .hoy-friend{display:flex;align-items:flex-start;gap:14px;padding-top:4px}
 .hoy-friend-t{display:flex;flex-direction:column;gap:2px;min-width:0}
 .hoy-friend-t b{font-size:16px;font-weight:600}

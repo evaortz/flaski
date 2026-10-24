@@ -113,13 +113,19 @@ function examHTML() {
     ${icon('chevron-right', { size: 18 })}</button>`;
 }
 
-// «Tu actividad»: esta semana, el calendario de 6 meses y la meta diaria
+// «mar 14» a partir de una clave AAAA-MM-DD
+const fmtDay = k => { const d = new Date(k + 'T12:00:00'); return `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${d.getDate()}`; };
+// «Tu actividad»: la racha, esta semana, el calendario de 6 meses y la meta diaria
 function activityHTML() {
+  const st = streaks(S.log);
+  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js)
+  const fz = st.freeze.available ? 'Comodín de la semana disponible' : `Comodín usado el ${fmtDay(st.freeze.usedOn)}`;
   const week = weekDays().map(k => S.log[k] || 0), days = week.filter(Boolean).length, total = week.reduce((a, n) => a + n, 0);
   const goal = S.prefs.home.goal;
   const keys = [1, 2, 3, 4].map(l => `<i class="hm-key l${l}"></i>`).join('');
   return `<section class="hoy-sec hoy-act" aria-labelledby="h-act">
     <div class="hoy-h"><h2 class="hoy-t" id="h-act">Tu actividad</h2><span class="hoy-note">últimos 6 meses</span></div>
+    <p class="hoy-streak"><span>Racha de ${plural(st.current, 'día', 'días')}${st.current ? ` ${icon('fire', { size: 14, cls: 'flame' })}` : ''}</span> · <span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span></p>
     <p class="hoy-week">esta semana: ${plural(days, 'día', 'días')} · ${plural(total, 'pregunta', 'preguntas')}</p>
     <div id="hmHost" class="hm-host"></div>
     <div class="hoy-hm-foot">

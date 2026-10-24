@@ -74,7 +74,7 @@ export function homeFriendsHTML() {
   }
   const c = f.cheers[0];
   const cheer = c ? `<div class="hoy-cheer" role="status">${avatar(c.name)}
-    <span><b>${esc(c.name || 'Alguien')}</b> te ha animado: «${esc(cheerText(c.kind))}»</span><small>${ago(c.created_at)}</small></div>` : '';
+    <span><b>${esc(c.name || 'Alguien')}</b> te ha animado: «${esc(cheerText(c.kind))}»</span><small>${ago(c.created_at)}</small><button class="link hoy-thanks" data-act="cheers-seen">Gracias</button></div>` : '';
   // A quién animar: primero quien aún no ha estudiado hoy
   const shared = f.list.filter(x => x.shared), cheered = cheeredToday();
   const p = shared.find(x => !x.today && !cheered.has(x.id)) || shared.find(x => !x.today) || shared[0];

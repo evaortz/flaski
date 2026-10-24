@@ -11,6 +11,9 @@ test('tu actividad: los últimos 6 meses con los colores del diseño y la meta d
   const act = page.locator('section[aria-labelledby="h-act"]');
   await expect(act.locator('.hoy-note')).toHaveText('últimos 6 meses');
   await expect(act.locator('.hoy-week')).toHaveText('esta semana: 1 día · 3 preguntas');
+  await expect(act.locator('.hoy-streak')).toContainText('Racha de 1 día');
+  await expect(act.locator('.hoy-streak .st-freeze')).toContainText('Comodín de la semana disponible');
+  await expect(act.locator('.hoy-hm-foot')).toContainText('Sin meta diaria · poner una');
   expect(await page.locator('#hmHost rect.hm:not(.is-out)').count()).toBeLessThanOrEqual(26 * 7);
   // Hoy: estudiado (relleno sin borde de la escala) y con el anillo cobalto
   const today = page.locator('#hmHost rect.hm-today');
@@ -26,7 +29,7 @@ test('tu actividad: los últimos 6 meses con los colores del diseño y la meta d
   await goal.fill('3');
   await goal.blur();
   await nav(page, 'Hoy');
-  await expect(act.locator('.hoy-hm-foot')).toContainText('Meta: 3 al día');
+  await expect(act.locator('.hoy-hm-foot')).toContainText('Meta: 3 al día · cambiar');
   await expect(page.locator('#hmHost .hm-dot')).toHaveCount(1);
   await expect(page.locator('#hmHost rect.hm-today')).toHaveClass(/hm-goal/);
 });
