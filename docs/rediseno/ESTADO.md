@@ -110,4 +110,9 @@
 - Escritorio: izquierda número, botones, Lo que flojea y Tu actividad; derecha examen, Cómo va lo que sabes y Tus amigos. En el móvil el orden sigue siendo el de las capturas (`order` en CSS).
 - `sin-conexion` «abrir la app sin conexión…»: comprobaba los envíos al reconectar sin esperarlos (fallaba 2 de cada 6 también antes de esta fase); ahora espera con `expect.poll` y pasa 8 de 8.
 - `sw.js` → `flaski-v112`. E2e que empezaban la tanda desde Hoy usan `startTanda` (acepta la hoja la primera vez); la de «10 nuevas más» empieza desde la lista.
-- Dudas: en «Tú» con 0 hoy, la columna de la derecha queda vacía. La fila del ánimo ya no dice «hace 2 h» (no sale en la captura). Novedades sin actualizar (al final del rediseño, como se decidió).
+- Novedades sin actualizar (al final del rediseño, como se decidió).
+
+## Fase 4c · dudas resueltas
+- Tu fila, si te queda algo para hoy y aún no has estudiado: «¡Te toca!» (como «¡Ánimo!») empieza una tanda corta. Sin nada pendiente, vacía.
+- El ánimo recibido va sin hora y dice «Carmen te dice: «¡Tú puedes!»». La pantalla Amigos no enseña los ánimos recibidos (solo Hoy). La notificación del ánimo (`supabase/functions/recordatorio`) sigue con «te ha animado».
+- Tras animar a alguien, «enviado» con el corazón. `sw.js` → `flaski-v113`.

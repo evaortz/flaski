@@ -65,7 +65,7 @@ test('Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de 
   await openCloud(page);
   const fr = page.locator('#homeFriends');
   await expect(fr.locator('.hoy-t')).toHaveText('Tus amigos');
-  await expect(fr.locator('.hoy-cheer')).toContainText('Ana te ha animado: «¡Tú puedes!»');
+  await expect(fr.locator('.hoy-cheer')).toContainText('Ana te dice: «¡Tú puedes!»');
   // Una fila por persona: por preguntas de la semana; quien no comparte su actividad, al final, sin puesto ni racha
   const rows = fr.locator('.frow');
   await expect(rows).toHaveCount(4);
@@ -78,18 +78,23 @@ test('Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de 
   await expect(rows.nth(2)).toHaveClass(/me/);
   await expect(rows.nth(2)).toContainText('Tú · 0 preguntas');
   await expect(rows.nth(2).locator('.frow-pos')).toHaveText('3');
+  await expect(rows.nth(2).locator('.frow-hoy')).toHaveText('¡Te toca!');
   await expect(rows.nth(3)).toContainText('Carlos');
   await expect(rows.nth(3).locator('.frow-pos')).toHaveText('');
   await expect(rows.nth(3).locator('.frow-st')).toHaveText('—');
   await expect(rows.nth(3).locator('.frow-week')).toHaveCount(0);
   // Animar a Dora, que aún no ha estudiado hoy: pasa a «animado»
   await rows.nth(1).getByRole('button', { name: 'Animar a Dora' }).click();
-  await expect(fr.locator('.frow').nth(1).locator('.frow-hoy')).toHaveText('animado');
+  await expect(fr.locator('.frow').nth(1).locator('.frow-hoy')).toHaveText('enviado');
   expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'clap' }]);
   // «Gracias»: el ánimo queda visto y desaparece de Hoy
   await fr.locator('[data-act="cheers-seen"]').click();
   await expect(fr.locator('.hoy-cheer')).toHaveCount(0);
   await expect.poll(() => sent(srv, 'cheers').map(w => w[0])).toEqual(['PATCH']);
+  // «¡Te toca!» en tu fila empieza una tanda
+  await fr.locator('.frow.me [data-act="tanda-short"]').click();
+  await page.locator('#sheetBody [data-act="tanda-go"]').click();
+  await expect(page.locator('.studybar')).toBeVisible();
 });
 
 test('un enlace de invitación ofrece añadir a quien lo manda', async ({ page }) => {

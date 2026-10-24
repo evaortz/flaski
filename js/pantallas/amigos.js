@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { LANGS, baseLang } from '../cardtypes.js';
 import { formatCode, cleanCode, inviteLink, WEEK_LETTERS, weekTotal, weekDays, ranking, initial } from '../friends.js';
 import { streaks } from '../charts.js';
-import { $, main, S, esc, toast, errMsg, fail } from '../comun.js';
+import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
 import { plural, crumbs } from './mazos.js';
 import { openSheet } from './editor.js';
 
@@ -70,7 +70,7 @@ export function homeFriendsHTML() {
   }
   const c = f.cheers[0];
   const cheer = c ? `<div class="hoy-cheer" role="status">${icon('heart', { size: 18 })}
-    <span><b>${esc(c.name || 'Alguien')}</b> te ha animado: «${cheerText(c.kind)}»</span><button class="link hoy-thanks" data-act="cheers-seen">Gracias</button></div>` : '';
+    <span><b>${esc(c.name || 'Alguien')}</b> te dice: «${cheerText(c.kind)}»</span><button class="link hoy-thanks" data-act="cheers-seen">Gracias</button></div>` : '';
   // Clasificación de la semana: tú y quien comparte su actividad; debajo, sin puesto, quien no la comparte
   const today = dateKey(), days = weekDays(), cheered = cheeredToday();
   const me = { id: '', me: true, name: S.name, shared: true, week: days.map(k => S.log[k] || 0), streak: streaks(S.log).current, today: S.log[today] || 0 };
@@ -85,14 +85,16 @@ export function homeFriendsHTML() {
 // Una fila: puesto, avatar, nombre y preguntas de la semana, los 7 días, la racha y, a la derecha, hoy
 function friendRow(p, cheered) {
   const right = p.shared && p.today ? `<span class="frow-ok">${icon('check', { size: 14 })} hoy</span>`
-    : p.me ? ''
-    : cheered.has(p.id) ? `<span class="frow-sent">${icon('heart', { size: 14 })} animado</span>`
+    : p.me ? (pendingToday() ? '<button type="button" class="frow-cheer" data-act="tanda-short">¡Te toca!</button>' : '')
+    : cheered.has(p.id) ? `<span class="frow-sent">${icon('heart', { size: 14 })} enviado</span>`
     : `<button type="button" class="frow-cheer" data-cheer="${p.id}" data-cheer-kind="clap" aria-label="Animar a ${esc(p.name || 'tu amigo')}">¡Ánimo!</button>`;
   return `<li class="frow${p.me ? ' me' : ''}"><span class="frow-pos">${p.pos || ''}</span>${avatar(p.name, p.me)}
     <span class="frow-t"><span class="frow-n"><b>${p.me ? 'Tú' : esc(p.name || 'Sin nombre')}</b>${p.shared ? ` · ${plural(weekTotal(p.week), 'pregunta', 'preguntas')}` : ''}</span>${p.shared ? weekDots(p.week) : ''}</span>
     <span class="frow-st">${p.shared ? `${icon(p.streak ? 'racha' : 'racha-apagada', { size: 14 })}<b${p.streak ? '' : ' class="off"'}>${p.streak || 0}</b>` : '<span class="off">—</span>'}</span>
     <span class="frow-hoy">${right}</span></li>`;
 }
+// Si aún te queda algo para hoy, tu fila ofrece empezar una tanda
+const pendingToday = () => { const c = counts('all'); return c.due + c.newToday > 0; };
 // Los 7 días de la semana: relleno si estudió, anillo en hoy; los que aún no han llegado, tenues
 function weekDots(week) {
   const t = (new Date().getDay() + 6) % 7;
