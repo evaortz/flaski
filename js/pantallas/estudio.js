@@ -1,7 +1,8 @@
 // Flaski · caras de las tarjetas y sesión de estudio (sale de app.js)
 import * as api from '../api.js';
-import { schedule, fmtWhen, dateKey, GRADES } from '../srs.js';
+import { schedule, fmtWhen, dateKey, startOfDay, GRADES } from '../srs.js';
 import { shares, allocate } from '../plan.js';
+import { pace, tandaSize, composeShort } from '../tanda.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, legacyFields, choiceOptions, resolveType, parsePairs, parseMasks, imageIdIn, parseGroups, clozeAnswer } from '../cardtypes.js';
 import { isShortText } from '../inline.js';
@@ -344,7 +345,7 @@ function revealIds(tpl) {
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 // Cola de estudio según Ajustes: límites de nuevas (global y por mazo), de repasos, orden y mezcla
-function buildSession(scope) {
+function buildSession(scope, size = 0) {
   const P = S.prefs.study, inScope = scopeTest(scope), now = Date.now();
   const pool = cardList().filter(inScope);
   let dueCards = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
@@ -379,6 +380,8 @@ function buildSession(scope) {
   fresh = [];
   const lists = [...byDeck.values()];
   for (let k = 0; lists.some(l => k < l.length); k++) for (const l of lists) if (k < l.length) fresh.push(l[k]);
+  // Tanda corta: las N primeras, siempre con las nuevas intercaladas (una de cada cuatro)
+  if (size) return composeShort(due, fresh, size);
   if (P.mix === 'reviewsFirst') return [...due, ...fresh];
   if (P.mix === 'newFirst') return [...fresh, ...due];
   const q = []; let i = 0, j = 0;
@@ -394,12 +397,16 @@ function segBar(ses) {
   if (total > 60 || total < 2) return `<div class="bar"><span style="width:${pct}%"></span></div>`;
   return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${ses.done}">${Array.from({ length: total }, (_, i) => `<i${i < ses.done ? ' class="on"' : ''}></i>`).join('')}</div>`;
 }
-export function startSession(scope = 'all') {
-  const queue = buildSession(scope);
+// minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
+export function startSession(scope = 'all', { minutes = 0 } = {}) {
+  const queue = buildSession(scope, minutes ? shortSize(minutes) : 0);
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
-  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now() };
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes };
   go('study');
 }
+// Preguntas que caben en una tanda de N minutos, a tu ritmo
+export const shortSize = (minutes = S.prefs.study.tandaMin) => tandaSize(minutes, pace(S.events));
+export function shortInfo() { const minutes = S.prefs.study.tandaMin, secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
 export function shuffleTokens(o) {
   const a = o.tokens;
   for (let k = 0; k < 8; k++) {
@@ -429,6 +436,23 @@ function cardState(c) {
   ses.shownAt = Date.now();   // para medir el tiempo de cada pregunta
   return st;
 }
+// Fin de tanda: la carita dibujada a mano
+const DONE_FACE = `<svg class="done-face" viewBox="0 0 80 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+  <path d="M10 14l5 5M24 6l2 7M40 3v7M56 6l-2 7M70 14l-5 5"/><path d="M27 32q3-5 6 0M47 32q3-5 6 0"/><path d="M20 42q20 22 40 0"/></svg>`;
+// Preguntas distintas que has estudiado hoy (repasos y nuevas)
+function doneToday() {
+  const t0 = startOfDay();
+  let n = 0;
+  for (const p of S.progress.values()) if (p.last >= t0) n++;
+  return n;
+}
+// Tandas acabadas hoy en este dispositivo
+function tandasToday() {
+  try { const x = JSON.parse(localStorage.getItem('flaski-tandas') || 'null'); return x?.day === dateKey(Date.now()) ? x.n : 0; } catch { return 0; }
+}
+function countTanda() {
+  try { localStorage.setItem('flaski-tandas', JSON.stringify({ day: dateKey(Date.now()), n: tandasToday() + 1 })); } catch { /* sin almacenamiento */ }
+}
 export function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
@@ -436,10 +460,22 @@ export function renderStudy() {
   const head = (where, left, exit = 'chevron-left') => `<div class="studybar"><button class="sb-back" data-act="exit" aria-label="Salir de la tanda">${icon(exit, { size: 18 })}</button><span class="sb-info"><span class="where">${esc(where)}</span>${left ? `<span class="left">${left}</span>` : ''}</span></div>${segBar(ses)}`;
   if (!ses.queue.length) {
     const t = ses.tally, min = Math.max(1, Math.round((Date.now() - (ses.startedAt || Date.now())) / 60e3));
-    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done"><h2>¡Tanda hecha!</h2><p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>${capNote(counts(ses.scope))}
-      <div class="tally"><span class="g1">Otra vez ${t[1]}</span><span class="g2">Difícil ${t[2]}</span><span class="g3">Bien ${t[3]}</span><span class="g4">Fácil ${t[4]}</span></div>
-      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost big" data-act="more">10 nuevas más</button></div>
-      ${ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : ''}</div>`;
+    if (!ses.counted) { ses.counted = true; countTanda(); }
+    const tally = `<div class="tally">${GRADES.map(({ g, label }) => `<span class="g${g}"><b>${t[g]}</b>${label}</span>`).join('')}</div>`;
+    const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>`;
+    const again = ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : '';
+    // Tanda corta: lo que queda para hoy y otra tanda igual
+    if (ses.minutes) {
+      const c = counts('all'), left = c.due + c.newToday, done = doneToday(), tandas = tandasToday();
+      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}
+        ${left ? `<div class="done-left"><small>Para hoy</small><b>te quedan ${left}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
+          <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
+        <div class="done-go">${left ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
+          : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
+      return;
+    }
+    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}
+      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost big" data-act="more">10 nuevas más</button></div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];

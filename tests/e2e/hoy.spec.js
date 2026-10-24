@@ -35,7 +35,7 @@ test('Hoy: cada bloque con sus datos reales', async ({ page }, info) => {
   const n = Number(await page.locator('.hero-num').textContent());
   expect(n).toBeGreaterThan(0);
   await expect(page.locator('.hero-side')).toContainText('1 carpeta');
-  await expect(page.locator('.hero-go')).toHaveText('Empezar una tanda');
+  await expect(page.locator('.hero-go')).toContainText('Empezar una tanda');
   // Lo dejaste aquí: el último apunte editado
   await expect(page.locator('.hoy-last')).toContainText('Política monetaria');
   // Lo que flojea: primero lo que te cuesta, con su ruta y su estado

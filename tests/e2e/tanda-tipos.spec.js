@@ -1,7 +1,7 @@
 // La tanda con una pregunta de cada uno de los 19 tipos: se responde cada una, se comprueba que no se sale
 // de la pantalla y que salen los 4 botones con su intervalo. En el móvil guarda capturas en test-results/tanda/.
 import { readFileSync } from 'node:fs';
-import { test, expect } from './fixtures.js';
+import { test, expect, startTanda } from './fixtures.js';
 
 const NICHI = readFileSync(new URL('./trazos/nichi.json', import.meta.url), 'utf8');   // 日
 const DAY = 864e5, T0 = Date.now() - 30 * DAY;
@@ -65,7 +65,7 @@ test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones', 
     r.onsuccess = () => r.result.transaction('img', 'readwrite').objectStore('img').put({ id: 'mapa0001', blob: new Blob([svg], { type: 'image/svg+xml' }), pending: false });
   }, [JSON.stringify(db), SVG]);
   await page.goto('/');
-  await page.locator('#main [data-start="all"]').first().click();
+  await startTanda(page);
   const shots = info.project.name === 'movil';
   // En pantallas táctiles no sale la ayuda de los atajos (antes de las capturas: al sacarlas cambia la emulación del móvil)
   if (shots) await expect(page.locator('.studyfoot .keys')).toBeHidden();
@@ -95,6 +95,6 @@ test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones', 
     expect(await fits(), `${type}: la respuesta se sale de la pantalla`).toBe(true);
     await page.locator('[data-grade="3"]').click();
   }
-  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Todo hecho por hoy!' })).toBeVisible();
   if (shots) await page.screenshot({ path: 'test-results/tanda/20-fin.png', fullPage: true });
 });

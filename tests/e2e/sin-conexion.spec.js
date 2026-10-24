@@ -1,4 +1,4 @@
-import { test, expect, answer, nav } from './fixtures.js';
+import { test, expect, answer, nav, startTanda } from './fixtures.js';
 import { mockCloud, openCloud, sent, UID } from './nube.js';
 
 test('estudiar sin conexión: los cambios esperan y se envían al volver la red', async ({ page, context }) => {
@@ -10,7 +10,7 @@ test('estudiar sin conexión: los cambios esperan y se envían al volver la red'
   await context.setOffline(true);
   srv.reachable = false;
   await expect(page.locator('#net')).toContainText('Sin conexión');
-  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
+  await startTanda(page);
   await answer(page, 3);
   await answer(page, 3);
   await expect(page.locator('#net')).toContainText('por enviar');
@@ -34,11 +34,11 @@ test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al 
   await expect(page.locator('.hero-num')).toHaveText('3');
   await expect(page.locator('#net')).toContainText('Sin conexión');
 
-  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
+  await startTanda(page);
   await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();
   await expect(page.locator('.hero-num')).toHaveText('2');
-  await expect(page.locator('#net')).toContainText('3 cambios por enviar');   // respuesta, progreso y contador del día
+  await expect(page.locator('#net')).toContainText('4 cambios por enviar');   // respuesta, progreso, contador del día y la duración de la tanda (la primera vez)
 
   // Lo estudiado sin red sigue ahí aunque se vuelva a cerrar y abrir sin conexión
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -48,9 +48,9 @@ test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al 
   srv.reachable = true;
   await page.evaluate(() => dispatchEvent(new Event('online')));
   await expect(page.locator('#net')).toBeHidden();
-  expect(sent(srv, 'progress')).toHaveLength(1);
-  expect(sent(srv, 'review_events')).toHaveLength(1);
-  expect(sent(srv, 'bump_review_log')).toHaveLength(1);
+  await expect.poll(() => sent(srv, 'progress').length).toBe(1);
+  await expect.poll(() => sent(srv, 'review_events').length).toBe(1);
+  await expect.poll(() => sent(srv, 'bump_review_log').length).toBe(1);
 });
 
 test('cerrar sesión borra la copia sin conexión de este dispositivo', async ({ page }) => {

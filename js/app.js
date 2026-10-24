@@ -19,7 +19,7 @@ import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown 
 import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
-import { renderHome } from './pantallas/inicio.js';
+import { renderHome, tandaSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
@@ -125,6 +125,14 @@ document.addEventListener('click', async e => {
   if (ds.export) return exportPage(ds.export);
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
+  if (ds.tandaMin) {
+    const m = Number(ds.tandaMin);
+    S.prefs.study.tandaMin = m; S.prefs.study.tandaAsked = true; savePrefsSoon();
+    b.parentElement.querySelectorAll('.tanda-opt').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const btn = $('#sheetBody [data-act="tanda-go"]'); if (btn) btn.textContent = `Empezar · ${m} min`;
+    if (S.view === 'home') render();
+    return;
+  }
   if (ds.stats) { S.stats.scope = ds.stats; return go('stats'); }
   if (ds.stp !== undefined) { S.stats.period = Number(ds.stp); const y = scrollY; renderStats(); scrollTo(0, y); return; }
   if (ds.stfc) { S.stats.fcDays = Number(ds.stfc); const y = scrollY; renderStats(); scrollTo(0, y); return; }
@@ -132,6 +140,7 @@ document.addEventListener('click', async e => {
     const path = b.parentElement.dataset.seg;
     const v = typeof getPref(path) === 'number' ? Number(ds.v) : ds.v;
     setPref(path, v);
+    if (path === 'study.tandaMin') S.prefs.study.tandaAsked = true;
     b.parentElement.querySelectorAll('.seg-b').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
     return prefChanged(path);
   }
@@ -350,6 +359,11 @@ document.addEventListener('click', async e => {
       return pid && S.pages.has(pid) ? go('page', { pageId: pid }) : go('home');
     }
     case 'more': { addExtraNew(10); return startSession(S.session?.scope || 'all'); }
+    // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
+    case 'tanda-short': return S.prefs.study.tandaAsked ? startSession('all', { minutes: S.prefs.study.tandaMin }) : tandaSheet();
+    case 'tanda-min': return tandaSheet();
+    case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: S.prefs.study.tandaMin }); }
+    case 'tanda-again': return startSession('all', { minutes: S.session?.minutes || S.prefs.study.tandaMin });
     case 'close-sheet': return requestClose();
     case 'discard-edit': S.edit.dirty = false; return closeSheet();
     case 'keep-edit': $('#edDiscard').hidden = true; return;

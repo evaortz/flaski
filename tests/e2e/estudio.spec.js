@@ -14,7 +14,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
     await page.locator('[data-grade="3"]').click();
   }
   await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
-  await expect(page.locator('.tally .g3')).toHaveText('Bien 2');
+  await expect(page.locator('.tally .g3')).toHaveText(/2\s*Bien/);
 
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
@@ -47,7 +47,10 @@ test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía',
   await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveText('15');
 
-  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
+  // Desde la lista (la tanda de siempre: al acabar ofrece más nuevas)
+  await page.locator('#nav').getByRole('button', { name: 'Biblioteca' }).click();
+  await page.getByRole('button', { name: /Armonía vocálica/ }).first().click();
+  await page.locator('#main [data-start]').first().click();
   for (let i = 0; i < 15; i++) {
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="4"]').click();

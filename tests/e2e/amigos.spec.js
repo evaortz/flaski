@@ -58,21 +58,34 @@ test('amigos: código para invitar, aceptar una petición, ver cómo van, animar
   await expect.poll(() => rpcs(srv, 'remove_friend')).toEqual([{ p_other: CARLOS.id }]);
 });
 
-test('Hoy: «Tus amigos» con el último ánimo recibido y un amigo al que animar', async ({ page }) => {
+test('Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de la semana', async ({ page }) => {
   const srv = await mockCloud(page);
-  const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', today: 0 };
+  const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', streak: 2, today: 0, week: [30, 0, 0, 0, 0, 0, 0] };
   Object.assign(srv.social, { friends: [ANA, CARLOS, DORA], cheers: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: new Date(Date.now() - 2 * 36e5).toISOString() }] });
   await openCloud(page);
   const fr = page.locator('#homeFriends');
   await expect(fr.locator('.hoy-t')).toHaveText('Tus amigos');
   await expect(fr.locator('.hoy-cheer')).toContainText('Ana te ha animado: «¡Tú puedes!»');
-  await expect(fr.locator('.hoy-cheer')).toContainText('hace 2 h');
-  // Primero quien aún no ha estudiado hoy (Carlos no comparte su actividad: no sale)
-  await expect(fr.locator('.hoy-friend')).toContainText('Dora');
-  await expect(fr.locator('.hoy-friend')).toContainText('No ha estudiado hoy');
-  await fr.getByRole('button', { name: '¡Tú puedes!' }).click();
-  await expect(fr.locator('.hoy-friend')).toContainText('Ánimo enviado');
-  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'go' }]);
+  // Una fila por persona: por preguntas de la semana; quien no comparte su actividad, al final, sin puesto ni racha
+  const rows = fr.locator('.frow');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toContainText('Ana · 47 preguntas');
+  await expect(rows.nth(0).locator('.frow-pos')).toHaveText('1');
+  await expect(rows.nth(0).locator('.frow-week i')).toHaveCount(7);
+  await expect(rows.nth(0).locator('.frow-st')).toHaveText('5');
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('hoy');
+  await expect(rows.nth(1)).toContainText('Dora · 30 preguntas');
+  await expect(rows.nth(2)).toHaveClass(/me/);
+  await expect(rows.nth(2)).toContainText('Tú · 0 preguntas');
+  await expect(rows.nth(2).locator('.frow-pos')).toHaveText('3');
+  await expect(rows.nth(3)).toContainText('Carlos');
+  await expect(rows.nth(3).locator('.frow-pos')).toHaveText('');
+  await expect(rows.nth(3).locator('.frow-st')).toHaveText('—');
+  await expect(rows.nth(3).locator('.frow-week')).toHaveCount(0);
+  // Animar a Dora, que aún no ha estudiado hoy: pasa a «animado»
+  await rows.nth(1).getByRole('button', { name: 'Animar a Dora' }).click();
+  await expect(fr.locator('.frow').nth(1).locator('.frow-hoy')).toHaveText('animado');
+  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'clap' }]);
   // «Gracias»: el ánimo queda visto y desaparece de Hoy
   await fr.locator('[data-act="cheers-seen"]').click();
   await expect(fr.locator('.hoy-cheer')).toHaveCount(0);

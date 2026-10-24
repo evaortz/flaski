@@ -89,3 +89,12 @@ export async function pasteNotes(page, text) {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
 }
+
+// Empieza una tanda desde Hoy; la primera vez sale la hoja de duración y se acepta la que viene marcada
+export async function startTanda(page) {
+  await page.locator('#main .hero-go').click();
+  const go = page.locator('#sheetBody [data-act="tanda-go"]');
+  await expect(go.or(page.locator('.studybar'))).toBeVisible();
+  if (await go.isVisible()) await go.click();
+  await expect(page.locator('.studybar')).toBeVisible();
+}

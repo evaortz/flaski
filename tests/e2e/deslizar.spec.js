@@ -1,5 +1,5 @@
 // Pistas de deslizar en la tanda: solo en el móvil, hasta deslizar 10 veces y otra vez tras 30 días sin deslizar
-import { test, expect } from './fixtures.js';
+import { test, expect, startTanda } from './fixtures.js';
 
 const DAY = 864e5, T0 = Date.now() - 30 * DAY;
 // Dos preguntas para hoy y las preferencias de deslizar que se quieran
@@ -14,7 +14,7 @@ async function seed(page, study = {}) {
   };
   await page.addInitScript(data => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', data); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
   await page.goto('/');
-  await page.locator('#main [data-start="all"]').first().click();
+  await startTanda(page);
   await page.locator('[data-act="reveal"]').click();
 }
 const hints = page => page.locator('.swipe-hints');

@@ -1,5 +1,5 @@
 // Plan de estudio: pausar mazos, «solo repasos», repartir el foco y fechas de examen
-import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav, addBuiltinDeck, startTanda } from './fixtures.js';
 
 const JA = 'Japonés · Demo de Flaski', TR = 'Turco · Armonía vocálica';
 async function twoDecks(page) {
@@ -26,7 +26,7 @@ test('en pausa: sale de lo de hoy y de las sesiones de «Todo», y se recuerda',
   await expect(row(page, JA).locator('.pl-meta')).toContainText('En pausa');
   await nav(page, 'Hoy');
   // La sesión de «Todo» no trae tarjetas del mazo en pausa
-  await page.locator('#main [data-start="all"]').click();
+  await startTanda(page);
   for (let i = 0; i < 4; i++) {
     await expect(page.locator('.studybar .where').first()).toContainText('Turco');
     await page.locator('[data-act="reveal"]').click();

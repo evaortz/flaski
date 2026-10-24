@@ -2340,19 +2340,10 @@ body[data-view="home"] main{gap:40px}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hoy-act{--a0:var(--bg);--a0-line:var(--line-strong);--a1:color-mix(in oklab,var(--accent) 35%,var(--bg));--a2:color-mix(in oklab,var(--accent) 60%,var(--bg));--a3:color-mix(in oklab,var(--accent) 85%,var(--bg));--a4:color-mix(in oklab,var(--accent) 80%,#FFFFFF);--a5:color-mix(in oklab,var(--accent) 45%,#FFFFFF)}}
 :root[data-theme="dark"] .hoy-act{--a0:var(--bg);--a0-line:var(--line-strong);--a1:color-mix(in oklab,var(--accent) 35%,var(--bg));--a2:color-mix(in oklab,var(--accent) 60%,var(--bg));--a3:color-mix(in oklab,var(--accent) 85%,var(--bg));--a4:color-mix(in oklab,var(--accent) 80%,#FFFFFF);--a5:color-mix(in oklab,var(--accent) 45%,#FFFFFF)}
 /* Tus amigos */
-.hoy-fr .hoy-h{padding-bottom:12px;border-bottom:1px solid var(--line)}
-.hoy-cheer{display:flex;align-items:center;gap:12px;padding:4px 0 14px;border-bottom:1px solid var(--line);font-size:14px}
-.hoy-cheer > span:not(.fr-av){flex:1;min-width:0}
-.hoy-cheer small{flex:none;font-size:12px;color:var(--muted)}
+.hoy-cheer{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;background:#FFF1D6;color:#3A2A08;font-size:14px}
+.hoy-cheer > svg{flex:none;color:#E8A33A}
+.hoy-cheer > span{flex:1;min-width:0}
 .hoy-thanks{flex:none;font-size:12.5px;min-height:32px;padding:4px 8px;margin:0}
-.hoy-friend{display:flex;align-items:flex-start;gap:14px;padding-top:4px}
-.hoy-friend-t{display:flex;flex-direction:column;gap:2px;min-width:0}
-.hoy-friend-t b{font-size:16px;font-weight:600}
-.hoy-friend-t > span{font-size:13.5px}
-.hoy-cheers{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-.hoy-cheer-b{border:0;border-radius:99px;background:var(--soft);color:var(--fg);font-family:var(--font-hand);font-size:21px;line-height:1;padding:10px 18px;min-height:44px;cursor:pointer}
-.hoy-cheer-b[data-cheer-kind="fire"]{width:44px;padding:0;display:grid;place-items:center;font-family:inherit;font-size:18px}
-.hoy-cheer-b:hover{background:var(--hover)}
 @media (min-width:960px){
   body[data-view="home"] main{grid-template-areas:"l r";row-gap:0;column-gap:64px}
   .home-l{gap:40px}
@@ -2445,4 +2436,86 @@ html.side-open .pg-suggest span{display:none}
 @media (min-width:700px){.fhero .lfold-clip .lfold-draw{top:-18px}.fhero .lfold-clip .lfold-draw.own-ic{top:-18px}}
 /* Iconos propios a color (img/iconos): no siguen el color del texto */
 img.ic-own{display:inline-block;vertical-align:-3px;object-fit:contain;flex:none}
-.hoy-cheer-b img.ic-own{vertical-align:-4px}
+/* Tandas cortas: «Empezar una tanda · N min · M preguntas», la tanda de siempre y la duración */
+.hero-go-t{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.hero-go-t small{font-size:13px;font-weight:400;opacity:.85}
+.hero-more{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.hero-all{border:0;background:none;padding:6px 0;color:var(--fg);font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.hero-min{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
+.hero-min svg{flex:none}
+.hero-d{display:none}
+@media (min-width:960px){
+  .hero-more{flex-direction:column;align-items:stretch;max-width:460px;gap:10px}
+  .hero-all{border:1.5px solid var(--fg);border-radius:99px;min-height:54px;font-size:15px;font-weight:600;text-decoration:none}
+  .hero-all:hover{background:var(--hover)}
+  .hero-min{margin:0 auto}
+  .hero-m{display:none}
+  .hero-d{display:inline}
+}
+/* Hoja de duración */
+.tanda-dur{display:flex;flex-direction:column;gap:14px}
+.sheet-card .tanda-dur h2{font-family:var(--font-hand);font-weight:400;font-size:34px;line-height:1.1;color:var(--fg);margin:0}
+.tanda-dur > p{margin:0}
+.tanda-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tanda-opt{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px;border:1px solid var(--line-strong);border-radius:20px;background:var(--bg);color:var(--fg);text-align:left;cursor:pointer}
+.tanda-opt b{font-family:var(--font-hand);font-weight:400;font-size:34px;line-height:1}
+.tanda-opt span{font-size:14px}
+.tanda-opt small{font-size:12.5px;color:var(--muted)}
+.tanda-opt[aria-pressed="true"]{border:1.5px solid var(--fg);box-shadow:0 4px 0 var(--fg)}
+.tanda-note{text-align:center;margin:0}
+.tanda-dur .primary.big{margin-top:12px}
+/* Fin de tanda: carita, recuento por botón y lo que queda para hoy */
+.done{position:relative}
+.done-face{display:none}
+body.in-study .done-face{display:block;position:absolute;top:28px;right:4px;width:78px;height:64px;color:#FFFFFF}
+body.in-study .done h2{padding-right:90px}
+body.in-study .done .tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+body.in-study .done .tally span{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;border-radius:30px;font-size:12px;font-weight:500;line-height:1.2;text-align:center}
+body.in-study .done .tally b{font-size:20px;font-weight:600}
+.done-left{display:flex;flex-direction:column;gap:8px;padding:20px;border:1.5px dashed color-mix(in srgb,#FFFFFF 40%,transparent);border-radius:18px}
+.done-left small{font-size:13px;color:var(--muted)}
+.done-left b{font-family:var(--font-hand);font-weight:400;font-size:40px;line-height:1.05}
+.done-bar{display:block;height:8px;border-radius:4px;background:color-mix(in srgb,#FFFFFF 22%,transparent);overflow:hidden;margin-top:4px}
+.done-bar i{display:block;height:100%;border-radius:inherit;background:#FFFFFF}
+/* Hoy en el móvil, en una columna: lo de la derecha va tras «Lo que flojea»; «Tu actividad» antes de «Tus amigos» */
+@media (max-width:959px){
+  .home-r > *{order:1}
+  .home-l > .hoy-act{order:2}
+  .home-r > #homeFriends{order:3}
+}
+/* «Tus amigos»: clasificación de la semana (puesto · nombre y días · racha · hoy) */
+.frow-head,.frow{display:grid;grid-template-columns:22px 40px minmax(0,1fr) 52px 76px;align-items:center;column-gap:10px}
+.frow-head{font-size:11.5px;color:var(--muted);padding:0 0 6px;border-bottom:1px solid var(--line)}
+.frow-head span:nth-child(1){grid-column:3}
+.frow-head span:nth-child(3){text-align:right}
+.frows{list-style:none;margin:0;padding:0}
+.frow{padding:10px 0;border-bottom:1px solid var(--line)}
+.frow.me{background:var(--soft);border-radius:14px;margin:0 -8px;padding:10px 8px;grid-template-columns:22px 40px minmax(0,1fr) 52px 76px}
+.frow-pos{font-size:13px;color:var(--muted);text-align:center}
+.frow.me .frow-pos{color:var(--fg);font-weight:600}
+.frow .fr-av{width:36px;height:36px}
+.frow-t{display:flex;flex-direction:column;gap:5px;min-width:0}
+.frow-n{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow-n b{color:var(--fg);font-weight:600}
+.frow-week{display:flex;gap:3px}
+.frow-week i{width:11px;height:11px;border-radius:3px;border:1px solid var(--line-strong);box-sizing:border-box}
+.frow-week i.on{background:var(--accent);border-color:var(--accent)}
+.frow-week i.today{outline:1.5px solid var(--accent);outline-offset:1.5px}
+.frow-week i.next{opacity:.45}
+.frow-st{display:flex;align-items:center;gap:4px;font-size:14px}
+.frow-st b{font-weight:600;color:#C2410C}
+.frow-st .off{color:var(--faint);font-weight:400}
+.frow-st img.off,.frow-st:has(.off) img{opacity:.45}
+.frow-hoy{display:flex;justify-content:flex-end;font-size:13px}
+.frow-ok{display:inline-flex;align-items:center;gap:3px;color:#1F7A4D;font-weight:600}
+.frow-sent{display:inline-flex;align-items:center;gap:4px;color:var(--muted)}
+.frow-cheer{border:0;border-radius:99px;background:var(--soft);color:var(--fg);font-family:var(--font-hand);font-size:18px;line-height:1;padding:8px 12px;min-height:38px;cursor:pointer;white-space:nowrap}
+.frow-cheer:hover{background:var(--hover)}
+@media (max-width:520px){
+  .frow-head,.frow,.frow.me{grid-template-columns:16px 32px minmax(0,1fr) 40px 68px;column-gap:8px}
+  .frow .fr-av{width:32px;height:32px}
+  .frow-n{font-size:13px}
+  .frow-week i{width:10px;height:10px}
+  .frow-cheer{font-size:16px;padding:7px 10px}
+}
+.hoy-cheer > svg{fill:currentColor;fill-opacity:.35}

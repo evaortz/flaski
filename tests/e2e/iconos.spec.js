@@ -1,5 +1,5 @@
 // Iconos propios a color (img/iconos): racha encendida o apagada, comodín y sugerencias; sin emojis
-import { test, expect, openApp, nav, addBuiltinDeck, answer, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, nav, addBuiltinDeck, answer, pasteNotes, startTanda } from './fixtures.js';
 
 const loaded = loc => loc.evaluate(async i => { await i.decode(); return i.naturalWidth > 0; });
 
@@ -12,7 +12,7 @@ test('racha apagada y encendida, comodín y sugerencias con los iconos de la app
   expect(await loaded(off)).toBe(true);
   // Con un día de racha, encendida (Hoy, Perfil y, en el ordenador, la barra lateral)
   await nav(page, 'Hoy');
-  await page.locator('#main [data-start]').first().click();
+  await startTanda(page);
   await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();
   await nav(page, 'Hoy');

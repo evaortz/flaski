@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v111';
+const VERSION = 'flaski-v112';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -18,6 +18,7 @@ const SHELL = [
   './js/comun.js', './js/pantallas/cuenta.js', './js/pantallas/inicio.js', './js/pantallas/estudio.js', './js/pantallas/mazos.js', './js/pantallas/biblioteca.js', './js/pantallas/explorar.js', './js/pantallas/apuntes.js', './js/pantallas/apuntes-tablas.js', './js/pantallas/apuntes-ayuda.js', './js/pantallas/sugerencias.js', './js/pantallas/perfil.js', './js/pantallas/editor.js', './js/pantallas/amigos.js',
   './js/api.js', './js/push.js', './js/plan.js',
   './js/srs.js',
+  './js/tanda.js',
   './js/prefs.js',
   './js/stats.js',
   './js/rows.js',

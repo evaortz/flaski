@@ -318,6 +318,7 @@ export function renderSettings() {
         <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
     ${setSec('gauge', 'Estudio diario', `
       ${setRow('Plan de estudio', 'Qué listas estudias ahora, cuánto foco le das a cada una y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
+      ${setRow('Duración de la tanda', 'La de «Empezar una tanda», en Hoy. Cuántas preguntas caben se ajusta solo a tu ritmo.', seg('study.tandaMin', [[5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min']]))}
       ${setRow('Preguntas nuevas al día', 'Entre 10 y 20 va bien. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
       ${setRow('Meta diaria', 'Respuestas al día. Los días que llegas salen marcados en «Tu actividad», en Hoy. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}

@@ -1,5 +1,5 @@
 // Apuntes: escribir por bloques, tablas, crear tarjetas desde lo seleccionado y volver a ellos al estudiar
-import { test, expect, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, pasteNotes, startTanda } from './fixtures.js';
 import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
@@ -156,7 +156,7 @@ test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes
 
   // Al estudiarla, «Ver en los apuntes» lleva al bloque y se puede volver al estudio
   await page.locator('#nav').getByRole('button', { name: 'Hoy' }).click();
-  await page.getByRole('button', { name: 'Empezar una tanda' }).click();
+  await startTanda(page);
   await page.locator('[data-act="reveal"]').click();
   await page.getByRole('button', { name: 'Ver en los apuntes' }).click();
   await expect(page.locator('#pgTitle')).toHaveValue('Casos');

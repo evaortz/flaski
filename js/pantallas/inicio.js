@@ -10,6 +10,9 @@ import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
+import { shortInfo } from './estudio.js';
+import { openSheet } from './editor.js';
+import { TANDA_MINUTES, tandaSize } from '../tanda.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -39,22 +42,43 @@ export function renderHome() {
         </div>
       </div>
       ${avail
-        ? `<button class="primary big hero-go" data-start="all">Empezar una tanda</button>${capNote(all)}`
+        ? `${shortHTML(avail)}${capNote(all)}`
         : `<p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${lastPageHTML()}
     </section>
     ${weakHTML()}
+    ${H.activity ? activityHTML() : ''}
     </div>
     <div class="home-r">
     ${pushAskHTML()}
     ${examHTML()}
     ${H.forecast ? '<section class="hoy-sec lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
-    ${H.activity ? activityHTML() : ''}
     ${homeFriendsHTML()}
     </div>`;
   drawHeatmap();
   drawProgress();
+}
+
+// «Empezar una tanda · N min · M preguntas», la tanda de siempre («las X de hoy») y cambiar la duración
+function shortHTML(avail) {
+  const { minutes, n, secs } = shortInfo(), m = Math.min(n, avail);
+  const mins = m < n ? Math.max(1, Math.round((m * secs) / 60)) : minutes;
+  return `<button class="primary big hero-go" data-act="tanda-short"><span class="hero-go-t">Empezar una tanda<small>${mins} min · ${plural(m, 'pregunta', 'preguntas')}</small></span></button>
+    <div class="hero-more">${avail > m ? `<button class="hero-all" data-start="all"><span class="hero-m">o hacer las ${avail} de hoy</span><span class="hero-d">Hacer las ${avail} de hoy</span></button>` : ''}
+      <button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button></div>`;
+}
+
+// Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»
+const TANDA_LABELS = { 5: 'una parada o dos', 10: 'un trayecto corto', 15: 'un trayecto medio', 20: 'un trayecto largo' };
+export function tandaSheet() {
+  const cur = S.prefs.study.tandaMin, { secs } = shortInfo();
+  openSheet(`<div class="tanda-dur"><h2>¿Cuánto suele durar tu rato de estudio?</h2>
+    <p class="muted">Haremos tandas que quepan justo. Se ajustan solas a tu ritmo.</p>
+    <div class="tanda-opts" role="group" aria-label="Duración de la tanda">${TANDA_MINUTES.map(m => `<button type="button" class="tanda-opt" data-tanda-min="${m}" aria-pressed="${m === cur}">
+      <b>${m} min</b><span>${TANDA_LABELS[m]}</span><small>unas ${tandaSize(m, secs)} preguntas</small></button>`).join('')}</div>
+    <p class="muted small tanda-note">Lo cambias cuando quieras en Ajustes.</p>
+    <button class="primary big" data-act="tanda-go">Empezar · ${cur} min</button></div>`);
 }
 
 // Carpetas (de primer nivel) con algo que estudiar hoy

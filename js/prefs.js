@@ -20,6 +20,8 @@ export const DEFAULT_PREFS = {
     haptics: true,          // móvil: vibración breve al responder y al trazar
     sound: true,            // efectos de sonido al valorar preguntas
     nativeLang: 'es-ES',    // tu idioma: el de las traducciones en las listas de idiomas
+    tandaMin: 10,           // duración de la tanda corta en minutos (5, 10, 15 o 20)
+    tandaAsked: false,      // ya se ha preguntado la duración (la primera tanda)
   },
   types: { hidden: [] },    // tipos de pregunta que no quieres ver en el editor
   intro: { done: false },   // ya has visto la presentación de bienvenida
