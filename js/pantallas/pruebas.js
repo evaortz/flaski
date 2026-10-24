@@ -2,11 +2,13 @@
 import * as api from '../api.js';
 import { toRow } from '../rows.js';
 import { dateKey } from '../srs.js';
-import { S, toast, fail } from '../comun.js';
+import { S, toast, fail, cardList } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
 import { onSignedIn, readTema } from './cuenta.js';
-import { TEMAS } from '../primera-vez.js';
+import { TEMAS, temaCards } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
+import { plainText } from '../suggest.js';
+import { makeSuggested } from './sugerencias.js';
 import { closeSheet } from './editor.js';
 
 const DAY = 864e5;
@@ -63,6 +65,12 @@ export function inventProgress(uid, deckId, cardIds, { share = 0.6, seed = 1, no
   return { progress, events };
 }
 
+// El bloque del apunte donde está una respuesta (para que la pregunta quede unida a su parte); si no, el primero
+const fold = x => plainText(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function blockFor(p, answer) {
+  const a = fold(answer);
+  return (a && p.blocks.find(b => b.type !== 'hr' && fold(b.text).includes(a)))?.id || p.blocks.find(b => b.type !== 'hr')?.id || null;
+}
 // Las listas incluidas en la app, con progreso inventado en casi todas, y los temas de ejemplo como apuntes.
 // Lo que ya esté no se repite.
 export async function loadSampleData(btn) {
@@ -94,11 +102,20 @@ export async function loadSampleData(btn) {
     const grey = [...S.tags.values()].filter(t => tagColor(t.color) === 'gris');
     for (const [i, t] of grey.entries()) await api.updateTag(t.id, { color: TAG_COLORS[i % (TAG_COLORS.length - 1)].id });
     let notes = 0;
-    const titles = new Set([...S.pages.values()].map(p => p.title));
     for (const t of TEMAS) {
       const { title, blocks } = await readTema(t);
-      if (titles.has(title)) continue;
-      await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks });
+      // El apunte (si no estaba) y, si aún no tiene preguntas, las suyas en una lista con su nombre
+      let p = [...S.pages.values()].find(x => x.title === title);
+      if (p && cardList().some(c => c.page_id === p.id)) continue;
+      if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
+      if (!p.deck_id || !S.decks.has(p.deck_id)) {
+        const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: 'apuntes', folder_id: p.folder_id || null });
+        S.decks.set(deck.id, { tags: [], ...deck });
+        p = await api.savePage({ ...p, deck_id: deck.id }); S.pages.set(p.id, p);
+      }
+      const picks = temaCards(await (await fetch(t.cards, { cache: 'no-cache' })).json())
+        .map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
+      await makeSuggested(p, picks, p.deck_id);
       notes++;
     }
     // Se vuelve a cargar todo, como al entrar, y se abre Hoy (sin la bienvenida, que ya no hace falta)

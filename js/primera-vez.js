@@ -7,9 +7,31 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 // Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo
 export const TEMAS = [
-  { file: 'temas/constitucion-titulo-preliminar.md', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color' },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', title: 'Por qué se te olvidan las cosas', text: 'Cómo funciona la memoria y por qué repasar así', drawing: 'brujula' },
+  { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Cómo funciona la memoria y por qué repasar así', drawing: 'brujula' },
 ];
+// Las preguntas de un tema de ejemplo (temas/*.json, las que debería sacar un buen sugeridor) como preguntas de
+// Flaski: { typeId, fields, answer } (answer: el texto con el que se busca su bloque en el apunte)
+const items = r => String(r).split(' · ').map(x => x.trim()).filter(Boolean);
+export function temaCards(list) {
+  return list.map(x => {
+    const q = x.pregunta, a = x.respuesta, hole = /\{\{(.+?)\}\}/.exec(q)?.[1] || a;
+    if (x.tipo === 'cloze') return { typeId: 'cloze', fields: { x: q, e: '' }, answer: hole };
+    if (x.tipo === 'number') return { typeId: 'number', fields: { q, a }, answer: a };
+    if (x.tipo === 'choice') return { typeId: 'choice', fields: { q, a, w: (x.incorrectas || []).join('; ') }, answer: a };
+    if (x.tipo === 'truefalse') {
+      const [, vf, why = ''] = /^(Verdadero|Falso)\s*(?:\((.*)\))?/i.exec(a) || [, a, ''];
+      return { typeId: 'truefalse', fields: { s: q, v: /^f/i.test(vf) ? 'F' : 'V', n: why }, answer: why || q };
+    }
+    if (x.tipo === 'match') return { typeId: 'match', fields: { t: q, p: items(a).join('\n') }, answer: items(a)[0].split('=').pop().trim() };
+    if (x.tipo === 'steps') return { typeId: 'steps', fields: { q, s: items(a).join('\n') }, answer: items(a)[0] };
+    // Clasificar solo si cada parte es «grupo: elementos»; si no, una básica con la lista
+    if (x.tipo === 'sort' && items(a).every(g => g.includes(':'))) return { typeId: 'sort', fields: { q, g: items(a).join('\n') }, answer: items(a)[0].split(':').pop().split(',')[0].trim() };
+    if (x.tipo === 'sort') return { typeId: 'basic', fields: { q, a: items(a).map(i => '- ' + i).join('\n') }, answer: items(a)[0] };
+    // Básica, y también Explícalo y ¿Qué pasaría si…? (aún no son tipos de Flaski)
+    return { typeId: 'basic', fields: { q, a }, answer: a };
+  });
+}
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const monthText = ym => { const [y, m] = String(ym || '').split('-').map(Number); return y && m ? `${MONTHS[m - 1]} de ${y}` : ''; };
 // El tipo de archivo, para su etiqueta (PDF, Word…)

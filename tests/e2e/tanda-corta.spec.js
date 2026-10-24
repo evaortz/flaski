@@ -88,7 +88,7 @@ test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver
   await expect(page.locator('.done-left')).toHaveCount(0);
   await expect(page.locator('.done-go button')).toHaveText(['Volver']);
   await page.getByRole('button', { name: 'Volver' }).click();
-  await expect(page.locator('.hero-word')).toHaveText('al día');
+  await expect(page.locator('.hero-done')).toContainText('estás al día');
 });
 
 test('el ritmo sale de tus respuestas (la mediana) y la duración se cambia en Ajustes', async ({ page }) => {

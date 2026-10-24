@@ -29,6 +29,12 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
   await nav(page, 'Biblioteca');
   await expect(page.locator('#main')).toContainText('Alemán · A2');
   await expect(page.locator('#main')).not.toContainText('Lista del modo local');
+  // Los temas de ejemplo, como apuntes con sus preguntas (una ficha con su lista) y unidas a su parte del apunte
+  await expect(page.locator('#main .lt-note', { hasText: 'Constitución' }).locator('.lt-meta')).toHaveText('apunte · 35');
+  await expect(page.locator('#main .lt-note', { hasText: 'se te olvidan' }).locator('.lt-meta')).toHaveText('apunte · 17');
+  await page.locator('#main .lt-note', { hasText: 'Constitución' }).click();
+  await expect(page.locator('#pgBlocks .nb-cards').first()).toBeVisible();
+  await nav(page, 'Biblioteca');
 
   // Otra vez: no se repiten
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
@@ -46,7 +52,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
     local: localStorage.getItem('flaski-local-v1'),
     outbox: localStorage.getItem('flaski-outbox:' + uid),
   }), [UID]);
-  expect(stored.pruebas).toBe(3);
+  expect(stored.pruebas).toBe(5);   // las 3 listas y las de los 2 temas
   expect(JSON.parse(stored.local).decks).toHaveLength(1);
   expect(JSON.parse(stored.outbox)).toHaveLength(1);
   expect(cloud).toEqual([]);

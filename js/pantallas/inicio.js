@@ -11,7 +11,7 @@ import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortInfo, todayQueue } from './estudio.js';
+import { shortInfo, todayQueue, freshLeft } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES, tandaSize } from '../tanda.js';
 
@@ -32,23 +32,27 @@ export function renderHome() {
   const H = S.prefs.home;
   const folders = pendingFolders(), b = backlog(), late = b ? all.dueAll - all.due : 0;
   const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
+  const lateHTML = late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : '';
+  const fresh = avail ? 0 : Math.min(10, freshLeft('all'));
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      <h1 class="hero-hi">${hi}${avail ? (back ? '. Hoy tienes' : ', hoy tienes') : ''}</h1>
+      ${avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
-          <span class="hero-word">${avail ? (avail === 1 ? 'pregunta!' : 'preguntas!') : 'al día'}</span>
+          <span class="hero-word">${avail === 1 ? 'pregunta!' : 'preguntas!'}</span>
           <span class="hero-band">para hoy</span>
-          ${avail ? `<span>${q.due} por repasar</span><span>${newLine(q, folders, b)}</span>` : ''}
-          ${late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : ''}
+          <span>${q.due} por repasar</span><span>${newLine(q, folders, b)}</span>
+          ${lateHTML}
         </div>
       </div>
-      ${avail
-        ? `${shortHTML(avail)}${capNote(all)}`
-        : `<p class="muted">${late > 0 ? 'Hecho lo de hoy. Lo atrasado que queda sigue mañana.' : all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
-           <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
+      ${shortHTML(avail)}${capNote(all)}`
+      // Sin nada pendiente: sin número ni banda, «Hola, estás al día» y las nuevas que quedan
+      : `<h1 class="hero-hi hero-done">${hi}, estás al día</h1>
+      ${lateHTML ? `<p class="hero-side">${lateHTML}</p>` : ''}
+      <p class="muted">${late > 0 ? 'Hecho lo de hoy. Lo atrasado que queda sigue mañana.' : all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Vuelve mañana: hoy no queda nada.'}</p>${capNote(all)}
+      ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : ''}`}
       ${lastPageHTML()}
     </section>
     ${weakHTML()}

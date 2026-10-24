@@ -18,8 +18,9 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
 
   await page.reload();
   await expect(page.locator('#main .spin')).toHaveCount(0);
-  await expect(page.locator('.hero-num')).toHaveText('0');
-  await expect(page.locator('.hero-word')).toHaveText('al día');
+  await expect(page.locator('.hero-done')).toHaveText(/^Hola.*, estás al día$/);
+  await expect(page.locator('.hero-num')).toHaveCount(0);
+  await expect(page.locator('.hero-band')).toHaveCount(0);
 });
 
 test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» la recupera', async ({ page }) => {

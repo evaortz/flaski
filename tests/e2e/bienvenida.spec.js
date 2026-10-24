@@ -38,7 +38,7 @@ test('oposición con tema de ejemplo: carpeta con examen, primera tanda y su fin
   await page.locator('.first-opts [data-tanda-min="15"]').click();
   await expect(page.locator('.first-opts [data-tanda-min="15"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-act="first-done"]').click();
-  await expect(page.locator('#main .hero-num')).toBeVisible();   // Hoy
+  await expect(page.locator('#main .hero-done')).toContainText('estás al día');   // Hoy, sin nada más para hoy
 
   // La carpeta, con el apunte y su lista, y el examen en el Plan de estudio
   await nav(page, 'Biblioteca');
