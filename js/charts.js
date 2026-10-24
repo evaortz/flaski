@@ -7,6 +7,7 @@ const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const fmtDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const nf = new Intl.NumberFormat('es-ES');
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const plural = (n, one, many) => `${nf.format(n)} ${n === 1 ? one : many}`;
 
 /* ---------------- Rachas, con un comodín por semana ----------------
@@ -348,7 +349,7 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   for (const a of noted) {
     const x = X(a.i), y = Y(s[a.i].total), name = deckName(a.deck);
     const end = x > R - 130;
-    notes += `<circle class="pg-pin" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2"></circle><text class="pg-note" x="${(x + (end ? -6 : 6)).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${end ? 'end' : 'start'}">+${nf.format(a.n)} de ${name.length > 20 ? name.slice(0, 19) + '…' : name}</text>`;
+    notes += `<circle class="pg-pin" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2"></circle><text class="pg-note" x="${(x + (end ? -6 : 6)).toFixed(1)}" y="${(y - 5).toFixed(1)}" text-anchor="${end ? 'end' : 'start'}"><title>+${nf.format(a.n)} de ${esc(name)}</title>+${nf.format(a.n)} de ${esc(shortName(name))}</text>`;
   }
   const marks = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
   let hit = null;
@@ -385,12 +386,21 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   el._pg = { s, hover, vals };
   fitLabels(el, width);
 }
-// Ninguna etiqueta se sale por la derecha: la que no cabe (números muy largos, letra grande) se encoge
+// Nombre de lista corto para las notas del gráfico: sin lo que va entre paréntesis y cortado entre palabras
+// («Vocabulario Esencial (121-160)» → «Vocabulario Esencial»)
+export function shortName(name, max = 22) {
+  let t = String(name).trim();
+  if (t.length > max) t = t.replace(/\s*[(\[][^)\]]*[)\]]\s*/g, ' ').replace(/\s+/g, ' ').trim() || t;
+  if (t.length <= max) return t;
+  const cut = /\s/.test(t[max]) ? t.slice(0, max) : t.slice(0, max).replace(/[\s·:,;–—-]+\S*$/, '');
+  return (cut.length >= max / 2 ? cut : t.slice(0, max - 1)).replace(/[\s·:,;–—-]+$/, '') + '…';
+}
+// Ninguna etiqueta se sale por los lados: la que no cabe (números muy largos, letra grande) se encoge
 function fitLabels(svg, width) {
   for (const t of svg.querySelectorAll('.pg-lab, .pg-note')) {
     let size = parseFloat(getComputedStyle(t).fontSize) || 12;
     try {
-      for (let b = t.getBBox(); b.width && b.x + b.width > width && size > 7; b = t.getBBox()) t.style.fontSize = `${size -= 0.5}px`;
+      for (let b = t.getBBox(); b.width && (b.x + b.width > width || b.x < 0) && size > 7; b = t.getBBox()) t.style.fontSize = `${size -= 0.5}px`;
     } catch { /* sin pintar (p. ej. oculto): no se puede medir */ }
   }
 }

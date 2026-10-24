@@ -54,3 +54,11 @@ test('la línea de lo que toca: mañana y el día más cargado de la semana', ()
   assert.match(txt, /Mañana te toca <b>1<\/b>/);
   assert.match(txt, /el dom \(3\)/);
 });
+
+test('nombre de lista en las notas del gráfico: se acorta con sentido', async () => {
+  const { shortName } = await import('../../js/charts.js');
+  assert.equal(shortName('Vocabulario Esencial (121-160)'), 'Vocabulario Esencial');
+  assert.equal(shortName('Biología'), 'Biología');
+  assert.equal(shortName('Historia contemporánea de España y Europa'), 'Historia contemporánea…');
+  assert.ok(!/\s…$/.test(shortName('Uno dos tres cuatro cinco seis siete')));
+});
