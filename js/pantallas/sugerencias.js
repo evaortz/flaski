@@ -33,8 +33,9 @@ export function openSuggestions(only = null) {
   if (open) commitBlockEl(open);
   // Si ya se habían abierto en este apunte, se conserva lo retocado y lo marcado
   if (S.sug?.pageId !== p.id) {
-    const deckId = p.deck_id && S.decks.has(p.deck_id) ? p.deck_id : '';
-    S.sug = { pageId: p.id, deckId: deckId || (S.decks.size ? [...S.decks.values()].find(d => !d.archived)?.id || '' : 'new'), list: [], types: null, showMore: null, scroll: 0 };
+    // Si el apunte aún no tiene lista, se propone una nueva con su nombre
+    const deckId = p.deck_id && S.decks.has(p.deck_id) && !S.decks.get(p.deck_id).archived ? p.deck_id : 'new';
+    S.sug = { pageId: p.id, deckId, list: [], types: null, showMore: null, scroll: 0 };
   }
   S.sug.only = only;
   S.sug.scroll = 0;
@@ -220,11 +221,13 @@ export async function makeSuggested(p, picked, deckId) {
   migrateDeckLangs();
   return { deckId, made };
 }
-// Las primeras de un apunte para empezar (la primera vez): del principio, una por bloque y sin las que
-// solo preguntan una etiqueta («{{Referéndum:}} …»); si no llegan a n, se completan con las demás
+// Las primeras de un apunte para empezar (la primera vez): del principio, una por bloque, de las que salen marcadas
+// y cortas (una frase), sin las que solo preguntan una etiqueta («{{Referéndum:}} …»); si no llegan a n, se
+// completan con las demás
 export function firstPicks(list, n = 5) {
   const label = x => /\{\{[^}]*:\s*\}\}/.test(x.fields?.x || '');
-  const good = list.filter(x => !label(x)), out = [], blocks = new Set();
+  const short = x => x.selected !== false && toPlain(x.front || '').length <= 90 && toPlain(x.back || '').length <= 120 && !/\n/.test(x.back || '');
+  const good = [...list.filter(x => !label(x) && short(x)), ...list.filter(x => !label(x) && !short(x))], out = [], blocks = new Set();
   for (const x of good) if (out.length < n && !blocks.has(x.blockId)) { out.push(x); blocks.add(x.blockId); }
   for (const x of [...good, ...list]) if (out.length < n && !out.includes(x)) out.push(x);
   return out;

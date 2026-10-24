@@ -9,8 +9,10 @@ import { toPlain, toRuns } from './inline.js';
 export const KINDS = {
   vocab: 'Vocabulario', def: 'Definición', term: 'Concepto', bold: 'Destacado', sub: 'Subpuntos', table: 'Tabla', match: 'Emparejar',
   conj: 'Conjugación', steps: 'Pasos', list: 'Viñetas', sort: 'Clasificar', date: 'Fecha', phrase: 'Frase', code: 'Código',
-  section: 'Apartado', qa: 'Pregunta',
+  section: 'Apartado', qa: 'Pregunta', num: 'Cifra', art: 'Artículo', enum: 'Enumeración',
 };
+// Orden dentro de una misma parte del apunte: fechas y cifras primero; ordenar frases, al final
+const KIND_RANK = { date: 0, num: 0, phrase: 2 };
 export const PRESELECT = 0.65;
 
 /* ---------------- Texto ---------------- */
@@ -196,6 +198,7 @@ function conceptCard(sp) {
       return { q: c.ask(subj), a: capFirst(rest), score: 0.7 };
     }
     const head = subjectHead(subj);
+    if (dates(rest.slice(0, 30)).some(d => d.index <= 12)) return null;   // «X fue el 14 de julio…»: es cuándo, no qué
     if (!head || !validSubject(head) || /^(no|también|ya|muy|más|menos|tan)\b/i.test(rest) || words(rest).length < 3) return null;
     if (verb && COPULAR.has(verb) && !DEFINING.test(rest)) return null;
     return { q: c.ask(head), a: capFirst(trimAnswer(rest)), score: words(head).length <= 3 ? 0.7 : 0.62 };
@@ -298,6 +301,8 @@ export function emphasize(src) {
 }
 
 /* ---------------- Reglas ---------------- */
+const GENERIC_HEAD = /^(introducción|resumen|conclusi[oó]n(es)?|índice|contenidos?|referencias|bibliograf[ií]a|enlaces externos|véase también|notas|ejercicios|actividades|anexos?|apéndices?|glosario|fuentes|documento \d+|tema \d+|unidad \d+|bloque \d+|parte \d+|capítulo \d+|cuestiones|preguntas|soluciones|evaluación)$/i;
+
 // «Término: definición» (también con =, →, —, – o « - »)
 function splitDef(text) {
   const t = String(text).trim();
@@ -319,11 +324,157 @@ function splitDef(text) {
   if (!plainText(def) || /^\d{1,2}$/.test(plainText(def))) return null;
   return { term, def };
 }
-// «**Término** es / . / , definición»
+// «**Término** es / . / , definición» (también «**Término:** definición», con los dos puntos dentro de la negrita)
 function boldLead(text) {
-  const m = /^\*\*([^*]{1,70})\*\*\s*(?:[:.,—–-]\s*|\s+(?:es|son|is|are)\s+)(.{8,})$/s.exec(String(text).trim());
+  const t = String(text).trim();
+  const m = /^\*\*([^*]{1,70}?)\s*:\*\*\s*(.{8,})$/s.exec(t) || /^\*\*([^*]{1,70})\*\*\s*(?:[:.,—–-]\s*|\s+(?:es|son|is|are)\s+)(.{8,})$/s.exec(t);
   return m && !LABELS.test(m[1].trim()) ? { term: m[1].trim(), def: m[2].trim() } : null;
 }
+
+/* ---------------- Fechas y cifras ---------------- */
+const MONTH = '(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)';
+const YEAR = '(?:1\\d{3}|20\\d{2})';
+// Una fecha: «6 de diciembre de 1978», «octubre de 1978», «entre 1793 y 1794», «1793-1794», «1885»
+const DATE_SRC = `entre\\s+(?:el\\s+|los\\s+años\\s+)?${YEAR}\\s+y\\s+(?:el\\s+)?${YEAR}|${YEAR}\\s*[-–]\\s*${YEAR}|\\d{1,2}\\s+de\\s+${MONTH}(?:\\s+(?:de|del)\\s+${YEAR})?|${MONTH}\\s+de\\s+${YEAR}|(?<![\\d.,])${YEAR}(?![\\d.,]?\\d)`;
+const dates = s => [...String(s).matchAll(new RegExp(DATE_SRC, 'giu'))].map(m => ({ text: m[0], index: m.index }));
+const isYear = s => new RegExp(`^${YEAR}$`).test(s);
+export const isDate = s => new RegExp(`^(?:(?:el|en|desde|hasta|hacia)\\s+)?(?:${DATE_SRC})\\.?$`, 'iu').test(plainText(s).trim());
+// Lo que se pregunta con «¿Cuándo…?» a partir del nombre de un dato («Publicación y entrada en vigor»)
+const NOMINAL = new Map([['aprobación', ['aprobó', 'aprobaron']], ['sanción', ['sancionó', 'sancionaron']], ['publicación', ['publicó', 'publicaron']], ['promulgación', ['promulgó', 'promulgaron']],
+  ['ratificación', ['ratificó', 'ratificaron']], ['firma', ['firmó', 'firmaron']], ['fundación', ['fundó', 'fundaron']], ['creación', ['creó', 'crearon']], ['construcción', ['construyó', 'construyeron']],
+  ['reforma', ['reformó', 'reformaron']], ['redacción', ['redactó', 'redactaron']], ['descubrimiento', ['descubrió', 'descubrieron']]]);
+const INTRANS = new Map([['entrada en vigor', 'entró en vigor'], ['nacimiento', 'nació'], ['muerte', 'murió'], ['llegada', 'llegó'], ['inicio', 'empezó'], ['comienzo', 'empezó'], ['fin', 'terminó'], ['final', 'terminó']]);
+const guessArticle = w => { const p = /s$/i.test(w), f = /(ción|sión|dad|tad|tud|umbre|a)s?$/i.test(w); return p ? (f ? 'las' : 'los') : (f ? 'la' : 'el'); };
+// «Aprobación por las Cortes» → ¿Cuándo aprobaron las Cortes <ctx>? · «Muerte de Colón» → ¿Cuándo murió Colón?
+function whenLabel(label, ctx) {
+  const verbs = [];
+  let agent = '';
+  for (const part of label.split(/\s+y\s+/)) {
+    const m = /^(.+?)(?:\s+(por|de|del)\s+(.+))?$/i.exec(part.trim());
+    let noun = m[1].toLocaleLowerCase();
+    if (!INTRANS.has(noun) && !NOMINAL.has(noun) && INTRANS.has(part.trim().toLocaleLowerCase())) { noun = part.trim().toLocaleLowerCase(); m[2] = ''; }
+    if (m[2] === 'por') agent = m[3];
+    else if (m[2]) ctx = m[2] === 'del' ? 'el ' + m[3] : m[3];
+    if (INTRANS.has(noun)) verbs.push({ v: INTRANS.get(noun), intr: true });
+    else if (NOMINAL.has(noun)) verbs.push({ v: NOMINAL.get(noun) });
+    else return '';
+  }
+  if (!ctx) return '';
+  if (agent) {
+    if (verbs.length > 1 || verbs[0].intr) return '';
+    return `¿Cuándo ${verbs[0].v[/^(los|las)\s|\sy\s/i.test(agent) ? 1 : 0]} ${lowerSubject(agent)} ${lowerSubject(ctx)}?`;
+  }
+  return `¿Cuándo ${verbs.map(v => (v.intr ? v.v : 'se ' + v.v[0])).join(' y ')} ${lowerSubject(ctx)}?`;
+}
+// Verbos conjugados en pasado o presente (para dar la vuelta a una frase: «X se aprobó en…» → «¿Cuándo se aprobó X?»)
+const FINITE = /^(fue|fueron|es|son|era|eran|ha|han|había|habían|se|lo|la|los|las|le|les|\p{L}{2,}(?:ó|aron|ieron|ió|aba|aban|ía|ían))$/iu;
+const AUX = /^(fue|fueron|ha|han|había|habían|se|lo|la|los|las|le|les)$/i;
+// «La Constitución fue ratificada en referéndum el 6 de diciembre de 1978» → ¿Cuándo fue ratificada la Constitución en referéndum?
+// «El Terror lo dirigió Robespierre entre 1793 y 1794» → ¿Cuándo dirigió Robespierre el Terror?   (solo con una fecha en la frase)
+function whenSentence(sp) {
+  const ds = dates(sp);
+  if (ds.length !== 1 || sp.length > 220) return null;
+  const d = ds[0];
+  const pre = /(?:,\s*)?(?:(?<![\p{L}])(en(?:\s+el(?:\s+año)?)?|el|desde(?:\s+el)?|hasta(?:\s+el)?|hacia(?:\s+el)?|a\s+partir\s+del?)\s+)?$/iu.exec(sp.slice(0, d.index));
+  const prep = (pre[1] || '').toLowerCase();
+  let rest = (sp.slice(0, d.index - pre[0].length) + ' ' + sp.slice(d.index + d.text.length)).replace(/\s*,\s*,/g, ',').replace(/^\s*,\s*|\s+(?=[,.;:])/g, '').replace(/[.;:]+$/, '').replace(/\s+/g, ' ').trim();
+  rest = rest.replace(/,\s*$/, '');
+  const t = rest.split(' ');
+  // (un «la» tras «de», «en»… es un artículo; como pronombre va justo antes del verbo: «El Terror lo dirigió…»)
+  const isVerb = k => FINITE.test(t[k]) && (!/^(lo|la|los|las|le|les|se)$/i.test(t[k]) || (!/^(de|del|a|al|en|con|por|para|sobre|entre|y)$/i.test(t[k - 1]) && FINITE.test(t[k + 1] || '') && !/^(lo|la|los|las|le|les|se)$/i.test(t[k + 1])) || (/^se$/i.test(t[k]) && t[k + 1]));
+  let i = 1;
+  while (i < t.length && i <= 6 && !isVerb(i)) i++;
+  if (i >= t.length || i > 6) return null;
+  const subj = t.slice(0, i).join(' ');
+  if (!/^\p{Lu}/u.test(subj) || VAGUE.test(subj) || LEAD_PHRASE.test(subj) || GENERIC_SUBJECT.test(subj) || /,/.test(subj)) return null;
+  // El verbo (con su auxiliar o su pronombre) y lo que sigue
+  const clitic = /^(lo|la|los|las|le|les)$/i.test(t[i]);
+  let j = i + 1;
+  if (AUX.test(t[i]) && t[j]) j++;
+  const verb = (clitic ? t.slice(i + 1, j) : t.slice(i, j)).join(' ');
+  if (/^(fue|fueron|es|son|era|eran)$/i.test(t[i]) && /^(un|una|el|la|los|las)$/i.test(t[i + 1] || '')) return null;   // «X fue un psicólogo…»: no es cuándo pasó algo
+  const tail = t.slice(j).join(' ').replace(/^,\s*/, '');
+  const ask = prep.startsWith('desde') || prep.startsWith('a partir') ? '¿Desde cuándo' : prep.startsWith('hasta') ? '¿Hasta cuándo' : '¿Cuándo';
+  const q = clitic ? `${ask} ${verb} ${tail} ${lowerSubject(subj)}?` : `${ask} ${verb} ${lowerSubject(subj)}${tail ? ' ' + tail : ''}?`;
+  return { q: q.replace(/\s+/g, ' ').replace(/\s\?$/, '?'), a: capFirst(d.text), year: isYear(d.text) };
+}
+// Cifras: «**169 artículos**», «Reformas: tres.»
+const NUM_WORDS = { uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, quince: 15, veinte: 20, cien: 100 };
+const NUM = `(\\d+|${Object.keys(NUM_WORDS).join('|')})`;
+const toNumber = s => (/^\d+$/.test(s) ? s : String(NUM_WORDS[s.toLowerCase()] ?? ''));
+const howMany = unit => `¿${/(as|ciones|siones|dades)$/i.test(unit) ? 'Cuántas' : 'Cuántos'} ${unit.toLocaleLowerCase()}`;
+
+/* ---------------- Frases que dicen quién hace qué ---------------- */
+const PART_VERB = { constituid: ['constituye', 'constituyen'], formad: ['forma', 'forman'], compuest: ['compone', 'componen'], integrad: ['integra', 'integran'] };
+const subjOk = s => s && words(s).length <= 10 && ARTICLE.test(s) && !VAGUE.test(s) && !GENERIC_SUBJECT.test(s) && !/\b(que|cuando|porque)\b/i.test(s);
+// sp: la frase sin formato · s: con las negritas («**…**») → [{ q, a, score, typeId?, kind? }]
+function relationCards(sp, s) {
+  const out = [];
+  const body = sp.replace(/[.;]+$/, '').split(/;\s/)[0];
+  // «Las Fuerzas Armadas, constituidas por el Ejército de Tierra, la Armada y el Ejército del Aire, tienen como misión…»
+  let m = /^((?:el|la|los|las)\s[^,]{2,60}),\s+(constituid|formad|compuest|integrad)(?:o|a|os|as)\s+por\s+(.+)$/iu.exec(body);
+  let main = body;
+  if (m) {
+    // La enumeración acaba en la coma que va antes del verbo de la frase
+    const k = m[3].search(/,\s+(?=(?:tienen?|son|es|están?|han|deben?|pueden?|se)\s)/i);
+    m[4] = k >= 0 ? m[3].slice(k).replace(/^,\s+/, '') : '';
+    if (k >= 0) m[3] = m[3].slice(0, k);
+  }
+  if (m && words(m[3]).length <= 20) {
+    const items = m[3].split(/,\s|\s[ye]\s/).map(x => x.replace(ARTICLE, '').trim());
+    const who = items.every(x => /^\p{Lu}/u.test(x)) ? 'Quiénes' : 'Qué';
+    out.push({ q: `¿${who} ${PART_VERB[m[2].toLowerCase()][items.length > 1 ? 1 : 0]} ${lowerSubject(m[1])}?`, a: capFirst(m[3]), score: 0.75, enum: true });
+    if (m[4]) main = `${m[1]} ${m[4]}`;
+  }
+  // «X tiene como misión garantizar…»
+  m = /^((?:el|la|los|las)\s.{2,60}?)\s+tienen?\s+(?:como|por)\s+(misión|función|objetivo|finalidad|fin)\s+(.{6,})$/iu.exec(main);
+  if (m && subjOk(m[1])) out.push({ q: `¿Cuál es ${m[2].toLowerCase() === 'objetivo' || m[2].toLowerCase() === 'fin' ? 'el' : 'la'} ${m[2].toLowerCase()} ${dePrep(m[1])}?`, a: capFirst(m[3]), score: 0.75 });
+  // «La bandera está formada por…» → ¿Cómo está formada la bandera?
+  m = /^((?:el|la|los|las)\s.{2,60}?)\s+(está|están)\s+((?:formad|compuest|constituid|integrad)(?:o|a|os|as))\s+por\s+(.{6,})$/iu.exec(main);
+  if (m && subjOk(m[1])) out.push({ q: `¿Cómo ${m[2]} ${m[3]} ${lowerSubject(m[1])}?`, a: capFirst(m[4]), score: 0.75 });
+  // «Los ciudadanos están sujetos a la Constitución» → ¿A qué están sujetos los ciudadanos?
+  else if ((m = /^((?:el|la|los|las)\s.{2,80}?)\s+(está|están|es|son)\s+(\p{L}+(?:ad|id|et|est)(?:o|a|os|as))\s+(a|al|en|de|del|con)\s+(.{4,})$/iu.exec(main)) && subjOk(m[1])) {
+    const p = m[4].toLowerCase(), base = p === 'al' ? 'a' : p === 'del' ? 'de' : p;
+    out.push({ q: `¿${capFirst(base)} qué ${m[2]} ${m[3]} ${lowerSubject(m[1])}?`, a: capFirst(`${p} ${m[5]}`), score: 0.72 });
+  }
+  // «Corresponde a los poderes públicos promover…» → ¿A quién corresponde promover…?
+  m = /^(?:le\s+|les\s+)?(corresponde|compete|incumbe)\s+(a|al)\s+((?:los|las|el|la)?\s*[^,]{2,50}?)\s+(\p{L}+(?:ar|er|ir)\s.{6,})$/iu.exec(body);
+  if (m) out.push({ q: `¿A quién ${m[1].toLowerCase()} ${m[4].split(/;\s/)[0]}?`, a: capFirst(`${m[2] === 'al' ? 'al' : 'a'} ${m[3]}`), score: 0.72 });
+  // «El mejor momento para repasar es **justo cuando…**» → ¿Cuál es el mejor momento para repasar?
+  m = /^(.*?)\s+(es|son)\s+\*\*([^*]{2,80})\*\*/iu.exec(s.replace(/[.;]+$/, ''));
+  if (m) {
+    let subj = plainText(m[1]).replace(/^(?:por\s+eso|por\s+tanto|por\s+ello|así\s+que|así|además|en\s+resumen|en\s+definitiva|pues|entonces)\s*,?\s*/i, '');
+    subj = subj.replace(/^(?:\d+(?:\.\d+)*\s*[.)\-–]+\s*)/, '');
+    if (subjOk(subj) && !/\*\*/.test(m[1])) {
+      const pred = m[3].trim(), many = m[2].toLowerCase() === 'son';
+      const q = /^(un|una|unos|unas)\s/i.test(pred) ? `¿Qué ${m[2]} ${lowerSubject(subj)}?` : `¿${many ? 'Cuáles' : 'Cuál'} ${m[2]} ${lowerSubject(subj)}?`;
+      out.push({ q, a: capFirst(pred), score: 0.75, bold: pred });
+    }
+  }
+  // «Releer da una sensación engañosa de saber, la **ilusión de fluidez**: el texto te suena…» → ¿Qué es la ilusión de fluidez?
+  m = /^(.{0,30}?)(un|una)\s([^,*]{4,60}),\s+(el|la|los|las)\s+\*\*([^*]{2,40})\*\*\s*(?::\s*(.+?)(?:,\s+pero\b|;|$))?/iu.exec(s.replace(/[.]+$/, ''));
+  if (m && words(m[1]).length <= 3) out.push({ q: `¿Qué ${/s$/.test(m[4]) ? 'son' : 'es'} ${m[4].toLowerCase()} ${m[5]}?`, a: capFirst(plainText(`${m[1]}${m[2]} ${m[3]}${m[6] ? ': ' + m[6] : ''}`)), score: 0.75, bold: m[5] });
+  // «Hermann Ebbinghaus fue un psicólogo alemán que, en 1885, publicó el primer estudio…» → ¿Quién publicó en 1885…? y ¿Cuándo…?
+  m = /^((?:\p{Lu}[\p{L}'-]+\s?){1,4})\s+fue\s+(?:un|una)\s+[^,]{2,40}?\s+que,?\s*(?:en\s+(\d{3,4}),?\s*)?(\p{L}+(?:ó|ió))\s+(.{6,})$/u.exec(body);
+  if (m) {
+    const name = m[1].trim();
+    out.push({ q: `¿Quién ${m[3]}${m[2] ? ' en ' + m[2] : ''} ${m[4]}?`, a: name, score: 0.78, bold: name });
+    if (m[2]) out.push({ q: `¿Cuándo ${m[3]} ${name} ${m[4]}?`, a: m[2], score: 0.66, typeId: 'number', kind: 'date', bold: m[2] });
+  }
+  // «Pero también descubrió algo: **cada repaso aplana la curva**» → Cada repaso {{aplana la curva}}.
+  m = /^[^*]+:\s+\*\*((?:cada|todo|toda|el|la|los|las)\s+\p{L}+)\s+([^*]{3,60})\*\*\.?$/iu.exec(s.trim());
+  if (m && FINITE.test(m[2].split(' ')[0]) || m && /^\p{L}+(?:a|e|an|en)$/u.test(m[2].split(' ')[0])) out.push({ cloze: `${capFirst(m[1])} {{${m[2]}}}.`, score: 0.72, bold: `${m[1]} ${m[2]}` });
+  return out;
+}
+// Un hueco en una frase larga: se quita lo que va detrás, después del hueco («…, que…», «…, del que…», «…, patria común…»)
+const TAIL_CLAUSE = /(?:,\s+(?=(?:que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme|según)\s)|\s+(?=conforme\s+a\s))/i;
+function shortenCloze(x, from = x.lastIndexOf('}}') + 2) {
+  if (from < 2) return x;
+  const m = TAIL_CLAUSE.exec(x.slice(from));
+  return m && m.index + from > 20 ? x.slice(0, from + m.index).replace(/[,;:\s]+$/, '') + '.' : x;
+}
+// Varias negritas seguidas en una enumeración («la **libertad**, la **justicia** y el **pluralismo**»): un solo hueco
+const ENUM_RX = /(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*(?:\s*,\s*(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*)+\s*,?\s+(?:y|e|o)\s+(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*/iu;
 
 export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] } = {}) {
   const isLangDeck = !!lang;
@@ -334,6 +485,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   // Lo que ya es tarjeta en la misma parte del apunte, aunque se retocara el anverso: por su respuesta
   const fromBlock = new Set(existing.filter(c => c.block_id).map(c => c.block_id + '|' + norm(c.back)));
   const used = new Set();   // bloques ya convertidos por una regla más fiable
+  const subKids = new Set(), listed = new Set();   // subpuntos y viñetas que ya van en una pregunta de lista
   const add = (kind, blockId, typeId, fields, score, extra = {}) => {
     const note = asNote(typeId, fields, isLangDeck);
     const type = TYPE(note.typeId);
@@ -362,6 +514,23 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   const title = plainText(page?.title || '') || pageTitle(page);
   const sectionOf = id => headOf.get(id)?.join(' › ') || title;
   const nearestHeading = id => { const h = headOf.get(id); return h?.length ? h[h.length - 1] : ''; };
+  // De qué habla un bloque (para «¿Cuántos artículos tiene…?»): su apartado, o el título del apunte si el apartado
+  // es genérico («Datos clave») o un artículo; sin lo que va tras « · » ni entre paréntesis
+  const ARTICLE_HEAD = /^art(?:ículo|\.)\s*(\d+)/i;
+  const cleanCtx = t => plainText(t).split(/\s+[·|]\s+/)[0].replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  const subjectCtx = id => {
+    const h = nearestHeading(id);
+    if (h && h !== title && !GENERIC_HEAD.test(h) && !/^(datos(\s+clave)?|ideas\s+clave|lo\s+esencial|en\s+resumen|para\s+no\s+confundirse)$/i.test(h) && !ARTICLE_HEAD.test(h)) return cleanCtx(h);
+    return cleanCtx(title);
+  };
+  // El artículo («1.3») de un bloque que cuelga de «Artículo 1 · …» (con el número de su punto, si es una numeración)
+  const olNo = new Map();
+  for (let i = 0, n = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (b.type === 'ol' && !b.indent) olNo.set(b.id, ++n);
+    else if (!(b.indent > 0)) n = 0;
+  }
+  const artRef = id => { const m = ARTICLE_HEAD.exec(nearestHeading(id)); return m ? (olNo.has(id) ? `${m[1]}.${olNo.get(id)}` : m[1]) : ''; };
 
   // Grupos seguidos de elementos de lista (con lo que los presenta: un título o un párrafo acabado en «:»)
   // (solo los del primer nivel: los subpuntos con sangría no cortan la lista)
@@ -486,9 +655,12 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (!head || words(head).length > 10 || /\?$/.test(head)) continue;
     // Subpuntos que son definiciones («término: …»): mejor una tarjeta por cada uno
     if (kids.filter(k => splitDef(k.text) || boldLead(k.text)).length >= kids.length * 0.5) continue;
-    const ctx = nearestHeading(b.id);
-    const q = LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? `${head}: ¿cuáles son?` : `${head}: ¿qué incluye?`;
-    add('sub', b.id, 'basic', { q: q + (ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${plainText(k.text)}`).join('\n'), n: '' }, kids.length <= 6 ? 0.7 : 0.55);
+    const ctx = nearestHeading(b.id), art = artRef(b.id);
+    // «La Constitución garantiza:» → ¿Qué garantiza la Constitución?
+    const vh = /^((?:el|la|los|las)\s.{2,60}?)\s+(garantiza|garantizan|incluye|incluyen|comprende|comprenden|recoge|recogen|establece|establecen|reconoce|reconocen|regula|regulan|protege|protegen|contiene|contienen|abarca|abarcan|prohíbe|prohíben)$/iu.exec(head);
+    const q = vh ? `¿Qué ${vh[2]} ${lowerSubject(vh[1])}${art ? ` (art. ${art})` : ''}?` : LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? `${head}: ¿cuáles son?` : `${head}: ¿qué incluye?`;
+    const item = k => plainText(k.text).replace(/[,;]$/, '').replace(/^(?:y|e)\s+/i, '');
+    if (add('sub', b.id, 'basic', { q: q + (!vh && ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${item(k)}`).join('\n'), n: '' }, kids.length <= 6 ? 0.7 : 0.55)) kids.forEach(k => subKids.add(k.id));
     used.add(b.id);
   }
 
@@ -534,7 +706,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (r.intro.type === 'p' && !/:$/.test(introText)) continue;   // un párrafo cualquiera antes de la lista no la presenta
     // Con un título genérico («Causas»), el apartado del que cuelga da el contexto
     const ctx = /^h[1-3]$/.test(r.intro.type) && m2 ? headOf.get(r.intro.id)?.slice(0, -1).at(-1) || title : '';
-    add('list', r.items[0].id, 'basic', { q: capFirst(q) + (ctx ? ` — ${ctx}` : ''), a: r.items.map(x => `- ${plainText(x.text)}`).join('\n'), n: '' }, r.items.length <= 6 ? 0.55 : 0.45);
+    if (add('list', r.items[0].id, 'basic', { q: capFirst(q) + (ctx ? ` — ${ctx}` : ''), a: r.items.map(x => `- ${plainText(x.text)}`).join('\n'), n: '' }, r.items.length <= 6 ? 0.55 : 0.45)) r.items.forEach(x => listed.add(x.id));
   }
 
   /* 4) Bloque a bloque: vocabulario, definiciones, negritas, fechas, código */
@@ -558,8 +730,39 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
 
     const DATE_TERM = /^(?:(?:en\s+)?(?:el\s+)?(?:año\s+)?\d{3,4}(?:\s*[-–]\s*\d{2,4})?|década\s+de\s+\d{4}|siglo\s+[IVXL]+(?:\s*[ad]\.\s?C\.?)?)$/i;
     const dt = /^(.{3,30}?)\s*[:–—-]\s+(.{15,240})$/.exec(plainText(text));
-    if (dt && DATE_TERM.test(dt[1].trim())) { add('date', b.id, 'basic', { q: `${capFirst(dt[2].replace(/\.$/, ''))} — ¿cuándo?`, a: dt[1].trim(), n: '' }, dt[2].length <= 130 ? 0.66 : 0.55); continue; }
+    if (dt && DATE_TERM.test(dt[1].trim())) {
+      // «1789: empieza la Revolución francesa» → ¿Cuándo empieza la Revolución francesa?
+      // (la pregunta se arma con un año cualquiera en su sitio: la respuesta es lo de delante, también «Década de 1830»)
+      const w = whenSentence(`${capFirst(dt[2].replace(/\.$/, ''))} en 1111`);
+      add('date', b.id, 'basic', { q: w?.q || `${capFirst(dt[2].replace(/\.$/, ''))}: ¿cuándo?`, a: dt[1].trim(), n: '' }, dt[2].length <= 130 ? 0.66 : 0.55);
+      continue;
+    }
     const def = splitDef(text.replace(CALLOUT_PRE, '').trim()) || boldLead(text);
+    const ctx = subjectCtx(b.id);
+    // En un apunte por artículos («Artículo 1 · …»): ¿Qué artículo establece que…? (sin marcar: hay una por punto)
+    const ref = artRef(b.id), first = shortenCloze(sentences(plainText(text))[0] || '', 0);
+    if (ref && ['p', 'ol'].includes(b.type) && first.length >= 20 && first.length <= 140 && /^\p{Lu}/u.test(first) && !VAGUE.test(first) && !/^(su|sus|estas?|estos?)\s/i.test(first)) {
+      add('art', b.id, 'basic', { q: `¿Qué artículo establece que ${ARTICLE.test(first) ? first.charAt(0).toLocaleLowerCase() + first.slice(1) : first}`.replace(/[.;:]+$/, '') + '?', a: `Art. ${ref}`, n: '' }, 0.5);
+    }
+    // Cifras en negrita: «**169 artículos**» → ¿Cuántos artículos tiene la Constitución?
+    for (const [, n, unit] of text.matchAll(new RegExp(`\\*\\*${NUM}\\s+(\\p{L}{4,}s)\\*\\*`, 'giu'))) {
+      if (ctx && toNumber(n)) add('num', b.id, 'number', { q: `${howMany(unit)} tiene ${lowerSubject(ctx)}?`, a: toNumber(n), t: '', u: '', n: '' }, 0.72);
+    }
+    const lab = def || (/^\*\*([^*]{1,60}?)\s*:?\*\*\s*:?\s+(\S.*)$/s.exec(text) || []).slice(1).reduce((o, v, k) => ({ ...o, [k ? 'def' : 'term']: v }), null);
+    if (lab) {
+      const termP = plainText(lab.term).replace(/[:.]$/, ''), defP = plainText(lab.def);
+      // «Publicación: 29 de diciembre de 1978» → ¿Cuándo se publicó…? (con la fecha como respuesta)
+      const ds = dates(defP);
+      if (ds.length === 1 && defP.length <= 140 && words(termP).length <= 6) {
+        const v = /^((?:el|la|los|las)\s[^,]{2,40}?)\s+(?:lo|la|los|las)\s+(\p{L}+(?:ó|ió|aron|ieron))\s+(?:el|en)\s/iu.exec(defP);
+        const q = whenLabel(termP, ctx) || (v && ctx ? `¿Cuándo ${v[2]} ${lowerSubject(v[1])} ${lowerSubject(ctx)}?` : words(termP).length === 1 && ctx ? `¿Cuándo fue ${guessArticle(termP)} ${termP.toLocaleLowerCase()} ${dePrep(ctx)}?` : `${capFirst(termP)}: ¿cuándo?`);
+        add('date', b.id, 'basic', { q, a: capFirst(ds[0].text), n: norm(defP) === norm(ds[0].text) ? '' : capFirst(defP) }, 0.8);
+        continue;
+      }
+      // «Reformas: tres.» → ¿Cuántas reformas tiene…?
+      const nm = new RegExp(`^${NUM}\\.?(?:\\s|$)`, 'iu').exec(defP);
+      if (nm && /s$/i.test(termP) && words(termP).length <= 3 && ctx) add('num', b.id, 'number', { q: `${howMany(termP)} tiene ${lowerSubject(ctx)}?`, a: toNumber(nm[1]), t: '', u: '', n: defP.length > nm[0].length + 2 ? capFirst(defP) : '' }, 0.72);
+    }
     if (def) {
       const termP = plainText(def.term), defP = plainText(def.def);
       const tw = words(termP).length, dw = words(defP).length;
@@ -586,16 +789,42 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     for (const rawSentence of sentences(text)) {
       const s = rawSentence.replace(CALLOUT_PRE, '').trim();
       const sp = plainText(s);
-      if (sp.length < 12 || sp.length > 320) continue;
-      // Negritas: un hueco por cada una (lo que el autor marcó como importante)
-      const bolds = [...s.matchAll(/\*\*([^*]{1,60})\*\*/g)].map(m => m[1].trim()).filter(x => x && !LABELS.test(x));
+      if (sp.length < 12 || sp.length > 420) continue;
+      const art = artRef(b.id), withArt = q => (art && !/\(art\./i.test(q) ? q.replace(/\?$/, ` (art. ${art})?`) : q);
+      // Quién hace qué, de qué está formado, a qué está sujeto… (aunque la frase tenga negritas)
+      const rel = /^\p{Ll}/u.test(sp) ? [] : relationCards(sp, s);
+      const done = new Set();
+      for (const r of rel) {
+        if (r.cloze ? add('bold', b.id, 'cloze', { x: r.cloze, e: '' }, r.score) : add(r.kind || 'term', b.id, r.typeId || 'basic', r.typeId === 'number' ? { q: r.q, a: r.a, t: '', u: '', n: '' } : { q: withArt(r.q), a: r.a, n: '' }, r.score)) {
+          if (r.bold) done.add(norm(r.bold));
+          if (r.enum) done.add('enum');
+        }
+      }
+      // Fechas: «¿Cuándo…?» con la fecha como respuesta (una por frase; en el mismo párrafo, todas las frases)
+      const when = whenSentence(sp);
+      if (when && !rel.some(r => r.kind === 'date') && add('date', b.id, when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.68)) done.add('date');
+      // Negritas: un hueco por cada una (lo que el autor marcó como importante); una enumeración, un solo hueco
+      let src = s;
+      const en = ENUM_RX.exec(s);
+      if (sp.length > 320) continue;
+      if (en && !done.has('enum')) {
+        const x = shortenCloze(s.replace(en[0], `{{${plainText(en[0])}}}`).replace(/\*\*([^*]{1,60})\*\*/g, '$1'));
+        add('enum', b.id, 'cloze', { x: x.trim(), e: '' }, 0.72);
+      }
+      if (en) src = s.replace(en[0], plainText(en[0]));
+      const nDates = dates(sp).length;
+      // Trozos de una frase («el principio de **legalidad**,») y sujetos que no se entienden solos («Su estructura…»)
+      const fragment = /,$/.test(sp) || /^(y|e|o|su|sus)\s/i.test(sp) || subKids.has(b.id);
+      const bolds = [...src.matchAll(/\*\*([^*]{1,60})\*\*/g)].map(m => m[1].trim()).filter(x => x && !LABELS.test(x));
       if (bolds.length && bolds.length <= 4) {
         for (const bt of bolds) {
-          const x = s.replace(/\*\*([^*]{1,60})\*\*/g, (m, inner) => (inner.trim() === bt ? `{{${inner.trim()}}}` : inner)).replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2');
-          add('bold', b.id, 'cloze', { x: x.trim(), e: '' }, 0.75);
+          if (fragment || done.has(norm(bt)) || (isDate(bt) && (done.has('date') || nDates > 1)) || (listed.has(b.id) && src.trim().startsWith(`**${bt}`))) continue;
+          const x = src.replace(/\*\*([^*]{1,60})\*\*/g, (m, inner) => (inner.trim() === bt ? `{{${inner.trim()}}}` : inner)).replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2');
+          add('bold', b.id, 'cloze', { x: shortenCloze(x.trim()), e: '' }, 0.75);
         }
         continue;
       }
+      if (rel.length) continue;
       const sdef = s !== text && !bolds.length && splitDef(s);
       if (sdef && words(plainText(sdef.term)).length <= 5 && words(plainText(sdef.def)).length >= 2 && !/^(\d|[a-z])/.test(plainText(sdef.term))) {
         const tp = plainText(sdef.term);
@@ -612,7 +841,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       // Fechas: un solo año, detrás de «en / desde / hacia / año…» (no cualquier número de cuatro cifras)
       if (sp.length > 230) continue;
       const years = [...sp.matchAll(/(?<![\d.,^])(1[0-9]{3}|20[0-9]{2})(?![\d.,]\d)/g)];
-      if (years.length === 1) {
+      if (years.length === 1 && !when) {
         const y = years[0][1];
         const ctx = new RegExp(`(?:\\b(?:en|desde|hasta|entre|hacia|año|años|in|since|until|im|seit)\\s+(?:el\\s+|the\\s+)?(?:año\\s+|year\\s+)?|^)${y}(?![\\d])`, 'i');
         if (ctx.test(sp)) add('date', b.id, 'number', { q: sp.replace(new RegExp(`(?<![\\d.,])${y}(?![\\d.,]\\d)`), '____'), a: y, t: '', u: '', n: '' }, 0.6);
@@ -621,7 +850,6 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
 
   /* 5) Apartados: el título y la primera frase de su primer párrafo (su idea principal) */
-  const GENERIC_HEAD = /^(introducción|resumen|conclusi[oó]n(es)?|índice|contenidos?|referencias|bibliograf[ií]a|enlaces externos|véase también|notas|ejercicios|actividades|anexos?|apéndices?|glosario|fuentes|documento \d+|tema \d+|unidad \d+|bloque \d+|parte \d+|capítulo \d+|cuestiones|preguntas|soluciones|evaluación)$/i;
   const GENERIC_TOPIC = /^(definición|concepto|características|propiedades|funciones|función|estructura|tipos|clasificación|origen|orígenes|importancia|historia|evolución|causas|consecuencias|ventajas|inconvenientes|desventajas|partes|composición|ejemplos|aplicaciones|usos|descripción|funcionamiento|objetivos|etapas|fases)$/i;
   for (let i = 0; i < blocks.length; i++) {
     const h = blocks[i];
@@ -651,7 +879,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
 
   // En el orden en que aparecen en los apuntes
   const pos = new Map(blocks.map((b, i) => [b.id, i]));
-  return out.sort((a, b) => (pos.get(a.blockId) ?? 0) - (pos.get(b.blockId) ?? 0)).map(s => ({ ...s, selected: s.score >= PRESELECT }));
+  return out.map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s).map(s => ({ ...s, selected: s.score >= PRESELECT }));
 }
 
 /* ---------------- Consejos para escribir los apuntes de forma que salgan más (y mejores) tarjetas ---------------- */

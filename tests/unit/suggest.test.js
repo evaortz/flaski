@@ -76,7 +76,7 @@ test('mazos de idiomas: vocabulario con el lado del idioma bien puesto, frases p
 
 test('fechas y código', () => {
   const d = run('Napoleón Bonaparte llegó al poder en 1799 con un golpe de Estado.');
-  assert.deepEqual(d.map(s => [s.kind, s.typeId, s.front, s.back]), [['date', 'number', 'Napoleón Bonaparte llegó al poder en ____ con un golpe de Estado.', '1799']]);
+  assert.deepEqual(d.map(s => [s.kind, s.typeId, s.front, s.back]), [['date', 'number', '¿Cuándo llegó Napoleón Bonaparte al poder con un golpe de Estado?', '1799']]);
   const c = run('Para deshacer el último commit sin perder los cambios:\n\n```\ngit reset --soft HEAD~1\n```');
   assert.deepEqual(c.map(s => [s.kind, s.front]), [['code', '¿Cómo deshacer el último commit sin perder los cambios?']]);
 });
@@ -128,8 +128,8 @@ test('casos reales de examen: pregunta con su respuesta, saltando la línea para
 test('casos reales: cronologías como fechas; números de nota fuera de las respuestas', () => {
   const r = run('- 1831: Robert Brown describió el núcleo celular.\n- Década de 1830: Theodor Schwann estudió la célula animal.\n\nRibosoma: Los ribosomas son partículas visibles al microscopio electrónico.15 Están formados por ARN.');
   assert.deepEqual(r.map(s => [s.kind, s.front, s.back]), [
-    ['date', 'Robert Brown describió el núcleo celular — ¿cuándo?', '1831'],
-    ['date', 'Theodor Schwann estudió la célula animal — ¿cuándo?', 'Década de 1830'],
+    ['date', '¿Cuándo describió Robert Brown el núcleo celular?', '1831'],
+    ['date', '¿Cuándo estudió Theodor Schwann la célula animal?', 'Década de 1830'],
     ['def', 'Ribosoma', 'Los ribosomas son partículas visibles al microscopio electrónico. Están formados por ARN.'],
   ]);
 });
@@ -228,4 +228,48 @@ test('lo resaltado, subrayado o en color cuenta como negrita; los subpuntos dan 
     { id: 'l1', type: 'li', text: 'uno' }, { id: 'l2', type: 'li', text: 'dos' },
   ] }, []);
   assert.deepEqual(tips.map(t => t.id), ['emphasis', 'list']);
+});
+
+test('fechas: «¿Cuándo…?» con la fecha como respuesta, también con rangos y en cada frase del párrafo', () => {
+  assert.deepEqual(run('La Revolución francesa empezó en 1789. El Terror lo dirigió Robespierre entre 1793 y 1794. Napoleón llegó al poder en 1799.').map(s => [s.typeId, s.front, s.back]), [
+    ['number', '¿Cuándo empezó la Revolución francesa?', '1789'],
+    ['basic', '¿Cuándo dirigió Robespierre el Terror?', 'Entre 1793 y 1794'],
+    ['number', '¿Cuándo llegó Napoleón al poder?', '1799'],
+  ]);
+  // «X fue el 14 de julio…» no es «¿Qué fue…?»
+  assert.deepEqual(run('La toma de la Bastilla fue el 14 de julio de 1789.').map(s => [s.front, s.back]), [['¿Cuándo fue la toma de la Bastilla?', '14 de julio de 1789']]);
+  // Datos con su nombre: «**Publicación:** 29 de diciembre de 1978»
+  const d = suggestCards({ title: 'La Constitución Española · Título Preliminar', blocks: textToBlocks('## Datos clave\n\n- **Aprobación por las Cortes:** 31 de octubre de 1978.\n- **Publicación y entrada en vigor:** 29 de diciembre de 1978, en el BOE.\n- **Estructura:** un preámbulo y **169 artículos**.\n- **Reformas:** tres.') });
+  assert.deepEqual(d.filter(s => ['date', 'num'].includes(s.kind)).map(s => [s.typeId, s.front, s.back]), [
+    ['basic', '¿Cuándo aprobaron las Cortes la Constitución Española?', '31 de octubre de 1978'],
+    ['basic', '¿Cuándo se publicó y entró en vigor la Constitución Española?', '29 de diciembre de 1978'],
+    ['number', '¿Cuántos artículos tiene la Constitución Española?', '169'],
+    ['number', '¿Cuántas reformas tiene la Constitución Española?', '3'],
+  ]);
+});
+
+test('quién hace qué: de qué está formado, su misión, a qué está sujeto, a quién corresponde, «es **X**» y enumeraciones', () => {
+  const r = run([
+    'Las **Fuerzas Armadas**, constituidas por el **Ejército de Tierra**, la **Armada** y el **Ejército del Aire**, tienen como misión garantizar la soberanía de España.',
+    'Los ciudadanos y los poderes públicos están **sujetos a la Constitución**.',
+    'Corresponde a los **poderes públicos** promover las condiciones para la igualdad.',
+    'Por eso el mejor momento para repasar algo es **justo cuando estás a punto de olvidarlo**: ni antes ni después.',
+    'España propugna como valores la **libertad**, la **justicia** y el **pluralismo político**.',
+  ].join('\n\n'));
+  const fronts = r.map(s => s.front);
+  for (const q of ['¿Quiénes constituyen las Fuerzas Armadas?', '¿Cuál es la misión de las Fuerzas Armadas?', '¿A qué están sujetos los ciudadanos y los poderes públicos?',
+    '¿A quién corresponde promover las condiciones para la igualdad?', '¿Cuál es el mejor momento para repasar algo?']) assert.ok(fronts.includes(q), q);
+  assert.ok(r.some(s => s.kind === 'enum' && s.fields.x === 'España propugna como valores {{la libertad, la justicia y el pluralismo político}}.'));
+  // Los nombres de la enumeración no salen también como huecos sueltos
+  assert.ok(!r.some(s => s.kind === 'bold' && /\{\{(?:Armada|libertad)\}\}/.test(s.fields.x)));
+});
+
+test('huecos más cortos: fuera lo que va detrás («…, del que…», «…, patria común…»)', () => {
+  const r = run('La **soberanía nacional** reside en el pueblo español, del que emanan los poderes del Estado.');
+  assert.equal(r.find(s => s.kind === 'bold').fields.x, 'La {{soberanía nacional}} reside en el pueblo español.');
+});
+
+test('en una lista de idiomas, una fecha o una cifra se preguntan como tales antes que como «Ordenar frase»', () => {
+  const r = run('- **Toma de la Bastilla:** 14 de julio de 1789\n- Guten Morgen, mein Freund: buenos días, amigo', { lang: 'de-DE' });
+  assert.deepEqual(r.map(s => [s.kind, s.typeId]), [['date', 'basic'], ['phrase', 'order']]);
 });
