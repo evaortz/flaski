@@ -3194,7 +3194,7 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .ed-extra{display:contents}
 .ed-xbtn{display:none}
 @media (max-width:599px){
-  .ed-page .ed-foot{position:sticky;bottom:0}
+  .ed-page .ed-foot{position:sticky;bottom:0;z-index:6}
   .ed-xbtn{display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap}
   .ed-extra{display:none;position:absolute;bottom:calc(100% - 4px);left:12px;z-index:5;flex-direction:column;align-items:stretch;gap:2px;min-width:200px;padding:6px;border:1px solid var(--line);border-radius:16px;background:var(--bg);box-shadow:0 10px 30px rgba(22,24,58,.18)}
   .ed-foot.show-extra .ed-extra{display:flex}
@@ -3327,3 +3327,4 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 .brand .mark,.nav-brand .mark{width:26px;height:26px;background:none;border-radius:0;color:var(--accent);flex:none;display:block}
 .brand .name{font-family:var(--font-hand);font-size:24px;font-weight:400}
 @media (min-width:900px){.nav-brand{display:flex;align-items:center;gap:10px}.nav-brand .mark{width:30px;height:30px}}
+@media (pointer:coarse){.pg-mode .seg-b,.mp-seg .seg-b{min-height:44px}}

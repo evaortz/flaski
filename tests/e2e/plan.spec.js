@@ -70,7 +70,7 @@ test('fecha de examen: avisa si a ese ritmo no da tiempo', async ({ page }) => {
   await twoDecks(page);
   await openPlan(page);
   await row(page, JA).locator('summary').click();
-  const d = new Date(Date.now() + 2 * 864e5);
+  const d = new Date(); d.setDate(d.getDate() + 2);   // días de calendario (el día del cambio de hora no tiene 24 h)
   const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   await row(page, JA).locator('[data-plexam]').fill(iso);
   await expect(row(page, JA).locator('.pl-meta')).toContainText('examen en 2 días');

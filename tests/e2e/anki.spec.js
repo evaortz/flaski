@@ -1,5 +1,5 @@
 // Importar un mazo exportado de Anki (.apkg): mazos en su carpeta, tipos, imágenes y progreso
-import { test, expect, openApp, nav } from './fixtures.js';
+import { test, expect, openApp, nav, edExtra } from './fixtures.js';
 import { makeApkg } from '../anki-fixture.js';
 
 for (const modern of [false, true]) {
@@ -28,6 +28,7 @@ for (const modern of [false, true]) {
 
     // El progreso de Anki: la primera tarjeta ya se ha repasado
     await page.locator('#main .row').first().click();
+    await edExtra(page);
     await expect(page.locator('[data-act="ask-reset-card"]')).toBeVisible();
     await page.locator('[data-act="close-sheet"]').first().click();
 

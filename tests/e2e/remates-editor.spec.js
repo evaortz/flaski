@@ -28,6 +28,10 @@ test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ M
     expect((await reset.boundingBox()).height).toBe((await page.locator('.ed-extra [data-act="dup-card"]').boundingBox()).height);   // en una línea, como «Duplicar»
     const box = await page.locator('.ed-extra').boundingBox();
     expect(box.x + box.width).toBeLessThanOrEqual(vw);
+    // Se puede pulsar (la barra de formato no lo tapa)
+    await reset.click({ trial: true });
+    await reset.click();
+    await expect(page.locator('#sheetBody h2')).toHaveText('¿Reiniciar el progreso de esta pregunta?');
   } else {
     await expect(page.locator('[data-act="ed-extra"]')).toBeHidden();
     await expect(page.locator('[data-act="ask-delete-card"]')).toBeVisible();

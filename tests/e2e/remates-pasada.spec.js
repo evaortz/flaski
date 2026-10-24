@@ -1,6 +1,6 @@
 // Remates de la pasada completa: mover juntos lista y apunte, reiniciar con confirmación, Explorar «Ya la tienes»,
 // apunte vacío descartado, texto de etiquetas y «Hueco» con solo la frase
-import { test, expect, openApp, nav, createDeck, deckMenu, addBasicCards, addBuiltinDeck, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, deckMenu, addBasicCards, addBuiltinDeck, pasteNotes, edExtra } from './fixtures.js';
 
 const ed = page => page.locator('[data-block-input]');
 async function select(page, i, w) {
@@ -33,6 +33,7 @@ test('«Reiniciar progreso» pide confirmación', async ({ page }) => {
   await addBasicCards(page, [['Francia', 'París']]);
   // Con progreso (como si ya la hubieras estudiado), el editor ofrece «Reiniciar progreso»
   await page.evaluate(async () => { const { S } = await import('/js/comun.js'); const { cardForm } = await import('/js/pantallas/editor.js'); const c = [...S.cards.values()][0]; S.progress.set(c.id, { interval: 3, ease: 2.5, due: Date.now() + 864e5, reps: 1, lapses: 0 }); cardForm(c); });
+  await edExtra(page);
   await page.locator('[data-act="ask-reset-card"]').click();
   await expect(page.locator('#sheetBody h2')).toHaveText('¿Reiniciar el progreso de esta pregunta?');
   await page.locator('#sheetBody [data-act="reset-card"]').click();

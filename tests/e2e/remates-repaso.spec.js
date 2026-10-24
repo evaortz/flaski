@@ -101,7 +101,7 @@ test('escribir la respuesta: tras comprobar, la caja «respuesta» solo lleva lo
   await page.locator('#typed').press('Enter');
   await expect(page.locator('.verdict.ok')).toBeVisible();
   await expect(page.locator('.answer .fld')).toHaveCount(2);
-  await expect(page.locator('.answer .fld-l')).toHaveText(['Artículo', 'Plural']);
+  await expect(page.locator('.answer .fld-l')).toHaveText(['artículo', 'plural']);
 });
 
 test('«Varias de golpe»: detecta la coma, el ejemplo sigue al tipo y el botón cuenta notas y preguntas', async ({ page }) => {

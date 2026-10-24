@@ -109,3 +109,10 @@ export async function startTanda(page) {
   if (await go.isVisible()) await go.click();
   await expect(page.locator('.studybar')).toBeVisible();
 }
+
+// Editor de una pregunta en el móvil: Borrar, Duplicar y Reiniciar progreso van en «⋯ Más»
+export async function edExtra(page) {
+  const more = page.locator('[data-act="ed-extra"]');
+  await expect(page.locator('.ed-save')).toBeVisible();
+  if (await more.count() && await more.evaluate(el => getComputedStyle(el).display !== 'none')) await more.click();
+}
