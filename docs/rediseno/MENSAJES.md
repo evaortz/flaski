@@ -1,11 +1,11 @@
-# Cola del rediseño (en orden · una conversación nueva por paso)
+# Cola del rediseño · 5 pasos (en orden · una conversación nueva por paso)
 
 Hechas: 1–6, 3b, 4b, 4c. En curso: 4d (con sus remates).
 
 Reglas para que no se eternice:
-- Un paso = una conversación. Los remates que salgan se pegan al principio del paso siguiente, no en una conversación aparte.
-- Solo se para a pedir OK en los pasos marcados con (OK). En los demás programa directamente.
-- Batería completa solo al final de cada paso, con --workers=100 %; si falla algo, repite solo eso.
+- Un paso = una conversación. Los remates que salgan se pegan al principio del paso siguiente.
+- Dentro de cada paso, trabaja por partes (a, b, c…) con un commit por parte, y no te pares entre partes salvo donde pone (OK).
+- Batería completa solo al final del paso, con --workers=100 %; si falla algo, repite solo eso.
 - Al acabar: commit (nunca push) y 5–10 líneas en ESTADO.md.
 
 Pie común (pégalo al final de cada mensaje):
@@ -13,35 +13,37 @@ Pie común (pégalo al final de cada mensaje):
 
 ---
 
-## 1 · Primera vez y temas de ejemplo (4e)
-Lee docs/rediseno/ESTADO.md y docs/rediseno/primera-vez/LEEME.md con sus pantallas y temas. Rehaz la primera vez con ese flujo y añade los dos temas de ejemplo como apuntes (también a los datos de ?local). Reutiliza lo que sirva de onboarding.js sin preguntarme.
+## 1 · Primera vez, colores de acento y etiquetas
+Lee docs/rediseno/ESTADO.md y estos LEEME con sus pantallas: primera-vez/, perfil-ajustes/ (solo «Color de acento» y «Lo que hoy sale siempre en cobalto») y etiquetas/.
+a) Rehaz la primera vez con el flujo de primera-vez/ y añade los dos temas de ejemplo como apuntes (también a los datos de ?local). Reutiliza lo que sirva de onboarding.js.
+b) Cambia la lista de acentos por los 9 nuevos (los ids antiguos pasan al más parecido) y quita el cobalto escrito a mano, también en modo oscuro, usando var(--accent) o un color-mix de él. Dime si encuentras más sitios con azul fijo.
+c) Cambia las etiquetas al estilo «pegatinas» en todos los sitios donde salen, con la paleta nueva, y rehaz «Gestionar etiquetas».
+Comprueba b y c en el navegador con Frambuesa y con Bosque, en claro y en oscuro.
 
-## 2 · Aspecto: colores de acento y etiquetas
-Lee docs/rediseno/perfil-ajustes/LEEME.md (apartados «Color de acento» y «Lo que hoy sale siempre en cobalto») y docs/rediseno/etiquetas/LEEME.md con etiquetas.jpg.
-a) Cambia la lista de acentos por los 9 nuevos (los ids antiguos pasan al más parecido) y quita el cobalto escrito a mano (también en modo oscuro), usando var(--accent) o un color-mix de él. Dime si encuentras más sitios con azul fijo.
-b) Cambia las etiquetas al estilo «pegatinas» en todos los sitios donde salen, con la paleta nueva (los colores antiguos pasan al más parecido), y rehaz «Gestionar etiquetas».
-Compruébalo en el navegador con Frambuesa y con Bosque, en claro y en oscuro.
+## 2 · Crear preguntas: tipos, editor de una pregunta y sugerencias (OK)
+Lee docs/rediseno/FASES.md (fase 8), las capturas tipos-movil y tipos-escritorio de docs/rediseno/pantallas, docs/rediseno/editor-pregunta/LEEME.md con sus pantallas y docs/rediseno/sugerencias/README.md.
+a) Rehaz el selector de tipos y la hoja de crear/editar una pregunta (también «Varias de golpe», con la letra a mano en el título y un ejemplo que siga al tipo elegido). No cambies los tipos ni cómo se guardan. Antes de programar esta parte, dime cómo encajas los ~20 tipos en «los más usados + Más tipos» y espera mi OK.
+b) Sugerencias sin IA: usa sugerencias/esperadas/*.json como batería de suggest.js; mide cuántas «imprescindible» salen hoy, mejora las reglas y repite la medida. Además: «Crear en» propone «Lista nueva» si el apunte no tiene lista; si la respuesta es una fecha, la pregunta es «¿Cuándo…?»; fechas y datos van antes que «Ordenar frase»; no te saltes frases con fecha de un mismo párrafo. Dime el antes y el después.
 
-## 3 · Tipos de pregunta y editor de una pregunta (8) (OK)
-Lee docs/rediseno/FASES.md (fase 8), las capturas tipos-movil y tipos-escritorio de docs/rediseno/pantallas y docs/rediseno/editor-pregunta/LEEME.md con sus pantallas. Rehaz el selector de tipos y la hoja de crear/editar una pregunta (también «Varias de golpe», con la letra a mano en el título y un ejemplo que siga al tipo elegido). No cambies los tipos ni cómo se guardan. Antes de programar, dime cómo encajas los ~20 tipos en «los más usados + Más tipos» y espera mi OK.
+## 3 · Estudiar: mapa, repasar en el apunte y preguntas de entender (OK)
+Lee docs/rediseno/ESTADO.md, docs/rediseno/mapa-editor/LEEME.md con sus pantallas, docs/rediseno/FASES.md (fase 9) y las capturas entender-* y tanda-fin de docs/rediseno/pantallas.
+a) Vista Mapa en lista, carpeta y tema, con la ficha de una casilla, «elegir varias» y «Se te resisten».
+b) Modo Repasar dentro del apunte (los 4 botones de la tanda) y el atajo >> / <>.
+c) «Explícalo» y «¿Qué pasaría si…?».
+Antes de programar, dime en un solo mensaje cómo agrupas las preguntas en casillas con los datos que ya hay y cómo se corrigen las preguntas de entender, y espera mi OK. Después haz a, b y c seguidas.
 
-## 4 · Sugerencias sin IA
-Lee docs/rediseno/sugerencias/README.md. Usa esperadas/*.json como batería de pruebas de suggest.js: mide cuántas «imprescindible» salen hoy, mejora las reglas y repite la medida. Además: «Crear en» debe proponer «Lista nueva» si el apunte no tiene lista; si la respuesta es una fecha, la pregunta es «¿Cuándo…?» y no «¿Qué fue…?»; las fechas y los datos van antes que «Ordenar frase»; no te saltes frases con fecha de un mismo párrafo (ej.: «El Terror lo dirigió Robespierre entre 1793 y 1794»). Dime el antes y el después.
+## 4 · Plan de estudio completo y Explorar (OK)
+Lee docs/rediseno/ESTADO.md y docs/rediseno/plan-explorar/LEEME.md con sus pantallas.
+a) Tu semana con días especiales, Hoy toca (la tanda de Hoy usa los minutos del día) y las pantallas de examen.
+b) Etapas: lista, editar, tira en móvil y planificador por meses y semanas en escritorio, orden de temas, «cuando no llegas» y la primera vez. Sin etapas, todo debe seguir funcionando como ahora.
+c) Explorar.
+Antes de programar, dime en un solo mensaje cómo guardarás week, special y stages en prefs, cómo encaja con plan.js y cómo lo resuelves por día, y espera mi OK. Después haz a, b y c seguidas.
 
-## 5 · Mapa y repasar dentro del apunte (10 y 11) (OK)
-Lee docs/rediseno/ESTADO.md y docs/rediseno/mapa-editor/LEEME.md con sus pantallas. Fase 10: vista Mapa en lista, carpeta y tema, con la ficha de una casilla, «elegir varias» y «Se te resisten». Fase 11: modo Repasar dentro del apunte (los 4 botones de la tanda) y el atajo >> / <>. Antes de programar, dime cómo agrupas las preguntas en casillas con los datos que ya hay y espera mi OK.
+## Logo (va con el paso que toque, es corto)
+Lee docs/rediseno/logo/LEEME.md y usa sus archivos: cambia el favicon, el apple-touch-icon y los iconos del manifest, y pon la marca en la cabecera móvil y en la barra lateral (en línea, con el color de acento). Sube la versión del service worker para que se refresquen los iconos.
 
-## 6 · Plan de estudio: semana, hoy toca y exámenes, y Explorar (12a) (OK)
-Lee docs/rediseno/ESTADO.md y docs/rediseno/plan-explorar/LEEME.md con sus pantallas. Haz la parte 12a: Tu semana con días especiales, Hoy toca (la tanda de Hoy usa los minutos del día), las pantallas de examen y Explorar. Antes de programar, dime cómo guardarás week/special en prefs y cómo encaja con plan.js, y espera mi OK.
-
-## 7 · Plan de estudio: etapas (12b) (OK)
-Lee docs/rediseno/plan-explorar/LEEME.md. Haz la parte 12b: etapas (lista, editar, tira en móvil y planificador por meses y semanas en escritorio), orden de temas, «cuando no llegas» y la primera vez. Sin etapas, todo debe seguir funcionando como ahora. Antes de programar, dime el modelo de stages y cómo lo resuelves por día, y espera mi OK.
-
-## 8 · Perfil, Ajustes y Amigos (13 y 7) (OK solo para Supabase)
-Lee docs/rediseno/ESTADO.md, docs/rediseno/perfil-ajustes/LEEME.md y docs/rediseno/amigos/LEEME.md con sus pantallas. Reordena Perfil y Ajustes (con el buscador) como dice el LEEME; no borres ningún ajuste sin decirme dónde ha ido. Haz la pantalla Amigos nueva y el texto «X te dice: …». Para «¡Bravo!» como tipo de ánimo, dime antes qué cambio necesitas en Supabase y espera mi OK; lo demás hazlo sin parar.
-
-## 9 · Preguntas de entender (9) (OK)
-Lee docs/rediseno/FASES.md (fase 9) y las capturas entender-* y tanda-fin de docs/rediseno/pantallas. Haz «Explícalo» y «¿Qué pasaría si…?». Antes de programar, dime cómo se corrigen y espera mi OK.
-
-## 10 · Cierre
-Repasa toda la app en modo oscuro y a 375 px y 1440 px, arregla lo que se vea roto, pasa la batería completa y deja ESTADO.md al día. Después hago yo el push.
+## 5 · Perfil, Ajustes, Amigos y cierre (OK solo para Supabase)
+Lee docs/rediseno/ESTADO.md, docs/rediseno/perfil-ajustes/LEEME.md y docs/rediseno/amigos/LEEME.md con sus pantallas.
+a) Reordena Perfil y Ajustes (con el buscador) como dice el LEEME; no borres ningún ajuste sin decirme dónde ha ido.
+b) Pantalla Amigos nueva y el texto «X te dice: …». Para «¡Bravo!» como tipo de ánimo, dime qué cambio necesitas en Supabase y espera mi OK; lo demás hazlo sin parar.
+c) Cierre: repasa toda la app en modo oscuro, a 375 px y a 1440 px, arregla lo que se vea roto y deja ESTADO.md al día. Después hago yo el push.

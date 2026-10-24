@@ -29,7 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
-import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -577,9 +577,17 @@ document.addEventListener('click', async e => {
         if (!t) return;
         const checked = [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value);
         if (!checked.includes(t.id)) checked.push(t.id);
-        $('#tagPick').outerHTML = tagPicker(checked);
-        $('#f-newtag')?.focus();
+        const compact = $('#tagPick').classList.contains('compact');
+        redrawTagPicker(checked);
+        (compact ? $('#tagPick .tag-add') : $('#f-newtag'))?.focus();
       } catch (err) { fail(err); }
+      return;
+    }
+    case 'untag': b.closest('.tagsel')?.remove(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return;
+    case 'tagpick-open': {
+      const pop = $('#tagPick .tagpick-pop'), open = pop.hidden;
+      pop.hidden = !open; b.setAttribute('aria-expanded', open);
+      if (open) { $('#f-newtag').value = ''; filterTagPicker(); $('#f-newtag').focus(); }
       return;
     }
     case 'edit-deck': return deckForm(S.decks.get(S.deckId));
@@ -871,6 +879,7 @@ document.addEventListener('change', async e => {
     setPref(path, v); return prefChanged(path);
   }
   if (e.target.name === 'f-tag' && S.edit?.open) S.edit.dirty = true;
+  if (e.target.name === 'f-tag' && e.target.closest('.tagpick.compact')) { redrawTagPicker(); $('#tagPick .tag-add')?.focus(); }
   if (e.target.id === 'pgDeck') { const p = curPage(); if (p) { p.deck_id = e.target.value || null; savePageSoon(p); } }
   if (e.target.id === 'pgFolder') {
     const p = curPage();
@@ -919,6 +928,7 @@ $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]
 document.addEventListener('keydown', e => {
   if (e.target.matches?.('[data-block-input]')) return blockKey(e);
   if (e.target.matches?.('.tc')) return tableKey(e);
+  if (e.key === 'Escape' && e.target.id === 'f-newtag' && e.target.closest('.tagpick.compact')) { e.preventDefault(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return; }
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
     // Escape o Enter en el buscador de tipos: cerrar el selector o elegir el primero

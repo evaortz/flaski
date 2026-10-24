@@ -92,3 +92,37 @@ test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en
   expect(await cur.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);      // nada cortado a media palabra por el CSS
   if (text.endsWith('…')) await expect(cur).toHaveAttribute('title', 'Por qué se te olvidan las cosas (y cómo evitarlo)');
 });
+
+test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Historia');
+  await newCard(page);
+  const pick = page.locator('#tagPick');
+  await expect(pick.locator('#f-newtag')).toBeHidden();
+  await pick.locator('[data-act="tagpick-open"]').click();
+  await page.locator('#f-newtag').fill('verbos');
+  await page.locator('#f-newtag').press('Enter');
+  await expect(pick.locator('.tagsel')).toHaveText(['#verbos']);
+  await expect(page.locator('#f-newtag')).toBeHidden();
+  await pick.locator('[data-act="tagpick-open"]').click();
+  await page.locator('#f-newtag').fill('casa');
+  await page.locator('[data-act="add-tag-inline"]').click();
+  await expect(pick.locator('.tagsel')).toHaveText(['#verbos', '#casa']);
+  // Quitar con ✕: vuelve a salir al buscar; Esc cierra el buscador sin cerrar el editor
+  await pick.locator('[data-act="untag"][aria-label="Quitar #verbos"]').click();
+  await expect(pick.locator('.tagsel')).toHaveText(['#casa']);
+  await pick.locator('[data-act="tagpick-open"]').click();
+  await expect(pick.locator('.tagopt:visible')).toHaveText(['#verbos']);
+  await page.locator('#f-newtag').fill('cas');
+  await expect(pick.locator('.tagopt:visible')).toHaveCount(0);
+  await expect(pick.locator('.tag-create')).toBeVisible();
+  await page.locator('#f-newtag').press('Escape');
+  await expect(page.locator('#f-newtag')).toBeHidden();
+  await expect(page.locator('#sheet')).toBeVisible();
+  await page.locator('#fld-q').fill('¿Quién dirigió el Terror?');
+  await page.locator('#fld-a').fill('Robespierre');
+  await page.locator('.ed-foot button[type="submit"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await expect(page.locator('#main')).toContainText('#casa');
+  await expect(page.locator('#main')).not.toContainText('#verbos');
+});

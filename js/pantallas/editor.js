@@ -131,21 +131,39 @@ export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna 
   return `<select id="${id}"><option value="">${rootLabel}</option>${folderTree(S.folders, exclude).map(f =>
     `<option value="${f.id}" ${f.id === selected ? 'selected' : ''}>${'   '.repeat(f.depth)}${esc(iconText(f.icon) ? iconText(f.icon) + ' ' : '')}${esc(f.name)}</option>`).join('')}</select>`;
 }
-// Selector de etiquetas: buscar o crear arriba, las pegatinas (tocar para elegir) y el color de la que se cree
-export function tagPicker(selected = [], color = nextTagColor()) {
+// Selector de etiquetas: buscar o crear arriba, las pegatinas (tocar para elegir) y el color de la que se cree.
+// «compact» (editor de una pregunta): solo las elegidas, con ✕, y «+ etiqueta» abre el buscar o crear.
+export function tagPicker(selected = [], color = nextTagColor(), { compact = false, open = false } = {}) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  return `<div class="tagpick" id="tagPick">
-    <input id="f-newtag" maxlength="40" placeholder="Buscar o crear etiqueta" aria-label="Buscar o crear etiqueta" autocomplete="off">
-    <div class="tagpick-list">${tags.map(t => `<label class="tagopt" data-tag-name="${esc(norm(t.name))}"><input type="checkbox" name="f-tag" value="${t.id}" ${selected.includes(t.id) ? 'checked' : ''}>${tagSticker(t, { big: true })}</label>`).join('')}
-      <button type="button" class="link tag-create" data-act="add-tag-inline" hidden>Crear</button></div>
-    <div class="tagpick-colors" role="radiogroup" aria-label="Color de la etiqueta nueva"><span>Color</span>${TAG_COLORS.map(c => `<label class="tcdot" data-tc="${c.id}" title="${c.label}"><input type="radio" name="f-newtag-color" value="${c.id}" ${c.id === color ? 'checked' : ''}><span class="sr">${c.label}</span></label>`).join('')}</div>
+  const opt = (t, top) => `<label class="tagopt" data-tag-name="${esc(norm(t.name))}" ${top ? 'data-top' : 'hidden'}><input type="checkbox" name="f-tag" value="${t.id}" ${selected.includes(t.id) ? 'checked' : ''}>${tagSticker(t, { big: true })}</label>`;
+  const search = `<input id="f-newtag" maxlength="40" placeholder="Buscar o crear etiqueta" aria-label="Buscar o crear etiqueta" autocomplete="off">`;
+  const colors = `<div class="tagpick-colors" role="radiogroup" aria-label="Color de la etiqueta nueva"><span>Color</span>${TAG_COLORS.map(c => `<label class="tcdot" data-tc="${c.id}" title="${c.label}"><input type="radio" name="f-newtag-color" value="${c.id}" ${c.id === color ? 'checked' : ''}><span class="sr">${c.label}</span></label>`).join('')}</div>`;
+  const create = '<button type="button" class="link tag-create" data-act="add-tag-inline" hidden>Crear</button>';
+  if (!compact) return `<div class="tagpick" id="tagPick">${search}
+    <div class="tagpick-list">${tags.map(t => opt(t, true)).join('')}${create}</div>${colors}</div>`;
+  // Sin buscar, las 6 que más usas de las que aún no lleva
+  const rest = tags.filter(t => !selected.includes(t.id));
+  const top = new Set(rest.map(t => [t, tagCount(t.id)]).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t.id));
+  return `<div class="tagpick compact" id="tagPick">
+    <div class="tagpick-sel">${selected.map(id => S.tags.get(id)).filter(Boolean).map(t => `<span class="tagsel"><input type="checkbox" name="f-tag" value="${t.id}" checked hidden>${tagSticker(t, { big: true })}<button type="button" class="tag-x" data-act="untag" data-id="${t.id}" aria-label="Quitar #${esc(t.name)}">${icon('x', { size: 14 })}</button></span>`).join('')}
+      <button type="button" class="tag-add" data-act="tagpick-open" aria-expanded="${open}">+ etiqueta</button></div>
+    <div class="tagpick-pop" ${open ? '' : 'hidden'}>${search}
+      <div class="tagpick-list">${rest.map(t => opt(t, top.has(t.id))).join('')}${create}</div>${colors}</div>
   </div>`;
 }
-// Al escribir en «Buscar o crear»: solo las que encajan y, si no hay una que se llame así, «Crear #…»
+// Redibuja el selector con lo elegido ahora (tras elegir, quitar o crear una)
+export function redrawTagPicker(checked, { open = false } = {}) {
+  const box = $('#tagPick');
+  if (!box) return;
+  const compact = box.classList.contains('compact');
+  box.outerHTML = tagPicker(checked ?? [...box.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value), undefined, { compact, open });
+  if (S.edit?.open) S.edit.dirty = true;
+}
+// Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear #…»
 export function filterTagPicker() {
   const q = norm($('#f-newtag')?.value.trim() || ''), btn = document.querySelector('#tagPick .tag-create');
-  let exact = false;
-  for (const l of document.querySelectorAll('#tagPick .tagopt')) { l.hidden = !!q && !l.dataset.tagName.includes(q); exact ||= l.dataset.tagName === q; }
+  for (const l of document.querySelectorAll('#tagPick .tagopt')) l.hidden = q ? !l.dataset.tagName.includes(q) : !('top' in l.dataset);
+  const exact = [...S.tags.values()].some(t => norm(t.name) === q);
   if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${$('#f-newtag').value.trim()}`; }
 }
 // El color de una etiqueta nueva: el primero que aún no usa ninguna (si están todos, por orden)
@@ -479,7 +497,7 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
         <div id="fieldsBox" class="ed-fields">${fieldInputs(typeIn(model.type, deckId), model.fields)}</div>
         <div id="toolsBox">${TOOLBAR(deckId)}</div>
         <div class="ed-props">
-          <div class="prop prop-tags"><span class="prop-k">Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags)}</div></div>
+          <div class="prop prop-tags"><span class="prop-k">Etiquetas</span><div class="prop-v">${tagPicker(S.edit.tags, undefined, { compact: true })}</div></div>
           <div class="prop"><span class="prop-k">Pista · opcional</span><input id="c-hint" class="prop-v" maxlength="500" value="${esc(S.edit.hint)}" placeholder="Se puede ver antes de responder"></div>
           ${linkProp(source || (c?.page_id ? { page_id: c.page_id, block_id: c.block_id } : null))}
         </div>
