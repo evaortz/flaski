@@ -1863,7 +1863,7 @@ body.in-study code{background:var(--soft);color:#FFFFFF}
 .nav button{color:var(--accent);font-size:0}
 .nav button span{font-size:15px;font-weight:400}
 .nav button:not([aria-current="page"]) span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.nav button[aria-current="page"]{background:var(--accent);color:var(--accent-fg);padding:0 22px;height:46px;border-radius:23px}
+.nav button[aria-current="page"]{background:var(--soft);color:var(--accent);font-weight:600;padding:0 22px;height:46px;border-radius:23px}
 /* El bloque de usuario es solo de la barra lateral del ordenador */
 .nav .nav-me{display:none}
 .nav button svg{stroke-width:1.8;width:23px;height:23px}
