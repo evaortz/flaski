@@ -10,7 +10,8 @@ import { pageTitle } from '../pages.js';
 import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, deckIcon, folderIcon, shareUrl, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, typeIn, langLabel, cardModel, SPEAK_ICON, faceHTML, occlusionHTML, clozeChoices } from './estudio.js';
 import { plural, renderDeck } from './mazos.js';
-import { savePageSoon, drawSuggestions } from './apuntes.js';
+import { savePageSoon } from './apuntes.js';
+import { drawSuggestions } from './sugerencias.js';
 import { seg, tabs } from './perfil.js';
 import { go, render } from '../app.js';
 
