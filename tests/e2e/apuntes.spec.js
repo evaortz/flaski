@@ -396,6 +396,12 @@ test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la 
   await page.locator('#sheetBody').getByRole('button', { name: 'Cancelar' }).click();
   await expect.poll(stored).not.toContain(tried);
   expect(await stored()).toContain(second);
+  // Al eliminar la carpeta, su imagen también se va
+  await page.locator('#main [data-act="edit-folder"]').click();
+  await page.locator('[data-act="ask-delete-folder"]').click();
+  await page.locator('[data-act="delete-folder"]').click();
+  await expect(page.locator('#main .lfold', { hasText: 'Viajes' })).toHaveCount(0);
+  await expect.poll(stored).not.toContain(second);
 });
 
 test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {

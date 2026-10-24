@@ -798,6 +798,8 @@ export async function deleteFolder(id) {
   for (const p of [...S.pages.values()].filter(x => x.folder_id === id)) { p.folder_id = parent; savePageSoon(p, 0); }
   await api.deleteFolder(id);
   S.folders.delete(id);
+  // Su imagen, si ya no la usa nada
+  dropFolderImages({ orig: imageOf(f.icon), picked: [] });
 }
 // Guarda una nota: crea, actualiza o borra sus tarjetas según las plantillas que tengan contenido
 // source: { page_id, block_id } si la tarjeta sale de unos apuntes (las ya vinculadas lo conservan)
