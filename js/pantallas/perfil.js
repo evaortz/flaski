@@ -590,6 +590,8 @@ export async function restoreBackup(file) {
     await importImages(data.images);
     // Copia de este mismo modo local: sustituye todo lo del navegador, como siempre
     if (api.mode === 'local' && data.local) {
+      // Al recargar se dice cuánto ha entrado (listas, preguntas, apuntes y carpetas)
+      try { sessionStorage.setItem('flaski-restored', String(S.decks.size + S.cards.size + S.pages.size + S.folders.size)); } catch { /* sin almacenamiento */ }
       await api.restoreLocal(data.local);
       toast('Copia restaurada'); setTimeout(() => location.reload(), 600); return;
     }

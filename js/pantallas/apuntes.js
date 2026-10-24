@@ -625,7 +625,7 @@ export function openOps(id, anchor) {
   if (!el) { el = document.createElement('div'); el.id = 'blkOps'; el.className = 'blk-menu blk-ops'; el.setAttribute('role', 'menu'); document.body.appendChild(el); }
   const item = (op, ic, label, key = '', cls = '') => `<button type="button" role="menuitem" class="blk-item${cls}" data-bop="${op}"><span class="blk-glyph" aria-hidden="true">${ic}</span><span class="blk-txt"><b>${label}</b></span>${key ? `<kbd>${key}</kbd>` : ''}</button>`;
   const heads = blocks.length === 1 && ['h1', 'h2', 'h3'].includes(one) && sectionIds(p.blocks, ids[0]).length > 1;
-  el.innerHTML = `${canConv ? `<p class="ops-h">Convertir en</p><div class="ops-types">${CONVERT.map(t => { const m = BLOCK_MENU.find(x => x.type === t); return `<button type="button" role="menuitemradio" aria-checked="${one === t}" class="ops-type" data-bop="to:${t}" title="${esc(m.label)}"><span aria-hidden="true">${esc(GLYPH[t])}</span><small>${esc(m.label)}</small></button>`; }).join('')}</div><div class="ops-sep"></div>` : ''}
+  el.innerHTML = `${canConv ? `<p class="ops-h">Convertir en</p><div class="ops-types">${CONVERT.map(t => { const m = BLOCK_MENU.find(x => x.type === t); return `<button type="button" role="menuitemradio" aria-checked="${one === t}" class="ops-type" data-bop="to:${t}" title="${esc(m.label)}"><span aria-hidden="true">${glyph(t)}</span><small>${esc(m.label)}</small></button>`; }).join('')}</div><div class="ops-sep"></div>` : ''}
     ${item('dup', icon('copy', { size: 15 }), 'Duplicar', 'Ctrl+D')}
     ${item('up', icon('arrow-up', { size: 15 }), 'Mover arriba', 'Alt+↑')}
     ${item('down', icon('arrow-down', { size: 15 }), 'Mover abajo', 'Alt+↓')}
@@ -1315,8 +1315,10 @@ document.addEventListener('paste', e => {
   redrawBlocks(last.id, caret);
 });
 /* ---------- Menú de bloques (/ o «+ Bloque») ---------- */
-const GLYPH = { p: 'Aa', h1: 'H1', h2: 'H2', h3: 'H3', li: '•', ol: '1.', todo: '☐', quote: '❝', callout: '💡', code: '{ }', table: '▦', hr: '—' };
+const GLYPH = { p: 'Aa', h1: 'H1', h2: 'H2', h3: 'H3', li: '•', ol: '1.', todo: '☐', quote: '❝', callout: '', code: '{ }', table: '▦', hr: '—' };
 export const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// El dibujo de cada tipo de bloque en los menús (imagen y destacado, con iconos de la app)
+const glyph = t => (t === 'img' ? icon('image', { size: 16 }) : t === 'callout' ? icon('lightbulb', { size: 16 }) : esc(GLYPH[t]));
 function blockMenuItems() {
   const q = fold(S.blockMenu?.q);
   return BLOCK_MENU.filter(it => !q || fold(it.label + ' ' + it.keys).includes(q));
@@ -1331,7 +1333,7 @@ export function openBlockMenu({ mode, blockId = null, q = '', anchor }) {
   if (!items.length) { el.hidden = true; return; }
   S.blockMenu.i = Math.min(S.blockMenu.i, items.length - 1);
   el.innerHTML = items.map((it, k) => `<button type="button" class="blk-item" role="option" aria-selected="${k === S.blockMenu.i}" data-block-type="${it.type}">
-    <span class="blk-glyph" aria-hidden="true">${it.type === 'img' ? icon('image', { size: 16 }) : esc(GLYPH[it.type])}</span>
+    <span class="blk-glyph" aria-hidden="true">${glyph(it.type)}</span>
     <span class="blk-txt"><b>${esc(it.label)}</b><small>${esc(it.hint)}</small></span>${it.md ? `<kbd>${esc(it.md)}</kbd>` : ''}</button>`).join('');
   el.hidden = false;
   // Debajo de donde se escribe; si no cabe, encima

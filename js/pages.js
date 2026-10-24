@@ -296,6 +296,8 @@ export function pageToMarkdown(page) {
   let md = t ? `# ${t}` : '', prev = t ? 'h1' : null;
   const nums = olNumbers(page?.blocks || []);
   const quoted = t => t.split('\n').map(l => `> ${l}`).join('\n');
+  // Con título, si los apartados son de primer nivel, bajan uno: «# Título» y «## Apartado»
+  const shift = t && (page?.blocks || []).some(b => b.type === 'h1') ? '#' : '';
   for (const b of page?.blocks || []) {
     let line;
     if (b.type === 'img') { if (!b.src) continue; line = `![${b.text.replace(/[\]\n]/g, ' ')}](img:${b.src})`; }
@@ -303,7 +305,7 @@ export function pageToMarkdown(page) {
     else if (!b.text.trim()) continue;
     // Cada título con su nivel: al pegarlo de nuevo, el primer «# » vuelve a ser el título del apunte
     else line = {
-      h1: `# ${b.text}`, h2: `## ${b.text}`, h3: `### ${b.text}`, li: `- ${b.text}`, ol: `${nums.get(b.id)}. ${b.text}`,
+      h1: `${shift}# ${b.text}`, h2: `${shift}## ${b.text}`, h3: `${shift}### ${b.text}`, li: `- ${b.text}`, ol: `${nums.get(b.id)}. ${b.text}`,
       todo: `- [${b.checked ? 'x' : ' '}] ${b.text}`, quote: quoted(b.text), callout: `> [!note] ${b.text.replace(/\n/g, '\n> ')}`,
       code: `\`\`\`\n${b.text}\n\`\`\``,
     }[b.type] ?? b.text;

@@ -147,6 +147,7 @@ export async function onSignedIn(session) {
     dedupeTypes();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
+    restoredNotice();
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
@@ -240,6 +241,14 @@ async function introChosen(choice) {
   go('home');
 }
 
+// Tras restaurar una copia y recargar: «Copia restaurada: N cosas añadidas» (o «ya lo tenías todo»)
+function restoredNotice() {
+  let before = null;
+  try { before = sessionStorage.getItem('flaski-restored'); sessionStorage.removeItem('flaski-restored'); } catch { return; }
+  if (before == null) return;
+  const n = S.decks.size + S.cards.size + S.pages.size + S.folders.size - Number(before);
+  setTimeout(() => toast(n > 0 ? `Copia restaurada: ${n === 1 ? '1 cosa añadida' : `${n} cosas añadidas`}` : 'Copia restaurada: ya lo tenías todo'), 300);
+}
 /* ===================== primera vez ===================== */
 // Un tema de ejemplo como apunte (también para los datos de ejemplo de ?local)
 export async function readTema(t) {

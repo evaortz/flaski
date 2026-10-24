@@ -57,16 +57,23 @@ export function markdownWithImages(page, names, dir = 'imagenes') {
 /* ---------------- HTML (para leer, compartir o imprimir en PDF) ---------------- */
 const TEXT_COLOR = { gray: '#787774', brown: '#9F6B53', orange: '#D9730D', yellow: '#CB912F', green: '#448361', blue: '#337EA9', purple: '#9065B0', pink: '#C14C8A', red: '#D44C47' };
 const BG_COLOR = { gray: '#F1F1EF', brown: '#F4EEEE', orange: '#FBECDD', yellow: '#FBF3DB', green: '#EDF3EC', blue: '#E7F3F8', purple: '#F6F3F9', pink: '#FAF1F5', red: '#FDEBEC' };
-const HTML_CSS = `body{margin:0;background:#fff;color:#37352F;font:16px/1.65 ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
-article{max-width:720px;margin:48px auto;padding:0 24px}h1.title{font-size:34px;line-height:1.2;margin:0 0 24px}
-h1{font-size:26px;margin:32px 0 8px}h2{font-size:21px;margin:26px 0 6px}h3{font-size:18px;margin:20px 0 4px}p{margin:4px 0}
+// Colores y letras de Flaski: Atkinson Hyperlegible para el texto, General Sans en los apartados y Gochi Hand en el título
+// (desde la app si hay conexión; si no, las del sistema)
+const FONT_BASE = typeof location !== 'undefined' && /^https?:/.test(location.origin) ? `${location.origin}/fonts/` : 'fonts/';
+const HTML_CSS = `@font-face{font-family:"Atkinson Hyperlegible";font-weight:400;src:url(${FONT_BASE}atkinson-400-latin.woff2) format("woff2")}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:700;src:url(${FONT_BASE}atkinson-700-latin.woff2) format("woff2")}
+@font-face{font-family:"General Sans";font-weight:600;src:url(${FONT_BASE}general-sans-600.woff2) format("woff2")}
+@font-face{font-family:"Gochi Hand";font-weight:400;src:url(${FONT_BASE}gochi-hand-400-latin.woff2) format("woff2")}
+body{margin:0;background:#FFFFFF;color:#1C2050;font:17px/1.65 "Atkinson Hyperlegible",ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+article{max-width:720px;margin:48px auto;padding:0 24px}h1.title{font:400 46px/1.1 "Gochi Hand","Segoe Print",cursive;color:#2F3DB5;margin:0 0 24px}
+h1,h2,h3{font-family:"General Sans","Atkinson Hyperlegible",sans-serif;font-weight:600;color:#1A247A}h1{font-size:26px;margin:32px 0 8px}h2{font-size:21px;margin:26px 0 6px}h3{font-size:18px;margin:20px 0 4px}p{margin:4px 0}
 ul,ol{margin:4px 0;padding-left:26px}li{margin:2px 0}li.todo{list-style:none;margin-left:-22px}li.todo.done{color:#9B9A97;text-decoration:line-through}
-blockquote{margin:8px 0;padding:2px 14px;border-left:3px solid #37352F}.callout{display:flex;gap:10px;margin:8px 0;padding:12px 14px;border-radius:6px;background:#F1F1EF}
-pre{margin:8px 0;padding:12px 14px;border-radius:6px;background:#F7F6F3;font:13.5px/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;background:rgba(135,131,120,.15);color:#EB5757;padding:.1em .35em;border-radius:3px}pre code{background:none;color:inherit;padding:0}
-table{border-collapse:collapse;margin:10px 0;font-size:15px}th,td{border:1px solid #E9E9E7;padding:6px 10px;vertical-align:top;text-align:left}th{background:#F7F6F3}
-hr{border:0;border-top:1px solid #E9E9E7;margin:16px 0}figure{margin:12px 0}figure img,img.media{max-width:100%;border-radius:4px}figcaption{color:#787774;font-size:14px;text-align:center}
-mark{border-radius:3px;padding:0 1px;color:inherit}a{color:inherit;text-decoration-color:#9B9A97}
+blockquote{margin:8px 0;padding:2px 14px;border-left:3px solid #2F3DB5}.callout{display:flex;gap:10px;margin:8px 0;padding:12px 16px;border-radius:16px;background:#EEEFFA}
+pre{margin:8px 0;padding:12px 14px;border-radius:12px;background:#EEEFFA;font:13.5px/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em;background:#EEEFFA;color:#2F3DB5;padding:.1em .35em;border-radius:3px}pre code{background:none;color:inherit;padding:0}
+table{border-collapse:collapse;margin:10px 0;font-size:15px}th,td{border:1px solid #D5D7EE;padding:6px 10px;vertical-align:top;text-align:left}th{background:#EEEFFA}
+hr{border:0;border-top:1px solid #D5D7EE;margin:16px 0}figure{margin:12px 0}figure img,img.media{max-width:100%;border-radius:4px}figcaption{color:#787774;font-size:14px;text-align:center}
+mark{border-radius:3px;padding:0 1px;color:inherit}a{color:#2F3DB5;text-decoration-color:#8A90D4}
 ${Object.entries(TEXT_COLOR).map(([k, v]) => `.tc-${k}{color:${v}}`).join('')}${Object.entries(BG_COLOR).map(([k, v]) => `.hl-${k}{background:${v}}`).join('')}
 @media print{article{margin:0;max-width:none}h1,h2,h3{break-after:avoid}figure,table,pre{break-inside:avoid}}`;
 // urls: Map id → dirección de la imagen (data: o un archivo)
