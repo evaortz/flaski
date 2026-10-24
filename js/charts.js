@@ -343,7 +343,8 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   let notes = '';
   const adds = [];
   for (let i = 1; i < N; i++) for (const [deck, n] of s[i].adds) if (n >= Math.max(5, s[i - 1].total * 0.1)) adds.push({ i, deck, n });
-  const noted = adds.sort((a, b) => b.n - a.n).slice(0, 2).filter(a => deckName(a.deck));
+  // Las dos mayores, y la segunda solo si no pisa a la primera
+  const noted = adds.sort((a, b) => b.n - a.n).filter(a => deckName(a.deck)).filter((a, k, all) => k === 0 || Math.abs(X(a.i) - X(all[0].i)) >= 130).slice(0, 2);
   for (const a of noted) {
     const x = X(a.i), y = Y(s[a.i].total), name = deckName(a.deck);
     const end = x > R - 130;
