@@ -70,3 +70,8 @@
 - «Espacio: mostrar · 1-4: valorar» no sale en pantallas táctiles (`pointer: coarse`), aunque los atajos estén activados.
 - Duda: si la pregunta ya tiene su altavoz (p. ej. la traducción en Ordenar frase), salen dos altavoces seguidos; cada uno dice qué lee al pasar por encima, pero a la vista son iguales.
 - Resuelta: junto a la pregunta queda un solo altavoz. Si la respuesta resuelta tiene idioma (la frase en Ordenar frase o Dictado), su altavoz sustituye al de la pregunta; si no, se queda el de la pregunta. `sw.js` → `flaski-v94`.
+
+## Fase 5c · pistas de deslizar
+- Al ver la respuesta, en el móvil táctil (`pointer: coarse` y `hover: none`) y con «deslizar» activado: «← Otra vez», «Bien →» y «↑ Fácil» (esta solo si ↑ está activo: 4 botones y la pregunta cabe sin scroll), en letra a mano, con el color de su botón, opacidad 0,35, y se van solas a los 2,6 s. Difícil sigue siendo solo botón.
+- Salen hasta deslizar 10 veces (`prefs.study.swipeCount`) y vuelven tras 30 días sin deslizar (`swipeLast`). `swipeable` devuelve ahora `{ up }`. Prueba nueva `deslizar.spec.js`. `sw.js` → `flaski-v95`.
+- Arreglado: desde la fase 5, el alto mínimo de la tanda hacía la página 16 px más alta que la pantalla y desactivaba ↑ Fácil al deslizar. El alto va ahora en `.app` descontando el relleno de la página.

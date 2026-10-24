@@ -107,6 +107,7 @@ export function chime(kind) {
 /* ---------------- Deslizar ---------------- */
 // Hace «deslizable» una tarjeta. dirs: { left, right, up } → etiqueta de cada dirección (o nada si no se usa).
 // onSwipe(dir) se llama cuando la tarjeta sale de la pantalla. onCross() al cruzar el umbral (para vibrar).
+// Devuelve { up }: si se puede deslizar hacia arriba (para las pistas).
 // Solo con el dedo o el lápiz: con el ratón ya están el teclado y los botones.
 const SKIP = 'button, a, input, textarea, select, canvas, label, [contenteditable], .say, .hw-box';
 export function swipeable(el, { dirs, onSwipe, onCross }) {
@@ -167,4 +168,5 @@ export function swipeable(el, { dirs, onSwipe, onCross }) {
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', () => { if (start) reset(); });
+  return { up: allowUp };
 }

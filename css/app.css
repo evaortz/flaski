@@ -2092,8 +2092,18 @@ body.in-study .num-in{flex:1;min-width:0}
 body.in-study .num-in input{flex:1;min-width:0;width:auto}
 /* En pantallas táctiles no hay teclado: sin la ayuda de los atajos */
 @media (pointer:coarse){.studyfoot .keys{display:none}}
+/* Pistas de deslizar (móvil): tenues, en cada borde y con el color de su botón; se van solas */
+.swipe-hints{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;animation:sh-fade 2.6s ease forwards}
+.swipe-hints span{position:absolute;font-family:var(--font-hand);font-size:19px;font-weight:400;line-height:1;white-space:nowrap}
+.swipe-hints .sh-left{left:8px;top:45%;color:#FF9F92}
+.swipe-hints .sh-right{right:8px;top:45%;color:#8EE3B5}
+.swipe-hints .sh-up{left:50%;top:calc(118px + env(safe-area-inset-top,0px));transform:translateX(-50%);color:#9ED4FF}
+@keyframes sh-fade{0%{opacity:0}12%,75%{opacity:.35}100%{opacity:0}}
 /* Los botones, abajo: la pregunta ocupa el alto que sobra */
-body.in-study main{min-height:calc(100dvh - 50px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+/* (el alto va en .app, descontando el relleno de body, para que una pregunta corta quepa sin scroll y se pueda deslizar hacia arriba) */
+body.in-study .app{min-height:calc(100dvh - 46px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+@media (min-width:960px){body.in-study .app{min-height:calc(100dvh - 92px)}}
+body.in-study main{flex:1 0 auto}
 body.in-study main > .card{flex:1 0 auto}
 body.in-study main > .card .front{flex:none;padding-top:16px}
 body.in-study main > .card .answer{margin-top:auto}

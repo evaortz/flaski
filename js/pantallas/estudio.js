@@ -10,7 +10,7 @@ import { buzz, swipeable, chime } from '../feel.js';
 import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
-import { seg, numIn } from './perfil.js';
+import { seg, numIn, savePrefsSoon } from './perfil.js';
 import { openSheet, charsFor, hasRuby } from './editor.js';
 import { go } from '../app.js';
 
@@ -494,12 +494,34 @@ export function renderStudy() {
   if (ses.revealed && S.prefs.study.swipe) {
     const two = S.prefs.study.buttons === 2;
     const map = { left: 1, right: 3, up: 4 };
-    swipeable(main.querySelector('article.card'), {
+    const sw = swipeable(main.querySelector('article.card'), {
       dirs: { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil' },
       onCross: () => haptic('tick'),
-      onSwipe: d => grade(map[d]),
+      onSwipe: d => { countSwipe(); grade(map[d]); },
     });
+    if (!st.hinted && swipeHintsDue()) { st.hinted = true; showSwipeHints(!!sw?.up); }
   }
+}
+// Pistas de deslizar: al ver la respuesta, en cada borde la dirección y su botón, tenues, y se van solas.
+// Solo en el móvil (táctil) y hasta haber deslizado 10 veces; vuelven tras 30 días sin deslizar.
+function swipeHintsDue() {
+  const P = S.prefs.study;
+  return matchMedia('(pointer: coarse) and (hover: none)').matches && ((P.swipeCount || 0) < 10 || Date.now() - (P.swipeLast || 0) > 30 * 864e5);
+}
+function showSwipeHints(up) {
+  const box = document.createElement('div');
+  box.className = 'swipe-hints';
+  box.setAttribute('aria-hidden', 'true');
+  box.innerHTML = `<span class="sh-left">← Otra vez</span><span class="sh-right">Bien →</span>${up ? '<span class="sh-up">↑ Fácil</span>' : ''}`;
+  box.addEventListener('animationend', () => box.remove());
+  document.querySelector('.swipe-hints')?.remove();
+  document.body.append(box);   // fuera de main: no se borran si la pantalla se vuelve a pintar
+}
+function countSwipe() {
+  const P = S.prefs.study;
+  P.swipeCount = Math.min(10, (P.swipeCount || 0) + 1);
+  P.swipeLast = Date.now();
+  savePrefsSoon();
 }
 // Sensación táctil y sonora, si están activadas en Ajustes
 const GRADE_SOUNDS = { 1: 'again', 2: 'hard', 3: 'good', 4: 'easy' };
@@ -525,6 +547,7 @@ export function grade(g) {
   const ses = S.session;
   if (!ses || !ses.revealed || !ses.queue.length) return;
   stopSpeaking();
+  document.querySelector('.swipe-hints')?.remove();
   const id = ses.queue[0];
   const now = Date.now();
   const prev = S.progress.get(id) || null;

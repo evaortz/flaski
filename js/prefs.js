@@ -15,6 +15,8 @@ export const DEFAULT_PREFS = {
     rate: 1,                // velocidad de la voz
     shortcuts: true,        // mostrar la ayuda de atajos de teclado
     swipe: true,            // móvil: deslizar la pregunta para valorarla
+    swipeCount: 0,          // cuántas veces has deslizado (hasta 10: las pistas de deslizar dejan de salir)
+    swipeLast: 0,           // cuándo deslizaste por última vez (tras 30 días sin deslizar vuelven las pistas)
     haptics: true,          // móvil: vibración breve al responder y al trazar
     sound: true,            // efectos de sonido al valorar preguntas
     nativeLang: 'es-ES',    // tu idioma: el de las traducciones en las listas de idiomas
