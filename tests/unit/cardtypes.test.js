@@ -30,7 +30,7 @@ test('alemán: ss por ß y ae/oe/ue por las diéresis valen como «casi»', () =
     assert.equal(r.near, true, given);
     assert.match(r.why, /letras especiales/);
   }
-  assert.equal(checkTyped('Strasse', 'Straße', 'tr-TR').near, false);   // solo en alemán
+  assert.equal(checkTyped('Strasse', 'Straße', 'tr-TR').near, true);    // ß→ss es una letra especial en cualquier idioma
 });
 
 test('sustantivo alemán: der/die/das fijos y solo con un artículo válido', () => {
@@ -143,4 +143,19 @@ test('«Detectar solo» mira todas las líneas: la coma, si sale igual en todas'
   assert.equal(detectSep(['ev - casa', 'kitap - libro']), ' - ');
   assert.equal(detectSep(['a\tb', 'c\td, e']), '\t');
   assert.equal(detectSep(['solo una palabra']), '');
+});
+
+test('checkTyped: «casi» con letras especiales, el artículo de más o de menos y kana o lectura en japonés', () => {
+  const near = (g, e, l) => { const r = checkTyped(g, e, l); return [r.ok, r.near, r.why]; };
+  assert.deepEqual(near('estacion', 'estación', 'es-ES'), [false, true, 'Revisa las letras especiales']);
+  assert.deepEqual(near('Kuche', 'Küche', 'de-DE'), [false, true, 'Revisa las letras especiales']);
+  assert.deepEqual(near('gozluk', 'gözlük', 'tr-TR'), [false, true, 'Revisa las letras especiales']);
+  assert.deepEqual(near('yaptim', 'yaptım', 'tr-TR'), [false, true, 'Revisa las letras especiales']);
+  assert.deepEqual(near('nino', 'niño', 'es-ES'), [false, true, 'Revisa las letras especiales']);
+  assert.deepEqual(near('piso', 'el piso', 'es-ES'), [false, true, 'Te falta el artículo']);
+  assert.deepEqual(near('die Wohnung', 'Wohnung', 'de-DE'), [false, true, 'Sobra el artículo']);
+  assert.deepEqual(near('エキ', 'えき', 'ja-JP'), [false, true, 'Revisa el kana y los kanji']);
+  assert.deepEqual(near('えき', '駅[えき]', 'ja-JP'), [false, true, 'Revisa el kana y los kanji']);
+  assert.deepEqual(near('casa', 'perro', 'es-ES'), [false, false, '']);
+  assert.equal(checkTyped('der', 'die', 'de-DE').near, false);   // si lo que se pregunta es el artículo, no vale
 });

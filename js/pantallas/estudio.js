@@ -119,7 +119,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     } else if (st.typed) {
       const r = st.typed;
       ask = r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto: <b>${esc(r.expected)}</b></div>`
-        : `<div class="verdict bad">${r.near ? `<div class="vnear">Casi: ${esc(r.why)}</div>` : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span class="diff">${r.diff.filter(x => x.t !== 'miss').map(x => `<span class="d-${x.t}">${esc(x.c)}</span>`).join('') || '<i>(vacía)</i>'}</span></div>
+        : `<div class="verdict bad">${r.near ? `<div class="vnear">Casi · ${esc(r.why)}</div>` : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span class="diff">${r.diff.filter(x => x.t !== 'miss').map(x => `<span class="d-${x.t}">${esc(x.c)}</span>`).join('') || '<i>(vacía)</i>'}</span></div>
           <div class="vrow"><span class="vl">Correcta</span><span class="diff">${r.diff.filter(x => x.t !== 'extra').map(x => `<span class="d-${x.t === 'miss' ? 'need' : 'ok'}">${esc(x.c)}</span>`).join('')}</span></div></div>`;
     }
   }

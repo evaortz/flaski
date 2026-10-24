@@ -419,6 +419,15 @@ const normAnswer = (s, keepCase = false) => {
   return keepCase ? t : t.toLocaleLowerCase();
 };
 const looseAnswer = (s, lang) => (TRANSLIT[baseLang(lang)] || []).reduce((t, [a, b]) => t.replaceAll(a, b), normAnswer(s));
+// Sin tildes ni letras especiales (á→a, ü→u, ö/ğ/ş/ç, ı/İ→i, ñ→n, ß→ss): «casi», no mal
+const plainLetters = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i').replace(/ß/g, 'ss');
+const sameLetters = (a, b, lang) => [x => normAnswer(x), x => looseAnswer(x, lang)].some(f => plainLetters(f(a)) === plainLetters(f(b)));
+// Artículos que pueden faltar o sobrar («piso» / «el piso», «Wohnung» / «die Wohnung»)
+const ARTICLE_RE = /^(?:el|la|los|las|lo|un|una|unos|unas|der|die|das|den|dem|des|ein|eine|einen|einem|einer|le|les|l'|une|des|the|a|an|il|gli|i|o|os|as|um|uma)\s+|^l'/i;
+const noArticle = s => normAnswer(s).replace(ARTICLE_RE, '');
+// Japonés: katakana como hiragana, y el kanji por su lectura (漢字[かんじ] → かんじ)
+const hira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const reading = s => String(s ?? '').replace(/([㐀-䶿一-鿿豈-﫿々〆ヶ]+)\[([^\]\n]+)\]/g, '$2');
 
 // given: lo que se ha escrito · expected: la respuesta (varias válidas separadas por «/») · lang: idioma del campo
 // → { ok, near (casi: solo mayúsculas o ß/ss, ä/ae…), why, expected, diff }
@@ -429,9 +438,17 @@ export function checkTyped(given, expected, lang = '') {
   const exact = options.find(o => normAnswer(o, cs) === g);
   if (exact) return { ok: true, near: false, expected: exact, diff: diffChars(g, normAnswer(exact, cs)) };
   const near = options.find(o => looseAnswer(o, lang) === looseAnswer(given, lang));
-  const best = near || options[0] || '';
-  const why = !near ? '' : normAnswer(near) === normAnswer(given) ? 'Revisa las mayúsculas' : 'Revisa las letras especiales';
-  return { ok: false, near: !!near, why, expected: best, diff: diffChars(g, normAnswer(best, cs)) };
+  const letters = !near && options.find(o => sameLetters(o, given, lang));
+  // El artículo de más o de menos, si lo que se pregunta no es el artículo
+  const art = !near && !letters && options.find(o => noArticle(o) && noArticle(o) === noArticle(given) && normAnswer(o) !== normAnswer(given));
+  const kana = !near && !letters && !art && baseLang(lang) === 'ja' && options.concat(strip(reading(expected)).split(/\s*\/\s*/)).find(o => hira(normAnswer(reading(o))) === hira(normAnswer(given)));
+  const hit = near || letters || art || kana;
+  const best = hit || options[0] || '';
+  const why = near ? (normAnswer(near) === normAnswer(given) ? 'Revisa las mayúsculas' : 'Revisa las letras especiales')
+    : letters ? 'Revisa las letras especiales'
+    : art ? (ARTICLE_RE.test(normAnswer(art)) && !ARTICLE_RE.test(normAnswer(given)) ? 'Te falta el artículo' : 'Sobra el artículo')
+    : kana ? 'Revisa el kana y los kanji' : '';
+  return { ok: false, near: !!hit, why, expected: best, diff: diffChars(g, normAnswer(best, cs)) };
 }
 // Diferencia letra a letra (LCS): [{ t: 'ok'|'miss'|'extra', c }]
 function diffChars(a, b) {

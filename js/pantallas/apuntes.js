@@ -239,6 +239,9 @@ export const curPage = () => S.pages.get(S.pageId);
 export function growTitle() {
   const t = $('#pgTitle');
   if (!t) return;
+  // Títulos largos, con letra más pequeña (como en las listas)
+  t.classList.toggle('is-long', t.value.length > 40 && t.value.length <= 70);
+  t.classList.toggle('is-longer', t.value.length > 70);
   t.style.height = 'auto';
   t.style.height = t.scrollHeight + 'px';
 }

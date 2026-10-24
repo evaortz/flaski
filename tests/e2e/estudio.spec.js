@@ -87,5 +87,6 @@ test('tarjeta de escribir la respuesta: corrige y sugiere la nota', async ({ pag
   await page.locator('#main [data-start]').click();
   await page.locator('#typed').fill('yaptim');
   await page.locator('#typed').press('Enter');
-  await expect(page.locator('[data-grade="1"]')).toHaveClass(/suggested/);
+  await expect(page.locator('.vnear')).toHaveText('Casi · Revisa las letras especiales');   // ı por i: casi, no mal
+  await expect(page.locator('[data-grade="2"]')).toHaveClass(/suggested/);
 });

@@ -65,6 +65,8 @@ function deckHealth(d, cards, now) {
   return parts.length ? `<p class="dk-health">${parts.join(' · ')}</p>` : '';
 }
 
+// Títulos largos, con letra más pequeña: a partir de unas 40 letras (y de 70), para no pasar de 3 líneas en el móvil
+export const titleSize = t => (String(t || '').length > 70 ? ' is-longer' : String(t || '').length > 40 ? ' is-long' : '');
 export function renderDeck() {
   const d = S.decks.get(S.deckId);
   if (!d) return go('decks');
@@ -126,7 +128,7 @@ export function renderDeck() {
       <span class="spacer"></span>${more}
     </div>
     <header class="deckhead dk-head">
-      <div class="dk-id"><h1 class="dk-title">${esc(d.name)}</h1>${d.description ? `<p class="dk-desc">${fmt(d.description)}</p>` : ''}<p class="dk-meta">${meta}</p></div>
+      <div class="dk-id"><h1 class="dk-title${titleSize(d.name)}">${esc(d.name)}</h1>${d.description ? `<p class="dk-desc">${fmt(d.description)}</p>` : ''}<p class="dk-meta">${meta}</p></div>
       <div class="dk-today">
         ${d.archived ? `<div class="dk-num dk-arch"><span class="dk-para dk-done">Archivada</span><button class="link" data-act="archive-deck">Sacar del archivo</button></div>
         <div class="dk-acts">` : `<div class="dk-num">${avail ? `<b>${avail}</b><span class="dk-para">para hoy</span>` : `<span class="dk-para dk-done">${all.length ? 'al día' : 'vacía'}</span>`}

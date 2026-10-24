@@ -3084,3 +3084,8 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .ef-cz{margin-top:6px;padding:8px 12px;border-radius:12px;background:var(--soft);font-size:16px;line-height:1.5}
 .ef-cz[hidden]{display:none}
 .cz-mark{background:color-mix(in oklab,var(--accent) 22%,var(--bg));color:var(--accent-ink);border-radius:6px;padding:0 4px;font-weight:600}
+
+/* Títulos de lista o apunte largos: letra más pequeña a partir de ~40 letras (y de 70), sin pasar de 3 líneas en el móvil */
+.dk-title.is-long,#pgTitle.pg-title.is-long{font-size:34px}
+.dk-title.is-longer,#pgTitle.pg-title.is-longer{font-size:28px}
+@media (min-width:700px){#pgTitle.pg-title.is-long{font-size:44px}#pgTitle.pg-title.is-longer{font-size:36px}}
