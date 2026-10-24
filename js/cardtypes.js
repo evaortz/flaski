@@ -179,10 +179,10 @@ export const BUILTIN_TYPES = [
   {
     id: 'kanji', builtin: true, scope: ['ja'], name: 'Kanji', icon: '', lucide: 'brush',
     description: 'Reconocer el kanji y escribirlo a mano trazo a trazo, con el orden correcto.',
-    fields: [F('k', 'Kanji', { lang: 'ja-JP' }), F('m', 'Significado', { lang: NATIVE }), F('on', 'Lectura on (カタカナ)', { lang: 'ja-JP' }),
-      F('kun', 'Lectura kun (ひらがな)', { lang: 'ja-JP' }), F('e', 'Ejemplo', { lang: 'ja-JP', help: 'Puedes añadir furigana así: 水[みず]を 飲[の]む' })],
+    fields: [F('k', 'Kanji', { lang: 'ja-JP' }), F('m', 'Significado', { lang: NATIVE }), F('kun', 'Lectura kun (ひらがな)', { lang: 'ja-JP' }),
+      F('on', 'Lectura on (カタカナ)', { lang: 'ja-JP' }), F('e', 'Ejemplo', { lang: 'ja-JP', help: 'Puedes añadir furigana así: 水[みず]を 飲[の]む' })],
     templates: [
-      { id: 't1', name: 'Reconocer (kanji → significado)', mode: 'flip', front: ['k'], back: ['m', 'on', 'kun', 'e'] },
+      { id: 't1', name: 'Reconocer (kanji → significado)', mode: 'flip', front: ['k'], back: ['m', 'kun', 'on', 'e'] },
       { id: 't2', name: 'Escribir (significado → kanji a mano)', mode: 'draw', front: ['m', 'kun', 'on'], back: ['e'], answer: 'k', guide: false },
     ],
   },

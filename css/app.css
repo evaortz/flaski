@@ -499,7 +499,7 @@ input.ipick-own{width:72px;min-height:38px;padding:4px 8px;font-size:15px}
 .answer .fld-main .fld-v{font-weight:700;font-size:clamp(25px,6.5vw,32px);line-height:1.25}
 .answer .fld-sub{align-items:stretch;text-align:left;background:var(--soft);border-radius:var(--r);padding:8px 12px}
 .answer .fld-sub .fld-v{justify-content:flex-start;font-size:16px}
-.fld-l{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.fld-l{font-size:13px;font-weight:600;color:var(--muted)}
 .say{border:0;background:var(--hover);color:var(--muted);width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;flex:none;vertical-align:middle}
 .say:hover{background:var(--press);color:var(--fg)}
 .say svg{width:18px;height:18px}
@@ -2128,7 +2128,7 @@ body.in-study .card .answer .fld-cjk .fld-v{font-family:var(--card-font);font-si
 body.in-study .card :is(.front,.answer) .fld-ja.fld-cjk .fld-v{font-family:'Klee One',var(--card-font);font-weight:600}
 body.in-study .answer .fld-sub{background:transparent;padding:0;border-radius:0}
 body.in-study .card .answer .fld-sub .fld-v{color:var(--muted);font-size:calc(15px * var(--card-scale,1))}
-body.in-study .fld-l{font-size:11px;color:var(--faint)}
+body.in-study .fld-l{font-size:13px;color:var(--faint)}
 /* Botones grandes: «Ver respuesta» en blanco y «No lo sé» con borde */
 body.in-study .big{min-height:60px;border-radius:30px;font-size:17px;font-weight:600}
 body.in-study .primary.big{background:#FFFFFF;color:var(--session);border:0}
@@ -3201,3 +3201,11 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
   .ed-extra > button{justify-content:flex-start;text-align:left;white-space:nowrap}
   .ed-page .ed-foot .ed-save{flex:none}
 }
+/* Kanji suelto muy grande; lecturas en kana al tamaño del texto */
+body.in-study .card .front .fld-kanji .fld-v,.pv-card .front .fld-kanji .fld-v{font-size:calc(112px * var(--card-scale,1));line-height:1.1}
+@media (min-width:900px){body.in-study .card .front .fld-kanji .fld-v,.pv-card .front .fld-kanji .fld-v{font-size:calc(140px * var(--card-scale,1))}}
+body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.front,.answer) .fld-sub.fld-kana .fld-v{font-size:calc(22px * var(--card-scale,1));font-family:'Klee One',var(--card-font)}
+/* Escribir a mano: cada fallo, el cuadro parpadea en rojo */
+.hw-box.hw-miss{animation:hw-miss .45s ease}
+@keyframes hw-miss{0%,100%{box-shadow:0 0 0 0 transparent}30%{box-shadow:0 0 0 4px #FF6B5E;background-color:rgba(255,107,94,.18)}}
+.hw-credits{font-size:12.5px;color:var(--faint);margin:10px 0 0}

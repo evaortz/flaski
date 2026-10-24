@@ -97,12 +97,14 @@ export function startQuiz(box, chars, lang, { size = 280, guide = false, onProgr
     if (i >= chars.length) { onDone({ mistakes, n: chars.length }); return; }
     box.innerHTML = '';
     onProgress?.(i, chars.length);
-    writer = writerFor(box, chars[i], lang, size, { showCharacter: false, showOutline: guide });
+    // Al segundo fallo de un trazo, su pista
+    writer = writerFor(box, chars[i], lang, size, { showCharacter: false, showOutline: guide, showHintAfterMisses: 2 });
     quiz();
   };
   const quiz = () => writer.quiz({
     onCorrectStroke: () => onStroke?.(true),
-    onMistake: () => onStroke?.(false),
+    // Cada fallo: el cuadro parpadea en rojo
+    onMistake: () => { box.classList.remove('hw-miss'); void box.offsetWidth; box.classList.add('hw-miss'); onStroke?.(false); },
     onComplete: summary => { mistakes += summary.totalMistakes; i++; setTimeout(next, 450); },
   });
   next();

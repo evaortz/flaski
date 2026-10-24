@@ -65,12 +65,16 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const v = val(id);
     // Vacío también si solo lleva etiquetas o espacios (p. ej. «<br>» al importar de Anki): no deja una fila en blanco
     if (!v.trim() || (!/<img/i.test(v) && !v.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim())) return '';
-    const label = !main && fdef(id) ? `<div class="fld-l">${esc(fdef(id).name)}</div>` : '';
+    // La etiqueta en minúscula y sin la aclaración entre paréntesis: «lectura kun»
+    const name = fdef(id)?.name.replace(/\s*\([^)]*\)\s*$/, '') || '';
+    const label = !main && name ? `<div class="fld-l">${esc(name.charAt(0).toLocaleLowerCase() + name.slice(1))}</div>` : '';
     // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal.
     // Se mira el texto que se ve: sin etiquetas ni saltos de línea al principio o al final (frecuentes al importar de Anki)
     const plain = stripRuby(v).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(), lang = fdef(id)?.lang || '';
     const ja = /^ja/.test(lang) || (!lang && /[぀-ヿ]/.test(plain)) ? ' fld-ja' : '';
-    const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : isShortText(plain) ? ' fld-short' : '';
+    // Un kanji suelto (o dos caracteres CJK), muy grande; las lecturas en kana, al tamaño del texto
+    const kanji = main && [...plain].length <= 2 && [...plain].every(isCJK);
+    const size = !main ? (/^[぀-ヿ・ー\s、,]+$/.test(plain) ? ' fld-kana' : '') : kanji ? ' fld-cjk fld-kanji' + ja : [...plain].some(isCJK) ? ' fld-cjk' + ja : isShortText(plain) ? ' fld-short' : '';
     return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${extra}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
@@ -346,9 +350,9 @@ async function mountDraw(st, model) {
 export function strokesSheet(text, lang) {
   const chars = [...stripRuby(text)].filter(isCJK).slice(0, 6);
   if (!chars.length) return;
-  openSheet(`<h2>Orden de trazos</h2><p class="muted small">${esc(chars.join(''))} · se repite en bucle</p>
+  openSheet(`<h2 class="sheet-hand">Orden de trazos</h2><p class="muted small">${esc(chars.join(''))} · se repite en bucle</p>
     <div class="hw-anim-row" id="hwAnim"><div class="spin" aria-label="Cargando"></div></div>
-    <p class="hint">Trazos: Hanzi Writer (David Chanin) con datos de animCJK y Make Me A Hanzi. La primera vez necesita conexión.</p>
+    <p class="hw-credits">Trazos: Hanzi Writer · animCJK · Make Me A Hanzi</p>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div>`);
   canQuiz(chars, lang).then(ok => {
     const box = $('#hwAnim');
