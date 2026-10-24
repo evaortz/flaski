@@ -1680,7 +1680,9 @@ export function cardFromSelection(kind) {
   const text = sel.text.trim();
   let prefill = null;
   if (kind === 'cloze') {
-    const x = clozeFrom(b.text, text, sel.at);
+    // Solo la frase donde está lo seleccionado (no todo el párrafo)
+    const sentence = sentences(b.text).find(x => x.includes(text));
+    const x = sentence && sentence !== b.text.trim() ? clozeFrom(sentence, text) : clozeFrom(b.text, text, sel.at);
     if (x) prefill = { typeId: 'cloze', fields: { x } };
     else toast('No se ha podido marcar el hueco aquí: complétalo a mano');
   }

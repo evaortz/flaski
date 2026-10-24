@@ -3079,3 +3079,8 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .lq-b{color:var(--muted)}
 .lq-d{grid-column:1 / -1;font-size:12.5px;color:var(--faint)}
 @media (max-width:560px){.lib-q{grid-template-columns:minmax(0,1fr)}}
+
+/* Campo de huecos: debajo, la frase con el hueco resaltado */
+.ef-cz{margin-top:6px;padding:8px 12px;border-radius:12px;background:var(--soft);font-size:16px;line-height:1.5}
+.ef-cz[hidden]{display:none}
+.cz-mark{background:color-mix(in oklab,var(--accent) 22%,var(--bg));color:var(--accent-ink);border-radius:6px;padding:0 4px;font-weight:600}

@@ -399,7 +399,8 @@ function fieldInputs(type, values) {
         ${f.lang && ttsAvailable() ? `<button type="button" class="ef-say" data-say-input="${f.id}" aria-label="Escuchar ${esc(f.name)}" title="Escuchar">${SPEAK_ICON}</button>` : ''}
       </div>
       <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
-      ${cjk ? `<div class="ef-ruby" data-ruby-for="${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
+      ${fieldRoles(type, f.id).includes('huecos') ? `<div class="ef-cz" data-cz-for="${f.id}" aria-hidden="true" ${/\{\{.+?\}\}/.test(values[f.id] || '') ? '' : 'hidden'}>${czHTML(values[f.id])}</div>` : ''}
+      ${cjk ? `<div class="ef-ruby" data-ruby-for=""${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
       ${help ? `<p class="ef-help">${esc(help)}</p>` : ''}
     </div>`;
   }).join('');
@@ -497,7 +498,7 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     <footer class="ed-foot">
       ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Borrar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
-        ${p ? '<button type="button" class="ghost small-btn" data-act="reset-card">Reiniciar progreso</button>' : ''}` : ''}
+        ${p ? '<button type="button" class="ghost small-btn" data-act="ask-reset-card">Reiniciar progreso</button>' : ''}` : ''}
       ${side ? `<button type="submit" class="primary">Crear pregunta</button>
         <button type="button" class="ghost" data-act="save-card-more">Crear y otra</button><span class="spacer"></span><kbd class="ed-kb">Ctrl+Enter</kbd>`
       : `<span class="spacer"></span>
@@ -598,7 +599,11 @@ export const imageFile = dt => [...(dt?.files || [])].find(f => /^image\//.test(
 const KANJI = /[㐀-䶿一-鿿豈-﫿々〆ヶ]/;
 export const hasRuby = s => new RegExp(RUBY_RE.source).test(String(s || ''));
 // Vista previa con la furigana bajo un campo (solo cuando la lleva)
+// Un campo de huecos se ve también tal cual, con el hueco resaltado (sin las llaves)
+const czHTML = v => esc(v || '').replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '<mark class="cz-mark">$1</mark>');
 export function rubyLine(t) {
+  const cz = document.querySelector(`[data-cz-for="${t.dataset.fld}"]`);
+  if (cz) { cz.hidden = !/\{\{.+?\}\}/.test(t.value); cz.innerHTML = czHTML(t.value); }
   const box = document.querySelector(`[data-ruby-for="${t.dataset.fld}"]`);
   if (!box) return;
   box.hidden = !hasRuby(t.value);
@@ -877,6 +882,8 @@ export function addDecksSheet() {
 export async function moveDecks(ids, folderId) {
   try {
     for (const id of ids) S.decks.set(id, { tags: [], ...await api.updateDeck(id, { folder_id: folderId }) });
+    // El apunte de una lista va con ella (que no se separen)
+    for (const p of S.pages.values()) if (ids.includes(p.deck_id) && (p.folder_id || null) !== (folderId || null)) { p.folder_id = folderId || null; savePageSoon(p, 0); }
     const name = folderId ? S.folders.get(folderId)?.name : 'Mis listas';
     toast(ids.length === 1 ? `Movida a «${name}»` : `${ids.length} listas movidas a «${name}»`);
     closeSheet(); render();

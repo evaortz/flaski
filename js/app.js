@@ -35,11 +35,20 @@ import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, fr
 
 /* ===================== navegación ===================== */
 export function go(view, extra = {}) {
+  if (S.view === 'page' && (view !== 'page' || extra.pageId !== S.pageId)) dropEmptyPage(S.pageId);
   Object.assign(S, { view }, extra);
   closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind(); closeDeckMenu();
   S.bsel = null; S.tocOpen = false;
   render();
   window.scrollTo(0, 0);
+}
+// Un apunte que se deja vacío y sin título (y sin preguntas) se descarta al salir de él
+function dropEmptyPage(id) {
+  const p = S.pages.get(id);
+  if (!p || (p.title || '').trim() || p.icon || cardList().some(c => c.page_id === id)) return;
+  if (p.blocks.some(b => String(b.text || '').trim() || ['img', 'table', 'hr', 'code'].includes(b.type))) return;
+  S.pages.delete(id);
+  api.deletePage(id).catch(() => {});
 }
 export function render() {
   const authed = !!S.uid && !S.recovery;
@@ -481,7 +490,7 @@ document.addEventListener('click', async e => {
     case 'edit-nfolder': return folderForm(S.folders.get(S.noteFolder));
     case 'page-tags': {
       if (S.pageTagsMissing) return openSheet('<h2>Etiquetas en los apuntes</h2><p>Para usar etiquetas en los apuntes, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor de Supabase y recarga la app.</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Entendido</button></div>');
-      return openSheet(`<h2>Etiquetas del apunte</h2><p class="muted small">Las mismas que usas en las listas: sirven para filtrar en «Apuntes».</p>
+      return openSheet(`<h2>Etiquetas del apunte</h2><p class="muted small">Las mismas que usas en las listas: sirven para filtrar en Biblioteca.</p>
         ${tagPicker(curPage()?.tags || [])}
         <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="save-page-tags">Guardar</button></div>`);
     }
@@ -679,8 +688,11 @@ document.addEventListener('click', async e => {
         toast(ids.length > 1 ? 'Preguntas borradas' : 'Pregunta borrada'); closeSheet(); return render();
       } catch (err) { b.disabled = false; return fail(err); }
     }
+    case 'open-owned': return go('deck', { deckId: b.dataset.deck, cardQuery: '' });
+    case 'ask-reset-card': S.resetCard = b.closest('form').dataset.id; return confirmSheet('¿Reiniciar el progreso de esta pregunta?', 'reset-card', 'Reiniciar');
     case 'reset-card': {
-      const id = b.closest('form').dataset.id;
+      const id = S.resetCard; S.resetCard = null;
+      if (!id) return closeSheet();
       try { await api.clearProgress(S.uid, id); S.progress.delete(id); toast('Progreso reiniciado'); closeSheet(); return render(); }
       catch (err) { return fail(err); }
     }

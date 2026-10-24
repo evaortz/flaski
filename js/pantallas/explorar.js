@@ -67,7 +67,12 @@ function showPreview(byline) {
     ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
-    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis listas</button></div>`);
+    ${(() => {
+      // Ya la tienes (incluida en la app o compartida): «Ya la tienes · Abrir»
+      const own = /^(incluido|compartido):/.test(p.source || '') && [...S.decks.values()].find(d => d.source === p.source);
+      return own ? `<div class="btnrow"><span class="muted">Ya la tienes</span><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button><button class="primary" data-act="open-owned" data-deck="${own.id}">Abrir</button></div>`
+        : '<div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis listas</button></div>';
+    })()}`);
 }
 // Problemas del formato por notas: las que se saltan (y por qué) y los avisos
 function issueList(items) {
