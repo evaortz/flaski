@@ -135,7 +135,11 @@ export function groupCards(cards, pages = new Map(), { artShare = 0.3, label = n
       cells.get(n).ids.push(c.id);
     }
     const sections = [...laws].map(([law, cells]) => ({ name: law || 'Artículos', cells: [...cells.values()].sort((a, b) => a.n - b.n) }));
-    for (const s of sections) for (const cell of s.cells) cell.title = withoutArt(cell.ids.map(id => ideas.get(id)?.head).find(Boolean) || '');
+    // El título de la casilla: el del apartado que nombra ese artículo («Artículo 6 · Los partidos políticos» → «Los partidos políticos»)
+    for (const s of sections) for (const cell of s.cells) {
+      const head = cell.ids.map(id => ideas.get(id)?.head).find(h => h && citedArticles(h).some(a => a.n === cell.n));
+      cell.title = head ? withoutArt(head) : '';
+    }
     const rest = list.filter(c => !arts.get(c.id).length).map(c => c.id);
     if (rest.length) sections.push({ name: 'Sin artículo', loose: true, cells: cellsBy(rest, id => { const x = ideaCell(id); return x ? { ...x, section: '' } : noteCell(id); }) });
     return { mode: 'art', sections };

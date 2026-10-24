@@ -3283,3 +3283,7 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 }
 @media (min-width:900px){.pg-top .pg-mode{margin-right:4px}}
 @media (max-width:719px){.pg-top{flex-wrap:wrap}.pg-top .pg-mode{order:20;margin-left:auto}.pg-top .pg-mode .seg-b{min-width:0;padding:0 12px}}
+/* Lista a 375 px: «Lista | Mapa» debajo de «Preguntas» */
+@media (max-width:599px){.dk-qh{flex-wrap:wrap}.dk-qh .mp-seg{flex:1 1 100%}.dk-qh .mp-seg .seg-b{flex:1;min-width:0}}
+.ed-tools{max-width:100%;min-width:0}
+@media (max-width:599px){.ed-tools{flex-wrap:wrap;overflow-x:visible}}

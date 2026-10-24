@@ -227,3 +227,30 @@ test('móvil: la barra de lo elegido cabe en una línea («· N min» fuera)', a
   const h = await page.locator('#mpBar .mp-selt small').evaluate(el => el.getBoundingClientRect().height);
   expect(h).toBeLessThan(24);
 });
+
+test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Constitución');
+  await nav(page, 'Biblioteca');
+  const filler = Array.from({ length: 40 }, (_, i) => `Párrafo de relleno número ${i + 1}.`).join('\n\n');
+  await pasteNotes(page, `# La Constitución\n\n## Artículo 1 · El Estado y sus valores\n\nEspaña es un Estado social (ver art. 6).\n\n${filler}\n\n## Artículo 6 · Los partidos políticos\n\nLos partidos expresan el pluralismo.`);
+  await page.locator('#pgDeck').selectOption({ label: 'Constitución' });
+  for (const w of ['social', 'pluralismo']) {
+    await page.locator('#pgBlocks .nb', { hasText: w }).locator('.nb-text').click();
+    await page.locator('[data-block-input]').evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, w);
+    await page.locator('#selBar [data-act="sel-card"]').click();
+    await page.locator('[data-set-type="basic"]').click();
+    await page.locator('.ed-foot button[type="submit"], #sheetBody button[type="submit"]').first().click();
+    await expect(page.locator('#sheet')).toBeHidden();
+    await page.keyboard.press('Escape');
+  }
+  await page.locator('[data-map-view="map"]').click();
+  await page.locator('.mp-cells .mp-cell', { hasText: /^6$/ }).click();
+  if (await page.locator('#mpPop').count()) await page.locator('[data-act="map-ficha"]').click();
+  await expect(page.locator('.mp-ft')).toHaveText('Art. 6');
+  await expect(page.locator('.mp-fsub')).toHaveText('Los partidos políticos');
+  await page.locator('.mp-ficha [data-open-page]').click();
+  const block = page.locator('#pgBlocks .nb.flash');
+  await expect(block).toContainText('pluralismo');
+  await expect.poll(async () => { const r = await block.boundingBox(); return r.y >= 0 && r.y + r.height <= page.viewportSize().height; }).toBe(true);
+});

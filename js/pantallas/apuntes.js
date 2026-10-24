@@ -241,12 +241,17 @@ export function renderPage() {
   requestAnimationFrame(fitCrumbs);
   afterBlocksDrawn();
   drawReview();
-  if (S.focusBlock) {
-    revealBlock(S.focusBlock);
-    const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
-    if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); }
-    S.focusBlock = null;
-  }
+}
+// «Ver en el apunte»: con el bloque ya pintado (y tras subir arriba al cambiar de pantalla), se lleva al centro y se resalta
+export function focusPageBlock() {
+  const id = S.focusBlock;
+  if (!id) return;
+  S.focusBlock = null;
+  revealBlock(id);
+  const el = document.querySelector(`[data-block="${id}"]`);
+  if (!el) return;
+  el.classList.add('flash');
+  requestAnimationFrame(() => el.scrollIntoView({ block: 'center' }));
 }
 export const curPage = () => S.pages.get(S.pageId);
 // El título es un cuadro de varias líneas que crece con el texto (en el móvil, uno largo no se corta)
