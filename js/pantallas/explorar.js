@@ -28,17 +28,27 @@ export function renderExplore() {
   }
   const q = norm(S.exploreQuery.trim());
   const match = d => !q || norm(d.name).includes(q) || norm(d.description).includes(q) || norm(d.author).includes(q);
-  const builtin = S.builtin.filter(match).map(d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="dot" style="background:var(--d2)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} preguntas · incluida en la app</span></span><span class="go">Ver</span></button></li>`).join('');
-  const pub = S.pub.filter(match).map(d => `<li><button class="deck" data-pub="${d.id}"><span class="dot" style="background:var(--d4)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${d.count} preguntas · de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}</span></span><span class="go">Ver</span></button></li>`).join('');
+  const bi = S.builtin.filter(match), pb = S.pub.filter(match);
+  // Si ya la tienes: «La tienes» en vez de «Ver» y «48 preguntas · tú tienes 56»
+  const meta = (d, src, by) => { const own = ownedDeck(src); return `${d.count} preguntas${own ? ` · tú tienes ${ownCount(own)}` : ` · ${by}`}`; };
+  const go = src => ownedDeck(src) ? '<span class="go go-own">La tienes</span>' : '<span class="go">Ver</span>';
+  const builtin = bi.map(d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="dot" style="background:var(--d2)"></span>
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'incluido:' + d.file, 'incluida en la app')}</span></span>${go('incluido:' + d.file)}</button></li>`).join('');
+  const pub = pb.map(d => `<li><button class="deck" data-pub="${d.id}"><span class="dot" style="background:var(--d4)"></span>
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'compartido:' + d.id, `de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}`)}</span></span>${go('compartido:' + d.id)}</button></li>`).join('');
+  const local = api.mode === 'local';
+  // Buscando sin nada que encaje: un solo mensaje, no uno por sección
+  const none = q && !bi.length && !pb.length;
   main.innerHTML = `<div class="section-h"><h1>Explorar</h1><button class="link" data-act="refresh-explore">Actualizar</button></div>
     <div class="toolbar"><input id="exploreSearch" type="search" placeholder="Buscar listas" aria-label="Buscar listas" value="${esc(S.exploreQuery)}"></div>
-    <div class="section-h"><h2>Para empezar</h2></div>
-    ${builtin ? `<ul class="list">${builtin}</ul>` : '<p class="muted">Nada por aquí.</p>'}
-    <div class="section-h"><h2>${api.mode === 'local' ? 'Tus listas compartidas' : 'Compartidas por la comunidad'}</h2></div>
-    ${pub ? `<ul class="list">${pub}</ul>` : '<div class="empty"><p class="muted">Todavía nadie ha compartido listas. Abre una de tus listas y pulsa «Compartir».</p></div>'}`;
+    ${none ? `<div class="empty ex-none"><p class="muted">Ninguna lista con «${esc(S.exploreQuery.trim())}»</p></div>` : `
+    ${builtin || !q ? `<div class="section-h"><h2>Para empezar</h2></div><ul class="list">${builtin}</ul>` : ''}
+    ${pub || !q ? `<div class="section-h"><h2>${local ? 'Tus listas compartidas' : 'Compartidas por la comunidad'}</h2></div>
+    ${pub ? `<ul class="list">${pub}</ul>` : `<div class="empty"><p class="muted">${local ? 'Aún no has compartido ninguna. Abre una lista y pulsa «Compartir».' : 'Todavía nadie ha compartido listas. Abre una de tus listas y pulsa «Compartir».'}</p></div>`}` : ''}`}`;
 }
+// La lista tuya que salió de una incluida o compartida (source «incluido:…» o «compartido:…»)
+export const ownedDeck = src => [...S.decks.values()].find(d => d.source === src && !d.archived) || [...S.decks.values()].find(d => d.source === src);
+const ownCount = d => { let n = 0; for (const c of S.cards.values()) if (c.deck_id === d.id) n++; return n; };
 export async function openPublicPreview(id) {
   openSheet('<div class="spin" aria-label="Cargando"></div>');
   try {
@@ -57,19 +67,21 @@ export async function openBuiltinPreview(file) {
 }
 function showPreview(byline) {
   const p = S.preview;
-  const sample = p.cards.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
+  // Una fila por nota (con varias plantillas, la primera cara): «die Wohnung · el piso»
+  const seen = new Set(), rows = p.cards.filter(c => !c.note_id || (!seen.has(c.note_id) && seen.add(c.note_id)));
+  const sample = rows.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
   openSheet(`<h2 class="sheet-hand">${esc(p.name)}</h2><p class="muted small">${p.cards.length} preguntas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
-    <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
+    <ul class="preview">${sample}</ul>${rows.length > 6 ? `<p class="muted small">…y ${rows.length - 6} más.</p>` : ''}
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
       ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
-      : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
+      : /^(incluido|compartido):/.test(p.source || '') && ownedDeck(p.source) ? '' : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
     ${(() => {
       // Ya la tienes (incluida en la app o compartida): «Ya la tienes · Abrir»
-      const own = /^(incluido|compartido):/.test(p.source || '') && [...S.decks.values()].find(d => d.source === p.source);
+      const own = /^(incluido|compartido):/.test(p.source || '') && ownedDeck(p.source);
       return own ? `<div class="btnrow"><span class="muted">Ya la tienes</span><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button><button class="primary" data-act="open-owned" data-deck="${own.id}">Abrir</button></div>`
         : '<div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="add-preview">Añadir a mis listas</button></div>';
     })()}`);
