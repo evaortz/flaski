@@ -2417,3 +2417,7 @@ html.side-open .pg-suggest span{display:none}
   #selBar.on-kb~.fmt-more{bottom:calc(var(--kb,0px) + 52px)}
 }
 .sheet-side .ed-foot>button{flex:none;white-space:nowrap}
+/* Racha · comodín: el «·» va delante de cada parte y se recorta al empezar línea (si el comodín baja, no queda un «·» colgando) */
+.hoy-streak{overflow:hidden;column-gap:16px}
+.hoy-streak > span{margin-left:-14px}
+.hoy-streak > span::before{content:'·';display:inline-block;width:14px;margin-right:-4px;text-align:center;color:var(--muted);font-weight:400}

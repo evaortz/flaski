@@ -125,7 +125,7 @@ function activityHTML() {
   const keys = [1, 2, 3, 4].map(l => `<i class="hm-key l${l}"></i>`).join('');
   return `<section class="hoy-sec hoy-act" aria-labelledby="h-act">
     <div class="hoy-h"><h2 class="hoy-t" id="h-act">Tu actividad</h2><span class="hoy-note">últimos 6 meses</span></div>
-    <p class="hoy-streak"><span>Racha de ${plural(st.current, 'día', 'días')}${st.current ? ` ${icon('fire', { size: 14, cls: 'flame' })}` : ''}</span> · <span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span></p>
+    <p class="hoy-streak"><span>Racha de ${plural(st.current, 'día', 'días')}${st.current ? ` ${icon('fire', { size: 14, cls: 'flame' })}` : ''}</span><span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('snowflake', { size: 14 })} ${fz}</span></p>
     <p class="hoy-week">esta semana: ${plural(days, 'día', 'días')} · ${plural(total, 'pregunta', 'preguntas')}</p>
     <div id="hmHost" class="hm-host"></div>
     <div class="hoy-hm-foot">
