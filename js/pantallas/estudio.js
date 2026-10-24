@@ -348,6 +348,8 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 function buildSession(scope, size = 0) {
   const P = S.prefs.study, inScope = scopeTest(scope), now = Date.now();
   const pool = cardList().filter(inScope);
+  // «Repasar solo lo que flojea»: todas, toque o no repasarlas hoy (las que te cuestan primero)
+  if (scope === 'weak') return pool.sort((a, b) => S.progress.get(a.id).interval - S.progress.get(b.id).interval || S.progress.get(a.id).due - S.progress.get(b.id).due).map(c => c.id);
   let dueCards = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
     .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due);
   // Con tope de repasos: el tope se reparte según el foco de cada mazo (de cada uno, las más atrasadas)

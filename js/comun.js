@@ -121,6 +121,8 @@ export function scopeDecks(scope = 'all') {
 // «Lo que flojea»: los apartados de los apuntes cuyas preguntas te cuestan o toca repasar (primero los que
 // te cuestan). Si un título tiene debajo otro que también flojea, sale el de debajo, que es más concreto;
 // un apunte sin apartados que flojeen sale entero si sus preguntas flojean. → [{ page, block, status, cards }]
+// Filas de «Lo que flojea» que se ven en Hoy (y que repasa su botón)
+export const WEAK_SHOWN = 3;
 export function weakSections(now = Date.now()) {
   const live = scopeDecks('all'), byPage = new Map();
   for (const c of S.cards.values()) if (c.page_id && live.has(c.deck_id) && S.pages.has(c.page_id)) {
@@ -149,19 +151,22 @@ export function weakSections(now = Date.now()) {
   for (const [id, cards] of byDeck) out.push({ deck: S.decks.get(id), status: 'weak', cards });
   // Primero lo que te cuesta; luego lo que más preguntas te cuestan y, a igualdad, lo fallado más recientemente
   const rank = { weak: 0, due: 1 };
+  const toca = c => { const p = S.progress.get(c.id); return !!p && p.due <= now; };
   for (const r of out) {
     const hard = r.deck ? r.cards : r.cards.filter(cuesta);
     r.hard = hard.length;
+    // Las que flojean de verdad en esa fila (lo que dice su píldora y lo que entra en «Repasar solo lo que flojea»)
+    r.flojas = r.status === 'weak' ? hard : r.cards.filter(c => toca(c) && !cuesta(c));
     r.last = Math.max(0, ...hard.map(c => +new Date(S.progress.get(c.id)?.last || 0)));
   }
   return out.sort((a, b) => rank[a.status] - rank[b.status] || b.hard - a.hard || b.last - a.last || b.cards.length - a.cards.length);
 }
 // Qué tarjetas entran en un ámbito. Además de los de mazos: 'page:<id>' (las de unos apuntes),
-// 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él) y 'weak' (las ya
-// estudiadas de lo que flojea).
+// 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él) y 'weak' (las que flojean
+// en las filas de «Lo que flojea» que se ven en Hoy, aunque no toque repasarlas hoy).
 export function scopeTest(scope = 'all') {
   if (scope === 'weak') {
-    const ids = new Set(weakSections().flatMap(r => r.cards.filter(c => S.progress.has(c.id)).map(c => c.id)));
+    const ids = new Set(weakSections().slice(0, WEAK_SHOWN).flatMap(r => r.flojas.map(c => c.id)));
     return c => ids.has(c.id);
   }
   if (scope.startsWith('page:')) {

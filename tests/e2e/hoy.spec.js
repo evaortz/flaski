@@ -43,9 +43,11 @@ test('Hoy: cada bloque con sus datos reales', async ({ page }, info) => {
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText('Leer el gráfico DA–OA');
   await expect(rows.nth(0)).toContainText('Macroeconomía › Tema 4');
-  await expect(rows.nth(0).locator('.hoy-pill')).toHaveText('te cuesta');
-  await expect(rows.nth(1).locator('.hoy-pill')).toHaveText('toca repasar');
-  await expect(page.locator('.hoy-weak-go')).toContainText('Repasar solo lo que flojea · ');
+  await expect(rows.nth(0).locator('.hoy-pill')).toHaveText(/^\d+ te cuestan?$/);
+  await expect(rows.nth(1).locator('.hoy-pill')).toHaveText(/^\d+ por repasar$/);
+  // El botón suma lo que dicen las píldoras
+  const pills = (await rows.locator('.hoy-pill').allTextContents()).reduce((n, t) => n + parseInt(t, 10), 0);
+  await expect(page.locator('.hoy-weak-go')).toHaveText(`Repasar solo lo que flojea · ${pills}`);
   // Examen de la carpeta
   await expect(page.locator('.hoy-exam')).toContainText('Examen de Macroeconomía');
   await expect(page.locator('.hoy-exam')).toContainText('faltan 50 días');
@@ -64,6 +66,7 @@ test('Hoy: cada bloque con sus datos reales', async ({ page }, info) => {
   // Abrir un apartado y repasar solo lo que flojea
   await page.locator('.hoy-weak-go').click();
   await expect(page.locator('.studybar .where')).toHaveText('Lo que flojea');
+  await expect(page.locator('.studybar')).toContainText(`de ${pills}`);
   await page.locator('.studybar [data-act="exit"]').click();
   await rows.nth(0).click();
   await expect(page.locator('[data-block="h-gr"]')).toBeVisible();
@@ -88,7 +91,8 @@ test('Lo que flojea: también las listas con preguntas sueltas que te cuestan', 
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(deck.name);
   await expect(row.locator('.hoy-pill')).toHaveText('3 te cuestan');
-  await expect(page.locator('.hoy-weak-go')).toContainText('Repasar solo lo que flojea · ');
+  // Las tres, aunque una no toque repasarla hoy
+  await expect(page.locator('.hoy-weak-go')).toHaveText('Repasar solo lo que flojea · 3');
   await row.click();
   await expect(page.locator('#main h1').first()).toContainText(deck.name);
 });

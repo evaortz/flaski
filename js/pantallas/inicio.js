@@ -6,7 +6,7 @@ import { folderPath } from '../org.js';
 import { pageTitle, STATUS } from '../pages.js';
 import { examStatus, daysTo } from '../plan.js';
 import { weekDays } from '../friends.js';
-import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections } from '../comun.js';
+import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN } from '../comun.js';
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
@@ -102,8 +102,8 @@ function lastPageHTML() {
 function weakHTML() {
   const rows = weakSections();
   if (!rows.length) return '';
-  const label = st => STATUS.find(s => s.id === st)?.label.toLowerCase() || '';
-  const items = rows.slice(0, 3).map(r => {
+  const shown = rows.slice(0, WEAK_SHOWN);
+  const items = shown.map(r => {
     // Una lista con preguntas sueltas: su nombre, su carpeta y cuántas te cuestan
     if (r.deck) {
       const at = folderPath(S.folders, r.deck.folder_id).map(f => f.name).join(' › ');
@@ -115,9 +115,10 @@ function weakHTML() {
     const title = r.block ? plain(r.block.text).trim() || pageTitle(r.page) : pageTitle(r.page);
     return `<li><button class="hoy-weak st-${r.status}" data-open-page="${r.page.id}" data-open-block="${r.block?.id || ''}">
       <i class="hoy-dot" aria-hidden="true"></i><span class="hoy-weak-t"><b>${esc(title)}</b>${where ? `<small>${esc(where)}</small>` : ''}</span>
-      <span class="hoy-pill">${label(r.status)}</span></button></li>`;
+      <span class="hoy-pill">${r.status === 'weak' ? (r.flojas.length === 1 ? '1 te cuesta' : `${r.flojas.length} te cuestan`) : `${r.flojas.length} por repasar`}</span></button></li>`;
   }).join('');
-  const c = counts('weak'), n = c.due + c.newToday;
+  // El botón repasa justo lo que dicen las píldoras de encima
+  const n = new Set(shown.flatMap(r => r.flojas.map(c => c.id))).size;
   return `<section class="hoy-sec hoy-flojea" aria-labelledby="h-weak">
     <h2 class="hoy-t hoy-t-line" id="h-weak">Lo que flojea</h2>
     <ul class="hoy-weak-list">${items}</ul>
