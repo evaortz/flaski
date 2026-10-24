@@ -448,9 +448,9 @@ export function todayQueue(scope = 'all') {
 }
 // La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
 function segBar(ses) {
-  const total = ses.done + ses.queue.length, pct = Math.round(100 * ses.done / Math.max(1, total));
+  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
   if (total > 60 || total < 2) return `<div class="bar"><span style="width:${pct}%"></span></div>`;
-  return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${ses.done}">${Array.from({ length: total }, (_, i) => `<i${i < ses.done ? ' class="on"' : ''}></i>`).join('')}</div>`;
+  return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}">${Array.from({ length: total }, (_, i) => `<i${i < seen ? ' class="on"' : ''}></i>`).join('')}</div>`;
 }
 // minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
 // firstRun: la primera tanda (tras la primera vez): explica los botones y al final pregunta la duración y el aviso
@@ -509,6 +509,14 @@ function tandasToday() {
 function countTanda() {
   try { localStorage.setItem('flaski-tandas', JSON.stringify({ day: dateKey(Date.now()), n: tandasToday() + 1 })); } catch { /* sin almacenamiento */ }
 }
+// Al salir, se vuelve a donde empezó la tanda: el apunte, la lista o la carpeta (si no, a Hoy)
+export function exitTarget(scope = 'all') {
+  if (scope.startsWith('page:') && S.pages.has(scope.split(':')[1])) return ['page', { pageId: scope.split(':')[1] }];
+  if (scope.startsWith('folder:') && S.folders.has(scope.slice(7))) return ['decks', { folderId: scope.slice(7) }];
+  if (S.decks.has(scope)) return ['deck', { deckId: scope, cardQuery: '' }];
+  return ['home', {}];
+}
+const exitLabel = scope => ({ page: 'Volver a los apuntes', decks: 'Volver a la carpeta', deck: 'Volver a la lista' }[exitTarget(scope)[0]] || 'Volver al inicio');
 export function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
@@ -546,7 +554,7 @@ export function renderStudy() {
     }
     const more = Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}
-      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
+      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];
@@ -572,18 +580,19 @@ export function renderStudy() {
       : st.match && !st.match.gaveUp ? (st.match.wrong === 0 ? 3 : st.match.wrong === 1 ? 2 : 1)
       : st.match?.gaveUp ? 1
       : d && !d.img && !d.gaveUp ? (() => { const avg = d.mistakes / Math.max(1, d.n); return avg === 0 && !d.peeked ? 3 : avg <= 2 && !(d.peeked && avg > 0) ? 2 : 1; })()
-      : d?.gaveUp ? 1 : 0;
+      : d?.gaveUp || st.gaveUp ? 1 : 0;
     const P = S.prefs.study, A = algo(c.deck_id);
     const gs = P.buttons === 2 ? GRADES.filter(x => x.g === 1 || x.g === 3) : GRADES;
     foot = `<div class="grades${gs.length === 2 ? ' two' : ''}">${gs.map(({ g, label }) => `<button class="grade g${g}${P.suggest && g === suggest ? ' suggested' : ''}" data-grade="${g}">${label}${P.showIntervals ? `<small>${fmtWhen(schedule(p, g, now, A).due, now)}</small>` : ''}</button>`).join('')}</div>`;
   } else if (NEEDS_ANSWER.includes(model.tpl.mode)) {
-    foot = '<button class="ghost big" data-act="reveal">No lo sé, ver respuesta</button>';
+    foot = '<button class="ghost big" data-act="reveal" data-giveup="1">No lo sé, ver respuesta</button>';
   } else {
     foot = '<button class="primary big" data-act="reveal">Ver respuesta</button>';
   }
   const tags = (c.tags || []).length ? `<span class="tags">${tagChips(c.tags)}</span>` : '';
-  const total = ses.done + ses.queue.length;
-  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, ses.done + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
+  // «pregunta N de M»: cada respuesta avanza; la que vuelve tras «Otra vez» se suma al total
+  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length;
+  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, seen + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
       ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
       ${ses.firstRun && ses.revealed && ses.done === 0 ? `<div class="first-tip" role="note"><b>¿Cómo te ha ido?</b><p>Sin trampas: según lo que elijas, Flaski decide cuándo volver a preguntártelo. Si te costó, pronto; si fue fácil, dentro de unos días.</p></div>` : ''}
@@ -645,9 +654,11 @@ function feedback(kind, g = null) {
   if (S.prefs.study.sound) chime(g ? (GRADE_SOUNDS[g] || kind) : kind);
 }
 function haptic(kind) { feedback(kind); }
-export function reveal() {
+// giveUp: «No lo sé, ver respuesta» (sin haber respondido): se propone «Otra vez», como al fallar
+export function reveal(giveUp = false) {
   const ses = S.session;
   if (!ses || ses.revealed) return;
+  if (giveUp) ses.st = { ...(ses.st || {}), gaveUp: true };
   const st = ses.st;
   if (st) {
     st.draw?.stop?.();
@@ -676,8 +687,9 @@ export function grade(g) {
   S.events.push(ev);
   const { t: _t, ...evRow } = ev;
   api.addEvent(evRow).catch(() => {});
-  ses.undo = { id, prev, queue: ses.queue.slice(), done: ses.done, tally: { ...ses.tally }, day, evId: ev.id };
+  ses.undo = { id, prev, queue: ses.queue.slice(), done: ses.done, answered: ses.answered ?? ses.done, tally: { ...ses.tally }, day, evId: ev.id };
   ses.queue.shift();
+  ses.answered = (ses.answered ?? ses.done) + 1;
   // Solo vuelven a salir en esta sesión las tarjetas en aprendizaje (falladas o «difícil» siendo nuevas)
   if (next.interval === 0 && next.due > now) ses.queue.splice(Math.min(ses.queue.length, g === 1 ? 3 : 6), 0, id);
   else ses.done++;
@@ -702,7 +714,7 @@ export function undo() {
   S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
   api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
-  Object.assign(ses, { queue: u.queue, done: u.done, tally: u.tally, revealed: true, undo: null, st: null });
+  Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, revealed: true, undo: null, st: null });
   saveSnapSoon();
   renderStudy();
 }

@@ -22,6 +22,8 @@ export function openSheet(html, { full = false, side = false } = {}) {
   $('#sheet').classList.toggle('sheet-full', full && !side);
   $('#sheet').classList.toggle('sheet-side', side);
   document.documentElement.classList.toggle('side-open', side);
+  // Una hoja completa (editar una pregunta) durante la tanda va con los colores de siempre, no los de la tanda
+  if (full && document.body.classList.contains('in-study')) document.body.classList.replace('in-study', 'study-sheet');
   $('#sheet').hidden = false;
   const f = $('#sheetBody').querySelector('input,textarea');
   if (f && matchMedia('(hover:hover)').matches) setTimeout(() => f.focus(), 30);
@@ -34,6 +36,7 @@ export function closeSheet() {
 function closeSheetOnly() {
   $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').classList.remove('sheet-full', 'sheet-side');
   document.documentElement.classList.remove('side-open');
+  if (document.body.classList.contains('study-sheet')) document.body.classList.replace('study-sheet', 'in-study');
   document.querySelectorAll('.nb.is-src').forEach(el => el.classList.remove('is-src'));
   if (S.edit) S.edit.open = false;
   if (S.folderPick) { const fp = S.folderPick; S.folderPick = null; dropFolderImages(fp); }

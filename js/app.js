@@ -20,7 +20,7 @@ import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
-import { getType, typeIn, cardModel, sayOrWarn, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
+import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
@@ -51,7 +51,7 @@ export function render() {
   if (S.view === 'decks') S.noteFolder = S.folderId;
   $('#nav').hidden = !authed || S.view === 'study';
   document.body.classList.toggle('no-nav', $('#nav').hidden);
-  document.body.classList.toggle('in-study', authed && S.view === 'study');
+  document.body.classList.toggle('in-study', authed && S.view === 'study' && !document.body.classList.contains('study-sheet'));
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
@@ -323,7 +323,7 @@ document.addEventListener('click', async e => {
     case 'auth-mode': S.authMode = ds.mode; return renderAuth();
     case 'reload': S.uid = null; return onSignedIn(await api.auth.session());
     case 'sample-data': return loadSampleData(b);
-    case 'reveal': return reveal();
+    case 'reveal': return reveal(!!b.dataset.giveup);
     case 'show-hint': {
       // Sin volver a pintar la tarjeta, para no borrar lo que estés dibujando
       const c = S.cards.get(S.session?.queue[0]);
@@ -373,10 +373,10 @@ document.addEventListener('click', async e => {
     case 'ask-reset-prefs': return confirmSheet('¿Restablecer todos los ajustes?', 'reset-prefs', 'Restablecer');
     case 'reset-prefs': { S.prefs = loadPrefs(); applyLook(S.prefs.look); setBaseRate(1); savePrefsSoon(); closeSheet(); toast('Ajustes restablecidos'); return renderSettings(); }
     case 'exit': {
-      // Al salir de una sesión empezada en unos apuntes se vuelve a ellos
-      const pid = S.session?.scope?.startsWith('page:') ? S.session.scope.split(':')[1] : null;
+      // Al salir se vuelve a donde empezó la tanda (apunte, lista o carpeta)
+      const [view, opts] = exitTarget(S.session?.scope);
       S.session = null;
-      return pid && S.pages.has(pid) ? go('page', { pageId: pid }) : go('home');
+      return go(view, opts);
     }
     case 'more': { addExtraNew(Number(b.dataset.more) || 10); return startSession(S.session?.scope || 'all'); }
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
