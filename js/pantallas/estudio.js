@@ -678,6 +678,27 @@ export function reveal(giveUp = false) {
   ses.revealed = true;
   renderStudy();
 }
+// Guarda una respuesta: el progreso, el registro para Estadísticas y los repasos del día (en la tanda y al repasar
+// un apunte). Devuelve { prev, next, ev, day }
+export function recordAnswer(id, g, ms = 0, now = Date.now()) {
+  const prev = S.progress.get(id) || null;
+  const card = S.cards.get(id);
+  const next = schedule(prev, g, now, algo(card?.deck_id));
+  const day = dateKey(now);
+  // Registro de cada respuesta, para Estadísticas
+  const state = !prev ? 'new' : prev.interval === 0 ? (prev.lapses ? 'relearning' : 'learning') : 'review';
+  const ev = { id: api.newId(), user_id: S.uid, card_id: id, deck_id: card?.deck_id || null, ts: new Date(now).toISOString(), grade: g, state, ivl: next.interval, last_ivl: prev?.interval || 0, ease: Math.round(next.ease * 1000) / 1000, ms, t: now };
+  S.events.push(ev);
+  const { t: _t, ...evRow } = ev;
+  api.addEvent(evRow).catch(() => {});
+  S.progress.set(id, next);
+  S.log[day] = (S.log[day] || 0) + 1;
+  api.saveProgress(S.uid, id, next).catch(fail);
+  // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
+  api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
+  saveSnapSoon();
+  return { prev, next, ev, day };
+}
 export function grade(g) {
   const ses = S.session;
   if (!ses || !ses.revealed || !ses.queue.length) return;
@@ -685,18 +706,10 @@ export function grade(g) {
   document.querySelector('.swipe-hints')?.remove();
   const id = ses.queue[0];
   const now = Date.now();
-  const prev = S.progress.get(id) || null;
-  const card = S.cards.get(id);
-  const next = schedule(prev, g, now, algo(card?.deck_id));
-  const day = dateKey(now);
-  // Registro de cada respuesta, para Estadísticas
-  const state = !prev ? 'new' : prev.interval === 0 ? (prev.lapses ? 'relearning' : 'learning') : 'review';
   const ms = Math.min(120e3, Math.max(0, now - (ses.shownAt || now)));
-  const ev = { id: api.newId(), user_id: S.uid, card_id: id, deck_id: card?.deck_id || null, ts: new Date(now).toISOString(), grade: g, state, ivl: next.interval, last_ivl: prev?.interval || 0, ease: Math.round(next.ease * 1000) / 1000, ms, t: now };
-  S.events.push(ev);
-  const { t: _t, ...evRow } = ev;
-  api.addEvent(evRow).catch(() => {});
-  ses.undo = { id, prev, queue: ses.queue.slice(), done: ses.done, answered: ses.answered ?? ses.done, tally: { ...ses.tally }, day, evId: ev.id };
+  const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally };
+  const { prev, next, ev, day } = recordAnswer(id, g, ms, now);
+  ses.undo = { id, prev, queue, done, answered, tally, day, evId: ev.id };
   ses.queue.shift();
   ses.answered = (ses.answered ?? ses.done) + 1;
   // Solo vuelven a salir en esta sesión las tarjetas en aprendizaje (falladas o «difícil» siendo nuevas)
@@ -705,12 +718,6 @@ export function grade(g) {
   ses.tally[g]++;
   ses.revealed = false;
   ses.st = null;
-  S.progress.set(id, next);
-  S.log[day] = (S.log[day] || 0) + 1;
-  api.saveProgress(S.uid, id, next).catch(fail);
-  // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
-  api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
-  saveSnapSoon();
   feedback(!ses.queue.length ? 'done' : g === 1 ? 'again' : 'ok', !ses.queue.length ? null : g);
   renderStudy();
 }

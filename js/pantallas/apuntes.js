@@ -14,6 +14,7 @@ import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, 
 import { saveSnapSoon } from './cuenta.js';
 import { deckLang, todayQueue } from './estudio.js';
 import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
+import { qsBodyHTML, qsCreate, qsSkip, qsHide, qsFollow, rvOn, drawReview, modeSeg, reviewIntro } from './apuntes-repaso.js';
 import { plural, statusChip, download } from './mazos.js';
 import { seg } from './perfil.js';
 import { openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage } from './editor.js';
@@ -127,8 +128,10 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
   if (b.type === 'hr') return `<div class="nb nb-hr${cls}" data-block="${b.id}">${bar}${gripBtn(b.id)}<hr>${delBtn(b.id, 'el separador')}</div>`;
   const n = cards.length, st = statusOf(cards);
   // El texto se pinta igual que en el editor (con las marcas ocultas): al tocarlo, el cursor cae donde se ha tocado
-  const md = !['table', 'code'].includes(b.type);
-  const body = md ? toLiveHTML(b.text) : !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
+  // Una línea «a >> b» que ya es pregunta se ve como «a → b»
+  const qsb = qsBodyHTML(b, cards);
+  const md = !qsb && !['table', 'code'].includes(b.type);
+  const body = qsb || md ? qsb || toLiveHTML(b.text) : !b.text.trim() ? `<span class="nb-ph">${PH[b.type] || BLOCK_PH}</span>` : b.type === 'table' ? tableHTML(b.text)
     : `<pre class="nb-code">${esc(b.text)}</pre>`;
   // Lo que va delante del texto: el número, la casilla o el icono del destacado
   const lead = b.type === 'ol' ? `<span class="nb-num" aria-hidden="true">${ctx.nums.get(b.id) || 1}.</span>`
@@ -148,7 +151,7 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
     }
   }
   const ind = b.indent ? ` data-ind="${b.indent}" style="--ind:${b.indent}"` : '';
-  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${bar}${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
+  return `<div class="nb nb-${b.type}${qsb ? ' nb-qs' : ''}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${bar}${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
     ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'pregunta sale', 'preguntas salen')} de esta parte" aria-label="${plural(n, 'pregunta', 'preguntas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}"><i aria-hidden="true"></i>${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas preguntas llevas al día, cuáles te cuestan… y estudiarlo entero
@@ -169,9 +172,10 @@ export function renderPage() {
   const total = [...cards.values()].reduce((s, l) => s + l.length, 0);
   const scope = `page:${p.id}`, withMap = total > 1 && hasMap(scope);
   if (!withMap && mapOn(scope)) S.mapView = null;
-  const mapped = withMap && mapOn(scope);
+  const rv = rvOn(p), mapped = !rv && withMap && mapOn(scope);
   const prop = (ic, label, value, forId = '') => `<div class="prop"><${forId ? `label for="${forId}"` : 'span'} class="prop-k">${icon(ic, { size: 16 })} ${label}</${forId ? 'label' : 'span'}><div class="prop-v">${value}</div></div>`;
   main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
+      ${modeSeg(p)}
       <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
       ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}
       <span class="pg-hist" role="group" aria-label="Deshacer y rehacer">
@@ -187,19 +191,23 @@ export function renderPage() {
         : `<button type="button" class="pg-addicon" data-act="page-icon">${icon('smile-plus', { size: 16 })} Añadir icono</button>`}
       <textarea id="pgTitle" class="pg-title" rows="1" maxlength="120" placeholder="Sin título" aria-label="Título" enterkeyhint="done">${esc(p.title || '')}</textarea>
     </div>
-    <div class="pg-props">
+    ${rv ? reviewIntro() : ''}
+    <div class="pg-props" ${rv ? 'hidden' : ''}>
       ${prop('layers', 'Lista', `<select id="pgDeck" class="prop-select" aria-label="Lista donde van las preguntas de este apunte"><option value="">Sin lista</option>${deckOptions(p.deck_id)}</select>`)}
       ${prop('folder', 'Carpeta', folderSelect('pgFolder', pageFolder(p) || '', null, 'Sin carpeta').replace('<select ', '<select class="prop-select" aria-label="Carpeta" '))}
       ${prop('tag', 'Etiquetas', `${tagChips(p.tags || [])}<button type="button" class="link prop-add" data-act="page-tags">${(p.tags || []).length ? 'Editar' : 'Añadir'}</button>`)}
       ${total ? '' : prop('notebook-text', 'Preguntas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
     </div>
-    ${withMap ? `<div class="mp-segrow">${mapSeg(scope, 'Apunte')}</div>` : ''}
-    ${mapped ? mapHTML(scope) : pageStatusHTML(p, cards)}
-    <div class="pg-blocks" id="pgBlocks" ${mapped ? 'hidden' : ''}>${blocksHTML(p, cards)}</div>
-    <div class="pg-adds" ${mapped ? 'hidden' : ''}><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
+    ${withMap && !rv ? `<div class="mp-segrow">${mapSeg(scope, 'Apunte')}</div>` : ''}
+    ${mapped ? mapHTML(scope) : rv ? '' : pageStatusHTML(p, cards)}
+    <div class="pg-body${rv ? ' is-review' : ''}"><div class="pg-blocks" id="pgBlocks" ${mapped ? 'hidden' : ''}>${blocksHTML(p, cards)}</div>
+    ${rv ? '<aside class="rv-panel" id="rvPanel" aria-label="Repasando"></aside>' : ''}</div>
+    ${rv ? '<div class="rv-foot" id="rvFoot"></div>' : ''}
+    <div class="pg-adds" ${mapped || rv ? 'hidden' : ''}><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
     <section id="pgLinks" class="pg-links" aria-label="Apuntes que enlazan a este"></section>
     <nav id="pgToc" class="pg-toc" aria-label="Índice del apunte" hidden></nav>
     <div id="blkBar" class="selbar blk-bar" role="toolbar" aria-label="Bloques seleccionados" hidden></div>
+    <div id="kbBar" class="kb-bar" role="toolbar" aria-label="Al escribir"><button type="button" class="kb-q" data-act="qs-insert">→ <span>pregunta</span></button><button type="button" class="kb-done" data-act="sel-done">Hecho</button></div>
     <div id="selBar" class="selbar" role="toolbar" aria-label="Con el texto seleccionado" hidden>
       <div class="fmt-btns" role="group" aria-label="Formato">
         <button type="button" class="fmt" data-nfmt="b" title="Negrita · **texto** (Ctrl+B)" aria-label="Negrita"><b>B</b></button>
@@ -232,6 +240,7 @@ export function renderPage() {
   fitCrumbs();
   requestAnimationFrame(fitCrumbs);
   afterBlocksDrawn();
+  drawReview();
   if (S.focusBlock) {
     revealBlock(S.focusBlock);
     const el = document.querySelector(`[data-block="${S.focusBlock}"]`);
@@ -930,6 +939,8 @@ export function commitBlockEl(t) {
   if (!b) return;
   // Un párrafo que en realidad es una tabla en Markdown pasa a ser tabla
   if (b.type === 'p' && isTableText(t.value)) { b.type = 'table'; savePageSoon(p); }
+  qsHide();
+  qsFollow(p, b, t.value);
   if (b.text !== t.value) { b.text = t.value; savePageSoon(p); }
   const wrap = t.closest('.nb');
   if (wrap) repaint(() => { wrap.outerHTML = blockHTML(b, pageCards(p.id).get(b.id)); });
@@ -979,6 +990,9 @@ export function blockKey(e) {
   }
   // Lista de apuntes para enlazar abierta ([[)
   if (wikiKey(e)) { e.preventDefault(); return; }
+  // «a >> b» con el aviso a la vista: Enter crea la pregunta, Esc lo deja como texto
+  if ($('#qsHint') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); qsCreate(t); return; }
+  if ($('#qsHint') && e.key === 'Escape') { e.preventDefault(); qsSkip(b.id); return; }
   const mod = e.ctrlKey || e.metaKey;
   // Alt+↑/↓ (o Ctrl+Mayús+↑/↓): mover el bloque
   if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (e.altKey || (mod && e.shiftKey))) {

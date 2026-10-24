@@ -29,6 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
+import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey } from './pantallas/apuntes-repaso.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
@@ -138,6 +139,9 @@ document.addEventListener('click', async e => {
   // Mapa: «Lista | Mapa», tocar una casilla (ficha o elegir varias) y practicar
   if ('mapView' in ds) { setMapView(ds.scope, ds.mapView === 'map'); return render(); }
   if (ds.mapCell) return cellClick(b, e);
+  // Repasar un apunte: tocar lo tapado lo destapa; los 4 botones, como en la tanda
+  if (ds.rv) return rvReveal(Number(ds.rv));
+  if (ds.rvGrade) return rvGrade(Number(ds.rvGrade));
   if (ds.remindAt) {
     Object.assign(S.prefs.remind, { on: true, time: ds.remindAt }); savePrefsSoon();
     const box = $('#firstRemind'); if (box) box.innerHTML = `<h3>Te avisaremos a las ${esc(ds.remindAt)}</h3><p>Si ese día ya lo tienes todo hecho, no avisa. Lo cambias en Ajustes › Avisos.</p>`;
@@ -589,6 +593,12 @@ document.addEventListener('click', async e => {
     }
     // Editor en el móvil: Borrar, Duplicar y Reiniciar progreso en «⋯ Más»
     case 'ed-extra': { const f = b.closest('.ed-foot'), on = !f.classList.contains('show-extra'); f.classList.toggle('show-extra', on); b.setAttribute('aria-expanded', on); return; }
+    case 'pg-mode': return ds.mode === 'review' ? (rvOn() ? null : startReview()) : (rvOn() ? stopReview() : null);
+    case 'rv-reveal': return rvReveal();
+    case 'rv-make': return rvMake();
+    case 'rv-again': return startReview();
+    case 'qs-skip': return qsSkip();
+    case 'qs-insert': return qsInsert();
     case 'map-resist': return practiceResist(ds.scope);
     case 'map-practice': return practiceCell(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
     case 'map-ficha': return openFicha(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
@@ -799,6 +809,7 @@ document.addEventListener('input', e => {
     if (sc) return retypeBlock(b, sc.type, sc.text, sc.type === 'todo' ? { checked: sc.checked } : {});
     syncBlock(t, 'type');
     wikiCheck(t);
+    qsCheck(t);
     // «/» en un bloque vacío abre el menú de bloques; lo que se escribe detrás lo filtra
     const m = b && !['code', 'table', 'img'].includes(b.type) && /^\/([^\s/]*)$/.exec(t.value);
     if (m) openBlockMenu({ mode: 'slash', blockId: b.id, q: m[1], anchor: t });
@@ -931,13 +942,14 @@ document.addEventListener('drop', e => {
   moveDecks([id], t.dataset.folder || null);
 });
 document.addEventListener('focusin', e => { if (e.target.matches('[data-fld], #typed, #c-hint')) S.lastField = e.target; });
-document.addEventListener('mousedown', e => { if (e.target.closest('[data-char], [data-fmt]')) e.preventDefault(); });
+document.addEventListener('mousedown', e => { if (e.target.closest('[data-char], [data-fmt], #kbBar')) e.preventDefault(); });
 $('#backupFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) restoreBackup(f); e.target.value = ''; });
 $('#pdfFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importPdf(f); e.target.value = ''; });
 $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = ''; });
 
 document.addEventListener('keydown', e => {
   if (e.target.matches?.('[data-block-input]')) return blockKey(e);
+  if (rvKey(e)) return;
   if (e.target.matches?.('.tc')) return tableKey(e);
   if (e.key === 'Escape' && S.mapSel && $('#sheet').hidden) { clearMapSel(); return; }
   if (e.key === 'Escape' && e.target.id === 'f-newtag' && e.target.closest('.tagpick.compact')) { e.preventDefault(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return; }

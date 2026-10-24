@@ -88,7 +88,9 @@ test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en
   expect(await fits(page, '.pg-top')).toMatchObject({ overlap: false });
   const cur = page.locator('.pg-top .crumb-cur');
   const text = await cur.textContent();
-  expect(['Por qué se te olvidan las cosas (y cómo evitarlo)', 'Por qué se te olvidan las cosas…']).toContain(text);
+  // Entera o cortada en una palabra entera (y nunca tras un paréntesis sin cerrar)
+  const full = 'Por qué se te olvidan las cosas (y cómo evitarlo)';
+  expect(text === full || (text.endsWith('…') && full.startsWith(text.slice(0, -1)) && full[text.length - 1] === ' ' && !text.includes('('))).toBe(true);
   expect(await cur.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);      // nada cortado a media palabra por el CSS
   if (text.endsWith('…')) await expect(cur).toHaveAttribute('title', 'Por qué se te olvidan las cosas (y cómo evitarlo)');
 });
