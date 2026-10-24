@@ -1622,6 +1622,7 @@ h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.n
 .pg-lab{font-size:12px;fill:var(--pg-ink)}.pg-lab-rest{fill:var(--muted)}
 .pg-lab-n{fill:var(--muted);font-variant-numeric:tabular-nums}
 .pg-note{font-size:11px;fill:var(--muted)}
+.pg-lab-n.pg-lab-big{fill:inherit;font-weight:600}.pg-lab-sub{font-size:10px;fill:var(--muted)}
 .pg-pin{fill:var(--muted)}.pg-pin-k{fill:var(--pg-bg);stroke:var(--pg-ink);stroke-width:1.5}
 .pg-dot{fill:var(--pg3);stroke:var(--pg-bg);stroke-width:2}
 .pg-cur{stroke:var(--fg);stroke-width:1;opacity:0}

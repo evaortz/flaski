@@ -362,11 +362,15 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   const yl = [(Y(lv[2](last)) + Y(last.total)) / 2, (Y(lv[1](last)) + Y(lv[2](last))) / 2, (Y(lv[0](last)) + Y(lv[1](last))) / 2, (B + Y(lv[0](last))) / 2];
   const on = vals(last).map(v => v > 0);
   const ys = yl.map((y, k) => (on[k] ? y : null));
+  // En estrecho, en dos líneas (el número y debajo el nombre, pequeño), para que quepan a la derecha
+  const gap = narrow ? 26 : 15;
   let prev = -Infinity;
-  for (let k = 0; k < 4; k++) if (ys[k] != null) { ys[k] = Math.max(ys[k], prev + 15); prev = ys[k]; }
+  for (let k = 0; k < 4; k++) if (ys[k] != null) { ys[k] = Math.max(ys[k], prev + gap); prev = ys[k]; }
   let over = Infinity;
-  for (let k = 3; k >= 0; k--) if (ys[k] != null) { ys[k] = Math.min(ys[k], over - 15, B - 2); over = ys[k]; }
-  const labels = keys.map(([k, lab], j) => (ys[j] == null ? '' : `<text class="pg-lab pg-lab-${k}" x="${R + 10}" y="${(ys[j] + 4).toFixed(1)}">${lab} <tspan class="pg-lab-n" data-k="${j}">${nf.format(vals(last)[j])}</tspan></text>`)).join('');
+  for (let k = 3; k >= 0; k--) if (ys[k] != null) { ys[k] = Math.min(ys[k], over - gap, narrow ? B - 10 : B - 2); over = ys[k]; }
+  const labels = keys.map(([k, lab], j) => (ys[j] == null ? '' : narrow
+    ? `<text class="pg-lab pg-lab-${k}" x="${R + 8}" y="${(ys[j] - 1).toFixed(1)}"><tspan class="pg-lab-n pg-lab-big" data-k="${j}">${nf.format(vals(last)[j])}</tspan><tspan class="pg-lab-sub" x="${R + 8}" dy="11">${lab.toLowerCase()}</tspan></text>`
+    : `<text class="pg-lab pg-lab-${k}" x="${R + 10}" y="${(ys[j] + 4).toFixed(1)}">${lab} <tspan class="pg-lab-n" data-k="${j}">${nf.format(vals(last)[j])}</tspan></text>`)).join('');
   const dot = `<circle class="pg-dot pg-now" cx="${X(N - 1).toFixed(1)}" cy="${Y(known(last)).toFixed(1)}" r="3.5"></circle>`;
   const hover = { x: idx.map(i => +X(i).toFixed(1)), y: idx.map(i => +Y(known(s[i])).toFixed(1)), i: idx };
   const svg = `<svg class="pg-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="${title}: te sabes ${nf.format(known(last))} de ${plural(last.total, 'pregunta', 'preguntas')}">
@@ -378,6 +382,16 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
     <p class="lv-sub">${pgSub(s)}</p>${svg}${next ? `<p class="pg-next">${next}</p>` : ''}`;
   const el = host.querySelector('.pg-svg');
   el._pg = { s, hover, vals };
+  fitLabels(el, width);
+}
+// Ninguna etiqueta se sale por la derecha: la que no cabe (números muy largos, letra grande) se encoge
+function fitLabels(svg, width) {
+  for (const t of svg.querySelectorAll('.pg-lab, .pg-note')) {
+    let size = parseFloat(getComputedStyle(t).fontSize) || 12;
+    try {
+      for (let b = t.getBBox(); b.width && b.x + b.width > width && size > 7; b = t.getBBox()) t.style.fontSize = `${size -= 0.5}px`;
+    } catch { /* sin pintar (p. ej. oculto): no se puede medir */ }
+  }
 }
 
 // Al pasar el ratón (o arrastrar el dedo) por el gráfico, la cabecera cuenta ese día
