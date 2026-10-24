@@ -109,7 +109,8 @@ export async function loadAll(uid, { retry = true } = {}) {
   const since = new Date(Date.now() - 372 * 864e5).toISOString().slice(0, 10);
   const yearAgo = new Date(Date.now() - 400 * 864e5).toISOString();
   const from = t => { const q = sb.from(t); return { select: (...a) => q.select(...a).retry(retry) }; };
-  const [profile, settings, decks, cards, progress, log, folders, tags, types, events] = await Promise.all([
+  // Todo a la vez, también los apuntes y las comprobaciones de columnas: cada consulta en serie es otro viaje por la red
+  const [profile, settings, decks, cards, progress, log, folders, tags, types, events, pagesRes, tagsCheck, fsrsCheck] = await Promise.all([
     from('profiles').select('id, display_name').eq('id', uid).maybeSingle().then(check),
     from('settings').select('new_per_day, prefs').eq('user_id', uid).maybeSingle().then(check),
     fetchAll(() => from('decks').select('*').eq('owner', uid).order('created_at')),
@@ -120,19 +121,20 @@ export async function loadAll(uid, { retry = true } = {}) {
     fetchAll(() => from('tags').select('*').eq('owner', uid).order('name')),
     fetchAll(() => from('note_types').select('*').eq('owner', uid).order('created_at')),
     fetchAll(() => from('review_events').select('id, card_id, deck_id, ts, grade, state, ivl, last_ivl, ease, ms').eq('user_id', uid).gte('ts', yearAgo).order('ts')),
+    // Apuntes: si la tabla aún no existe (schema.sql sin ejecutar), la app funciona igual y lo avisa
+    fetchAll(() => from('pages').select('*').eq('owner', uid).order('updated_at', { ascending: false })).then(rows => ({ rows }), e => {
+      if (['42P01', 'PGRST205', 'PGRST200'].includes(e.code) || /pages/.test(e.message || '')) return { missing: true };
+      throw e;
+    }),
+    // ¿Tiene ya la columna de etiquetas? (schema.sql de la versión 6). Si no, se guardan sin etiquetas.
+    sb.from('pages').select('tags').limit(1).retry(retry),
+    // ¿Tiene ya progress las columnas de FSRS (schema.sql, versión 9)? Si no, se guarda sin ellas
+    sb.from('progress').select('stability').limit(1).retry(retry),
   ]);
-  // Apuntes: si la tabla aún no existe (schema.sql sin ejecutar), la app funciona igual y lo avisa
-  let pages = [], pagesMissing = false, pageTagsMissing = false;
-  try { pages = await fetchAll(() => from('pages').select('*').eq('owner', uid).order('updated_at', { ascending: false })); }
-  catch (e) { if (['42P01', 'PGRST205', 'PGRST200'].includes(e.code) || /pages/.test(e.message || '')) pagesMissing = true; else throw e; }
-  // ¿Tiene ya la columna de etiquetas? (schema.sql de la versión 6). Si no, se guardan sin etiquetas.
-  if (!pagesMissing) {
-    const { error } = await sb.from('pages').select('tags').limit(1).retry(retry);
-    if (error && (error.code === '42703' || /tags/.test(error.message || ''))) pageTagsMissing = true;
-  }
-  // ¿Tiene ya progress las columnas de FSRS (schema.sql, versión 9)? Si no, se guarda sin ellas
-  { const { error } = await sb.from('progress').select('stability').limit(1).retry(retry);
-    progressCols.extra = !(error && (error.code === '42703' || /stability/.test(error.message || ''))); }
+  const pagesMissing = !!pagesRes.missing, pages = pagesRes.rows || [];
+  const tagsErr = tagsCheck.error, fsrsErr = fsrsCheck.error;
+  const pageTagsMissing = !pagesMissing && !!tagsErr && (tagsErr.code === '42703' || /tags/.test(tagsErr.message || ''));
+  progressCols.extra = !(fsrsErr && (fsrsErr.code === '42703' || /stability/.test(fsrsErr.message || '')));
   return { profile, settings, decks, cards, progress, log, folders, tags, types, events, pages, pagesMissing, pageTagsMissing };
 }
 

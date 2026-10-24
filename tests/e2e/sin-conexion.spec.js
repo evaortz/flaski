@@ -53,6 +53,29 @@ test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al 
   await expect.poll(() => sent(srv, 'bump_review_log').length).toBe(1);
 });
 
+test('al abrir, los datos no esperan a que se envíe lo pendiente, y lo pendiente se ve encima', async ({ page }) => {
+  const srv = await mockCloud(page);
+  // Una respuesta que quedó sin enviar: la pregunta 1 ya no toca hoy
+  const now = Date.now(), card = 'c0000001-0000-4000-8000-000000000001';
+  const s = { reps: 1, interval: 5, ease: 2.5, lapses: 0, due: now + 5 * 864e5, firstSeen: now, last: now };
+  await page.addInitScript(([key, item]) => { if (!sessionStorage.getItem('puesto')) { sessionStorage.setItem('puesto', '1'); localStorage.setItem(key, JSON.stringify([item])); } },
+    ['flaski-outbox:' + UID, { id: 'p1', op: 'saveProgress', args: [UID, card, s] }]);
+  // El servidor tarda mucho en guardar el progreso
+  let release;
+  const slow = new Promise(r => { release = r; });
+  await page.route('https://test.supabase.co/rest/v1/progress*', async route => {
+    if (route.request().method() === 'GET') return route.fallback();
+    await slow;
+    return route.fallback();
+  });
+  await openCloud(page);
+  await expect(page.locator('.hero-num')).toHaveText('2');
+  expect(sent(srv, 'progress')).toHaveLength(0);
+  release();
+  await expect.poll(() => sent(srv, 'progress').length).toBe(1);
+  await expect(page.locator('#net')).toBeHidden();
+});
+
 test('cerrar sesión borra la copia sin conexión de este dispositivo', async ({ page }) => {
   await mockCloud(page);
   await openCloud(page);

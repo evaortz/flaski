@@ -108,27 +108,32 @@ export async function onSignedIn(session) {
   S.loading = true;
   setImageRemote(api.imageStore ? api.imageStore(S.uid) : null);
   render();
+  // Lo pendiente se envía mientras se cargan los datos, sin esperarlo: lo que había en la cola al
+  // empezar (y lo que siga en ella) se aplica encima de lo cargado, así que nada se pierde aunque el
+  // servidor aún no lo tenga
+  let queued = [];
   if (api.offline) {
     if (!session.offline) rememberUser(session.user);
-    // Primero se envía lo que quedó pendiente, para que lo que se cargue ya lo incluya
-    // (sin esperar más de 4 s: si tarda, se carga igual y lo pendiente se aplica encima)
     const first = api.offline.start(S.uid, n => { S.pending = n; netState(); });
-    if (navigator.onLine && !session.offline) await Promise.race([first, new Promise(r => setTimeout(r, 4000))]);
+    queued = api.offline.pendingOps();
     first.then(afterFlush);
   }
   try {
-    // Con copia guardada, si no hay red se abre con ella en el acto en vez de esperar a los reintentos
-    const snap = api.offline ? await loadSnapshot(S.uid) : null;
+    // La copia guardada se lee a la vez que se piden los datos: sin red se abre con ella en el acto
+    // en vez de esperar a los reintentos
+    const snapP = api.offline ? loadSnapshot(S.uid).catch(() => null) : Promise.resolve(null);
     let d;
     try {
       if (session.offline) throw new TypeError('Failed to fetch');
-      d = await api.loadAll(S.uid, { retry: !snap });
+      try { d = await api.loadAll(S.uid, { retry: false }); }
+      catch (e) { if (!isOffline(e) || await snapP) throw e; d = await api.loadAll(S.uid); }
       S.fromCache = false;
     } catch (e) {
+      const snap = await snapP;
       if (!snap || !isOffline(e)) throw e;
       d = snap; S.fromCache = true;
     }
-    applyData(withPending(d));
+    applyData(withPending(d, queued));
     S.loading = false;
     netState();
     migrateDeckLangs();
@@ -229,8 +234,10 @@ async function introChosen(choice) {
 export const isOffline = e => !navigator.onLine || isRetryable(e);
 // Aplica encima de los datos cargados los cambios que aún esperan en la cola: ni el servidor ni la
 // copia del navegador (que se guarda con retraso) los tienen por fuerza, y la cola nunca se pierde.
-function withPending(d) {
-  const ops = api.offline?.pendingOps() || [];
+// before: la cola tal como estaba al empezar a cargar (lo que se envió mientras tanto puede no venir en
+// lo cargado); se aplica primero y luego la de ahora, que es más reciente.
+function withPending(d, before = []) {
+  const ops = [...before, ...(api.offline?.pendingOps() || [])];
   if (!ops.length) return d;
   const prog = new Map(d.progress.map(r => [r.card_id, r]));
   const evs = new Map((d.events || []).map(e => [e.id, e]));

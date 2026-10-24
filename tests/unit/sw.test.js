@@ -28,6 +28,15 @@ test('el service worker guarda todos los módulos que carga la app', async () =>
   assert.deepEqual(missing, [], 'añade estos archivos a SHELL en sw.js');
 });
 
+// Sin modulepreload, el navegador descubre los módulos import a import y supabase.js (que hace falta
+// para pedir los datos) llega el último, tras varios viajes por la red
+test('index.html pide a la vez todos los módulos que carga la app', async () => {
+  const html = await readFile(join(ROOT, 'index.html'), 'utf8');
+  const pre = new Set([...html.matchAll(/<link rel="modulepreload" href="([^"]+)">/g)].map(m => m[1]));
+  const missing = (await modulesFrom('js/app.js')).filter(f => f !== 'js/app.js' && !pre.has(f));
+  assert.deepEqual(missing, [], 'añade estos módulos con <link rel="modulepreload"> en index.html');
+});
+
 test('la app no carga código de fuera (para abrir sin conexión)', async () => {
   for (const f of await modulesFrom('js/app.js')) {
     const src = await readFile(join(ROOT, f), 'utf8');
