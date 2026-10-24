@@ -13,6 +13,7 @@ import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, m
 import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, algo } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { deckLang, todayQueue } from './estudio.js';
+import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
 import { plural, statusChip, download } from './mazos.js';
 import { seg } from './perfil.js';
 import { openSheet, closeSheet, folderSelect, deckOptions, cardForm, autoGrow, pickImage, saveImage, imageIntoField, imageFile, occSetImage } from './editor.js';
@@ -166,6 +167,9 @@ export function renderPage() {
   if (!p.blocks.length) p.blocks.push(newBlock());
   const cards = pageCards(p.id);
   const total = [...cards.values()].reduce((s, l) => s + l.length, 0);
+  const scope = `page:${p.id}`, withMap = total > 1 && hasMap(scope);
+  if (!withMap && mapOn(scope)) S.mapView = null;
+  const mapped = withMap && mapOn(scope);
   const prop = (ic, label, value, forId = '') => `<div class="prop"><${forId ? `label for="${forId}"` : 'span'} class="prop-k">${icon(ic, { size: 16 })} ${label}</${forId ? 'label' : 'span'}><div class="prop-v">${value}</div></div>`;
   main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
       <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
@@ -189,9 +193,10 @@ export function renderPage() {
       ${prop('tag', 'Etiquetas', `${tagChips(p.tags || [])}<button type="button" class="link prop-add" data-act="page-tags">${(p.tags || []).length ? 'Editar' : 'Añadir'}</button>`)}
       ${total ? '' : prop('notebook-text', 'Preguntas', '<span class="muted">Ninguna todavía · selecciona un texto para crear una o </span><button type="button" class="link" data-act="suggest-cards">pide sugerencias</button>')}
     </div>
-    ${pageStatusHTML(p, cards)}
-    <div class="pg-blocks" id="pgBlocks">${blocksHTML(p, cards)}</div>
-    <div class="pg-adds"><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
+    ${withMap ? `<div class="mp-segrow">${mapSeg(scope, 'Apunte')}</div>` : ''}
+    ${mapped ? mapHTML(scope) : pageStatusHTML(p, cards)}
+    <div class="pg-blocks" id="pgBlocks" ${mapped ? 'hidden' : ''}>${blocksHTML(p, cards)}</div>
+    <div class="pg-adds" ${mapped ? 'hidden' : ''}><button type="button" class="pg-add" data-act="block-menu" aria-haspopup="listbox">${icon('plus', { size: 15 })} Bloque</button><span class="muted small pg-slash">o escribe <kbd>/</kbd> en una línea vacía</span></div>
     <section id="pgLinks" class="pg-links" aria-label="Apuntes que enlazan a este"></section>
     <nav id="pgToc" class="pg-toc" aria-label="Índice del apunte" hidden></nav>
     <div id="blkBar" class="selbar blk-bar" role="toolbar" aria-label="Bloques seleccionados" hidden></div>

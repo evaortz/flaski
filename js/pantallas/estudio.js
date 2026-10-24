@@ -458,10 +458,11 @@ function segBar(ses) {
 }
 // minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
 // firstRun: la primera tanda (tras la primera vez): explica los botones y al final pregunta la duración y el aviso
-export function startSession(scope = 'all', { minutes = 0, firstRun = false } = {}) {
-  const queue = buildSession(scope, minutes ? shortSize(minutes) : 0);
+// ids: unas preguntas concretas, toque o no repasarlas (desde el mapa); al salir se vuelve a scope
+export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids = null } = {}) {
+  const queue = ids ? ids.filter(id => S.cards.has(id)) : buildSession(scope, minutes ? shortSize(minutes) : 0);
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
-  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun };
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun, picked: !!ids };
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
@@ -520,7 +521,7 @@ export function exitTarget(scope = 'all') {
   if (S.decks.has(scope)) return ['deck', { deckId: scope, cardQuery: '' }];
   return ['home', {}];
 }
-const exitLabel = scope => ({ page: 'Volver a los apuntes', decks: 'Volver a la carpeta', deck: 'Volver a la lista' }[exitTarget(scope)[0]] || 'Volver al inicio');
+const exitLabel = scope => S.mapView === scope ? 'Volver al mapa' : ({ page: 'Volver a los apuntes', decks: 'Volver a la carpeta', deck: 'Volver a la lista' }[exitTarget(scope)[0]] || 'Volver al inicio');
 export function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
@@ -556,7 +557,7 @@ export function renderStudy() {
           : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
       return;
     }
-    const more = Math.min(10, freshLeft(ses.scope));
+    const more = ses.picked ? 0 : Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}
       <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
     return;

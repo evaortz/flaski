@@ -8,9 +8,8 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await expect(page.locator('.dk-num')).toContainText('30');   // todas sus nuevas (una por nota): desde la lista no hay límite del día
   await expect(page.locator('.dk-num')).toContainText('para hoy');
   await expect(page.locator('.dk-key')).toContainText('48');
-  // El selector «Lista | Mapa» existe pero no sale hasta que haya mapa
-  await expect(page.locator('.dk-view')).toHaveCount(1);
-  await expect(page.locator('.dk-view')).toBeHidden();
+  // El selector «Lista | Mapa», con la lista marcada
+  await expect(page.locator('.dk-qh .mp-seg [data-map-view=""]')).toHaveAttribute('aria-pressed', 'true');
   // Diez preguntas, cada una con su tipo
   await expect(page.locator('#cardRows .row')).toHaveCount(10);
   await expect(page.locator('#cardCount')).toHaveText('Mostrando 10 de 48');

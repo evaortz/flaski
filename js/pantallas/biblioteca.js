@@ -7,6 +7,7 @@ import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
 import { main, S, esc, norm, plain, cardList, tagChips, tagSticker, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
 import { todayQueue } from './estudio.js';
+import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
 
 const ST_LABEL = { ok: 'al día', due: 'toca repasar', weak: 'te cuesta', new: 'sin estudiar' };
 const parentOf = f => (f.parent_id && S.folders.has(f.parent_id) ? f.parent_id : null);
@@ -186,6 +187,8 @@ function renderFolder(folder) {
   const chip = (k, label, num) => `<button class="fchip" data-libkind="${k}" aria-pressed="${kind === k}">${label} · ${num}</button>`;
   const what = [plural(pages.length, 'apunte', 'apuntes'), plural(here.length, 'lista', 'listas'), subs.length && plural(subs.length, 'subcarpeta', 'subcarpetas'), c.total && plural(c.total, 'pregunta', 'preguntas')].filter(Boolean).join(' · ');
   const path = folderPath(S.folders, folder.id);
+  const scope = `folder:${folder.id}`, withMap = c.total > 1 && hasMap(scope);
+  if (!withMap && mapOn(scope)) S.mapView = null;
   const crumbs = [`<button class="crumb" data-folder="">Biblioteca</button>`, ...path.slice(0, -1).map(f => `<button class="crumb" data-folder="${f.id}">${esc(f.name)}</button>`), `<span class="crumb crumb-cur">${esc(folder.name)}</span>`];
 
   main.innerHTML = `
@@ -208,9 +211,10 @@ function renderFolder(folder) {
         <div class="fhero-add"><button data-act="new-page">+ Apunte</button><button data-act="new-deck">+ Lista</button></div>
       </div>
     </section>
-    <div class="filters chips-scroll">${chip('all', 'Todo', subs.length + pages.length + decks.length)}${chip('notes', 'Apuntes', pages.length)}${chip('lists', 'Listas', here.length)}${subs.length ? chip('subs', 'Subcarpetas', subs.length) : ''}</div>
+    ${withMap ? `<div class="mp-segrow">${mapSeg(scope, pages.length ? 'Apuntes' : 'Listas')}</div>` : ''}
+    ${withMap && mapOn(scope) ? mapHTML(scope) : `<div class="filters chips-scroll">${chip('all', 'Todo', subs.length + pages.length + decks.length)}${chip('notes', 'Apuntes', pages.length)}${chip('lists', 'Listas', here.length)}${subs.length ? chip('subs', 'Subcarpetas', subs.length) : ''}</div>
     ${tiles ? `<ul class="ltiles">${tiles}</ul>` : `<div class="empty"><p class="muted">${kind === 'all' ? 'Esta carpeta está vacía. Crea un apunte o una lista con el botón +.' : 'Aquí no hay nada de este tipo.'}</p></div>`}
-    <div class="btnrow btnrow-sm"><button class="ghost small-btn" data-act="new-folder">+ Carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir listas aquí</button><button class="ghost small-btn" data-act="import-menu">Importar</button></div>`;
+    <div class="btnrow btnrow-sm"><button class="ghost small-btn" data-act="new-folder">+ Carpeta</button><button class="ghost small-btn" data-act="add-decks-here">+ Añadir listas aquí</button><button class="ghost small-btn" data-act="import-menu">Importar</button></div>`}`;
 }
 
 // «+»: crear un apunte o una lista (en la carpeta abierta)

@@ -15,6 +15,7 @@ import { typeIcon, getType, deckLang, langLabel, nativeLang, todayQueue } from '
 import { previewImport } from './explorar.js';
 import { drag, savePageSoon } from './apuntes.js';
 import { seg } from './perfil.js';
+import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
 import { openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
 
@@ -120,6 +121,8 @@ export function renderDeck() {
     return `<li><button class="row cr cs-${st}" data-card="${x.id}"><i class="cr-dot" aria-hidden="true"></i><span class="cr-f">${fmt(x.front)}</span><span class="cr-b">${fmt(x.back)}</span>
       <span class="cr-t"${tpl ? ` title="${esc(tpl)}"` : ''}>${rev ? `${icon('repeat-2', { size: 14 })} ${esc(rev)}` : `${typeIcon(t, 14)} ${esc(t.name)}`}${tagChips(x.tags || [])}</span><span class="cr-st">${STAGES.find(([k]) => k === st)[2]}</span><span class="cr-due${when === 'hoy' ? ' is-today' : ''}">${when}</span></button></li>`;
   };
+  const withMap = all.length > 1 && hasMap(d.id);
+  if (!withMap && mapOn(d.id)) S.mapView = null;
   const more = `<button class="dk-more" data-act="deck-menu" aria-label="Más opciones" aria-haspopup="menu" title="Más opciones">${icon('ellipsis', { size: 22 })}</button>`;
   main.innerHTML = `<div class="dk">
     <div class="lib-top dk-top">
@@ -143,8 +146,8 @@ export function renderDeck() {
       ${deckHealth(d, all, now)}</section>` : ''}
     <section class="dk-qs" aria-labelledby="h-dkqs">
       <div class="dk-qh"><h2 class="dk-h" id="h-dkqs">Preguntas</h2>
-        <div class="seg dk-view" role="group" aria-label="Vista" hidden><button type="button" class="seg-b" aria-pressed="true">${icon('list', { size: 16 })} Lista</button><button type="button" class="seg-b" aria-pressed="false">${icon('layout-grid', { size: 16 })} Mapa</button></div></div>
-      ${all.length ? `<label class="lib-search dk-search">${icon('search', { size: 18 })}<input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></label>
+        ${withMap ? mapSeg(d.id, 'Lista') : ''}</div>
+      ${withMap && mapOn(d.id) ? mapHTML(d.id) : all.length ? `<label class="lib-search dk-search">${icon('search', { size: 18 })}<input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></label>
       <div class="filters chips-scroll">${filters.filter(([k, , num]) => num || k === 'all' || k === f).map(([k, label, num]) => `<button class="fchip" data-cfilter="${k}" aria-pressed="${k === f}">${label} · ${num}</button>`).join('')}</div>
       <div class="org-bar"><label class="sort-inline">Orden: <select id="cardSort" aria-label="Ordenar las preguntas">${SORTS_CARDS.map(([k, label]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div>
       <div class="cr-head" aria-hidden="true"><span></span><span>Pregunta</span><span>Respuesta</span><span>Tipo</span><span>Estado</span><span>Repaso</span></div>

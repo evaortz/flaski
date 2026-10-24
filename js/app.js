@@ -29,6 +29,7 @@ import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAct
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
+import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
@@ -135,6 +136,9 @@ document.addEventListener('click', async e => {
   if (ds.export) return exportPage(ds.export);
   if (ds.fold) return toggleFold(ds.fold);
   if (ds.start) return startSession(ds.start);
+  // Mapa: «Lista | Mapa», tocar una casilla (ficha o elegir varias) y practicar
+  if ('mapView' in ds) { setMapView(ds.scope, ds.mapView === 'map'); return render(); }
+  if (ds.mapCell) return cellClick(b, e);
   if (ds.remindAt) {
     Object.assign(S.prefs.remind, { on: true, time: ds.remindAt }); savePrefsSoon();
     const box = $('#firstRemind'); if (box) box.innerHTML = `<h3>Te avisaremos a las ${esc(ds.remindAt)}</h3><p>Si ese día ya lo tienes todo hecho, no avisa. Lo cambias en Ajustes › Avisos.</p>`;
@@ -254,7 +258,8 @@ document.addEventListener('click', async e => {
     if (S.view === 'home') friendsChanged();
     return;
   }
-  if (ds.openPage) return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null });
+  // «Ver en el apunte» (también desde el mapa de ese apunte: se vuelve a la vista Apunte)
+  if (ds.openPage) { if (S.mapView === `page:${ds.openPage}`) S.mapView = null; if (b.closest('.mp-ficha')) closeSheet(); return go('page', { pageId: ds.openPage, focusBlock: ds.openBlock || null }); }
   if (ds.hideType) {
     const h = S.prefs.types.hidden;
     S.prefs.types.hidden = h.includes(ds.hideType) ? h.filter(x => x !== ds.hideType) : [...h, ds.hideType];
@@ -583,6 +588,11 @@ document.addEventListener('click', async e => {
       } catch (err) { fail(err); }
       return;
     }
+    case 'map-resist': return practiceResist(ds.scope);
+    case 'map-practice': return practiceCell(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
+    case 'map-ficha': return openFicha(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
+    case 'map-sel-go': return practiceSel();
+    case 'map-sel-clear': return clearMapSel();
     case 'untag': b.closest('.tagsel')?.remove(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return;
     case 'tagpick-open': {
       const pop = $('#tagPick .tagpick-pop'), open = pop.hidden;
@@ -928,6 +938,7 @@ $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]
 document.addEventListener('keydown', e => {
   if (e.target.matches?.('[data-block-input]')) return blockKey(e);
   if (e.target.matches?.('.tc')) return tableKey(e);
+  if (e.key === 'Escape' && S.mapSel && $('#sheet').hidden) { clearMapSel(); return; }
   if (e.key === 'Escape' && e.target.id === 'f-newtag' && e.target.closest('.tagpick.compact')) { e.preventDefault(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return; }
   if (e.key === 'Enter' && e.target.id === 'f-newtag') { e.preventDefault(); document.querySelector('[data-act="add-tag-inline"]')?.click(); return; }
   if (!$('#sheet').hidden) {
