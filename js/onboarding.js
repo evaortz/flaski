@@ -95,6 +95,8 @@ export function openOnboarding(opts) {
     document.body.classList.remove('ob-open');
     opts.onFinish(c);
   }
+  // Desde fuera (p. ej. al cargar los datos de ejemplo) se cierra como al saltarla
+  root.addEventListener('ob-close', () => finish(null));
   function onKey(e) {
     if (e.target.id === 'obLang') return;
     if (e.key === 'ArrowRight') { e.preventDefault(); go(i + 1); }

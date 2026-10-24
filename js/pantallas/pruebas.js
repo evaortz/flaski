@@ -5,6 +5,7 @@ import { dateKey } from '../srs.js';
 import { S, toast, fail } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
 import { onSignedIn } from './cuenta.js';
+import { closeSheet } from './editor.js';
 
 const DAY = 864e5;
 
@@ -82,10 +83,13 @@ export async function loadSampleData(btn) {
       await api.mergeLog(S.uid, [...days].map(([day, n]) => ({ day, count: (S.log[day] || 0) + n })));
       added++;
     }
-    toast(added ? `Datos de ejemplo cargados: ${added === 1 ? '1 lista' : `${added} listas`}` : 'Los datos de ejemplo ya estaban');
-    // Se vuelve a cargar todo, como al entrar
-    S.uid = null;
+    // Se vuelve a cargar todo, como al entrar, y se abre Hoy (sin la bienvenida, que ya no hace falta)
+    document.querySelector('.ob')?.dispatchEvent(new Event('ob-close'));
+    closeSheet();
+    Object.assign(S, { uid: null, view: 'home', session: null, noNews: true });
     await onSignedIn(await api.auth.session());
+    window.scrollTo(0, 0);
+    toast(added ? `Datos de ejemplo cargados: ${added === 1 ? '1 lista' : `${added} listas`}` : 'Los datos de ejemplo ya estaban');
   } catch (e) { fail(e); }
   finally { if (btn?.isConnected) { btn.disabled = false; btn.textContent = 'Cargar datos de ejemplo'; } }
 }

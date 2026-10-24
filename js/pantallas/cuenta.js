@@ -187,7 +187,7 @@ function maybeNews() {
   let seen = '';
   try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
   const newcomer = !introDone() && S.decks.size === 0 && S.pages.size === 0;
-  if (newcomer || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
+  if (newcomer || S.noNews || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
   showNews();
 }
 export function showNews() {
