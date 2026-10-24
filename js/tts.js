@@ -18,18 +18,20 @@ function voiceFor(lang) {
 }
 
 export function hasVoice(lang) { return !!(synth && lang && voiceFor(lang)); }
+// Sin voz para ese idioma (solo si el navegador ya ha dicho qué voces tiene: al principio la lista llega vacía)
+export function voiceMissing(lang) { if (!synth || !lang) return false; if (!voices.length) refresh(); return voices.length > 0 && !voiceFor(lang); }
 
 let baseRate = 1;
 // Velocidad global (Ajustes → Voz): multiplica la de cada llamada
 export function setBaseRate(r) { baseRate = Number(r) || 1; }
-export function speak(text, lang, { rate = 0.95 } = {}) {
+export function speak(text, lang, { rate = 0.95, queue = false } = {}) {
   if (!synth || !lang) return false;
   // Huecos {{x}} → x · furigana 漢字[かんじ] → かんじ (la lectura suena mejor) · piezas « / » → espacio
   const clean = String(text || '').replace(/!\[[^\]\n]*\]\(img:[\w-]+\)/g, ' ').replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1')
     .replace(/([\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF々〆ヶ]+)\[([^\]\n]+)\]/g, '$2')
     .replace(/\s*\/\s*/g, ' ').replace(/\*/g, '').trim();
   if (!clean) return false;
-  synth.cancel();
+  if (!queue) synth.cancel();
   const u = new SpeechSynthesisUtterance(clean);
   u.lang = lang;
   const v = voiceFor(lang);

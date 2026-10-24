@@ -6,7 +6,7 @@ import { pace, tandaSize, composeShort, TANDA_MINUTES } from '../tanda.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, legacyFields, choiceOptions, resolveType, parsePairs, parseMasks, imageIdIn, parseGroups, clozeAnswer } from '../cardtypes.js';
 import { isShortText } from '../inline.js';
-import { speak, stopSpeaking, ttsAvailable } from '../tts.js';
+import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
 import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan, nearDecks, seenToday } from '../comun.js';
@@ -280,10 +280,31 @@ export function sortAction(kind, i) {
   else if (kind === 'group' && so.sel != null) { so.place[so.sel] = i; so.sel = null; }
   renderStudy();
 }
+// Al tocar un altavoz: si el dispositivo no tiene voz para ese idioma, se avisa (si no, no se oiría nada)
+export const noVoiceText = lang => `Tu dispositivo no tiene voz en ${langLabel(lang).toLowerCase()}. Puedes instalarla en los ajustes de voz del sistema`;
+export function sayOrWarn(text, lang, opts) {
+  if (!lang || !String(text || '').trim()) return false;
+  if (voiceMissing(lang)) { toast(noVoiceText(lang)); return false; }
+  return speak(text, lang, opts);
+}
+// «Probar» la voz (Ajustes): una frase en cada idioma de tus listas y cuáles tienen voz en este dispositivo
+const VOICE_SAMPLES = { tr: 'Merhaba, nasılsın?', ja: 'こんにちは。', de: 'Hallo, wie geht es dir?', en: 'Hello, how are you?', fr: 'Bonjour, comment ça va ?', it: 'Ciao, come stai?',
+  pt: 'Olá, tudo bem?', es: 'Hola, ¿qué tal?', ca: 'Hola, com estàs?', eu: 'Kaixo, zer moduz?', gl: 'Ola, que tal?', nl: 'Hallo, hoe gaat het?', ru: 'Привет, как дела?', el: 'Γεια σου, τι κάνεις;',
+  ar: 'مرحبا، كيف حالك؟', zh: '你好，你好吗？', ko: '안녕하세요?' };
+export function testVoices() {
+  const langs = [...new Set([...S.decks.values()].filter(d => !d.archived).map(d => deckLang(d.id)).filter(Boolean))];
+  if (!langs.length) langs.push(nativeLang());
+  const name = l => langLabel(l).toLowerCase(), list = xs => xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs.at(-1)}` : xs[0];
+  const ok = langs.filter(l => !voiceMissing(l)), no = langs.filter(l => voiceMissing(l));
+  ok.forEach((l, i) => speak(VOICE_SAMPLES[l.split('-')[0]] || 'Hola', l, { queue: i > 0 }));
+  const out = $('#voiceTest');
+  const msg = [ok.length ? `Con voz: ${list(ok.map(name))}.` : '', no.length ? `Sin voz: ${list(no.map(name))}. Puedes instalarla en los ajustes de voz del sistema.` : ''].filter(Boolean).join(' ');
+  if (out) { out.hidden = false; out.textContent = msg; out.classList.toggle('is-warn', no.length > 0); } else toast(msg);
+}
 /* ---------- Dictado y escritura a mano ---------- */
 export function playListen(model, rate = 1) {
   const f = model.type.fields.find(x => x.id === model.tpl.answer);
-  if (f?.lang) speak(model.fields[model.tpl.answer], f.lang, { rate: rate * 0.95 });
+  if (f?.lang) sayOrWarn(model.fields[model.tpl.answer], f.lang, { rate: rate * 0.95 });
 }
 async function mountDraw(st, model) {
   const area = $('#drawArea'), ctl = $('#drawCtl');

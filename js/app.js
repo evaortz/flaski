@@ -8,7 +8,7 @@ import { initProgressHover, streaks, initChartTips } from './charts.js';
 import { mountEmojiPicker } from './emoji-picker.js';
 import { icon } from './icons.js';
 import { orderTokens, checkTyped, blankType, copyType, nextId, parsePairs, checkNumber } from './cardtypes.js';
-import { speak, setBaseRate } from './tts.js';
+import { setBaseRate } from './tts.js';
 import { loadSnapshot, deleteSnapshot, lastUser, forgetUser } from './snapshot.js';
 import { parsePasted } from './notes.js';
 import { formatCode, parseInvite } from './friends.js';
@@ -20,7 +20,7 @@ import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
-import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
+import { getType, typeIn, cardModel, sayOrWarn, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
@@ -158,8 +158,8 @@ document.addEventListener('click', async e => {
   }
   if (ds.grade) return grade(Number(ds.grade));
   if (ds.open) return go('deck', { deckId: ds.open, cardQuery: '' });
-  if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); speak(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
-  if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
+  if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); sayOrWarn(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
+  if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); sayOrWarn($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
   if (ds.match) return pickMatch(ds.match);
   if (ds.sortPick !== undefined) return sortAction('pick', +ds.sortPick);
   if (ds.sortBack !== undefined) return sortAction('back', +ds.sortBack);
@@ -350,7 +350,7 @@ document.addEventListener('click', async e => {
       return reveal();
     }
     case 'undo': return undo();
-    case 'test-voice': return speak('Merhaba, nasılsın? こんにちは。', 'tr-TR');
+    case 'test-voice': return testVoices();
     case 'test-sound': return chime('good');
     case 'algo-reset': { S.prefs.algo.custom = { ...DEFAULT_ALGO }; prefChanged('algo.custom'); const y = scrollY; renderSettings(); scrollTo(0, y); return; }
     case 'backup': {

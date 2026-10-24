@@ -340,7 +340,8 @@ export function renderSettings() {
       ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`) : ''}`, 's-session')}
     ${setSec('volume-2', 'Voz', `
       ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la pregunta.', sw('study.autoplay'))}
-      ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}`, 's-voice')}
+      ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}
+      <p class="hint voice-test" id="voiceTest" role="status" hidden></p>`, 's-voice')}
     ${setSec('sun', 'Hoy', `
       ${setRow('Tu actividad', 'Los días que has estudiado en los últimos 6 meses y tu meta diaria.', sw('home.activity'))}
       ${setRow('Cómo va lo que sabes', 'Cuántas preguntas te sabes y cómo ha ido creciendo.', sw('home.forecast'))}

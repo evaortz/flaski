@@ -3044,3 +3044,7 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .quickform.picking > :not(#typePicker){display:none}
 .quickform .ed-picker{padding:0}
 .quickform .ed-lab{margin-top:6px}
+
+/* Ajustes › Voz: qué idiomas de tus listas tienen voz */
+.voice-test{margin:6px 0 0;font-size:13.5px;color:var(--muted)}
+.voice-test.is-warn{color:var(--fg)}
