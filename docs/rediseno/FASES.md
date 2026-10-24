@@ -17,5 +17,5 @@
 | 5 | Aspecto de la tanda + 4 botones + fin de tanda | tanda-* |
 | 6 | Editor: barra de selección cobalto + panel lateral «Crear pregunta» | editor-* |
 | 7 | Perfil, plan y amigos | perfil-movil, plan-movil-*, amigos-movil |
-| 8 | Selector de tipos de pregunta (cuando esté diseñado) | pendiente |
+| 8 | Selector de tipos de pregunta | tipos-movil, tipos-escritorio |
 | 9 | Preguntas de entender: Explícalo / ¿Qué pasaría si…? | entender-*, tanda-fin |
