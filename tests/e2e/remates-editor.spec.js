@@ -81,3 +81,30 @@ test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no 
   await expect(page.locator('.hoy-last')).toContainText('Revolución');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.title))).toEqual(['Revolución']);
 });
+
+test('dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás', async ({ page }) => {
+  await openApp(page);
+  await createDeck(page, 'Título Preliminar');
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('#fo-name').fill('Oposición');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  await expect(page.getByRole('heading', { level: 1, name: 'Oposición' })).toBeVisible();   // ya dentro de la carpeta
+  const direct = page.locator('#main .fhero-add [data-act="new-deck"]:visible');
+  if (await direct.count()) await direct.click();
+  else { await page.locator('#main [data-act="create-menu"]').click(); await page.locator('#sheetBody [data-act="new-deck"]').click(); }
+  await page.locator('#d-name').fill('Título Preliminar');
+  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Título Preliminar' })).toBeVisible();
+  // «Varias de golpe»
+  await page.locator('#main [data-act="add-menu"]').click();
+  await page.locator('#sheetBody [data-act="quick-add"], #dkPop:not([hidden]) [data-act="quick-add"]').click();
+  const quick = await page.locator('#q-deck option').allTextContents();
+  expect(quick.filter(t => t.startsWith('Título Preliminar')).sort()).toEqual(['Título Preliminar · Oposición', 'Título Preliminar · Sin carpeta']);
+  await page.keyboard.press('Escape');
+  // Estadísticas
+  await page.evaluate(() => { const b = document.createElement('button'); b.dataset.stats = 'all'; document.body.append(b); b.click(); b.remove(); });
+  const stats = await page.locator('#st-scope optgroup[label="Listas"] option').allTextContents();
+  expect(stats.sort()).toEqual(['Título Preliminar · Oposición', 'Título Preliminar · Sin carpeta']);
+});

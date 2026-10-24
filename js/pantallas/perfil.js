@@ -21,7 +21,7 @@ import { nativeLang, cardModel, grade } from './estudio.js';
 import { plural, download } from './mazos.js';
 import { AI_GUIDE_BTNS, loadAiGuide } from './explorar.js';
 import { pageRow } from './apuntes.js';
-import { openSheet, deckTypes, adoptTypes } from './editor.js';
+import { openSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
 import { incoming } from './amigos.js';
 
 /* ===================== perfil ===================== */
@@ -63,7 +63,7 @@ function statsScopeOptions(sel) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   return o('all', 'Todas las listas')
     + (folders.length ? `<optgroup label="Carpetas">${folders.map(f => o('folder:' + f.id, f.name)).join('')}</optgroup>` : '')
-    + `<optgroup label="Listas">${decks.map(d => o(d.id, d.name + (d.archived ? ' (archivada)' : ''))).join('')}</optgroup>`
+    + `<optgroup label="Listas">${decks.map(d => o(d.id, deckOptionName(d))).join('')}</optgroup>`
     + (tags.length ? `<optgroup label="Etiquetas">${tags.map(t => o('tag:' + t.id, '#' + t.name)).join('')}</optgroup>` : '');
 }
 export let statsData = null;

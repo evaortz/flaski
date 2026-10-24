@@ -249,7 +249,13 @@ export function tagsSheet(renaming = null) {
   if (renaming) { const i = document.querySelector('.tl-rename .t-name'); i?.focus(); i?.select(); }
 }
 export function deckOptions(selected) {
-  return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(d.name)}${d.archived ? ' (archivada)' : ''}</option>`).join('');
+  return sortDecks([...S.decks.values()], 'name', new Map()).map(d => `<option value="${d.id}" ${d.id === selected ? 'selected' : ''}>${esc(d.icon ? d.icon + ' ' : '')}${esc(deckOptionName(d))}</option>`).join('');
+}
+// El nombre de una lista en un selector: si otra se llama igual, con su carpeta detrás («Título Preliminar · Oposición»)
+export function deckOptionName(d) {
+  const same = [...S.decks.values()].some(x => x.id !== d.id && x.name.trim().toLocaleLowerCase() === d.name.trim().toLocaleLowerCase());
+  const where = same ? ` · ${(d.folder_id && S.folders.get(d.folder_id)?.name) || 'Sin carpeta'}` : '';
+  return `${d.name}${where}${d.archived ? ' (archivada)' : ''}`;
 }
 // Tipos usados hace poco en cada mazo (los más recientes primero), para tenerlos a un toque
 function recentTypes(deckId) {
