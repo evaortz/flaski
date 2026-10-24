@@ -18,7 +18,7 @@ const pickAll = (pick, target, check) => async page => {
 const CASES = [
   ['basic', 't1', 'gen', { q: '¿En qué año se aprobó la Constitución española?', a: '1978', n: 'Referéndum del 6 de diciembre' }, reveal],
   ['reverse', 't1', 'tr', { a: 'kütüphane', b: 'biblioteca', n: 'Okulun kütüphanesi çok büyük.' }, reveal],
-  ['typing', 't1', 'tr', { q: 'biblioteca\n', a: 'kütüphane', n: 'Okulun kütüphanesi çok büyük.' }, typed('kutuphane')],
+  ['typing', 't1', 'tr', { q: 'trabajar / estudiar\n', a: 'çalışmak', n: 'Her gün çalışıyorum.' }, typed('calismak')],
   ['cloze', 't1', 'tr', { x: 'Ev{{de}}yim', e: 'Estoy en casa' }, reveal],
   ['choice', 't1', 'gen', { q: '¿Capital de Australia?', a: 'Canberra', w: 'Sídney; Melbourne; Perth', n: '' }, async page => page.locator('.choice').first().click()],
   ['handwrite', 't1', 'ja', { q: 'Escribe «sol»', a: '日', n: 'ひ / にち' }, reveal],
@@ -75,8 +75,14 @@ test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones', 
     await expect(page.locator('.studybar')).toContainText(`pregunta ${k + 1} de ${CASES.length}`);
     if (shots) await page.screenshot({ path: `test-results/tanda/${String(k + 1).padStart(2, '0')}-${type}-a.png`, fullPage: true });
     expect(await fits(), `${type}: la pregunta se sale de la pantalla`).toBe(true);
-    // «Escribir la respuesta»: la pregunta corta, a mano y grande (aunque venga con un salto de línea de Anki)
-    if (type === 'typing') { await expect(page.locator('.front .fld-main')).toHaveClass(/fld-short/); await expect(page.locator('#typed')).toHaveAttribute('placeholder', 'Escribe la respuesta'); }
+    // «Escribir la respuesta»: la pregunta corta («trabajar / estudiar», 19 letras), a mano y grande (aunque venga con un salto de línea de Anki)
+    if (type === 'typing') {
+      const q = page.locator('.front .fld-main');
+      await expect(q).toHaveClass(/fld-short/);
+      await expect(q.locator('.fld-v')).toHaveCSS('font-family', /Gochi Hand/);
+      expect(parseFloat(await q.locator('.fld-v').evaluate(el => getComputedStyle(el).fontSize))).toBeGreaterThan(40);
+      await expect(page.locator('#typed')).toHaveAttribute('placeholder', 'Escribe la respuesta');
+    }
     await respond(page);
     if (await page.locator('[data-act="reveal"]').count()) await reveal(page);
     await expect(page.locator('.grade')).toHaveCount(4);

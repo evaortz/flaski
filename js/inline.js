@@ -419,3 +419,12 @@ export function paletteFor(r, g, b, background = false) {
   if (h < 290) return 'purple';
   return 'pink';
 }
+
+// ¿Texto corto para la tanda (a mano y grande)? Hasta 4 palabras y 28 letras, sin contar el formato,
+// las «/» (p. ej. «trabajar / estudiar») ni los espacios de más. Con saltos de línea, nunca.
+export function isShortText(s) {
+  const t = toPlain(String(s ?? '')).trim();
+  if (!t || t.includes('\n')) return false;
+  const words = t.replace(/\//g, ' ').split(/\s+/).filter(Boolean);
+  return words.length <= 4 && [...words.join(' ')].length <= 28;
+}

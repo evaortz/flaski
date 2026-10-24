@@ -112,3 +112,15 @@ test('enlaces a otros apuntes: [[Título]] y [[Título|texto]]', () => {
   assert.match(toLiveHTML('[[Mitosis|la división]]'), /<span class="mk">\[\[Mitosis\|<\/span><a class="wl"/);
   assert.equal(toHTML('漢字[かんじ]'), '<ruby>漢字<rt>かんじ</rt></ruby>');
 });
+
+test('texto corto en la tanda: hasta 4 palabras y 28 letras, sin contar «/», formato ni espacios de más', async () => {
+  const { isShortText } = await import('../../js/inline.js');
+  assert.equal(isShortText('trabajar / estudiar'), true);          // 19 caracteres, pero 2 palabras
+  assert.equal(isShortText('  biblioteca  '), true);
+  assert.equal(isShortText('**el** crédito sale caro'), true);
+  assert.equal(isShortText('uno dos tres cuatro'), true);
+  assert.equal(isShortText('uno dos tres cuatro cinco'), false); // 5 palabras
+  assert.equal(isShortText('electroencefalografistas / otorrinolaringólogo'), false);   // más de 28 letras
+  assert.equal(isShortText('una\ndos'), false);
+  assert.equal(isShortText(''), false);
+});

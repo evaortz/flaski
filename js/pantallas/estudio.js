@@ -4,6 +4,7 @@ import { schedule, fmtWhen, dateKey, GRADES } from '../srs.js';
 import { shares, allocate } from '../plan.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTokens, orderJoin, legacyFields, choiceOptions, resolveType, parsePairs, parseMasks, imageIdIn, parseGroups, clozeAnswer } from '../cardtypes.js';
+import { isShortText } from '../inline.js';
 import { speak, stopSpeaking, ttsAvailable } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
@@ -63,7 +64,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     // Se mira el texto que se ve: sin etiquetas ni saltos de línea al principio o al final (frecuentes al importar de Anki)
     const plain = stripRuby(v).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim(), lang = fdef(id)?.lang || '';
     const ja = /^ja/.test(lang) || (!lang && /[぀-ヿ]/.test(plain)) ? ' fld-ja' : '';
-    const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
+    const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : isShortText(plain) ? ' fld-short' : '';
     return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${extra}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
