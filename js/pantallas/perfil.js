@@ -307,7 +307,7 @@ export function renderSettings() {
   const ring = '<svg class="sw-ring" viewBox="0 0 66 66" aria-hidden="true"><path d="M36 4.5c14 1.5 25.5 12 25.5 28 0 16-12.5 29-29 29C17 61.5 4.5 49 4.5 33 4.5 17.5 16 5 31 4.2c3-.2 6 .3 8.5 1.3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}"><span class="sw-ball">${ring}${icon('check', { size: 22 })}</span><span aria-hidden="true">${a.label}</span></button>`).join('');
   rowSeq = 0; tocLock = null;
-  main.innerHTML = `<div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sugerencia', { size: 14 })} Ver las últimas novedades</button></div>
+  main.innerHTML = `<button type="button" class="back-round head-back" data-nav="profile" aria-label="Volver a Perfil">${icon('chevron-left', { size: 20 })}</button><div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sugerencia', { size: 14 })} Ver las últimas novedades</button></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
     <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
     ${setSec('palette', 'Apariencia', `

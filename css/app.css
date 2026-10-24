@@ -2233,6 +2233,7 @@ body.in-study .done .link{align-self:center}
 .lib-top .crumbs .crumb-cur{font-weight:600}
 .lib-top .add-round{margin-bottom:0}
 .lib-top .iconbtn{width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--fg);display:grid;place-items:center}
+.head-back{margin:0 0 10px}
 .back-round{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg);color:var(--fg);display:grid;place-items:center;padding:0}
 .fhero{gap:16px}
 .fhero-main{display:flex;flex-direction:column;gap:4px;position:relative}
@@ -2594,7 +2595,8 @@ body.in-study .done .tally b{font-size:20px;font-weight:600}
   .pg-top .crumbs .crumb:first-child{flex-shrink:0;overflow:visible}
   .pg-top .crumbs .crumb-cur{min-width:0}
   .set-toc a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px}
-  .st-filters .seg.seg-text .seg-b{min-height:44px;border-radius:22px;padding:0 12px}
+  .st-filters .seg.seg-text{display:flex;width:100%;justify-content:space-between;gap:0}
+  .st-filters .seg.seg-text .seg-b{min-height:44px;border-radius:22px;padding:0 10px;white-space:nowrap}
   .st-selects select{min-height:44px}
   .hoy-hm-foot .link[data-act="goal-change"]{display:inline-block;padding:12px 4px;margin:-12px -4px}
 }

@@ -201,7 +201,7 @@ export function statsView(ctx, f) {
     ${card('btn', lvHead('btn', 'Botones según la pregunta', `${pct(again, n)} %`, 'de las veces, «Otra vez»', 'Según si la pregunta era nueva, la estabas aprendiendo o la repasabas'), `<ul class="bstack">${stRows}</ul>${gradeKey}`)}
     ${card('hour', lvHead('hour', 'Hora del día', `${best} h`, 'tu mejor hora', `${plural(bh.n, 'respuesta', 'respuestas')} · ${pct(bh.ok, bh.n)} % de aciertos a esa hora`), '<div class="st-chart" data-chart="hours"></div>')}
     ${deckRows.length > 1 ? card('deck', lvHead('deck', 'Por lista', nf.format(deckRows[0][1].n), `respuestas en ${escA(ctx.deckName(deckRows[0][0]))}`, `${plural(deckRows.length, 'lista', 'listas')} con respuestas en el periodo`), `<ul class="hbars">${deckHTML}</ul>`) : ''}` : '';
-  const html = `<div class="st-head"><h1>Estadísticas</h1><p class="muted">${escA(ctx.scopeName(f.scope))}${f.mode ? ' · ' + escA(ctx.modes.find(m => m.id === f.mode)?.label || '') : ''}</p></div>
+  const html = `<button type="button" class="back-round head-back" data-nav="profile" aria-label="Volver a Perfil">${ctx.icon('chevron-left', { size: 20 })}</button><div class="st-head"><h1>Estadísticas</h1><p class="muted">${escA(ctx.scopeName(f.scope))}${f.mode ? ' · ' + escA(ctx.modes.find(m => m.id === f.mode)?.label || '') : ''}</p></div>
     ${ctx.decks.size ? filters : ''}${noCards && !filtered ? '' : kpis}${empty}
     ${noCards ? '' : '<section class="chart-card st-card lv pg-card" id="stPg" aria-labelledby="st-pg"></section>'}
     ${periodCards}

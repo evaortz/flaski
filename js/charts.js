@@ -336,7 +336,8 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   let lastX = -99, axis = '';
   for (const [i, lab] of ticks) {
     const x = X(i);
-    if (x - lastX < (N > 400 ? 34 : 40) || x > R - 14) continue;
+    // Separación según lo largo de la etiqueta («25 sep» necesita más que «oct»), para que no se pisen
+    if (x - lastX < Math.max(N > 400 ? 34 : 40, lab.length * 7.5 + 16) || x > R - 18) continue;
     axis += `<text class="ax" x="${x.toFixed(1)}" y="${H - 8}" text-anchor="${x < 14 ? 'start' : 'middle'}">${lab}</text>`;
     lastX = x;
   }
