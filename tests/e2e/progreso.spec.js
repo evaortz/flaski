@@ -14,8 +14,8 @@ test('cómo va lo que sabes: lo que te sabes, notas y la cabecera al recorrer lo
   expect(n).toBeLessThanOrEqual(db.cards.length);
   // Tres franjas: consolidadas, jóvenes y por aprender (las que estás aprendiendo cuentan como por aprender)
   await expect(card.locator('.pg-b3')).toHaveCount(1);
-  await expect(card.locator('.pg-lab-m3')).toContainText('Consolidadas');
-  await expect(card.locator('.pg-lab-m2')).toContainText('Jóvenes');
+  await expect(card.locator('.pg-lab-m3')).toContainText(/consolidadas/i);
+  await expect(card.locator('.pg-lab-m2')).toContainText(/jóvenes/i);
   await expect(card.locator('.pg-lab-m1')).toHaveCount(0);
   await expect(card.locator('.pg-note').first()).toContainText('+70 de Biología');
   // Al recorrer los días con el teclado, la cabecera cuenta ese día

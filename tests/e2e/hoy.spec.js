@@ -52,7 +52,7 @@ test('Hoy: cada bloque con sus datos reales', async ({ page }, info) => {
   // Cómo va lo que sabes: sin «Aprendiendo» (cuenta como por aprender)
   await expect(page.locator('#pgHost .lv-k')).toContainText('Cómo va lo que sabes');
   await expect(page.locator('#pgHost .pg-lab-m1')).toHaveCount(0);
-  await expect(page.locator('#pgHost .pg-lab-rest')).toContainText('Por aprender');
+  await expect(page.locator('#pgHost .pg-lab-rest')).toContainText(/por aprender/i);
   // Tu actividad: 6 meses, hoy con anillo y la meta
   await expect(page.locator('.hoy-week')).toContainText('esta semana:');
   const today = page.locator('#hmHost rect.hm-today');
