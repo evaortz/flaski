@@ -51,7 +51,7 @@ test('un ajuste de Hoy se guarda, se aplica y sobrevive a recargar', async ({ pa
 test('el mazo de demostración de japonés se añade y se puede abrir una sesión', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
-  await expect(page.locator('#cardCount')).toContainText('preguntas');
+  await expect(page.locator('.dk-meta')).toContainText('preguntas');
   await page.locator('#main [data-start]').click();
   await expect(page.locator('.card')).toBeVisible();
 });

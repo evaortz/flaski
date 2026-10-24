@@ -22,7 +22,7 @@ for (const modern of [false, true]) {
     // Queda dentro de la carpeta «Idiomas», con sus dos mazos
     await expect(page.getByRole('heading', { level: 1, name: 'Idiomas' })).toBeVisible();
     await page.locator('#main').getByText('Turco', { exact: true }).first().click();
-    await expect(page.locator('#cardCount')).toContainText('5 preguntas');
+    await expect(page.locator('.dk-meta')).toContainText('5 preguntas');
     await expect(page.locator('#main .row img.media')).toHaveAttribute('src', /^blob:/);
     await expect(page.locator('#main .row').first()).toContainText('ev');
 

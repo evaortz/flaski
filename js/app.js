@@ -21,7 +21,7 @@ import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPr
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
-import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
+import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
 import { growTitle, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
@@ -36,7 +36,7 @@ import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, fr
 /* ===================== navegación ===================== */
 export function go(view, extra = {}) {
   Object.assign(S, { view }, extra);
-  closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind();
+  closeSheet(); closeBlockMenu(); closeOps(); closeWikiMenu(); closeFind(); closeDeckMenu();
   S.bsel = null; S.tocOpen = false;
   render();
   window.scrollTo(0, 0);
@@ -178,6 +178,16 @@ document.addEventListener('click', async e => {
   if (ds.setType) return setEditorType(ds.setType);
   if (ds.pickType) { openTypePicker(false); return setEditorType(ds.pickType); }
   if (ds.page) return go('page', { pageId: ds.page });
+  if (ds.cfilter) { Object.assign(S, { cardFilter: ds.cfilter, cardAll: false }); return renderDeck(); }
+  if (ds.linkPage) return linkPage(ds.linkPage);
+  if (ds.noteSug) {
+    // Sugerencias del apunte elegido, para la lista desde la que se ha pedido
+    const deckId = S.deckId;
+    go('page', { pageId: ds.noteSug });
+    openSuggestions();
+    if (S.sug && S.decks.has(deckId)) { S.sug.deckId = deckId; refreshSuggestions(false); }
+    return;
+  }
   if (ds.nfolder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.nfolder || null }); }
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);
   if (ds.blockCards) return blockCardsSheet(ds.blockCards);
@@ -538,6 +548,20 @@ document.addEventListener('click', async e => {
       return;
     }
     case 'edit-deck': return deckForm(S.decks.get(S.deckId));
+    case 'add-menu': return deckMenu('add', b);
+    case 'deck-menu': return deckMenu('more', b);
+    case 'cards-all': S.cardAll = true; return renderDeck();
+    case 'from-note': return fromNoteSheet();
+    case 'link-note': return linkNoteSheet();
+    case 'archive-deck': {
+      const d = S.decks.get(S.deckId);
+      try {
+        const nd = await api.updateDeck(d.id, { archived: !d.archived });
+        S.decks.set(nd.id, { ...d, ...nd });
+        toast(nd.archived ? 'Lista archivada' : 'Lista desarchivada');
+        closeSheet(); return renderDeck();
+      } catch (err) { return fail(err); }
+    }
     case 'new-card': return cardForm(null);
     case 'share': return shareSheet();
     case 'import': closeSheet(); return $('#importFile').click();
@@ -588,7 +612,7 @@ document.addEventListener('click', async e => {
       return download(text, 'FORMATO-IA.md', 'text/markdown;charset=utf-8');
     }
     case 'export-deck': return exportDeck('json');
-    case 'export-csv': return exportDeck('csv');
+    case 'export-csv': if ($('.dk-msheet')) closeSheet(); return exportDeck('csv');
     case 'refresh-explore': S.pub = null; S.builtin = null; return renderExplore();
     case 'add-preview': return addPreview(b);
     case 'save-card-more': return saveCardForm(b.closest('form'), true);
@@ -754,6 +778,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   if (e.target.dataset.plw) return setPlanWeight(e.target.dataset.plw, Number(e.target.value));
   if (e.target.dataset.plexam !== undefined && e.target.dataset.plexam) return setPlanNode(e.target.dataset.plexam, { exam: e.target.value || '' });
+  if (e.target.id === 'cardSort') { S.cardSort = e.target.value; return renderDeck(); }
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);
   if (e.target.id === 'remindAt') { if (!S.prefs.remind.on) { S.prefs.remind.time = e.target.value; return savePrefsSoon(); } return setRemind('time', e.target.value); }

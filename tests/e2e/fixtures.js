@@ -53,9 +53,20 @@ export async function createDeck(page, name) {
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }
 
+// En una lista: «+» → «Una pregunta» (hoja en el móvil, menú desplegable en el ordenador)
+export async function newCard(page) {
+  await page.locator('#main [data-act="add-menu"]').click();
+  await page.locator('#sheetBody [data-act="new-card"], #dkPop:not([hidden]) [data-act="new-card"]').click();
+}
+// En una lista: «…» → la opción con ese data-act (o data-stats)
+export async function deckMenu(page, sel) {
+  await page.locator('#main [data-act="deck-menu"]:visible').click();
+  await page.locator(`#sheetBody ${sel}, #dkPop:not([hidden]) ${sel}`).click();
+}
+
 // Desde la vista de un mazo: crea tarjetas básicas (pregunta → respuesta)
 export async function addBasicCards(page, pairs) {
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   for (const [i, [q, a]] of pairs.entries()) {
     await page.locator('#fld-q').fill(q);
     await page.locator('#fld-a').fill(a);

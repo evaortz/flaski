@@ -1,4 +1,4 @@
-import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav, addBuiltinDeck, newCard } from './fixtures.js';
 
 test('furigana en el editor: añadir, ver la vista previa y cambiarla', async ({ page }) => {
   await openApp(page);
@@ -8,7 +8,7 @@ test('furigana en el editor: añadir, ver la vista previa y cambiarla', async ({
   await page.locator('[data-kind="lang"]').click();
   await page.locator('#d-lang').selectOption('ja-JP');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="vocab"]').click();
 

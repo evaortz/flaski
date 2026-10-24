@@ -62,7 +62,7 @@ function showPreview(byline) {
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${p.cards.length > 6 ? `<p class="muted small">…y ${p.cards.length - 6} más.</p>` : ''}
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
-      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select>`
+      ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva: «${esc(p.name)}»</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
       : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}

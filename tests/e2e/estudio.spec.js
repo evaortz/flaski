@@ -1,10 +1,10 @@
-import { test, expect, openApp, nav, createDeck, addBasicCards, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, addBasicCards, addBuiltinDeck, newCard } from './fixtures.js';
 
 test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a recargar', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Turco básico');
   await addBasicCards(page, [['ev', 'casa'], ['kapı', 'puerta']]);
-  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
+  await expect(page.locator('.dk-meta')).toContainText('2 preguntas');
 
   await page.locator('#main [data-start]').click();
   await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 2');
@@ -68,7 +68,7 @@ test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía',
 test('tarjeta de escribir la respuesta: corrige y sugiere la nota', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Escribir');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="typing"]').click();
   const inputs = page.locator('.ef-input');

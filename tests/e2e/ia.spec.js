@@ -38,7 +38,7 @@ test('los ejemplos de FORMATO-IA.md se importan enteros, tal como los daría una
     await expect(sheet.locator('.issues-box')).toHaveCount(0);     // ni notas saltadas ni avisos
     await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
     await expect(page.getByRole('heading', { level: 1, name: ex.name })).toBeVisible();
-    await expect(page.locator('#cardCount')).toHaveText(`${ex.cards} preguntas`);
+    await expect(page.locator('.dk-meta')).toContainText(`${ex.cards} preguntas`);
   }
 });
 
@@ -73,7 +73,7 @@ test('pegar con errores: dice qué notas se saltan y por qué, e importa el rest
   await expect(sheet).toContainText('{{hueco}}');
   await expect(sheet.getByText('1 aviso')).toBeVisible();
   await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
-  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
+  await expect(page.locator('.dk-meta')).toContainText('2 preguntas');
 });
 
 test('si ninguna nota vale, no se importa nada y se puede volver a pegar lo mismo', async ({ page }) => {

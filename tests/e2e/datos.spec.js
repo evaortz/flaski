@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, openApp, nav, answer, createDeck, addBasicCards, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, nav, answer, createDeck, addBasicCards, pasteNotes, deckMenu } from './fixtures.js';
 
 const CSV = '﻿pregunta;respuesta;nota\nçiçek;flor;"con ""comillas"""\nkapı;puerta;\nsolo;;\n';
 
@@ -11,9 +11,9 @@ test('importar un CSV, revisar la vista previa y volver a exportarlo igual', asy
   await expect(page.locator('#sheetBody')).toContainText('Se han saltado 1 filas');
   await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'vocabulario turco' })).toBeVisible();
-  await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
+  await expect(page.locator('.dk-meta')).toContainText('2 preguntas');
 
-  await page.locator('#main [data-act="share"]').click();
+  await deckMenu(page, '[data-act="share"]');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Descargar CSV' }).click()]);
   expect(dl.suggestedFilename()).toBe('vocabulario-turco.csv');
   const out = await readFile(await dl.path(), 'utf8');

@@ -1,6 +1,6 @@
 // Escribir kanji a mano: Hanzi Writer corrige trazo a trazo (con datos de trazos locales en vez de jsDelivr)
 import { readFileSync } from 'node:fs';
-import { test, expect, openApp, nav } from './fixtures.js';
+import { test, expect, openApp, nav, newCard } from './fixtures.js';
 
 const NICHI = readFileSync(new URL('./trazos/nichi.json', import.meta.url), 'utf8');   // 日
 
@@ -38,7 +38,7 @@ test('escribir 日 a mano: se corrige trazo a trazo y sin errores', async ({ pag
   await page.locator('[data-kind="lang"]').click();
   await page.locator('#d-lang').selectOption('ja-JP');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="handwrite"]').click();
   await page.locator('#fld-q').fill('sol');

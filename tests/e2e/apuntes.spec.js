@@ -1,5 +1,5 @@
 // Apuntes: escribir por bloques, tablas, crear tarjetas desde lo seleccionado y volver a ellos al estudiar
-import { test, expect, openApp, nav, createDeck, pasteNotes, startTanda } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, pasteNotes, startTanda, newCard } from './fixtures.js';
 import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
@@ -447,7 +447,7 @@ test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async 
 
   await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Historia/ }).first().click();
-  await page.locator('.deck-notes [data-page]').click();
+  await page.locator('.dk-notes [data-page]').click();
   await expect(page.locator('#pgTitle')).toHaveValue('Revolución');
 });
 
@@ -471,7 +471,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   await openApp(page);
   await createDeck(page, 'Geografía');
   // En una tarjeta: con el botón de la barra de formato, en el campo activo
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('#fld-q').click();
   const chooser = page.waitForEvent('filechooser');
   await page.locator('[data-fmt="image"]').click();

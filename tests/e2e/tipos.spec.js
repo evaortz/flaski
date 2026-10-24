@@ -1,5 +1,5 @@
 // Idioma del mazo y selector de tipos de tarjeta
-import { test, expect, openApp, nav } from './fixtures.js';
+import { test, expect, openApp, nav, newCard } from './fixtures.js';
 
 async function newDeck(page, name, lang) {
   await nav(page, 'Biblioteca');
@@ -21,7 +21,7 @@ test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los 
   await openApp(page);
   await newDeck(page, 'Alemán', 'de-DE');
   await expect(page.locator('.deckhead')).toContainText('Alemán');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await expect(page.locator('.ed-typesel')).toContainText('Sustantivo alemán');       // empieza por el tipo propio del idioma
   await expect(page.locator('.ef-lang').first()).toContainText('Alemán');
 
@@ -49,7 +49,7 @@ test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los 
 test('mazo que no es de idiomas: solo tipos generales y sin audio', async ({ page }) => {
   await openApp(page);
   await newDeck(page, 'Historia', '');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await expect(page.locator('.ed-typesel')).toContainText('Básica');
   await page.locator('[data-act="pick-type"]').click();
   expect(await groupNames(page)).toEqual(['Para cualquier tema']);
@@ -62,7 +62,7 @@ test('cambiar de mazo en el editor cambia el idioma de los campos', async ({ pag
   await openApp(page);
   await newDeck(page, 'Japonés', 'ja-JP');
   await newDeck(page, 'Francés', 'fr-FR');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="vocab"]').click();
   await page.locator('#fld-w').fill('maison');
@@ -76,13 +76,13 @@ test('cambiar de mazo en el editor cambia el idioma de los campos', async ({ pag
 test('un tipo oculto deja de salir en el editor', async ({ page }) => {
   await openApp(page);
   await newDeck(page, 'Historia', '');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('#typePicker [data-act="manage-types"]').click();
   await page.locator('[data-hide-type="cloze"]').click();
   await expect(page.locator('[data-hide-type="cloze"]')).toHaveText('Mostrar');
   await page.locator('#sheetBody').getByRole('button', { name: 'Cerrar' }).click();
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await expect(picker(page).locator('[data-pick-type="cloze"]')).toHaveCount(0);
   await page.locator('#typeSearch').fill('huecos');                                  // buscando sí aparece

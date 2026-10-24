@@ -9,11 +9,11 @@ import { folderPath, iconText } from '../org.js';
 import { parsePasted } from '../notes.js';
 import { readApkg, ankiToFlaski, ankiProgress, ankiHistory } from '../anki.js';
 import { storeImage, imageType, newImageId, flushUploads, imageIdsOf, exportImages } from '../media.js';
-import { pageTitle } from '../pages.js';
-import { $, main, S, esc, fmt, norm, cardList, toast, fail, deckIcon, tagChips, algo, counts } from '../comun.js';
+import { pageTitle, pageSnippet } from '../pages.js';
+import { $, main, S, esc, fmt, plain, norm, cardList, toast, fail, tagChips, algo, counts } from '../comun.js';
 import { typeIcon, getType, deckLang, langLabel } from './estudio.js';
 import { previewImport } from './explorar.js';
-import { drag } from './apuntes.js';
+import { drag, savePageSoon } from './apuntes.js';
 import { seg } from './perfil.js';
 import { openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
@@ -38,44 +38,183 @@ export function statusChip(id) {
   const now = Date.now();
   return p.due <= now ? '<span class="chip">Toca hoy</span>' : `<span class="chip">En ${fmtWhen(p.due, now)}</span>`;
 }
-// En un mazo: los apuntes de los que salen sus tarjetas (o que lo tienen como mazo)
-function deckNotesHTML(deckId) {
+// En una lista: los apuntes de los que salen sus preguntas (o que la tienen como lista)
+function deckPages(deckId) {
   const ids = new Set(cardList().filter(c => c.deck_id === deckId && c.page_id).map(c => c.page_id));
-  const pages = [...S.pages.values()].filter(p => p.deck_id === deckId || ids.has(p.id));
-  if (!pages.length) return '';
-  return `<div class="deck-notes">${icon('file-text', { size: 16 })}<span class="muted small">Apuntes:</span>
-    ${pages.map(p => `<button class="chip chip-link" data-page="${p.id}">${p.icon ? esc(p.icon) + ' ' : ''}${esc(pageTitle(p))}</button>`).join('')}</div>`;
+  return [...S.pages.values()].filter(p => p.deck_id === deckId || ids.has(p.id));
 }
+
+/* ===================== una lista ===================== */
+// Etapa de cada pregunta (la misma regla que «Cómo va lo que sabes»): aprendiendo < 1 día, jóvenes < 21 días
+const STAGES = [['new', 'nuevas', 'nueva', 'Nuevas'], ['learn', 'aprendiendo', 'aprendiendo', 'Aprendiendo'], ['young', 'jóvenes', 'joven', 'Jóvenes'], ['mature', 'consolidadas', 'consolidada', 'Consolidadas']];
+const stageOf = p => (!p ? 'new' : p.interval < 1 ? 'learn' : p.interval < 21 ? 'young' : 'mature');
+const SORTS_CARDS = [['next', 'Próximo repaso'], ['position', 'Orden de la lista'], ['az', 'Alfabético']];
+const SHOWN = 10;
+const MONTH = d => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).replace('.', '');
+
+// «editado el 18 oct»: lo último que ha cambiado, la lista o alguna de sus preguntas
+function editedText(d, cards) {
+  const t = Math.max(...[d.updated_at, d.created_at, ...cards.map(c => c.updated_at || c.created_at)].map(x => Date.parse(x || '') || 0));
+  return t ? `editado el ${MONTH(new Date(t))}` : '';
+}
+// Retención de los últimos 30 días (repasos acertados) y repasos de la semana que viene
+function deckHealth(d, cards, now) {
+  const evs = S.events.filter(e => e.deck_id === d.id && e.state === 'review' && e.t > now - 30 * 864e5);
+  const week = cards.filter(c => { const p = S.progress.get(c.id); return p && p.due > now && p.due <= now + 7 * 864e5; }).length;
+  const parts = [evs.length >= 5 && `Retención en esta lista: <b>${Math.round((evs.filter(e => e.grade > 1).length / evs.length) * 100)} %</b>`, week && `próxima semana, ${plural(week, 'repaso', 'repasos')}`].filter(Boolean);
+  return parts.length ? `<p class="dk-health">${parts.join(' · ')}</p>` : '';
+}
+
 export function renderDeck() {
   const d = S.decks.get(S.deckId);
   if (!d) return go('decks');
+  if (S.deckShown !== d.id) Object.assign(S, { deckShown: d.id, cardFilter: 'all', cardAll: false });
+  const now = Date.now(), endToday = new Date().setHours(24, 0, 0, 0);
   const all = cardList().filter(c => c.deck_id === d.id).sort((a, b) => a.position - b.position);
+  const c = counts(d.id), avail = c.due + c.newToday;
+  const stage = new Map(all.map(x => [x.id, stageOf(S.progress.get(x.id))]));
+  const n = Object.fromEntries(STAGES.map(([k]) => [k, 0]));
+  for (const k of stage.values()) n[k]++;
+  // Para hoy: las que tocan y las nuevas que entran hoy (las primeras de la lista)
+  const today = new Set([...all.filter(x => { const p = S.progress.get(x.id); return p && p.due <= now; }), ...all.filter(x => !S.progress.has(x.id)).slice(0, c.newToday)].map(x => x.id));
+  const filters = [['all', 'Todas', all.length], ['today', 'Para hoy', today.size], ...STAGES.map(([k, , , label]) => [k, label, n[k]])];
+  const f = filters.some(([k, , num]) => k === S.cardFilter && (num || k === 'all')) ? S.cardFilter : 'all';
   const q = norm(S.cardQuery.trim());
-  const rows = all.filter(c => !q || norm(c.front).includes(q) || norm(c.back).includes(q) || norm(c.note).includes(q)
-    || (c.tags || []).some(t => norm(S.tags.get(t)?.name).includes(q)));
-  const c = counts(d.id);
-  main.innerHTML = `
-    ${crumbs(d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null, { linkLast: true })}
-    <div class="deckhead"><div class="deck-title">${deckIcon(d, true)}<h1>${esc(d.name)}</h1></div>${d.description ? `<p class="desc">${fmt(d.description)}</p>` : ''}
-      <div class="btnrow">${deckLang(d.id) ? `<span class="chip">${icon('languages', { size: 13 })} ${esc(langLabel(deckLang(d.id)))}</span>` : ''}${tagChips(d.tags)}<span class="chip">${c.total} ${c.total === 1 ? 'pregunta' : 'preguntas'}</span><span class="chip">${c.due} por repasar${c.dueAll > c.due ? ` (+${c.dueAll - c.due} tras el límite)` : ''}</span>${d.pinned ? '<span class="chip">Fijado</span>' : ''}${d.archived ? '<span class="chip">Archivada</span>' : ''}${d.is_public ? '<span class="chip">Compartida</span>' : ''}</div></div>
-    <div class="btnrow">
-      <button class="primary" data-start="${d.id}" ${c.due + c.newToday ? '' : 'disabled'}>Estudiar</button>
-      <button class="ghost" data-act="new-card">+ Pregunta</button>
-      <button class="ghost" data-act="quick-add">Crear varias</button>
-      <button class="ghost" data-act="share">Compartir</button>
-      <button class="ghost" data-act="move-deck">Mover</button>
-      <button class="ghost" data-act="edit-deck">Editar</button>
-      <button class="ghost" data-stats="${d.id}">${icon('chart-column', { size: 16 })} Estadísticas</button>
+  let rows = all.filter(x => (f === 'all' || (f === 'today' ? today.has(x.id) : stage.get(x.id) === f))
+    && (!q || norm(x.front).includes(q) || norm(x.back).includes(q) || norm(x.note).includes(q) || (x.tags || []).some(t => norm(S.tags.get(t)?.name).includes(q))));
+  const sort = SORTS_CARDS.some(([k]) => k === S.cardSort) ? S.cardSort : 'next';
+  if (sort === 'az') rows.sort((a, b) => plain(a.front).localeCompare(plain(b.front), 'es'));
+  if (sort === 'next') rows.sort((a, b) => (S.progress.get(a.id)?.due ?? Infinity) - (S.progress.get(b.id)?.due ?? Infinity) || a.position - b.position);
+  const matching = rows.length, limited = !q && !S.cardAll && rows.length > SHOWN;
+  if (limited) rows = rows.slice(0, SHOWN);
+  const fid = d.folder_id && S.folders.has(d.folder_id) ? d.folder_id : null;
+  const path = fid ? folderPath(S.folders, fid) : [];
+  const lang = deckLang(d.id);
+  const meta = [lang && esc(langLabel(lang)), plural(all.length, 'pregunta', 'preguntas'), editedText(d, all), d.archived && 'archivada', d.is_public && 'compartida'].filter(Boolean).join(' · ');
+  const split = [c.due && plural(c.due, 'repaso', 'repasos'), c.newToday && plural(c.newToday, 'nueva', 'nuevas')].filter(Boolean);
+  const pages = deckPages(d.id);
+  const count = limited ? `Mostrando ${rows.length} de ${matching}` : matching === all.length ? plural(all.length, 'pregunta', 'preguntas') : `${matching} de ${all.length} preguntas`;
+  const row = x => {
+    const p = S.progress.get(x.id), st = stage.get(x.id);
+    const t = (x.fields && Object.keys(x.fields).length ? getType(x.type_id) : null) || getType('basic');
+    const tpl = t.templates.length > 1 ? t.templates.find(y => y.id === x.template)?.name : '';
+    const when = !p ? 'nueva' : p.due < endToday ? 'hoy' : `en ${fmtWhen(p.due, now)}`;
+    return `<li><button class="row cr cs-${st}" data-card="${x.id}"><i class="cr-dot" aria-hidden="true"></i><span class="cr-f">${fmt(x.front)}</span><span class="cr-b">${fmt(x.back)}</span>
+      <span class="cr-t"${tpl ? ` title="${esc(tpl)}"` : ''}>${typeIcon(t, 14)} ${esc(t.name)}${tagChips(x.tags || [])}</span><span class="cr-st">${STAGES.find(([k]) => k === st)[2]}</span><span class="cr-due${when === 'hoy' ? ' is-today' : ''}">${when}</span></button></li>`;
+  };
+  const more = `<button class="dk-more" data-act="deck-menu" aria-label="Más opciones" aria-haspopup="menu" title="Más opciones">${icon('ellipsis', { size: 22 })}</button>`;
+  main.innerHTML = `<div class="dk">
+    <div class="lib-top dk-top">
+      <button class="back-round" data-folder="${fid || ''}" aria-label="Volver">${icon('chevron-left', { size: 20 })}</button>
+      <nav class="crumbs" aria-label="Ruta">${[`<button class="crumb" data-folder="">Biblioteca</button>`, ...path.map((x, i) => `<button class="crumb${i === path.length - 1 ? ' crumb-cur' : ''}" data-folder="${x.id}">${esc(x.name)}</button>`)].join('<span class="sep" aria-hidden="true">›</span>')}</nav>
+      <span class="spacer"></span>${more}
     </div>
-    ${deckNotesHTML(d.id)}
-    <div class="toolbar"><input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></div>
-    <p class="muted small" id="cardCount">${rows.length === all.length ? `${all.length} ${all.length === 1 ? 'pregunta' : 'preguntas'}` : `${rows.length} de ${all.length} preguntas`}</p>
-    <ul class="list" id="cardRows">${rows.map(c => {
-      const t = c.fields && Object.keys(c.fields).length ? getType(c.type_id) : null;
-      const tplName = t && t.templates.length > 1 ? t.templates.find(x => x.id === c.template)?.name : '';
-      return `<li><button class="row" data-card="${c.id}"><span class="f">${fmt(c.front)}</span>${statusChip(c.id)}<span class="b">${fmt(c.back)}</span>
-        ${t && t.id !== 'basic' || c.tags?.length ? `<span class="rmeta">${t && t.id !== 'basic' ? `<span class="tchip">${typeIcon(t, 13)} ${esc(tplName || t.name)}</span>` : ''}${tagChips(c.tags || [])}</span>` : ''}</button></li>`;
-    }).join('')}</ul>`;
+    <header class="deckhead dk-head">
+      <div class="dk-id"><h1 class="dk-title">${esc(d.name)}</h1>${d.description ? `<p class="dk-desc">${fmt(d.description)}</p>` : ''}<p class="dk-meta">${meta}</p></div>
+      <div class="dk-today">
+        <div class="dk-num">${avail ? `<b>${avail}</b><span class="dk-para">para hoy</span>` : `<span class="dk-para dk-done">${all.length ? 'al día' : 'vacía'}</span>`}
+          ${split.length ? `<span class="dk-split">${split.map(s => `<span>${s}</span>`).join('<span class="dk-sep" aria-hidden="true"> · </span>')}</span>` : ''}</div>
+        <div class="dk-acts"><button class="primary big dk-study" data-start="${d.id}" ${avail ? '' : 'disabled'}>${icon('play', { size: 20 })} Estudiar</button>
+          <button class="dk-add" data-act="add-menu" aria-label="Añadir preguntas" aria-haspopup="menu" title="Añadir preguntas">${icon('plus', { size: 24 })}</button>${more}</div>
+      </div>
+    </header>
+    ${all.length ? `<section class="dk-state" aria-labelledby="h-dkst"><h2 class="dk-h" id="h-dkst">Estado</h2>
+      <span class="dk-bar" role="img" aria-label="${STAGES.map(([k, label]) => `${n[k]} ${label}`).join(', ')}">${STAGES.map(([k]) => (n[k] ? `<i class="cs-${k}" style="flex:${n[k]}"></i>` : '')).join('')}</span>
+      <ul class="dk-key">${STAGES.map(([k, label]) => `<li class="cs-${k}"><b>${n[k]}</b><span><i aria-hidden="true"></i>${label}</span></li>`).join('')}</ul>
+      ${deckHealth(d, all, now)}</section>` : ''}
+    <section class="dk-qs" aria-labelledby="h-dkqs">
+      <div class="dk-qh"><h2 class="dk-h" id="h-dkqs">Preguntas</h2>
+        <div class="seg dk-view" role="group" aria-label="Vista" hidden><button type="button" class="seg-b" aria-pressed="true">${icon('list', { size: 16 })} Lista</button><button type="button" class="seg-b" aria-pressed="false">${icon('layout-grid', { size: 16 })} Mapa</button></div></div>
+      ${all.length ? `<label class="lib-search dk-search">${icon('search', { size: 18 })}<input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></label>
+      <div class="filters chips-scroll">${filters.filter(([k, , num]) => num || k === 'all' || k === f).map(([k, label, num]) => `<button class="fchip" data-cfilter="${k}" aria-pressed="${k === f}">${label} · ${num}</button>`).join('')}</div>
+      <div class="org-bar"><label class="sort-inline">Orden: <select id="cardSort" aria-label="Ordenar las preguntas">${SORTS_CARDS.map(([k, label]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div>
+      <div class="cr-head" aria-hidden="true"><span></span><span>Pregunta</span><span>Respuesta</span><span>Tipo</span><span>Estado</span><span>Repaso</span></div>
+      <ul class="list cr-list" id="cardRows">${rows.map(row).join('')}</ul>
+      ${rows.length ? '' : '<p class="muted small">Ninguna pregunta coincide.</p>'}
+      <div class="dk-foot${limited ? ' is-limited' : ''}"><span id="cardCount">${count}</span>${limited ? `<button class="link" data-act="cards-all">Ver todas<span class="dk-m"> las ${matching} preguntas</span></button>` : ''}</div>`
+      : '<div class="empty"><p class="muted">Esta lista aún no tiene preguntas. Añádelas con el botón +.</p></div>'}
+    </section>
+    ${pages.length || S.pages.size ? `<section class="dk-notes" aria-labelledby="h-dknt"><div class="dk-nh"><h2 class="dk-h" id="h-dknt">Apuntes vinculados</h2>${pages.length ? `<span class="muted small">${pages.length}</span>` : ''}</div>
+      ${pages.length ? `<ul class="dk-nlist">${pages.map(p => `<li><button class="dk-note" data-page="${p.id}"><span class="dk-nic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 22 })}</span>
+        <span class="dk-nt"><b>${esc(pageTitle(p))}</b>${pageSnippet(p) ? `<small>${esc(pageSnippet(p))}</small>` : ''}</span>${icon('chevron-right', { size: 18 })}</button></li>`).join('')}</ul>` : ''}
+      ${[...S.pages.values()].some(p => !pages.includes(p)) ? `<button class="link dk-link" data-act="link-note">${pages.length ? 'Vincular otro apunte' : 'Vincular un apunte'}</button>` : ''}</section>` : ''}
+  </div>`;
+}
+
+/* ---------- «+» y «…»: hoja en el móvil, menú desplegable en el ordenador ---------- */
+const mItem = (attr, ic, title, sub = '', danger = false) => `<button type="button" role="menuitem" class="dk-mi${danger ? ' danger' : ''}" ${attr}>
+  <span class="dk-mic" aria-hidden="true">${icon(ic, { size: 22 })}</span><span class="dk-mt"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${danger ? '' : icon('chevron-right', { size: 18 })}</button>`;
+function menuHTML(kind, d, sheet) {
+  if (kind === 'add') return `<div class="dk-mh"><h2>Añadir preguntas</h2><p>a «${esc(d.name)}»</p></div><div class="dk-menu" role="menu">
+    ${mItem('data-act="new-card"', 'plus', 'Una pregunta', 'Eliges el tipo y la escribes')}
+    ${mItem('data-act="quick-add"', 'clipboard-list', 'Varias de golpe', 'Pega líneas «palabra = significado» o una tabla')}
+    ${mItem('data-act="from-note"', 'file-text', 'Desde un apunte', 'Con las sugerencias de tus apuntes')}
+    ${mItem('data-act="import"', 'download', 'Importar archivo', 'CSV o un mazo de Anki')}</div>`;
+  const lang = deckLang(d.id), total = cardList().filter(c => c.deck_id === d.id).length;
+  return `<div class="dk-mh">${sheet ? `<h2>${esc(d.name)}</h2><p>${[plural(total, 'pregunta', 'preguntas'), lang && esc(langLabel(lang))].filter(Boolean).join(' · ')}</p>` : `<h2>Más opciones</h2><p>${esc(d.name)}</p>`}</div><div class="dk-menu" role="menu">
+    ${mItem('data-act="edit-deck"', 'pencil', 'Editar lista', 'Nombre, descripción, idioma y etiquetas')}
+    ${mItem(`data-stats="${d.id}"`, 'chart-line', 'Estadísticas de esta lista')}
+    ${mItem('data-act="share"', 'upload', 'Compartir', 'Con un enlace; quien la añada tendrá su copia')}
+    ${mItem('data-act="move-deck"', 'folder-input', 'Mover a otra carpeta')}
+    ${mItem('data-act="export-csv"', 'download', 'Exportar', 'En CSV, para Excel u otra app')}
+    ${d.archived ? mItem('data-act="archive-deck"', 'archive', 'Desarchivar', 'Vuelve a salir en Hoy y en las tandas') : mItem('data-act="archive-deck"', 'archive', 'Archivar', 'Deja de salir en Hoy; no se borra nada')}
+    ${mItem('data-act="ask-delete-deck"', 'trash-2', 'Borrar lista', '', true)}</div>`;
+}
+export function deckMenu(kind, anchor) {
+  const d = S.decks.get(S.deckId);
+  if (!d) return;
+  const pop = $('#dkPop');
+  if (pop && !pop.hidden && pop.dataset.kind === kind) return closeDeckMenu();
+  if (matchMedia('(max-width:699px)').matches) return openSheet(`<div class="dk-msheet">${menuHTML(kind, d, true)}</div>`);
+  let el = pop;
+  if (!el) { el = document.createElement('div'); el.id = 'dkPop'; el.className = 'dk-pop'; document.body.appendChild(el); }
+  el.dataset.kind = kind;
+  el.innerHTML = menuHTML(kind, d, false);
+  el.hidden = false;
+  anchor.setAttribute('aria-expanded', 'true');
+  const r = anchor.getBoundingClientRect(), w = Math.min(380, innerWidth - 16);
+  el.style.width = w + 'px';
+  el.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + scrollX + 'px';
+  el.style.top = r.bottom + 10 + scrollY + 'px';
+  if (anchor.matches(':focus-visible')) el.querySelector('button')?.focus({ preventScroll: true });
+}
+export function closeDeckMenu() {
+  const el = $('#dkPop');
+  if (!el || el.hidden) return;
+  el.hidden = true;
+  document.querySelectorAll('[aria-expanded="true"][data-act$="-menu"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+document.addEventListener('pointerdown', e => { if (!e.target.closest?.('#dkPop, [data-act="add-menu"], [data-act="deck-menu"]')) closeDeckMenu(); });
+document.addEventListener('click', e => { if (e.target.closest?.('#dkPop button')) closeDeckMenu(); }, true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#dkPop')?.hidden) closeDeckMenu(); });
+addEventListener('resize', closeDeckMenu);
+
+// «Desde un apunte»: se elige el apunte y se abren sus sugerencias, que van a esta lista
+export function fromNoteSheet() {
+  const d = S.decks.get(S.deckId), linked = deckPages(d.id);
+  const others = [...S.pages.values()].filter(p => !linked.includes(p)).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  const item = p => `<button data-note-sug="${p.id}">${icon('file-text', { size: 22 })}<span><b>${esc(pageTitle(p))}</b>${pageSnippet(p, 70) ? `<small>${esc(pageSnippet(p, 70))}</small>` : ''}</span></button>`;
+  openSheet(`<h2>Desde un apunte</h2>${S.pages.size
+    ? `<p class="muted small">Elige el apunte: verás las preguntas que se pueden sacar de él y se añadirán a «${esc(d.name)}».</p>
+      <div class="lib-pick">${[...linked, ...others].map(item).join('')}</div>`
+    : '<p class="muted">Aún no tienes apuntes. Escribe uno y Flaski te sugerirá preguntas a partir de lo que pongas.</p><div class="btnrow"><span class="spacer"></span><button class="primary" data-act="new-page">Crear un apunte</button></div>'}`);
+}
+// «Vincular otro apunte»: el apunte pasa a tener esta lista (sus preguntas nuevas irán aquí)
+export function linkNoteSheet() {
+  const d = S.decks.get(S.deckId), linked = deckPages(d.id);
+  const rest = [...S.pages.values()].filter(p => !linked.includes(p)).sort((a, b) => pageTitle(a).localeCompare(pageTitle(b), 'es'));
+  openSheet(`<h2>Vincular un apunte</h2><p class="muted small">Las preguntas que crees desde el apunte irán a «${esc(d.name)}».</p>
+    <div class="lib-pick">${rest.map(p => { const other = p.deck_id && S.decks.get(p.deck_id);
+      return `<button data-link-page="${p.id}">${icon('file-text', { size: 22 })}<span><b>${esc(pageTitle(p))}</b>${other ? `<small>Ahora va a «${esc(other.name)}»</small>` : ''}</span></button>`; }).join('')}</div>`);
+}
+export function linkPage(id) {
+  const p = S.pages.get(id);
+  if (!p) return;
+  p.deck_id = S.deckId;
+  savePageSoon(p, 0);
+  closeSheet();
+  toast(`«${pageTitle(p)}» vinculado`);
+  renderDeck();
 }
 
 /* ===================== archivos ===================== */

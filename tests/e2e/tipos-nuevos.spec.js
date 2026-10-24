@@ -1,6 +1,6 @@
 // Tipos de tarjeta: verdadero o falso, emparejar y tapar partes de una imagen
 import { deflateSync } from 'node:zlib';
-import { test, expect, openApp, createDeck, nav } from './fixtures.js';
+import { test, expect, openApp, createDeck, nav, newCard } from './fixtures.js';
 
 // PNG de 400×300 de un solo color (como un mapa de verdad, para poder dibujar encima)
 function png(w, h) {
@@ -13,7 +13,7 @@ function png(w, h) {
 }
 const PNG = { name: 'mapa.png', mimeType: 'image/png', buffer: png(400, 300) };
 async function newCardOfType(page, type) {
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator(`[data-pick-type="${type}"]`).click();
 }
@@ -121,7 +121,7 @@ test('conjugación: se escriben todas las formas y se corrige cada una (en alem�
 test('«Escribir a mano» solo sale en mazos de idiomas con otro alfabeto', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
-  await page.locator('#main [data-act="new-card"]').click();
+  await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await expect(page.locator('[data-pick-type="truefalse"]')).toHaveCount(1);
   await expect(page.locator('[data-pick-type="handwrite"]')).toHaveCount(0);
