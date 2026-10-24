@@ -2211,14 +2211,27 @@ body.in-study .done .link{align-self:center}
 /* Fichas mezcladas: apuntes, listas y subcarpetas */
 .ltiles{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .ltiles > li{position:relative;min-width:0}
-.ltile{position:relative;width:100%;height:100%;min-height:168px;text-align:left;border:1px solid var(--line-strong);border-radius:20px;background:var(--bg);color:var(--fg);padding:16px 14px 14px;display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.ltile{position:relative;width:100%;height:100%;min-height:150px;text-align:left;border:1px solid var(--line-strong);border-radius:18px;background:var(--bg);color:var(--fg);padding:16px 16px 18px;display:flex;flex-direction:column;align-items:stretch;gap:10px}
+/* Ligeramente ladeadas, como fichas sobre la mesa */
+.ltiles > li:nth-child(4n+1) > .ltile:not(.lt-sub){transform:rotate(-1.2deg)}
+.ltiles > li:nth-child(4n+2) > .ltile:not(.lt-sub){transform:rotate(.8deg)}
+.ltiles > li:nth-child(4n+3) > .ltile:not(.lt-sub){transform:rotate(-.5deg)}
+.ltiles > li:nth-child(4n) > .ltile:not(.lt-sub){transform:rotate(1deg)}
+@media (prefers-reduced-motion:no-preference){.ltile:not(.lt-sub){transition:transform .15s}}
+.ltiles > li > .ltile:not(.lt-sub):hover{transform:none}
 .ltile:hover{background:var(--soft)}
 .lt-ic{color:color-mix(in oklab,var(--accent) 60%,#FFFFFF);line-height:1;font-size:26px}
 .lt-ic .lu{stroke-width:1.5}
 .lt-name{flex:1;font-size:14px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
-.lt-foot{display:flex;flex-direction:column;gap:4px}
+.lt-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:4px 8px}
 .lt-meta{font-size:11.5px;color:var(--muted)}
-.lt-hand{font-family:var(--font-hand);font-size:24px;line-height:1;align-self:flex-end;margin-top:-22px}
+.lt-hand{margin-left:auto;font-family:var(--font-hand);font-size:24px;line-height:1;white-space:nowrap}
+.lt-hand.is-due{color:var(--accent)}
+.lt-hand.is-ok{color:var(--tag-green)}
+.lt-hand.is-empty{color:color-mix(in srgb,var(--accent) 38%,var(--bg))}
+/* Apunte vacío (sin preguntas): borde discontinuo y el texto en gris */
+.ltile.is-empty{border-style:dashed;border-color:color-mix(in srgb,var(--accent) 30%,var(--bg))}
+.ltile.is-empty .lt-name,.ltile.is-empty .lt-ic{color:var(--faint)}
 .lt-st{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-hand);font-size:21px;line-height:1}
 .lt-st i{width:9px;height:9px;border-radius:50%;background:var(--faint);flex:none}
 .lt-st.st-weak i{background:#FF9F92}
@@ -2226,10 +2239,9 @@ body.in-study .done .link{align-self:center}
 .lt-st.st-ok i{background:#8EE3B5}
 .lt-st.st-new i{background:#9ED4FF}
 /* Apunte: esquina doblada arriba a la derecha */
-.lt-note{clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,0 100%)}
-.lt-note::after{content:'';position:absolute;top:0;right:0;width:20px;height:20px;background:linear-gradient(225deg,transparent 50%,var(--line-strong) 50%);border-bottom-left-radius:3px}
 /* Lista: otras dos asomando por debajo */
-.lt-list{box-shadow:4px 4px 0 -1px var(--bg),4px 4px 0 0 var(--line-strong),8px 8px 0 -1px var(--bg),8px 8px 0 0 var(--line);width:calc(100% - 8px);height:calc(100% - 8px)}
+/* Una lista: con una hoja detrás */
+.lt-list{box-shadow:5px 5px 0 -1px var(--bg),5px 5px 0 0 var(--line-strong);width:calc(100% - 5px);height:calc(100% - 5px)}
 .ltiles .tile-more{position:absolute;top:6px;right:14px;z-index:1;width:40px;height:40px;border:0;background:transparent;color:var(--faint);display:grid;place-items:center;padding:0}
 /* Subcarpeta: en el móvil, una fila lila a lo ancho; en el ordenador, una ficha más */
 .lt-subli{grid-column:1 / -1}
@@ -2688,4 +2700,19 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
   .dk-key b{font-size:28px}
   .dk-health{margin-top:4px}
   .dk-qs .cr-head,.dk-qs .list .cr{grid-template-columns:14px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) 92px 60px;gap:0 14px}
+}
+
+/* Biblioteca en el ordenador: botones en fila arriba, carpetas en 3 columnas y sueltos en 5 */
+.lib-drag-hint{display:none}
+@media (min-width:960px){
+  .lib-root-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .lib-head .add-round{display:none}
+  .lib-head h1{font-size:60px}
+  .lib-quick{display:flex;gap:10px}
+  .lib-quick button{flex-direction:row;gap:10px;min-height:50px;padding:0 20px;border-radius:99px;font-size:15px}
+  .lib-root-top + .lib-search,.lib-root-top ~ .lib-search{max-width:640px}
+  .lib-drag-hint{display:inline}
+  .lfolds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;align-items:start}
+  .lfolds .lfold-name{font-size:36px}
+  .ltiles{grid-template-columns:repeat(5,minmax(0,1fr));gap:22px}
 }

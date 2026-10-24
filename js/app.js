@@ -153,7 +153,6 @@ document.addEventListener('click', async e => {
   }
   if (ds.grade) return grade(Number(ds.grade));
   if (ds.open) return go('deck', { deckId: ds.open, cardQuery: '' });
-  if (ds.move) return moveSheet([ds.move]);
   if (ds.say) { const c = S.cards.get(S.session?.queue[0]); if (c) { const m = cardModel(c); speak(m.fields[ds.say], m.type.fields.find(f => f.id === ds.say)?.lang); } return; }
   if (ds.sayInput) { const t = typeIn(getType(S.edit?.typeId), edDeck()); speak($('#fld-' + ds.sayInput).value, t?.fields.find(f => f.id === ds.sayInput)?.lang); return; }
   if (ds.match) return pickMatch(ds.match);

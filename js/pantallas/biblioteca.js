@@ -55,23 +55,24 @@ function folderCard(f) {
 }
 
 // Una ficha: apunte (esquina doblada), lista (con otras debajo) o subcarpeta
+// Estado a mano (en la raíz): «N hoy» (cobalto), «al día» (verde) o «vacío/vacía» (lavanda)
+const handState = (n, total, empty) => `<span class="lt-hand ${n ? 'is-due' : total ? 'is-ok' : 'is-empty'}">${n ? `${n} hoy` : total ? 'al día' : empty}</span>`;
 function pageTile(p, { hand, where }) {
   const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards);
   const n = cards.length ? dueOf(counts('page:' + p.id)) : 0;
-  const foot = hand ? `<span class="lt-hand">${n ? `${n} hoy` : cards.length ? 'al día' : ''}</span>`
+  const foot = hand ? handState(n, cards.length, 'vacío')
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '';
-  return `<li data-kind="notes"><button class="ltile lt-note" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
+  return `<li data-kind="notes"><button class="ltile lt-note${cards.length ? '' : ' is-empty'}" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
     <span class="lt-name">${esc(pageTitle(p))}</span>
     <span class="lt-foot"><span class="lt-meta">${where(p)}apunte${hand ? ` · ${cards.length}` : ` · ${plural(cards.length, 'pregunta', 'preguntas')}`}</span>${foot}</span></button></li>`;
 }
 function deckTile(d, { hand, where }) {
   const c = counts(d.id), n = dueOf(c), st = statusOf(cardList().filter(x => x.deck_id === d.id));
-  const foot = hand ? `<span class="lt-hand">${n ? `${n} hoy` : c.total ? 'al día' : 'vacía'}</span>`
+  const foot = hand ? handState(n, c.total, 'vacía')
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '<span class="lt-st">vacía</span>';
   return `<li data-kind="lists" draggable="true" data-drag-deck="${d.id}"><button class="ltile lt-list" data-open="${d.id}"><span class="lt-ic" aria-hidden="true">${d.icon ? esc(d.icon) : icon('copy', { size: 24 })}</span>
     <span class="lt-name">${esc(d.name)}</span>
-    <span class="lt-foot"><span class="lt-meta">${where(d)}lista${d.source === 'anki' || d.source === 'archivo' ? ' · importada' : ''}${hand ? ` · ${c.total}` : ` · ${plural(c.total, 'pregunta', 'preguntas')}`}${d.archived ? ' · archivada' : ''}</span>${foot}</span></button>
-    <button class="row-more tile-more" data-move="${d.id}" aria-label="Mover «${esc(d.name)}» a otra carpeta" title="Mover a otra carpeta">${icon('folder-input', { size: 18 })}</button></li>`;
+    <span class="lt-foot"><span class="lt-meta">${where(d)}lista${d.source === 'anki' || d.source === 'archivo' ? ' · importada' : ''}${hand ? ` · ${c.total}` : ` · ${plural(c.total, 'pregunta', 'preguntas')}`}${d.archived ? ' · archivada' : ''}</span>${foot}</span></button></li>`;
 }
 function subTile(f) {
   const { decks, pages, subs, c } = folderInfo(f.id), n = decks.length + pages.length + subs.length;
@@ -119,12 +120,14 @@ function renderRoot() {
   const empty = filtering ? 'Nada coincide con la búsqueda o el filtro.' : 'Aún no tienes apuntes ni listas. Crea uno o busca listas en Explorar.';
 
   main.innerHTML = `
+    <div class="lib-root-top">
     <div class="lib-head"><h1>Biblioteca</h1><button class="add-round" data-act="create-menu" aria-label="Crear">${icon('plus', { size: 20 })}</button></div>
     <div class="lib-quick">
       <button data-act="new-page">${icon('file-text', { size: 20 })}<span>Apunte</span></button>
       <button data-act="new-deck">${icon('copy', { size: 20 })}<span>Lista</span></button>
       <button data-act="new-folder">${icon('folder', { size: 20 })}<span>Carpeta</span></button>
       <button data-act="import-menu">${icon('download', { size: 20 })}<span>Importar</span></button>
+    </div>
     </div>
     ${S.pagesMissing ? '<div class="panel"><p><b>Falta un paso en Supabase.</b> Para guardar apuntes en la nube, vuelve a ejecutar <code>supabase/schema.sql</code> en el SQL Editor y recarga la app.</p></div>' : ''}
     <label class="lib-search">${icon('search', { size: 18 })}<input id="libSearch" type="search" placeholder="Buscar en apuntes y listas" aria-label="Buscar en apuntes y listas" value="${esc(o.query)}"></label>
@@ -135,7 +138,7 @@ function renderRoot() {
     </div>
     ${studyTag}
     ${folders.length ? `<ul class="lfolds">${folders.map(folderCard).join('')}</ul>` : ''}
-    ${tiles && !filtering && folders.length ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta</span></div>' : ''}
+    ${tiles && !filtering && folders.length ? '<div class="section-h"><h2>Sueltos</h2><span class="muted small">sin carpeta<span class="lib-drag-hint"> · arrástralos a una carpeta para ordenarlos</span></span></div>' : ''}
     ${filtering ? `<div class="section-h"><h2>${o.archived ? 'Archivadas' : 'Resultados'}</h2></div>` : ''}
     ${tiles ? `<ul class="ltiles">${tiles}</ul>` : folders.length ? '' : `<div class="empty"><p class="muted">${empty}</p></div>`}
     <div class="lib-links"><button class="link" data-act="manage-tags">${S.tags.size ? 'Gestionar etiquetas' : '+ Etiqueta'}</button>${S.pages.size ? '<button class="link" data-act="export-all-notes" title="Todos los apuntes en Markdown, con sus imágenes (.zip)">Exportar apuntes</button>' : ''}</div>`;
