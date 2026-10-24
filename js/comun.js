@@ -135,8 +135,21 @@ export function weakSections(now = Date.now()) {
     if (keep.length) out.push(...keep);
     else { const status = flojea(cards); if (status) out.push({ page: p, block: null, status, cards }); }
   }
+  // Las listas con preguntas sueltas (sin apunte): solo si alguna te cuesta («toca repasar» saldría casi siempre)
+  const cuesta = c => cardsStatus([S.progress.get(c.id) || null], now) === 'weak', byDeck = new Map();
+  for (const c of S.cards.values()) if (live.has(c.deck_id) && !(c.page_id && S.pages.has(c.page_id)) && cuesta(c)) {
+    if (!byDeck.has(c.deck_id)) byDeck.set(c.deck_id, []);
+    byDeck.get(c.deck_id).push(c);
+  }
+  for (const [id, cards] of byDeck) out.push({ deck: S.decks.get(id), status: 'weak', cards });
+  // Primero lo que te cuesta; luego lo que más preguntas te cuestan y, a igualdad, lo fallado más recientemente
   const rank = { weak: 0, due: 1 };
-  return out.sort((a, b) => rank[a.status] - rank[b.status] || b.cards.length - a.cards.length);
+  for (const r of out) {
+    const hard = r.deck ? r.cards : r.cards.filter(cuesta);
+    r.hard = hard.length;
+    r.last = Math.max(0, ...hard.map(c => +new Date(S.progress.get(c.id)?.last || 0)));
+  }
+  return out.sort((a, b) => rank[a.status] - rank[b.status] || b.hard - a.hard || b.last - a.last || b.cards.length - a.cards.length);
 }
 // Qué tarjetas entran en un ámbito. Además de los de mazos: 'page:<id>' (las de unos apuntes),
 // 'page:<id>:<bloque>' (las de un apartado: el título y lo que cuelga de él) y 'weak' (las ya

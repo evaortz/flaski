@@ -80,6 +80,13 @@ function weakHTML() {
   if (!rows.length) return '';
   const label = st => STATUS.find(s => s.id === st)?.label.toLowerCase() || '';
   const items = rows.slice(0, 3).map(r => {
+    // Una lista con preguntas sueltas: su nombre, su carpeta y cuántas te cuestan
+    if (r.deck) {
+      const at = folderPath(S.folders, r.deck.folder_id).map(f => f.name).join(' › ');
+      return `<li><button class="hoy-weak st-weak" data-open="${r.deck.id}">
+      <i class="hoy-dot" aria-hidden="true"></i><span class="hoy-weak-t"><b>${esc(r.deck.name)}</b>${at ? `<small>${esc(at)}</small>` : ''}</span>
+      <span class="hoy-pill">${r.hard === 1 ? '1 te cuesta' : `${r.hard} te cuestan`}</span></button></li>`;
+    }
     const where = [...folderPath(S.folders, r.page.folder_id).map(f => f.name), ...(r.block ? [pageTitle(r.page)] : [])].join(' › ');
     const title = r.block ? plain(r.block.text).trim() || pageTitle(r.page) : pageTitle(r.page);
     return `<li><button class="hoy-weak st-${r.status}" data-open-page="${r.page.id}" data-open-block="${r.block?.id || ''}">

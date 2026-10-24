@@ -75,3 +75,20 @@ test('Hoy: «cambiar» la meta lleva a Ajustes', async ({ page }) => {
   await page.locator('[data-act="goal-change"]').click();
   await expect(page.locator('#s-study')).toBeVisible();
 });
+
+test('Lo que flojea: también las listas con preguntas sueltas que te cuestan', async ({ page }) => {
+  const db = makeHistory(), now = Date.now();
+  // Ninguna te cuesta salvo tres de la primera lista (sin apunte): falladas hace poco o muchas veces
+  for (const p of db.progress) Object.assign(p, { interval: Math.max(p.interval, 5), lapses: 0, due: new Date(now + 5 * 864e5).toISOString() });
+  const deck = db.decks[0], mine = db.cards.filter(c => c.deck_id === deck.id).slice(0, 3);
+  mine.forEach((c, i) => Object.assign(db.progress.find(p => p.card_id === c.id), i < 2 ? { interval: 0, last: new Date(now - i * 3600e3).toISOString(), due: new Date(now - 60e3).toISOString() } : { lapses: 4, interval: 6 }));
+  await page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
+  await openApp(page);
+  const row = page.locator('.hoy-weak');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(deck.name);
+  await expect(row.locator('.hoy-pill')).toHaveText('3 te cuestan');
+  await expect(page.locator('.hoy-weak-go')).toContainText('Repasar solo lo que flojea · ');
+  await row.click();
+  await expect(page.locator('#main h1').first()).toContainText(deck.name);
+});
