@@ -7,8 +7,7 @@ import { readBuiltin, importParsed } from './explorar.js';
 import { onSignedIn, readTema } from './cuenta.js';
 import { TEMAS, temaCards } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
-import { plainText } from '../suggest.js';
-import { makeSuggested } from './sugerencias.js';
+import { makeSuggested, blockFor } from './sugerencias.js';
 import { closeSheet } from './editor.js';
 
 const DAY = 864e5;
@@ -65,12 +64,6 @@ export function inventProgress(uid, deckId, cardIds, { share = 0.6, seed = 1, no
   return { progress, events };
 }
 
-// El bloque del apunte donde está una respuesta (para que la pregunta quede unida a su parte); si no, el primero
-const fold = x => plainText(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-function blockFor(p, answer) {
-  const a = fold(answer);
-  return (a && p.blocks.find(b => b.type !== 'hr' && fold(b.text).includes(a)))?.id || p.blocks.find(b => b.type !== 'hr')?.id || null;
-}
 // Las listas incluidas en la app, con progreso inventado en casi todas, y los temas de ejemplo como apuntes.
 // Lo que ya esté no se repite.
 export async function loadSampleData(btn) {

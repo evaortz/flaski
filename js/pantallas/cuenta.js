@@ -20,7 +20,7 @@ import { nativeLang, langLabel } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
-import { suggestFor, makeSuggested, firstPicks, openSuggestions, drawSuggestions } from './sugerencias.js';
+import { suggestFor, makeSuggested, firstPicks, temaFirst, openSuggestions, drawSuggestions } from './sugerencias.js';
 import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
@@ -244,7 +244,7 @@ async function introChosen(choice) {
 // Un tema de ejemplo como apunte (también para los datos de ejemplo de ?local)
 export async function readTema(t) {
   const md = await (await fetch(t.file, { cache: 'no-cache' })).text();
-  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example' };
+  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards };
 }
 // Apartados de un apunte (los títulos de más arriba), cuántas preguntas salen y con cuántas se empieza
 function analyzePage(page) {
@@ -298,7 +298,13 @@ async function firstRunChosen(choice) {
     const p = { id: api.newId(), owner: S.uid, title: title || '', icon: '', deck_id: null, folder_id: folderId, tags: [], blocks };
     S.pages.set(p.id, p);
     savePageSoon(p, 0);
-    const picks = firstPicks(suggestFor(p, ''));
+    // Un tema de ejemplo empieza con sus 5 preguntas cortas; «Ver las 5 antes» las crea y abre su lista
+    const tema = choice.page.cards;
+    const picks = tema ? await temaFirst(p, tema) : firstPicks(suggestFor(p, ''));
+    if (tema && kind === 'review' && picks.length) {
+      const { deckId } = await makeSuggested(p, picks, 'new');
+      return go('deck', { deckId, cardQuery: '' });
+    }
     if (kind === 'tanda' && picks.length) {
       await makeSuggested(p, picks, 'new');
       return startSession('page:' + p.id, { firstRun: true });

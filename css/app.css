@@ -2837,6 +2837,27 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .fr input:not([type=radio]):not([type=file]),.fr textarea{min-height:50px;border-radius:16px;font-size:16.5px;padding:10px 16px}
 .fr-row{display:flex;gap:10px}
 .fr-row input{flex:1;min-width:0}
+.fr input::placeholder,.fr textarea::placeholder{color:var(--faint);font-weight:400}
+/* Mes del examen: botón como un campo y, debajo, el año con flechas y los 12 meses */
+.fr-month{position:relative;flex:1;min-width:0}
+.fr-month-b{width:100%;min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px 10px 16px;border:1px solid var(--line-strong);border-radius:16px;background:var(--bg);color:var(--fg);font-size:16.5px;font-weight:400;text-align:left;cursor:pointer}
+.fr-month-b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-month-b.is-empty span{color:var(--faint)}
+.fr-month-b .lu{flex:none;color:var(--muted)}
+.fr-month-b[aria-expanded="true"]{border-color:var(--accent)}
+.fr-month-b[aria-expanded="true"] .lu{transform:rotate(180deg)}
+.fr-month-b:disabled{opacity:.5;cursor:default}
+.fr-cal{position:absolute;z-index:5;left:0;top:calc(100% + 6px);width:min(300px,calc(100vw - 32px));padding:12px;border:1px solid var(--line-strong);border-radius:20px;background:var(--bg);box-shadow:0 10px 30px rgba(20,24,60,.16)}
+.fr-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.fr-cal-h b{font-family:var(--font-hand);font-weight:400;font-size:24px}
+.fr-cal-y{width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:var(--fg);cursor:pointer;padding:0}
+.fr-cal-y:hover:not(:disabled){background:var(--soft)}
+.fr-cal-y:disabled{opacity:.3;cursor:default}
+.fr-cal-m{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fr-cal-m button{min-height:44px;border:0;border-radius:99px;background:transparent;color:var(--fg);font-size:15px;cursor:pointer;padding:0}
+.fr-cal-m button:hover:not(:disabled){background:var(--soft)}
+.fr-cal-m button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);font-weight:600}
+.fr-cal-m button:disabled{color:var(--faint);cursor:default}
 .fr-pill{flex:none;border:1px solid var(--line-strong);border-radius:16px;background:var(--bg);color:var(--muted);padding:0 16px;font-size:16px;cursor:pointer;min-height:50px}
 .fr-pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-ink);background:var(--soft);font-weight:600}
 .fr-hows{display:flex;flex-direction:column;gap:10px}
@@ -2891,7 +2912,7 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .first-box h3{margin:0;font-size:17px;font-weight:600}
 .first-box p{margin:0;font-size:14.5px;color:var(--muted)}
 .first-opts{display:flex;gap:8px;flex-wrap:wrap}
-.first-opts .tanda-opt{flex:1;min-width:64px;min-height:50px;border-radius:99px;border:1.5px solid var(--line-strong);background:transparent;color:inherit;font-family:var(--font-hand);font-size:20px;cursor:pointer;display:block;padding:0}
+.first-opts .tanda-opt{flex:1 1 0;min-width:68px;min-height:50px;border-radius:99px;border:1.5px solid var(--line-strong);background:transparent;color:inherit;font-family:var(--font-hand);font-size:19px;white-space:nowrap;cursor:pointer;display:block;padding:0 8px}
 .first-opts .tanda-opt[aria-pressed="true"]{background:#FFFFFF;color:var(--session);border-color:#FFFFFF}
 .first-yes,.first-other{flex:1;min-height:50px;border-radius:99px;font-size:16px;font-weight:600;cursor:pointer;padding:0 14px}
 .first-yes{background:#FFFFFF;color:var(--session);border:0}

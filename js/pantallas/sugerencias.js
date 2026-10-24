@@ -2,7 +2,8 @@
 import * as api from '../api.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
-import { suggestCards, PRESELECT, writingTips } from '../suggest.js';
+import { suggestCards, PRESELECT, writingTips, plainText } from '../suggest.js';
+import { temaCards } from '../primera-vez.js';
 import { stripImages } from '../media.js';
 import { toPlain } from '../inline.js';
 import { pageTitle } from '../pages.js';
@@ -227,6 +228,17 @@ export function firstPicks(list, n = 5) {
   for (const x of good) if (out.length < n && !blocks.has(x.blockId)) { out.push(x); blocks.add(x.blockId); }
   for (const x of [...good, ...list]) if (out.length < n && !out.includes(x)) out.push(x);
   return out;
+}
+// El bloque del apunte donde está una respuesta (para que la pregunta quede unida a su parte); si no, el primero
+const fold = x => plainText(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export function blockFor(p, answer) {
+  const a = fold(answer);
+  return (a && p.blocks.find(b => b.type !== 'hr' && fold(b.text).includes(a)))?.id || p.blocks.find(b => b.type !== 'hr')?.id || null;
+}
+// Las primeras de un tema de ejemplo: las marcadas «primera» en su JSON (cortas y claras), unidas a su parte
+export async function temaFirst(p, url) {
+  const list = (await (await fetch(url, { cache: 'no-cache' })).json()).filter(x => x.primera);
+  return temaCards(list).map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
 }
 export async function createSuggested(btn) {
   const g = S.sug, p = S.pages.get(g?.pageId);

@@ -53,7 +53,7 @@ export function openFirstRun(opts) {
   document.body.appendChild(root);
   document.body.classList.add('ob-open');
   // step: que · idioma · examen · tema · pegar · ejemplos · leyendo · listo
-  const st = { step: 'que', what: null, name: '', exam: '', noExam: false, how: 'notes', lang: opts.defaultLang || 'en-GB', page: null, info: null, error: '', status: '' };
+  const st = { step: 'que', what: null, name: '', exam: '', noExam: false, cal: false, calYear: new Date().getFullYear(), how: 'notes', lang: opts.defaultLang || 'en-GB', page: null, info: null, error: '', status: '' };
   const trail = [];
   const drawing = id => opts.drawings?.[id] || '';
   const isExam = () => st.what === 'opo' || st.what === 'uni';
@@ -67,6 +67,16 @@ export function openFirstRun(opts) {
   const top = k => `<div class="fr-top"><button type="button" class="fr-back" data-fr-back aria-label="Atrás">${icon('chevron-left', { size: 20 })}</button>${k ? dots(k) : ''}<span class="fr-top-end"></span></div>`;
   const card = (attrs, ic, title, text) => `<button type="button" class="fr-card" ${attrs}>${ic}<span class="fr-card-t"><b>${title}</b><small>${text}</small></span>${icon('chevron-right', { size: 18 })}</button>`;
 
+  // El mes del examen: año con flechas y los 12 meses (los ya pasados, apagados)
+  const calendar = () => {
+    const now = new Date(), y = st.calYear, nowY = now.getFullYear();
+    const key = i => `${y}-${String(i + 1).padStart(2, '0')}`;
+    return `<div class="fr-cal" role="group" aria-label="Mes del examen">
+      <div class="fr-cal-h"><button type="button" class="fr-cal-y" data-fr-year="-1" aria-label="Año anterior" ${y <= nowY ? 'disabled' : ''}>${icon('chevron-left', { size: 18 })}</button><b>${y}</b><button type="button" class="fr-cal-y" data-fr-year="1" aria-label="Año siguiente" ${y >= nowY + 6 ? 'disabled' : ''}>${icon('chevron-right', { size: 18 })}</button></div>
+      <div class="fr-cal-m">${MONTHS.map((m, i) => `<button type="button" data-fr-month="${key(i)}" aria-label="${m} de ${y}" aria-pressed="${st.exam === key(i)}" ${y === nowY && i < now.getMonth() ? 'disabled' : ''}>${m.slice(0, 3)}</button>`).join('')}</div>
+    </div>`;
+  };
+  const redraw = () => { const y = root.scrollTop; draw(); root.scrollTop = y; };
   const screens = {
     que: () => `<div class="fr-body">
         <p class="fr-brand">Flaski</p>
@@ -100,9 +110,9 @@ export function openFirstRun(opts) {
         <h1 class="fr-h">${opo ? 'Tu oposición' : 'Tu examen'}</h1>
         <div class="fr-hero"><span class="fr-hero-art" aria-hidden="true">${drawing(opo ? 'balanza-color' : 'economia')}</span><small>tu carpeta</small><b id="frHeroName">${esc(heroName())}</b><small id="frHeroWhen">${heroWhen()}</small></div>
         <label class="fr-label" for="frName">${opo ? '¿Cuál?' : '¿Qué estudias?'}</label>
-        <input id="frName" maxlength="80" value="${esc(st.name)}" placeholder="${opo ? 'Auxiliar Administrativo del Estado' : 'Historia del Arte'}" autocomplete="off">
+        <input id="frName" maxlength="80" value="${esc(st.name)}" placeholder="Ej.: ${opo ? 'Auxiliar Administrativo del Estado' : 'Historia del Arte'}" autocomplete="off">
         <label class="fr-label" for="frExam">¿Cuándo es el examen?</label>
-        <div class="fr-row"><input id="frExam" type="month" value="${esc(st.exam)}" ${st.noExam ? 'disabled' : ''}><button type="button" class="fr-pill" data-fr-noexam aria-pressed="${st.noExam}">Aún no lo sé</button></div>
+        <div class="fr-row"><div class="fr-month"><button type="button" id="frExam" class="fr-month-b${st.exam && !st.noExam ? '' : ' is-empty'}" data-fr-cal aria-expanded="${st.cal}" ${st.noExam ? 'disabled' : ''}><span>${st.exam && !st.noExam ? esc(monthText(st.exam)) : 'Elige el mes'}</span>${icon('chevron-down', { size: 18 })}</button>${st.cal && !st.noExam ? calendar() : ''}</div><button type="button" class="fr-pill" data-fr-noexam aria-pressed="${st.noExam}">Aún no lo sé</button></div>
         <p class="fr-label" id="frHowL">¿Cómo empiezas?</p>
         <div class="fr-hows" role="radiogroup" aria-labelledby="frHowL">
           ${how('notes', 'file-text', 'Subo mis apuntes', `PDF, Word… lo que tengas${opo ? ' del tema 1' : ''}`, 'lo más rápido')}
@@ -171,7 +181,11 @@ export function openFirstRun(opts) {
   }
   // Desde fuera (p. ej. al cargar los datos de ejemplo) se cierra como «ir a Hoy»
   root.addEventListener('ob-close', () => finish(null));
-  function onKey(e) { if (e.key === 'Escape' && st.step !== 'que' && !e.target.closest?.('input,textarea,select')) { e.preventDefault(); goBack(); } }
+  function onKey(e) {
+    if (e.key !== 'Escape' || e.target.closest?.('input,textarea,select')) return;
+    if (st.cal) { e.preventDefault(); st.cal = false; redraw(); return root.querySelector('#frExam')?.focus(); }
+    if (st.step !== 'que') { e.preventDefault(); goBack(); }
+  }
   // Un apunte leído (de un archivo, pegado o de ejemplo) → la pantalla con sus apartados y preguntas
   async function load(read, status) {
     const from = st.step;
@@ -192,6 +206,7 @@ export function openFirstRun(opts) {
   root.addEventListener('click', e => {
     // Los clics del diálogo no siguen hasta la app (puede haberse cerrado ya)
     e.stopPropagation();
+    if (st.cal && !e.target.closest('.fr-month')) { st.cal = false; redraw(); }
     const b = e.target.closest('button');
     if (!b) return;
     const d = b.dataset;
@@ -205,7 +220,10 @@ export function openFirstRun(opts) {
       return to('examen');
     }
     if (d.frStep) return to(d.frStep);
-    if (d.frNoexam !== undefined) { st.noExam = !st.noExam; const y = root.scrollTop; draw(); root.scrollTop = y; return; }
+    if (d.frNoexam !== undefined) { st.noExam = !st.noExam; st.cal = false; return redraw(); }
+    if (d.frCal !== undefined) { st.cal = !st.cal; if (st.exam) st.calYear = +st.exam.slice(0, 4); redraw(); return root.querySelector(st.cal ? '.fr-cal [aria-pressed="true"], .fr-cal-m button:not(:disabled)' : '#frExam')?.focus(); }
+    if (d.frYear) { st.calYear += +d.frYear; redraw(); return root.querySelector(`[data-fr-year="${d.frYear}"]:not(:disabled)`)?.focus() || root.querySelector('.fr-cal-m button:not(:disabled)')?.focus(); }
+    if (d.frMonth) { st.exam = d.frMonth; st.cal = false; redraw(); return root.querySelector('#frExam')?.focus(); }
     if (d.frExample) return finish({ kind: 'example', file: d.frExample });
     if (d.frTema !== undefined) { const t = TEMAS[+d.frTema]; return load(() => opts.readExample(t), `Abriendo «${t.title}»…`); }
     if (d.frGo === 'lang') return finish({ kind: 'lang', lang: root.querySelector('#frLang').value });
@@ -224,7 +242,6 @@ export function openFirstRun(opts) {
   root.addEventListener('input', e => {
     const t = e.target;
     if (t.id === 'frName') { st.name = t.value; t.removeAttribute('aria-invalid'); const h = root.querySelector('#frHeroName'); if (h) h.textContent = heroName(); }
-    if (t.id === 'frExam') { st.exam = t.value; const w = root.querySelector('#frHeroWhen'); if (w) w.textContent = heroWhen(); }
   });
   root.addEventListener('change', e => {
     const t = e.target;
