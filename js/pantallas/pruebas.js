@@ -16,6 +16,10 @@ export function mountTestBar() {
   bar.innerHTML = '<span><b>Modo local de pruebas</b><span class="tb-more"> · los datos se guardan aparte, solo en este navegador</span></span><button type="button" class="small-btn" data-act="sample-data">Cargar datos de ejemplo</button>';
   document.body.prepend(bar);
   document.body.classList.add('has-testbar');
+  // La página empieza justo debajo del aviso, mida lo que mida (dos líneas, muesca del móvil…)
+  const fit = () => document.body.style.setProperty('--tb-h', `${bar.offsetHeight}px`);
+  fit();
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(bar);
 }
 
 // Números al azar siempre iguales (para que los datos de ejemplo salgan parecidos cada vez)

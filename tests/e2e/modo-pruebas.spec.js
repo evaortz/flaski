@@ -1,6 +1,6 @@
 // Modo local de pruebas: en localhost con «?local», backend local aunque Supabase esté configurado,
 // con sus datos aparte de la copia de la cuenta real
-import { test, expect, nav } from './fixtures.js';
+import { test, expect, nav, startTanda } from './fixtures.js';
 import { mockCloud, openCloud, UID } from './nube.js';
 
 test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar la cuenta real', async ({ page }) => {
@@ -33,6 +33,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
   // Otra vez: no se repiten
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
   await expect(page.locator('#toast')).toContainText('ya estaban');
+  await expect(page.locator('body')).toHaveAttribute('data-view', 'home');
 
   // Al recargar (sigue con ?local), los datos siguen ahí
   await page.reload();
@@ -56,4 +57,22 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
   await expect(page.locator('.testbar')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('3');
   await expect.poll(() => srv.writes.filter(w => w[1] === 'settings').length).toBe(1);
+});
+
+test.describe('con la bienvenida a la vista', () => {
+  test.use({ intro: true });
+  test('«Cargar datos de ejemplo» cierra la bienvenida, lleva a Hoy y el aviso no tapa la tanda', async ({ page }) => {
+    await page.goto('/?local');
+    await expect(page.locator('.ob')).toBeVisible();
+    await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
+    await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas');
+    await expect(page.locator('.ob')).toHaveCount(0);          // ni la bienvenida ni Novedades
+    await expect(page.locator('body')).toHaveAttribute('data-view', 'home');
+    await expect(page.locator('.hero-num')).toBeVisible();
+    // En la tanda, la cabecera queda debajo del aviso y la pregunta cabe sin scroll
+    await startTanda(page);
+    const bar = await page.locator('.testbar').boundingBox(), head = await page.locator('.studybar').boundingBox();
+    expect(head.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(4);
+  });
 });
