@@ -89,18 +89,39 @@ const PH = { p: BLOCK_PH, h1: 'Título', h2: 'Subtítulo', h3: 'Título pequeño
 export const CALLOUT_ICONS = ['💡', '⚠️', '📌', '✅', '❗', '📝', '🔑', '🧠'];
 const delBtn = (id, what) => `<button type="button" class="iconbtn nb-del" data-del-block="${id}" aria-label="Quitar ${what}" title="Quitar ${what}">${icon('trash-2', { size: 15 })}</button>`;
 // Lo que hace falta saber de toda la página para pintar un bloque: los ocultos (plegados) y los números de las listas
-const blockCtx = (p = curPage()) => ({ hidden: hiddenIds(p?.blocks || []), nums: olNumbers(p?.blocks || []) });
+const blockCtx = (p = curPage()) => ({ hidden: hiddenIds(p?.blocks || []), nums: olNumbers(p?.blocks || []), bar: marginStatus(p) });
+// El estado que se pinta en el margen de cada bloque: el de su apartado (el título más cercano con preguntas)
+// o, fuera de un apartado con preguntas, el de las suyas
+const HEAD_LEVEL = { h1: 1, h2: 2, h3: 3 };
+function marginStatus(p) {
+  const out = new Map();
+  if (!p) return out;
+  const cards = pageCards(p.id), stack = [];
+  for (const b of p.blocks) {
+    const L = HEAD_LEVEL[b.type];
+    if (L) {
+      while (stack.length && stack[stack.length - 1].L >= L) stack.pop();
+      const ids = sectionIds(p.blocks, b.id);
+      stack.push({ L, st: statusOf(ids.flatMap(id => cards.get(id) || [])) });
+    }
+    const sec = stack.findLast(x => x.st);
+    out.set(b.id, sec ? sec.st : statusOf(cards.get(b.id) || []));
+  }
+  return out;
+}
 const blocksHTML = (p, cards = pageCards(p.id)) => { const ctx = blockCtx(p); return p.blocks.map(b => blockHTML(b, cards.get(b.id), ctx)).join(''); };
 // El asa de cada bloque: arrastrar para moverlo, clic para sus opciones
 const gripBtn = id => `<button type="button" class="nb-grip" data-grip="${id}" tabindex="-1" aria-label="Mover o más opciones" title="Arrastra para mover · clic para más opciones">${icon('grip-vertical', { size: 16 })}</button>`;
 export function blockHTML(b, cards = [], ctx = blockCtx()) {
-  const cls = `${ctx.hidden.has(b.id) ? ' is-folded' : ''}${S.bsel?.ids.has(b.id) ? ' is-sel' : ''}`;
+  const cls = `${ctx.hidden.has(b.id) ? ' is-folded' : ''}${S.bsel?.ids.has(b.id) ? ' is-sel' : ''}${S.edit?.open && S.edit.side && S.edit.source?.block_id === b.id ? ' is-src' : ''}`;
+  // En el margen, el estado de las preguntas de su apartado
+  const bar = ctx.bar?.get(b.id) ? `<span class="nb-bar st-${ctx.bar.get(b.id)}" aria-hidden="true"></span>` : '';
   // Imagen: la imagen y debajo su pie (que se edita como un bloque de texto)
   if (b.type === 'img') {
-    return `<figure class="nb nb-img${cls}" data-block="${b.id}">${gripBtn(b.id)}${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
+    return `<figure class="nb nb-img${cls}" data-block="${b.id}">${bar}${gripBtn(b.id)}${imgHTML(b.src, esc(b.text))}${delBtn(b.id, 'la imagen')}
       <figcaption class="nb-text md" data-edit-block="${b.id}" data-ph="${PH.img}">${toLiveHTML(b.text)}</figcaption></figure>`;
   }
-  if (b.type === 'hr') return `<div class="nb nb-hr${cls}" data-block="${b.id}">${gripBtn(b.id)}<hr>${delBtn(b.id, 'el separador')}</div>`;
+  if (b.type === 'hr') return `<div class="nb nb-hr${cls}" data-block="${b.id}">${bar}${gripBtn(b.id)}<hr>${delBtn(b.id, 'el separador')}</div>`;
   const n = cards.length, st = statusOf(cards);
   // El texto se pinta igual que en el editor (con las marcas ocultas): al tocarlo, el cursor cae donde se ha tocado
   const md = !['table', 'code'].includes(b.type);
@@ -124,8 +145,8 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
     }
   }
   const ind = b.indent ? ` data-ind="${b.indent}" style="--ind:${b.indent}"` : '';
-  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
-    ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'pregunta sale', 'preguntas salen')} de esta parte" aria-label="${plural(n, 'pregunta', 'preguntas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}">${n}</button>` : ''}</div>`;
+  return `<div class="nb nb-${b.type}${b.type === 'todo' && b.checked ? ' is-done' : ''}${b.collapsed && fold ? ' is-collapsed' : ''}${cls}" data-block="${b.id}"${ind}>${bar}${gripBtn(b.id)}${fold}${lead}<div class="nb-text${md ? ' md' : ''}" data-edit-block="${b.id}"${md ? ` data-ph="${PH[b.type] || BLOCK_PH}"` : ''}>${body}</div>${sec}
+    ${n ? `<button type="button" class="nb-cards st-${st}" data-block-cards="${b.id}" title="${esc(statusLabel(st))} · ${plural(n, 'pregunta sale', 'preguntas salen')} de esta parte" aria-label="${plural(n, 'pregunta', 'preguntas')} de esta parte: ${esc(statusLabel(st).toLowerCase())}"><i aria-hidden="true"></i>${n}</button>` : ''}</div>`;
 }
 // Resumen arriba del apunte: cuántas partes llevas al día, cuáles te cuestan… y estudiarlo entero
 function pageStatusHTML(p, cards) {
@@ -180,10 +201,17 @@ export function renderPage() {
         <button type="button" class="fmt" data-nfmt="s" title="Tachado · ~~texto~~ (Ctrl+Mayús+S)" aria-label="Tachado"><s>S</s></button>
         <button type="button" class="fmt" data-nfmt="code" title="Código · \`texto\` (Ctrl+E)" aria-label="Código">${icon('code', { size: 15 })}</button>
         <button type="button" class="fmt fmt-color" data-act="fmt-colors" title="Color del texto o del fondo" aria-label="Color" aria-haspopup="true" aria-expanded="false"><span class="fmt-a">A</span>${icon('chevron-down', { size: 12 })}</button>
+        <button type="button" class="fmt fmt-morebtn" data-act="fmt-more" title="Más formato" aria-label="Más formato" aria-haspopup="true" aria-expanded="false">${icon('ellipsis', { size: 16 })}</button>
       </div>
       <span class="selbar-sep" aria-hidden="true"></span>
-      <button type="button" class="primary small-btn" data-act="sel-card">${icon('plus', { size: 15 })} <span>Crear pregunta</span></button>
-      <button type="button" class="ghost small-btn" data-act="sel-cloze" title="Convertir en hueco">${icon('puzzle', { size: 15 })} <span>Hueco</span></button></div>
+      <button type="button" class="sb-card" data-act="sel-card">＋ Crear pregunta</button>
+      <button type="button" class="sb-cloze" data-act="sel-cloze" title="Convertir en hueco">Hueco</button>
+      <button type="button" class="sb-done" data-act="sel-done">Hecho</button></div>
+    <div id="fmtMore" class="fmt-more" role="menu" aria-label="Más formato" hidden>
+      <button type="button" role="menuitem" class="fmt" data-nfmt="u" aria-label="Subrayado"><u>U</u></button>
+      <button type="button" role="menuitem" class="fmt" data-nfmt="s" aria-label="Tachado"><s>S</s></button>
+      <button type="button" role="menuitem" class="fmt" data-nfmt="code" aria-label="Código">${icon('code', { size: 15 })}</button>
+      <button type="button" role="menuitem" class="fmt fmt-color" data-act="fmt-colors" aria-label="Color" aria-haspopup="true"><span class="fmt-a">A</span>${icon('chevron-down', { size: 12 })}</button></div>
     <div id="fmtColors" class="fmt-colors" role="menu" aria-label="Color" hidden>
       <p class="fmt-h">Color del texto</p>
       <div class="fmt-grid">${['default', ...TEXT_COLORS].map(c => `<button type="button" role="menuitem" class="fmt-sw" data-nfmt="color" data-color="${c}" title="${c === 'default' ? 'Predeterminado' : COLOR_LABEL[c]}" aria-label="Texto ${c === 'default' ? 'predeterminado' : COLOR_LABEL[c].toLowerCase()}"><span class="tc-${c}">A</span></button>`).join('')}</div>
@@ -1047,7 +1075,8 @@ document.addEventListener('selectionchange', () => {
   const bar = $('#selBar');
   if (!bar) return;
   bar.hidden = !S.pageSel;
-  if (!S.pageSel) { closeColorMenu(); return; }
+  if (!S.pageSel) { closeColorMenu(); closeFmtMore(); return; }
+  bar.classList.toggle('editing', !!document.activeElement?._live);
   // Los botones de formato, solo en texto (no en un código o una tabla escrita como texto)
   const b = curPage()?.blocks.find(x => x.id === S.pageSel.blockId);
   const canFmt = S.pageSel.end != null && b && !['code', 'table'].includes(b.type);
@@ -1055,7 +1084,7 @@ document.addEventListener('selectionchange', () => {
   bar.querySelector('.selbar-sep').hidden = !canFmt;
   if (canFmt) {
     const on = marksAt(b.id === document.activeElement?.dataset?.blockInput ? document.activeElement.value : b.text, S.pageSel.at, S.pageSel.end);
-    bar.querySelectorAll('[data-nfmt]').forEach(x => x.setAttribute('aria-pressed', String(!!on[x.dataset.nfmt])));
+    document.querySelectorAll('#selBar [data-nfmt], #fmtMore [data-nfmt]').forEach(x => x.setAttribute('aria-pressed', String(!!on[x.dataset.nfmt])));
   }
   placeSelBar();
 });
@@ -1066,7 +1095,7 @@ function placeSelBar() {
   const r = sel?.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : null;
   const float = innerWidth >= 700 && r && (r.width || r.height);
   bar.classList.toggle('float', !!float);
-  if (!float) { bar.style.left = bar.style.top = ''; return; }
+  if (!float) { bar.style.left = bar.style.top = ''; placeOnKeyboard(); return; }
   const w = bar.offsetWidth, h = bar.offsetHeight;
   const left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
   const top = r.top - h - 10 > 56 ? r.top - h - 10 : r.bottom + 10;
@@ -1075,9 +1104,31 @@ function placeSelBar() {
   if (menu && !menu.hidden) placeColorMenu();
 }
 addEventListener('scroll', () => { if (S.view === 'page') placeSelBar(); }, { passive: true });
+// En el móvil, justo encima del teclado. Si el navegador no dice dónde está el teclado, se queda abajo fija
+function placeOnKeyboard() {
+  const bar = $('#selBar');
+  if (!bar) return;
+  let kb = 0;
+  try { const v = window.visualViewport; if (v) kb = Math.max(0, Math.round(innerHeight - v.height - v.offsetTop)); } catch { kb = 0; }
+  bar.classList.toggle('on-kb', kb > 40);
+  document.documentElement.style.setProperty('--kb', `${kb > 40 ? kb : 0}px`);
+}
+try {
+  const onVV = () => { if (S.view === 'page' && !$('#selBar')?.hidden) placeSelBar(); };
+  window.visualViewport?.addEventListener('resize', onVV);
+  window.visualViewport?.addEventListener('scroll', onVV);
+} catch { /* sin visualViewport: la barra se queda abajo */ }
+export function toggleFmtMore() {
+  const m = $('#fmtMore');
+  if (!m) return;
+  m.hidden = !m.hidden;
+  $('#selBar [data-act="fmt-more"]')?.setAttribute('aria-expanded', String(!m.hidden));
+}
+function closeFmtMore() { const m = $('#fmtMore'); if (m && !m.hidden) { m.hidden = true; $('#selBar [data-act="fmt-more"]')?.setAttribute('aria-expanded', 'false'); } }
 export function toggleColorMenu() {
   const m = $('#fmtColors');
   if (!m) return;
+  closeFmtMore();
   m.hidden = !m.hidden;
   $('#selBar [data-act="fmt-colors"]')?.setAttribute('aria-expanded', String(!m.hidden));
   if (!m.hidden) placeColorMenu();
@@ -1098,6 +1149,7 @@ export function formatSelection(kind, color = '') {
   const b = p?.blocks.find(x => x.id === id);
   if (!b || ['code', 'table'].includes(b.type)) return;
   if (kind === 'color' || kind === 'bg') closeColorMenu();
+  closeFmtMore();
   if (ed) {
     const r = toggleMark(ed.value, ed.selectionStart, ed.selectionEnd, kind, color);
     liveSet(ed, r.text, r.a, r.b);
@@ -1157,10 +1209,13 @@ document.addEventListener('input', e => {
   if (e.target.id === 'findR') S.find.r = e.target.value;
 });
 // Que pulsar la barra no quite la selección ni cierre el bloque que se está editando
+const KEEP_SEL = '#selBar, .tbl-tools, #fmtColors, #fmtMore, .pg-hist, .nb-fold';
 document.addEventListener('pointerdown', e => {
-  if (e.target.closest?.('#selBar, .tbl-tools, #fmtColors, .pg-hist, .nb-fold')) e.preventDefault();
-  else closeColorMenu();
+  if (e.target.closest?.(KEEP_SEL)) e.preventDefault();
+  else { closeColorMenu(); closeFmtMore(); }
 });
+// (algunos navegadores mueven el foco en el mousedown aunque se cancele el pointerdown)
+document.addEventListener('mousedown', e => { if (e.target.closest?.(KEEP_SEL)) e.preventDefault(); });
 // Al salir de la cuadrícula (a otra parte de la página), la tabla se guarda y se ve con formato
 document.addEventListener('focusout', e => {
   const ed = e.target.closest?.('[data-table-ed]');

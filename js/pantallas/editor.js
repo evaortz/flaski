@@ -16,9 +16,12 @@ import { seg, tabs } from './perfil.js';
 import { go, render } from '../app.js';
 
 /* ===================== hojas (editores) ===================== */
-export function openSheet(html, { full = false } = {}) {
+// side: panel a la derecha (escritorio) u hoja baja (móvil) que deja ver y tocar el apunte de detrás
+export function openSheet(html, { full = false, side = false } = {}) {
   $('#sheetBody').innerHTML = html;
-  $('#sheet').classList.toggle('sheet-full', full);
+  $('#sheet').classList.toggle('sheet-full', full && !side);
+  $('#sheet').classList.toggle('sheet-side', side);
+  document.documentElement.classList.toggle('side-open', side);
   $('#sheet').hidden = false;
   const f = $('#sheetBody').querySelector('input,textarea');
   if (f && matchMedia('(hover:hover)').matches) setTimeout(() => f.focus(), 30);
@@ -28,7 +31,12 @@ export function closeSheet() {
   closeSheetOnly();
   if (backToSug) { S.edit = null; drawSuggestions(); }
 }
-function closeSheetOnly() { $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').classList.remove('sheet-full'); if (S.edit) S.edit.open = false; }
+function closeSheetOnly() {
+  $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').classList.remove('sheet-full', 'sheet-side');
+  document.documentElement.classList.remove('side-open');
+  document.querySelectorAll('.nb.is-src').forEach(el => el.classList.remove('is-src'));
+  if (S.edit) S.edit.open = false;
+}
 // Cerrar pidiendo confirmación si hay cambios sin guardar en el editor de tarjetas
 export function requestClose() {
   if (S.edit?.open && S.edit.dirty && $('.ed')) {
@@ -306,6 +314,15 @@ function linkProp(link) {
   return `<div class="prop"><span class="prop-k">${icon('notebook-text', { size: 16 })} Apuntes</span>
     <span class="prop-v prop-link">${esc(pageTitle(pg))}${b ? ` · <span class="muted">«${esc(plain(b.text).slice(0, 50))}${b.text.length > 50 ? '…' : ''}»</span>` : ''}</span></div>`;
 }
+// «de: …» en el panel: el apartado del que sale (el título de encima) o, si no hay, el principio del bloque
+function sourceName(link) {
+  const blocks = S.pages.get(link.page_id)?.blocks || [];
+  const i = blocks.findIndex(x => x.id === link.block_id);
+  if (i < 0) return '';
+  for (let j = i; j >= 0; j--) if (['h1', 'h2', 'h3'].includes(blocks[j].type)) return plain(blocks[j].text).trim();
+  const t = plain(blocks[i].text).trim();
+  return t.length > 40 ? `${t.slice(0, 40)}…` : t;
+}
 export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null, sugIndex = null } = {}) {
   const sessionDeck = S.session && S.decks.has(S.session.scope) ? S.session.scope : null;
   const deckId = c?.deck_id || forcedDeck || (S.view === 'deck' && S.deckId) || sessionDeck || [...S.decks.values()].find(d => !d.archived)?.id || [...S.decks.keys()][0];
@@ -321,7 +338,9 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     const t = defaultTypeFor(deckId);
     model = { type: t, tpl: t.templates[0], fields: {} };
   }
-  S.edit = { open: true, dirty: !!source && sugIndex == null, deckId, source, sugIndex, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
+  // Una pregunta nueva desde lo seleccionado en un apunte: en el panel, con el apunte a la vista
+  const side = !c && !!source && sugIndex == null && S.view === 'page';
+  S.edit = { open: true, side, dirty: !!source && sugIndex == null, deckId, source, sugIndex, cardId: c?.id || null, noteId: c?.note_id || null, siblings: siblings.map(x => x.id), typeId: model.type.id,
     fields: { ...model.fields }, pv: model.tpl.id, pvSide: 'front', hint: prefill?.hint ?? c?.hint ?? '', tags: prefill?.tags ?? c?.tags ?? [] };
   const p = c && S.progress.get(c.id);
   const deck = S.decks.get(deckId);
@@ -329,6 +348,7 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     <header class="ed-top">
       <button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
       <div class="ed-title"><span>${c ? 'Editar pregunta' : sugIndex != null ? 'Editar sugerencia' : 'Nueva pregunta'}</span>
+        ${side && sourceName(source) ? `<small class="ed-from"><span>de:</span> <button type="button" class="link" data-act="goto-src">${esc(sourceName(source))}</button></small>` : ''}
         <label class="ed-deck" title="Lista">${deck ? deckIcon(deck) : ''}<select id="c-deck" aria-label="Lista">${deckOptions(deckId)}</select></label></div>
       <button type="submit" class="primary ed-save">Guardar</button>
     </header>
@@ -366,11 +386,14 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
       ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Eliminar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
         ${p ? '<button type="button" class="ghost small-btn" data-act="reset-card">Reiniciar progreso</button>' : ''}` : ''}
-      <span class="spacer"></span>
+      ${side ? `<button type="submit" class="primary">Crear pregunta</button>
+        <button type="button" class="ghost" data-act="save-card-more">Crear y otra</button><span class="spacer"></span><kbd class="ed-kb">Ctrl+Enter</kbd>`
+      : `<span class="spacer"></span>
       ${c || sugIndex != null ? '' : '<button type="button" class="ghost" data-act="save-card-more">Guardar y otra</button>'}
-      <button type="submit" class="primary">Guardar</button>
+      <button type="submit" class="primary">Guardar</button>`}
     </footer>
-  </form>`, { full: true });
+  </form>`, { full: true, side });
+  if (side) document.querySelector(`[data-block="${source.block_id}"]`)?.classList.add('is-src');
   document.querySelectorAll('.ef-input').forEach(autoGrow);
   drawPreview();
   if (matchMedia('(hover:hover)').matches) setTimeout(() => document.querySelector('.ef-input')?.focus(), 40);
@@ -781,7 +804,11 @@ export async function saveCardForm(form, more) {
     if (pg && !pg.deck_id) { pg.deck_id = deckId; savePageSoon(pg); }
     if (S.session) S.session.st = null;
     toast(e.cardId ? 'Pregunta guardada' : out.length > 1 ? `${out.length} preguntas añadidas` : 'Pregunta añadida');
-    if (more) { S.edit.dirty = false; cardForm(null, { deckId }); if (S.view === 'deck') renderDeck(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
+    if (more) {
+      const src = S.edit.side ? e.source : null;
+      S.edit.dirty = false; cardForm(null, { deckId, source: src }); S.edit.dirty = false;
+      if (S.view === 'deck') renderDeck();
+      if (src) render(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
     else { S.edit.dirty = false; closeSheet(); render(); }
   } catch (err) { btns.forEach(b => { b.disabled = false; }); fail(err); }
 }

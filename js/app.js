@@ -24,7 +24,7 @@ import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesS
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
-import { pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
+import { pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
@@ -463,6 +463,7 @@ document.addEventListener('click', async e => {
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
     case 'fmt-colors': return toggleColorMenu();
+    case 'fmt-more': return toggleFmtMore();
     case 'pg-undo': return histTravel(-1);
     case 'pg-redo': return histTravel(1);
     case 'find': return S.find?.open ? closeFind() : openFind();
@@ -479,6 +480,8 @@ document.addEventListener('click', async e => {
     case 'bsel-clear': return clearBlockSel();
     case 'sel-card': return cardFromSelection('card');
     case 'sel-cloze': return cardFromSelection('cloze');
+    case 'sel-done': document.activeElement?.blur(); return getSelection()?.removeAllRanges();
+    case 'goto-src': return S.edit?.source && gotoBlock(S.edit.source.block_id);
     case 'pick-type': return openTypePicker(true);
     case 'close-picker': return openTypePicker(false);
     case 'types-all': S.edit.pick.all = !S.edit.pick.all; return drawTypePicker();

@@ -9,6 +9,13 @@ async function newPage(page, title) {
 const type = (page, text) => page.locator('[data-block-input]').pressSequentially(text);
 // Selecciona un trozo del bloque que se está editando (por su texto)
 const selectText = (page, w) => page.locator('[data-block-input]').evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, w);
+// Un botón de la barra; en el móvil, lo que no cabe está en «…»
+async function barBtn(page, sel) {
+  const b = page.locator(`#selBar ${sel}`);
+  if (await b.isVisible()) return b.click();
+  await page.locator('#selBar [data-act="fmt-more"]').click();
+  await page.locator(`#fmtMore ${sel}`).click();
+}
 const pasteInto = (page, html, text) => page.evaluate(([h, t]) => {
   const dt = new DataTransfer(); if (h) dt.setData('text/html', h); dt.setData('text/plain', t);
   document.querySelector('[data-block-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
@@ -28,11 +35,11 @@ test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las 
   await expect(page.locator('#selBar [data-nfmt="b"]')).toHaveAttribute('aria-pressed', 'true');
   // Color del texto y fondo, con el menú de colores
   await selectText(page, 'dónde');
-  await page.locator('#selBar [data-act="fmt-colors"]').click();
+  await barBtn(page, '[data-act="fmt-colors"]');
   await page.locator('#fmtColors [data-nfmt="color"][data-color="red"]').click();
   await expect(ed).toHaveJSProperty('value', 'El **locativo** indica <span style="color:red">dónde</span> está algo');
   await selectText(page, 'algo');
-  await page.locator('#selBar [data-act="fmt-colors"]').click();
+  await barBtn(page, '[data-act="fmt-colors"]');
   await page.locator('#fmtColors [data-nfmt="bg"][data-color="yellow"]').click();
   await expect(ed).toHaveJSProperty('value', 'El **locativo** indica <span style="color:red">dónde</span> está ==algo==');
   // Atajos de teclado y deshacer
@@ -84,7 +91,7 @@ test('formato: escribir Markdown a mano, saltos de línea y dar formato sin esta
     const r = document.createRange(); r.setStart(node, 0); r.setEnd(node, 4);
     getSelection().removeAllRanges(); getSelection().addRange(r);
   });
-  await page.locator('#selBar [data-nfmt="u"]').click();
+  await barBtn(page, '[data-nfmt="u"]');
   await expect(ed).toHaveJSProperty('value', '<u>Hola</u> **mundo** y ~~nada~~\nsegunda <u>línea</u>');
 });
 
