@@ -2,6 +2,7 @@
 import { test, expect, nav } from './fixtures.js';
 
 const DAY = 864e5, T0 = Date.now() - 30 * DAY;
+const ymd = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 // `due` repasos atrasados (r00 el que más) y `fresh` nuevas; `events`: respuestas anteriores con su tiempo en segundos
 async function seed(page, { due = 40, fresh = 10, study = {}, events = [] } = {}) {
   const iso = t => new Date(t).toISOString(), now = iso(Date.now());
@@ -16,7 +17,8 @@ async function seed(page, { due = 40, fresh = 10, study = {}, events = [] } = {}
     cards,
     progress: Array.from({ length: due }, (_, k) => ({ user_id: 'local', card_id: `r${pad(k)}`, reps: 3, interval: 4, ease: 2.5, lapses: 0, stability: 4, difficulty: 5,
       due: iso(T0 + k * 60e3), first_seen: iso(T0 - DAY), last: iso(T0 - 4 * DAY) })),
-    log: [], folders: [], tags: [], types: [], pages: [],
+    // Estudiaste ayer: lo atrasado no se reparte (ver atrasos.js)
+    log: [{ user_id: 'local', day: ymd(Date.now() - DAY), count: 5 }], folders: [], tags: [], types: [], pages: [],
     events: events.map((s, k) => ({ id: `e${k}`, user_id: 'local', card_id: 'r00', deck_id: 'd', ts: iso(T0 - DAY + k * 1000), grade: 3, state: 'review', ivl: 4, last_ivl: 2, ease: 2.5, ms: s * 1000 })),
   };
   await page.addInitScript(data => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', data); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));

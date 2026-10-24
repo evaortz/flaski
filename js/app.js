@@ -17,9 +17,9 @@ import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
-import { renderHome, tandaSheet } from './pantallas/inicio.js';
+import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
@@ -373,6 +373,8 @@ document.addEventListener('click', async e => {
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
     case 'tanda-short': return S.prefs.study.tandaAsked ? startSession('all', { minutes: S.prefs.study.tandaMin }) : tandaSheet();
     case 'tanda-min': return tandaSheet();
+    case 'atrasos': return backlogSheet();
+    case 'atrasos-all': { backlogOff(); closeSheet(); return render(); }
     case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: S.prefs.study.tandaMin }); }
     case 'tanda-again': return startSession('all', { minutes: S.session?.minutes || S.prefs.study.tandaMin });
     case 'close-sheet': return requestClose();

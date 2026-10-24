@@ -680,3 +680,21 @@ test('un título largo pasa a varias líneas sin cortarse, e Intro no añade un 
   await expect(t).toHaveValue(long);
   await expect.poll(() => t.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
 });
+
+test('Biblioteca: «vacío» solo para apuntes sin texto; con texto y sin preguntas, «sin preguntas»', async ({ page }) => {
+  const iso = new Date().toISOString();
+  const db = { profile: { id: 'local', display_name: '' }, settings: { new_per_day: 10, prefs: {} }, decks: [{ id: 'd1', owner: 'local', name: 'Una lista', description: '', created_at: iso, updated_at: iso }],
+    cards: [], progress: [], log: [], folders: [], tags: [], types: [], events: [],
+    pages: [
+      { id: 'p-txt', owner: 'local', title: 'Con texto', folder_id: null, created_at: iso, updated_at: iso, blocks: [{ id: 'b1', type: 'p', text: 'Algo escrito' }] },
+      { id: 'p-nada', owner: 'local', title: 'En blanco', folder_id: null, created_at: iso, updated_at: iso, blocks: [{ id: 'b2', type: 'p', text: '' }] },
+    ] };
+  await page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  const txt = page.locator('.ltile[data-page="p-txt"]'), blank = page.locator('.ltile[data-page="p-nada"]');
+  await expect(txt.locator('.lt-hand')).toHaveText('sin preguntas');
+  await expect(txt).not.toHaveClass(/is-empty/);
+  await expect(blank.locator('.lt-hand')).toHaveText('vacío');
+  await expect(blank).toHaveClass(/is-empty/);
+});

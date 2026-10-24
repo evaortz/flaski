@@ -1,5 +1,5 @@
 // Hoy: preguntas para hoy, «Lo dejaste aquí», lo que flojea, el examen, lo que sabes y la actividad con la meta
-import { test, expect, openApp } from './fixtures.js';
+import { test, expect, openApp, startTanda, nav } from './fixtures.js';
 import { makeHistory } from './historial.js';
 
 // El historial de prueba, con una carpeta, un apunte con apartados vinculados a preguntas y un examen
@@ -95,4 +95,78 @@ test('Lo que flojea: también las listas con preguntas sueltas que te cuestan', 
   await expect(page.locator('.hoy-weak-go')).toHaveText('Repasar solo lo que flojea · 3');
   await row.click();
   await expect(page.locator('#main h1').first()).toContainText(deck.name);
+});
+
+// Fecha AAAA-MM-DD dentro de d días
+const dayKey = d => { const t = new Date(Date.now() + d * 864e5); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+function seedDb(page, db) {
+  return page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
+}
+
+test('Atrasos: al volver tras unos días, lo atrasado se reparte en la semana y no entran nuevas', async ({ page }) => {
+  // El historial acaba hace 20 días: lo que tocaba desde entonces está atrasado
+  const db = makeHistory({ now: Date.now() - 20 * 864e5 });
+  db.profile.display_name = 'Eva';
+  for (let k = 0; k < 10; k++) db.cards.push({ ...db.cards[0], id: `nueva-${k}`, front: `Nueva ${k}`, position: 1000 + k });
+  const t0 = new Date().setHours(0, 0, 0, 0), due = db.progress.map(p => Date.parse(p.due));
+  const late = due.filter(t => t < t0).length, onTime = due.filter(t => t >= t0 && t <= Date.now()).length;
+  expect(late).toBeGreaterThanOrEqual(30);
+  await seedDb(page, db);
+  await openApp(page);
+  await expect(page.locator('.hero-hi')).toHaveText('Hola de nuevo, Eva. Hoy tienes');
+  // Sin racha no se habla del comodín
+  await expect(page.locator('.hoy-streak')).toContainText('Racha de 0 días');
+  await expect(page.locator('.hoy-streak .st-freeze')).toHaveCount(0);
+  const side = page.locator('.hero-side');
+  await expect(side).toContainText('sin nuevas hasta ponerte al día');
+  await expect(side.locator('.hero-late')).toContainText(/^\+\d+ atrasadas, repartidas esta semana$/);
+  // Hoy: las que tocan hoy y una séptima parte de las atrasadas; el resto, en «+N atrasadas»
+  const n = Number(await page.locator('.hero-num').textContent());
+  const rest = parseInt((await side.locator('.hero-late button').textContent()).slice(1), 10);
+  expect(n).toBe(onTime + Math.ceil(late / 7));
+  expect(n + rest).toBe(late + onTime);
+  // La tanda sigue siendo corta y sin nuevas
+  await startTanda(page);
+  await expect(page.locator('.studybar')).not.toContainText('nueva');
+  await page.locator('.studybar [data-act="exit"]').click();
+  // «Hacerlas todas hoy» deja de repartir
+  await side.locator('.hero-late button').click();
+  await expect(page.locator('#sheetBody')).toContainText('Lo atrasado, poco a poco');
+  await page.locator('#sheetBody [data-act="atrasos-all"]').click();
+  await expect(page.locator('.hero-late')).toHaveCount(0);
+  // Ese día tampoco entran nuevas
+  await expect(side).toContainText('sin nuevas por hoy');
+  expect(Number(await page.locator('.hero-num').textContent())).toBeGreaterThanOrEqual(late);
+});
+
+test('Examen cerca: Hoy lo dice y sus preguntas van primero', async ({ page }) => {
+  const db = makeHistory();
+  db.profile.display_name = 'Eva';
+  db.folders.push({ id: 'f-macro', owner: 'local', name: 'Macroeconomía', parent_id: null, color: null, icon: null, position: 0, created_at: new Date().toISOString() });
+  db.decks.find(d => d.id === 'd-bio').folder_id = 'f-macro';
+  // Repasos de las dos listas para hoy
+  for (const p of db.progress.filter((_, i) => i % 9 === 0)) p.due = new Date(Date.now() - 3600e3).toISOString();
+  // Nuevas en las dos listas
+  for (const deck of ['d-bio', 'd-hist']) for (let k = 0; k < 10; k++) db.cards.push({ ...db.cards.find(c => c.deck_id === deck), id: `${deck}-n${k}`, front: `Nueva ${k}`, position: 1000 + k });
+  db.settings.prefs = { plan: { nodes: { 'f:f-macro': { exam: dayKey(9) } } } };
+  await seedDb(page, db);
+  await openApp(page);
+  const exam = page.locator('.hoy-exam');
+  await expect(exam).toContainText('Examen de Macroeconomía');
+  await expect(exam).toContainText('faltan 9 días');
+  await expect(exam.locator('.hoy-tight, .hoy-late')).toContainText(/necesitas unas \d+ al día|así no te da tiempo/);
+  // Va justo después de «Lo que flojea» (o de lo de arriba, si no hay)
+  expect(await exam.evaluate(el => el.previousElementSibling?.className)).toMatch(/hoy-flojea|hero/);
+  // Las nuevas del examen: las mismas que le da el plan
+  const line = await page.locator('.hero-side').textContent();
+  const m = line.match(/(\d+) nuevas · (?:(\d+) de )?Macroeconomía/);
+  expect(m).not.toBeNull();
+  const k = Number(m[2] || m[1]);
+  // La tanda empieza por las preguntas del examen (Biología)
+  await startTanda(page);
+  await expect(page.locator('.studybar .where')).toHaveText('Biología');
+  await page.locator('.studybar [data-act="exit"]').click();
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  await expect(page.locator('.pl-row').filter({ has: page.locator('.pl-name', { hasText: 'Macroeconomía' }) }).first().locator('.pl-meta').first()).toContainText(`≈ ${k} nuevas al día`);
 });

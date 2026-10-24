@@ -124,7 +124,9 @@ export function examStatus(key, { decks, folders, nodes, remaining, perDay, now 
   const left = ids.reduce((a, id) => a + (remaining.get(id) || 0), 0);
   const per = ids.reduce((a, id) => a + (perDay.get(id) || 0), 0);
   const need = days > 0 ? Math.ceil(left / days) : left;
-  return { days, left, per, need, late: days <= 0 ? left > 0 : left > 0 && per * days < left };
+  const late = days <= 0 ? left > 0 : left > 0 && per * days < left;
+  // Justo: llega, pero con menos de un 20 % de margen
+  return { days, left, per, need, late, tight: !late && days > 0 && left > 0 && per * days < left * 1.2 };
 }
 
 // «Prioridad a lo urgente»: peso según lo cerca que está el examen (sin examen, 1)
@@ -132,4 +134,24 @@ export function urgencyWeight(exam, now = Date.now()) {
   const d = daysTo(exam, now);
   if (d == null || d < 0) return 1;
   return Math.max(1, Math.min(8, Math.round(60 / Math.max(d, 7))));
+}
+
+// Un examen se considera cerca a 14 días o menos: Hoy lo dice y le da prioridad
+export const EXAM_NEAR = 14;
+// El examen más cercano que aún no ha pasado (de una lista o carpeta que exista): { key, exam, days } o null
+export function nextExam(nodes, decks, folders, now = Date.now()) {
+  return Object.entries(nodes).map(([key, n]) => ({ key, exam: n?.exam, days: daysTo(n?.exam, now) }))
+    .filter(x => x.days != null && x.days >= 0 && (x.key.startsWith('f:') ? folders.has(x.key.slice(2)) : decks.has(x.key)))
+    .sort((a, b) => a.days - b.days)[0] || null;
+}
+// Las listas de los exámenes cercanos (de hoy a EXAM_NEAR días): Set de ids
+export function nearExamDecks(nodes, decks, folders, now = Date.now()) {
+  const out = new Set();
+  for (const [key, n] of Object.entries(nodes)) {
+    const d = daysTo(n?.exam, now);
+    if (d == null || d < 0 || d > EXAM_NEAR) continue;
+    if (key.startsWith('f:')) { if (folders.has(key.slice(2))) for (const x of decksUnder(key.slice(2), decks, folders)) out.add(x.id); }
+    else if (decks.has(key) && !decks.get(key).archived) out.add(key);
+  }
+  return out;
 }

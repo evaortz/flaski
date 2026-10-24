@@ -26,3 +26,18 @@ Lee docs/rediseno/ESTADO.md y docs/rediseno/plan-explorar/LEEME.md con sus panta
 
 ## 12b · Plan de estudio (etapas)
 Lee docs/rediseno/plan-explorar/LEEME.md. Haz la parte 12b: etapas (lista, editar, tira en móvil y planificador por meses y semanas en escritorio), orden de temas, «cuando no llegas» y la primera vez. Sin etapas, todo debe seguir funcionando como ahora. Antes de programar, dime el modelo de stages y cómo lo resuelves por día, y espera mi OK.
+
+## 13 · Perfil y Ajustes
+Lee docs/rediseno/ESTADO.md y docs/rediseno/perfil-ajustes/LEEME.md con sus pantallas. Reordena Perfil y Ajustes como dice el LEEME. Hazlo después de la 12a (la duración de la tanda y las nuevas al día pasan al plan). No borres ningún ajuste sin decirme dónde ha ido.
+
+## Acentos (se puede hacer ya)
+Lee docs/rediseno/perfil-ajustes/LEEME.md, apartados «Color de acento» y «Lo que hoy sale siempre en cobalto». Cambia la lista por los 9 colores nuevos y arregla los sitios donde el cobalto está escrito a mano (también en modo oscuro), usando var(--accent) o un color-mix de él. Si encuentras más sitios con azul fijo, dímelos. Compruébalo en el navegador con otro color, en claro y en oscuro.
+
+## Etiquetas (se puede hacer ya)
+Lee docs/rediseno/etiquetas/LEEME.md y etiquetas.jpg. Cambia el estilo de las etiquetas a «pegatinas» en todos los sitios donde salen, con la paleta nueva (pasando los colores antiguos al más parecido) y rehaz «Gestionar etiquetas» como en la pantalla. No hagas push; solo commits.
+
+## 8 · Tipos de pregunta y editor de una pregunta
+Lee docs/rediseno/FASES.md (fase 8), las capturas tipos-movil y tipos-escritorio de docs/rediseno/pantallas y docs/rediseno/editor-pregunta/LEEME.md con sus pantallas. Rehaz el selector de tipos y la hoja de crear/editar una pregunta. No cambies los tipos ni cómo se guardan las preguntas. Antes de programar, dime cómo encajas los ~20 tipos en «los más usados + Más tipos» y espera mi OK. No hagas push; solo commits.
+
+## 9 · Preguntas de entender
+Lee docs/rediseno/FASES.md (fase 9) y las capturas entender-* y tanda-fin de docs/rediseno/pantallas. Haz «Explícalo» y «¿Qué pasaría si…?». Antes de programar, dime cómo se corrigen y espera mi OK. No hagas push; solo commits.

@@ -1,7 +1,8 @@
 // Flaski · estado compartido (S) y utilidades comunes de la interfaz (sale de app.js)
-import { startOfDay, dateKey } from './srs.js';
+import { DAY, startOfDay, dateKey } from './srs.js';
 import { loadPrefs, algoFor } from './prefs.js';
-import { deckState, shares, allocate, examFloors } from './plan.js';
+import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder } from './plan.js';
+import { backlogPlan, backlogActive, BACKLOG_DAYS } from './atrasos.js';
 import { icon } from './icons.js';
 import { colorVar, decksInFolder, drawingOf, drawingSrc, imageOf, iconText } from './org.js';
 import { hydrate, stripImages } from './media.js';
@@ -224,29 +225,81 @@ function reviewsToday() {
   for (const p of S.progress.values()) if (p.last >= t0 && p.firstSeen < t0) n++;
   return n;
 }
-export const reviewsLeft = () => (S.prefs.study.maxReviews > 0 ? Math.max(0, S.prefs.study.maxReviews - reviewsToday()) : Infinity);
+// Atrasos (atrasos.js): el reparto de hoy se calcula una vez al día y se guarda en este navegador
+let backlogMemo = (() => { try { return JSON.parse(localStorage.getItem('flaski-atrasos') || 'null'); } catch { return null; } })();
+function saveBacklog() { try { localStorage.setItem('flaski-atrasos', JSON.stringify(backlogMemo)); } catch {} }
+// El reparto de lo atrasado si está en marcha ({ cap, until, … }); null si no
+export function backlog() {
+  if (S.loading || !S.uid) return null;
+  if (!(backlogMemo?.uid === S.uid && backlogMemo.day === dateKey())) {
+    const t0 = startOfDay(), now = Date.now(), live = scopeTest('all');
+    // Cada lista con el examen más cercano que tenga (de hoy a una semana): lo suyo, hecho antes del examen
+    const examOf = new Map();
+    for (const [key, n] of Object.entries(planNodes())) {
+      const d = daysTo(n?.exam, now);
+      if (d == null || d < 0 || d >= BACKLOG_DAYS) continue;
+      const ids = key.startsWith('f:') ? (S.folders.has(key.slice(2)) ? decksUnder(key.slice(2), S.decks, S.folders).map(x => x.id) : []) : [key];
+      for (const id of ids) if (!(examOf.get(id) <= d)) examOf.set(id, d);
+    }
+    let late = 0, onTime = 0;
+    const byExam = new Map();
+    for (const c of S.cards.values()) {
+      const p = S.progress.get(c.id);
+      if (!p || p.due > now || !live(c) || p.last >= t0) continue;
+      if (p.due >= t0) { onTime++; continue; }
+      late++;
+      const d = examOf.get(c.deck_id);
+      if (d != null) byExam.set(d, (byExam.get(d) || 0) + 1);
+    }
+    const exams = [...byExam].map(([days, n]) => ({ days, late: n }));
+    backlogMemo = backlogPlan(backlogMemo, { uid: S.uid, late, onTime, done: reviewsToday(), away: daysAway(), exams, now });
+    saveBacklog();
+  }
+  return backlogActive(backlogMemo) ? backlogMemo : null;
+}
+// Días desde la última vez que estudiaste (0: hoy; sin registro, por la última respuesta)
+export function daysAway() {
+  let last = Object.keys(S.log).filter(k => S.log[k] > 0).sort().pop();
+  let t = last ? new Date(last + 'T12:00:00').getTime() : 0;
+  if (!t) for (const p of S.progress.values()) if (p.last > t) t = p.last;
+  return t ? Math.round((startOfDay() - startOfDay(t)) / DAY) : 0;
+}
+// «Hacerlas todas hoy»: deja de repartir lo atrasado (hasta que acabe este reparto); ese día tampoco entran nuevas
+export function backlogOff() { if (backlogMemo) { backlogMemo = { ...backlogMemo, off: true, offDay: dateKey(), cap: undefined }; saveBacklog(); } }
+// Sin nuevas hoy: se reparte lo atrasado o has elegido hacerlo todo hoy
+export const backlogNoNew = () => !!backlog() || (backlogMemo?.uid === S.uid && backlogMemo.offDay === dateKey());
+// Repasos que quedan hoy: el límite de Ajustes y, si se reparte lo atrasado, el tope de hoy
+export const reviewsLeft = () => {
+  const max = S.prefs.study.maxReviews > 0 ? S.prefs.study.maxReviews : Infinity, b = backlog();
+  const cap = Math.min(max, b ? b.cap : Infinity);
+  return cap === Infinity ? Infinity : Math.max(0, cap - reviewsToday());
+};
+// Las listas de los exámenes cercanos: van primero en la tanda
+export const nearDecks = () => nearExamDecks(planNodes(), S.decks, S.folders);
+// Las que ya has visto hoy y vuelven (las que fallaste) no gastan del tope de repasos
+export const seenToday = p => p.last >= startOfDay();
 export const algo = deckId => algoFor(S.prefs, S.decks.get(deckId));
 // Aviso cuando el límite diario de repasos deja tarjetas fuera (si no, el recorte pasaría desapercibido)
 export function capNote(c) {
   const over = c.dueAll - c.due;
-  if (over <= 0) return '';
+  if (over <= 0 || backlog()) return '';
   return `<p class="muted small">${over} ${over === 1 ? 'repaso más espera' : 'repasos más esperan'}: hoy el límite es de ${S.prefs.study.maxReviews} repasos. <button class="link" data-nav="settings">Cambiar el límite</button></p>`;
 }
 export function counts(scope = 'all') {
   const inScope = scopeTest(scope);
   const now = Date.now();
-  let due = 0, fresh = 0, total = 0, mature = 0;
+  let due = 0, again = 0, fresh = 0, total = 0, mature = 0;
   const freshBy = new Map();
   for (const c of S.cards.values()) {
     if (!inScope(c)) continue;
     total++;
     const p = S.progress.get(c.id);
-    if (!p) { fresh++; freshBy.set(c.deck_id, (freshBy.get(c.deck_id) || 0) + 1); } else { if (p.due <= now) due++; if (p.interval >= 21) mature++; }
+    if (!p) { fresh++; freshBy.set(c.deck_id, (freshBy.get(c.deck_id) || 0) + 1); } else { if (p.due <= now) { if (seenToday(p)) again++; else due++; } if (p.interval >= 21) mature++; }
   }
   let newToday = 0;
   for (const n of newPlan(scope).values()) newToday += n;
   // dueAll: todas las que tocan; due: las que caben hoy en el límite de repasos (Ajustes → Estudio diario)
-  return { due: Math.min(due, reviewsLeft()), dueAll: due, fresh, total, mature, newToday };
+  return { due: again + Math.min(due, reviewsLeft()), dueAll: again + due, fresh, total, mature, newToday };
 }
 
 /* ===================== plan de estudio ===================== */
@@ -278,5 +331,8 @@ export function newPlan(scope = 'all', { steady = false } = {}) {
   for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. una lista archivada que estudias a propósito
   const floors = new Map();
   for (const [id, f] of examFloors(S.decks, S.folders, planNodes(), remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
-  return allocate(steady ? S.newPerDay : newLeft(), sh, avail, floors);
+  let total = steady ? S.newPerDay : newLeft();
+  // Mientras se reparte lo atrasado no entran nuevas: solo el ritmo de los exámenes y las «10 nuevas más»
+  if (!steady && backlogNoNew()) total = Math.min(total, [...floors.values()].reduce((a, n) => a + n, 0) + Math.max(0, extraNew() - newSeenToday()));
+  return allocate(total, sh, avail, floors);
 }

@@ -62,9 +62,24 @@ test('examen: ritmo necesario y aviso si no llega', () => {
   assert.equal(fl.get('bio'), 5);
   assert.equal(fl.has('mat'), false);                 // el de la carpeta ya pasó
   const st = examStatus('bio', { decks, folders, nodes, remaining, perDay: new Map([['bio', 3]]), now: NOW });
-  assert.deepEqual(st, { days: 10, left: 50, per: 3, need: 5, late: true });
+  assert.deepEqual(st, { days: 10, left: 50, per: 3, need: 5, late: true, tight: false });
   assert.equal(examStatus('bio', { decks, folders, nodes, remaining, perDay: new Map([['bio', 5]]), now: NOW }).late, false);
   assert.equal(examStatus('f:uni', { decks, folders, nodes, remaining, perDay: new Map(), now: NOW }).days, -1);
   assert.ok(urgencyWeight('2026-10-29', NOW) > urgencyWeight('2027-03-01', NOW));
   assert.equal(urgencyWeight('', NOW), 1);
+});
+
+test('el examen más cercano y las listas de los exámenes cercanos', async () => {
+  const { nextExam, nearExamDecks } = await import('../../js/plan.js');
+  const key = d => { const t = new Date(NOW + d * 864e5); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+  const nodes = { 'f:q1': { exam: key(9) }, ing: { exam: key(50) }, mat: { exam: key(-2) }, 'f:nope': { exam: key(1) } };
+  assert.deepEqual(nextExam(nodes, decks, folders, NOW), { key: 'f:q1', exam: key(9), days: 9 });
+  assert.deepEqual([...nearExamDecks(nodes, decks, folders, NOW)].sort(), ['bio', 'his']);
+  assert.equal(nextExam({}, decks, folders, NOW), null);
+});
+
+test('examen justo: llega, pero con poco margen', () => {
+  const nodes = { ing: { exam: '2026-11-01' } };   // 10 días
+  const st = per => examStatus('ing', { decks, folders, nodes, remaining: new Map([['ing', 100]]), perDay: new Map([['ing', per]]), now: NOW });
+  assert.deepEqual([st(9).late, st(11).late, st(11).tight, st(13).tight], [true, false, true, false]);
 });

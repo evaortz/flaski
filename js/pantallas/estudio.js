@@ -9,7 +9,7 @@ import { isShortText } from '../inline.js';
 import { speak, stopSpeaking, ttsAvailable } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan, nearDecks, seenToday } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon } from './perfil.js';
@@ -350,17 +350,21 @@ function buildSession(scope, size = 0) {
   const pool = cardList().filter(inScope);
   // «Repasar solo lo que flojea»: todas, toque o no repasarlas hoy (las que te cuestan primero)
   if (scope === 'weak') return pool.sort((a, b) => S.progress.get(a.id).interval - S.progress.get(b.id).interval || S.progress.get(a.id).due - S.progress.get(b.id).due).map(c => c.id);
+  // Con un examen cerca, sus preguntas primero; luego, lo más atrasado
+  const near = nearDecks(), first = c => (near.has(c.deck_id) ? 0 : 1);
   let dueCards = pool.filter(c => { const p = S.progress.get(c.id); return p && p.due <= now; })
-    .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due);
-  // Con tope de repasos: el tope se reparte según el foco de cada mazo (de cada uno, las más atrasadas)
-  const cap = reviewsLeft();
-  if (dueCards.length > cap) {
+    .sort((a, b) => first(a) - first(b) || S.progress.get(a.id).due - S.progress.get(b.id).due);
+  // Con tope de repasos (el de Ajustes o el reparto de lo atrasado): el tope se reparte según el foco de cada
+  // mazo (de cada uno, las más atrasadas) y lo del examen cercano va antes. Lo que ya viste hoy y vuelve no gasta.
+  const cap = reviewsLeft(), capped = dueCards.filter(c => !seenToday(S.progress.get(c.id)));
+  if (capped.length > cap) {
     const byDeck = new Map();
-    for (const c of dueCards) byDeck.set(c.deck_id, (byDeck.get(c.deck_id) || 0) + 1);
+    for (const c of capped) byDeck.set(c.deck_id, (byDeck.get(c.deck_id) || 0) + 1);
     const sh = shares(S.decks, S.folders, planNodes(), d => byDeck.has(d.id));
     for (const id of byDeck.keys()) if (!sh.has(id)) sh.set(id, 1);
-    const q = allocate(cap, sh, byDeck), used = new Map();
-    dueCards = dueCards.filter(c => { const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
+    const floors = new Map([...byDeck].filter(([id]) => near.has(id)));
+    const q = allocate(cap, sh, byDeck, floors), used = new Map();
+    dueCards = dueCards.filter(c => { if (seenToday(S.progress.get(c.id))) return true; const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
   }
   const due = dueCards.map(c => c.id);
   let fresh = pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position);
@@ -380,7 +384,7 @@ function buildSession(scope, size = 0) {
   }
   // Intercaladas: una de cada mazo por turno
   fresh = [];
-  const lists = [...byDeck.values()];
+  const lists = [...byDeck].sort(([a], [b]) => (near.has(a) ? 0 : 1) - (near.has(b) ? 0 : 1)).map(([, l]) => l);
   for (let k = 0; lists.some(l => k < l.length); k++) for (const l of lists) if (k < l.length) fresh.push(l[k]);
   // Tanda corta: las N primeras, siempre con las nuevas intercaladas (una de cada cuatro)
   if (size) return composeShort(due, fresh, size);

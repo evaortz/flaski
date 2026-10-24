@@ -4,9 +4,10 @@ import { heatmapView, progressSeries, progressView, innerW, streaks, scrollChart
 import { icon } from '../icons.js';
 import { folderPath } from '../org.js';
 import { pageTitle, STATUS } from '../pages.js';
-import { examStatus, daysTo } from '../plan.js';
+import { examStatus, nextExam, decksUnder, EXAM_NEAR } from '../plan.js';
+import { daysLeft } from '../atrasos.js';
 import { weekDays } from '../friends.js';
-import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN } from '../comun.js';
+import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN, backlog, backlogNoNew, nearDecks, daysAway } from '../comun.js';
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
@@ -28,36 +29,63 @@ export function renderHome() {
   const all = counts('all');
   const avail = all.due + all.newToday;
   const H = S.prefs.home;
-  const folders = pendingFolders();
+  const folders = pendingFolders(), b = backlog(), late = b ? all.dueAll - all.due : 0;
+  const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      <h1 class="hero-hi">Hola${S.name ? ' ' + esc(S.name) : ''}${avail ? ', hoy tienes' : ''}</h1>
+      <h1 class="hero-hi">${hi}${avail ? (back ? '. Hoy tienes' : ', hoy tienes') : ''}</h1>
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
           <span class="hero-word">${avail ? (avail === 1 ? 'pregunta!' : 'preguntas!') : 'al día'}</span>
           <span class="hero-band">para hoy</span>
-          ${avail ? `<span>${all.due} por repasar</span><span>${plural(all.newToday, 'nueva', 'nuevas')}${folders ? ` · ${plural(folders, 'carpeta', 'carpetas')}` : ''}</span>` : ''}
+          ${avail ? `<span>${all.due} por repasar</span><span>${newLine(all.newToday, folders, b)}</span>` : ''}
+          ${late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : ''}
         </div>
       </div>
       ${avail
         ? `${shortHTML(avail)}${capNote(all)}`
-        : `<p class="muted">${all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
+        : `<p class="muted">${late > 0 ? 'Hecho lo de hoy. Lo atrasado que queda sigue mañana.' : all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : 'Estás al día. Vuelve mañana o aprende alguna nueva.'}</p>${capNote(all)}
            <button class="ghost big" data-act="more">Estudiar 10 nuevas más</button>`}
       ${lastPageHTML()}
     </section>
     ${weakHTML()}
+    ${examHTML()}
     ${H.activity ? activityHTML() : ''}
     </div>
     <div class="home-r">
     ${pushAskHTML()}
-    ${examHTML()}
     ${H.forecast ? '<section class="hoy-sec lv pg-card" id="pgHost" aria-labelledby="h-pg"></section>' : ''}
     ${homeFriendsHTML()}
     </div>`;
   drawHeatmap();
   drawProgress();
+}
+
+// La línea de las nuevas: cuántas y de dónde (el examen cercano o cuántas carpetas); sin nuevas mientras se reparte lo atrasado
+function newLine(n, folders, b) {
+  if (!n && b) return 'sin nuevas hasta ponerte al día';
+  if (!n && backlogNoNew()) return 'sin nuevas por hoy';
+  const ex = nextExam(planNodes(), S.decks, S.folders);
+  let k = 0;
+  if (n && ex && ex.days <= EXAM_NEAR) { const ids = examDeckIds(ex.key); for (const [id, x] of newPlan('all')) if (ids.has(id)) k += x; }
+  // Las del examen, las mismas que le da el plan: «15 nuevas · 6 de Alemán · A2» (todas: «6 nuevas · Alemán · A2»)
+  const from = k ? ` · ${k < n ? `${k} de ` : ''}${esc(examName(ex.key))}` : folders ? ` · ${plural(folders, 'carpeta', 'carpetas')}` : '';
+  return `${plural(n, 'nueva', 'nuevas')}${from}`;
+}
+// Las listas de un examen (de una lista o de todas las de una carpeta)
+const examDeckIds = key => new Set(key.startsWith('f:') ? decksUnder(key.slice(2), S.decks, S.folders).map(x => x.id) : [key]);
+const examName = key => (key.startsWith('f:') ? S.folders.get(key.slice(2)).name : S.decks.get(key).name);
+// Hoja de «+N atrasadas»: por qué se reparten y, si quieres, hacerlas todas hoy
+export function backlogSheet() {
+  const b = backlog();
+  if (!b) return;
+  const all = counts('all'), late = all.dueAll - all.due, until = new Date(b.until + 'T12:00:00');
+  openSheet(`<div class="atrasos"><h2>Lo atrasado, poco a poco</h2>
+    <p>Mientras no estabas se han juntado preguntas. Para que la vuelta no se haga cuesta arriba, te las repartimos hasta el ${['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][until.getDay()]} ${until.getDate()}: hoy te tocan ${plural(all.due, 'repaso', 'repasos')} y quedan ${late} para los próximos días.</p>
+    <p class="muted">Hasta que te pongas al día no entran preguntas nuevas${nearDecks().size ? ', salvo las que pide tu examen' : ''}.</p>
+    <div class="btnrow"><button class="primary" data-act="close-sheet">Vale</button><button class="ghost" data-act="atrasos-all">Hacerlas todas hoy</button></div></div>`);
 }
 
 // «Empezar una tanda · N min · M preguntas», la tanda de siempre («las X de hoy») y cambiar la duración
@@ -126,22 +154,26 @@ function weakHTML() {
   </section>`;
 }
 
-// El examen más cercano del plan de estudio
+// El examen más cercano del plan de estudio. Cerca (a 14 días o menos), cuántas necesitas al día
 function examHTML() {
   const N = planNodes(), now = Date.now();
-  const next = Object.entries(N).map(([key, n]) => ({ key, exam: n?.exam, days: daysTo(n?.exam, now) }))
-    .filter(x => x.days != null && x.days >= 0 && (x.key.startsWith('f:') ? S.folders.has(x.key.slice(2)) : S.decks.has(x.key)))
-    .sort((a, b) => a.days - b.days)[0];
+  const next = nextExam(N, S.decks, S.folders, now);
   if (!next) return '';
   const perDay = newPlan('all', { steady: true }), remaining = freshByDeck(c => S.decks.get(c.deck_id) && !S.decks.get(c.deck_id).archived);
   const ex = examStatus(next.key, { decks: S.decks, folders: S.folders, nodes: N, remaining, perDay, now });
-  const name = next.key.startsWith('f:') ? S.folders.get(next.key.slice(2)).name : S.decks.get(next.key).name;
   const d = new Date(next.exam + 'T12:00:00');
   const left = ex.days === 0 ? 'es hoy' : ex.days === 1 ? 'falta 1 día' : `faltan ${ex.days} días`;
+  // Al día: las nuevas que pide el examen y los repasos de sus listas que tocan hoy.
+  const ids = examDeckIds(next.key);
+  const dueNow = [...S.cards.values()].filter(c => ids.has(c.deck_id) && S.progress.get(c.id)?.due <= now).length;
+  // Si se reparte lo atrasado, sus repasos también van repartidos
+  const b = backlog(), reviews = b ? Math.ceil(dueNow / daysLeft(b.until, now)) : dueNow;
+  const need = ex.days >= 1 && ex.days <= EXAM_NEAR ? ex.need + reviews : 0;
+  const [cls, say] = ex.late ? ['hoy-late', 'así no te da tiempo'] : need ? ['hoy-tight', `necesitas unas ${need} al día`] : ex.tight ? ['hoy-tight', 'vas con el tiempo justo'] : ['hoy-ok', 'vas a buen ritmo'];
   return `<button class="hoy-exam" data-nav="plan">
     <span class="hoy-cal" aria-hidden="true"><i></i><b>${d.getDate()}</b></span>
-    <span class="hoy-exam-t"><small>Examen de ${esc(name)} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>
-      <span class="${ex.late ? 'hoy-late' : 'hoy-ok'}">${ex.late ? 'así no te da tiempo' : 'vas a buen ritmo'} · ver el plan</span></span>
+    <span class="hoy-exam-t"><small>Examen de ${esc(examName(next.key))} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>
+      <span class="${cls}">${say} · ver el plan</span></span>
     ${icon('chevron-right', { size: 18 })}</button>`;
 }
 
@@ -150,14 +182,14 @@ const fmtDay = k => { const d = new Date(k + 'T12:00:00'); return `${['dom', 'lu
 // «Tu actividad»: la racha, esta semana, el calendario de 6 meses y la meta diaria
 function activityHTML() {
   const st = streaks(S.log);
-  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js)
+  // El comodín de la semana: un día sin estudiar no corta la racha (ver streaks en charts.js). Sin racha no sale
   const fz = st.freeze.available ? 'Comodín de la semana disponible' : `Comodín usado el ${fmtDay(st.freeze.usedOn)}`;
   const week = weekDays().map(k => S.log[k] || 0), days = week.filter(Boolean).length, total = week.reduce((a, n) => a + n, 0);
   const goal = S.prefs.home.goal;
   const keys = [1, 2, 3, 4].map(l => `<i class="hm-key l${l}"></i>`).join('');
   return `<section class="hoy-sec hoy-act" aria-labelledby="h-act">
     <div class="hoy-h"><h2 class="hoy-t" id="h-act">Tu actividad</h2><span class="hoy-note">últimos 6 meses</span></div>
-    <p class="hoy-streak"><span>${icon(st.current ? 'racha' : 'racha-apagada', { size: 16, cls: 'flame' })} Racha de ${plural(st.current, 'día', 'días')}</span><span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('comodin', { size: 16 })} ${fz}</span></p>
+    <p class="hoy-streak"><span>${icon(st.current ? 'racha' : 'racha-apagada', { size: 16, cls: 'flame' })} Racha de ${plural(st.current, 'día', 'días')}</span>${st.current ? `<span class="st-freeze" title="Si un día no estudias, la racha sigue: un comodín por semana, para un día suelto">${icon('comodin', { size: 16 })} ${fz}</span>` : ''}</p>
     <p class="hoy-week">esta semana: ${plural(days, 'día', 'días')} · ${plural(total, 'pregunta', 'preguntas')}</p>
     <div id="hmHost" class="hm-host"></div>
     <div class="hoy-hm-foot">

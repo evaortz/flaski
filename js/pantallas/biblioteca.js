@@ -4,7 +4,7 @@
 import { icon } from '../icons.js';
 import { SORTS, folderPath, descendants, sortDecks, matchesDeck, colorVar } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
-import { main, S, esc, norm, cardList, tagChips, counts, planNodes, folderIcon, folderArt } from '../comun.js';
+import { main, S, esc, norm, plain, cardList, tagChips, counts, planNodes, folderIcon, folderArt } from '../comun.js';
 import { plural } from './mazos.js';
 
 const ST_LABEL = { ok: 'al día', due: 'toca repasar', weak: 'te cuesta', new: 'sin estudiar' };
@@ -55,14 +55,16 @@ function folderCard(f) {
 }
 
 // Una ficha: apunte (esquina doblada), lista (con otras debajo) o subcarpeta
-// Estado a mano (en la raíz): «N hoy» (cobalto), «al día» (verde) o «vacío/vacía» (lavanda)
+// Estado a mano (en la raíz): «N hoy» (cobalto), «al día» (verde), «vacío/vacía» o «sin preguntas» (lavanda)
 const handState = (n, total, empty) => `<span class="lt-hand ${n ? 'is-due' : total ? 'is-ok' : 'is-empty'}">${n ? `${n} hoy` : total ? 'al día' : empty}</span>`;
+// Un apunte con algo escrito (o una imagen); sin nada, «vacío» con borde discontinuo
+const hasText = p => (p.blocks || []).some(b => b.type === 'img' || (b.type !== 'hr' && plain(String(b.text || '')).trim()));
 function pageTile(p, { hand, where }) {
-  const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards);
+  const cards = cardList().filter(c => c.page_id === p.id), st = statusOf(cards), blank = !cards.length && !hasText(p);
   const n = cards.length ? dueOf(counts('page:' + p.id)) : 0;
-  const foot = hand ? handState(n, cards.length, 'vacío')
+  const foot = hand ? handState(n, cards.length, blank ? 'vacío' : 'sin preguntas')
     : st ? `<span class="lt-st st-${st}"><i aria-hidden="true"></i>${ST_LABEL[st]}</span>` : '';
-  return `<li data-kind="notes"><button class="ltile lt-note${cards.length ? '' : ' is-empty'}" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
+  return `<li data-kind="notes"><button class="ltile lt-note${blank ? ' is-empty' : ''}" data-page="${p.id}"><span class="lt-ic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 26 })}</span>
     <span class="lt-name">${esc(pageTitle(p))}</span>
     <span class="lt-foot"><span class="lt-meta">${where(p)}apunte${hand ? ` · ${cards.length}` : ` · ${plural(cards.length, 'pregunta', 'preguntas')}`}</span>${foot}</span></button></li>`;
 }
