@@ -7,13 +7,13 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await expect(page.locator('#cardCount')).toHaveText('2 preguntas');
 
   await page.locator('#main [data-start]').click();
-  await expect(page.locator('.studybar .left')).toHaveText('2 quedan');
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 2');
   for (const front of ['ev', 'kapı']) {
     await expect(page.locator('.card .front')).toContainText(front);
-    await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+    await page.getByRole('button', { name: 'Ver respuesta' }).click();
     await page.locator('[data-grade="3"]').click();
   }
-  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
   await expect(page.locator('.tally .g3')).toHaveText('Bien 2');
 
   await page.reload();
@@ -28,16 +28,16 @@ test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» 
   await addBasicCards(page, [['bir', 'uno']]);
   await page.locator('#main [data-start]').click();
 
-  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="1"]').click();
-  await expect(page.locator('.studybar .left')).toHaveText('1 quedan');
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 1');
   await expect(page.locator('.card .front')).toContainText('bir');
 
-  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
-  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
   await page.getByRole('button', { name: 'Deshacer la última' }).click();
-  await expect(page.locator('.studybar .left')).toHaveText('1 quedan');
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 1');
   await expect(page.locator('[data-grade="3"]')).toBeVisible();
 });
 
@@ -52,9 +52,9 @@ test('el límite de nuevas por día se respeta y «10 nuevas más» lo amplía',
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="4"]').click();
   }
-  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
   await page.getByRole('button', { name: '10 nuevas más' }).click();
-  await expect(page.locator('.studybar .left')).toHaveText('5 quedan');
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 5');
 
   // Lo pedido sigue valiendo hoy aunque se recargue
   await page.reload();

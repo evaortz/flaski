@@ -7,7 +7,7 @@ import { BUILTIN_TYPES, LANGS, CLOZE_RE, NEEDS_ANSWER, stripRuby, isCJK, orderTo
 import { speak, stopSpeaking, ttsAvailable } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, deckIcon, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn } from './perfil.js';
@@ -59,7 +59,9 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const v = val(id);
     if (!v.trim()) return '';
     const label = !main && fdef(id) ? `<div class="fld-l">${esc(fdef(id).name)}</div>` : '';
-    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${say(id)}${strokesBtn(id)}</div></div>`;
+    // Texto principal corto: a mano y grande (con kanji, en su letra); largo, en letra normal
+    const plain = stripRuby(v), size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
+    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${say(id)}${strokesBtn(id)}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
   const strokesBtn = id => {
@@ -383,7 +385,7 @@ function segBar(ses) {
 export function startSession(scope = 'all') {
   const queue = buildSession(scope);
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
-  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null };
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now() };
   go('study');
 }
 export function shuffleTokens(o) {
@@ -418,14 +420,13 @@ function cardState(c) {
 export function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
-  const pct = Math.round(100 * ses.done / Math.max(1, ses.done + ses.queue.length));
-  // Arriba: salir (un círculo), de qué es la sesión y cuántas quedan; debajo, la barra de progreso
-  const bar = `<div class="studybar"><button class="sb-back" data-act="exit" aria-label="Salir de la sesión">${icon('chevron-left', { size: 18 })}</button><span class="sb-info"><span class="where">${esc(scopeName(ses.scope))}</span><span class="left">${ses.queue.length} quedan</span></span></div>${segBar(ses)}`;
+  // Arriba: salir (un círculo), el nombre de la lista y «pregunta N de M»; debajo, la barra por segmentos
+  const head = (where, left, exit = 'chevron-left') => `<div class="studybar"><button class="sb-back" data-act="exit" aria-label="Salir de la tanda">${icon(exit, { size: 18 })}</button><span class="sb-info"><span class="where">${esc(where)}</span>${left ? `<span class="left">${left}</span>` : ''}</span></div>${segBar(ses)}`;
   if (!ses.queue.length) {
-    const t = ses.tally;
-    main.innerHTML = `${bar}<div class="done"><h2>¡Tanda terminada!</h2><p class="muted">Has repasado ${ses.done} preguntas.</p>${capNote(counts(ses.scope))}
+    const t = ses.tally, min = Math.max(1, Math.round((Date.now() - (ses.startedAt || Date.now())) / 60e3));
+    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done"><h2>¡Tanda hecha!</h2><p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>${capNote(counts(ses.scope))}
       <div class="tally"><span class="g1">Otra vez ${t[1]}</span><span class="g2">Difícil ${t[2]}</span><span class="g3">Bien ${t[3]}</span><span class="g4">Fácil ${t[4]}</span></div>
-      <div class="btnrow" style="justify-content:center"><button class="primary" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost" data-act="more">10 nuevas más</button></div>
+      <div class="done-go"><button class="primary big" data-act="exit">${ses.scope.startsWith('page:') ? 'Volver a los apuntes' : 'Volver al inicio'}</button><button class="ghost big" data-act="more">10 nuevas más</button></div>
       ${ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : ''}</div>`;
     return;
   }
@@ -459,13 +460,14 @@ export function renderStudy() {
   } else if (NEEDS_ANSWER.includes(model.tpl.mode)) {
     foot = '<button class="ghost big" data-act="reveal">No lo sé, ver respuesta</button>';
   } else {
-    foot = '<button class="primary big" data-act="reveal">Mostrar respuesta</button>';
+    foot = '<button class="primary big" data-act="reveal">Ver respuesta</button>';
   }
   const tags = (c.tags || []).length ? `<span class="tags">${tagChips(c.tags)}</span>` : '';
-  main.innerHTML = `${bar}<article class="card mode-${model.tpl.mode}" aria-live="polite">
-      <div class="card-top"><span class="chip">${S.decks.get(c.deck_id) ? deckIcon(S.decks.get(c.deck_id)) : ''}${esc(deckName(c.deck_id))}${p ? '' : ' · nueva'}</span>${tags}</div>
+  const total = ses.done + ses.queue.length;
+  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, ses.done + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
+      ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
-      ${answer ? `<div class="answer">${answer}</div>` : ''}
+      ${answer ? `<div class="answer"><div class="ans-l">respuesta</div>${answer}</div>` : ''}
     </article>${foot}
     <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar pregunta</button></span></div>`;
   if (!st.played) {

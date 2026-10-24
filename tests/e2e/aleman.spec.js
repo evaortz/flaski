@@ -22,7 +22,7 @@ test('sustantivo alemán: elegir el artículo y escribir la palabra con mayúscu
   await page.locator('[data-choice]', { hasText: 'das' }).click();
   await expect(page.locator('[data-grade="3"]')).toHaveClass(/suggested/);
   await page.locator('[data-grade="3"]').click();
-  await expect(page.getByRole('heading', { name: '¡Tanda terminada!' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
 });
 
 test('alemán: «strasse» por «Straße» es casi, y se sugiere Difícil', async ({ page }) => {

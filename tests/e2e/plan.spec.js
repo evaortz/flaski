@@ -28,7 +28,7 @@ test('en pausa: sale de lo de hoy y de las sesiones de «Todo», y se recuerda',
   // La sesión de «Todo» no trae tarjetas del mazo en pausa
   await page.locator('#main [data-start="all"]').click();
   for (let i = 0; i < 4; i++) {
-    await expect(page.locator('.card-top .chip').first()).toContainText('Turco');
+    await expect(page.locator('.studybar .where').first()).toContainText('Turco');
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="3"]').click();
   }

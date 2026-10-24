@@ -1830,14 +1830,7 @@ body.in-study .bar{background:var(--line);height:4px}
 body.in-study .bar span{background:#FFFFFF}
 body.in-study .card{border:0;box-shadow:none;padding:8px 0;background:transparent}
 body.in-study .card .chip{background:var(--soft);color:#FFFFFF}
-body.in-study .answer{border:1.5px solid #FFFFFF;border-radius:18px;padding:16px}
 body.in-study .answer .note,body.in-study .answer .fld-sub{background:var(--soft);color:#FFFFFF}
-body.in-study .grade{background:transparent;color:#FFFFFF;border:1.5px solid #FFFFFF;border-radius:30px;min-height:60px}
-body.in-study .grade small{opacity:.8}
-body.in-study .grade.g3{background:#FFFFFF;color:var(--session);font-weight:700}
-body.in-study .grade.suggested{box-shadow:0 0 0 3px var(--session),0 0 0 5px #FFFFFF}
-body.in-study .done{border-color:#FFFFFF}
-body.in-study .done .tally span{background:var(--soft);color:#FFFFFF}
 body.in-study input:not([type=checkbox]):not([type=range]),body.in-study textarea{background-color:transparent;color:#FFFFFF;border-color:var(--line-strong)}
 body.in-study input::placeholder,body.in-study textarea::placeholder{color:var(--faint)}
 body.in-study code{background:var(--soft);color:#FFFFFF}
@@ -2035,9 +2028,84 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}
 .bar-seg i.on{background:var(--accent)}
 body.in-study .bar-seg i{background:color-mix(in srgb,#FFFFFF 30%,var(--session))}
 body.in-study .bar-seg i.on{background:#FFFFFF}
-body.in-study .card .front .fld-main .fld-v{font-family:'Gochi Hand',var(--card-font);font-weight:400;font-size:calc(clamp(44px,12vw,72px) * var(--card-scale,1));line-height:1.05}
-body.in-study .answer::before{content:'respuesta';display:block;text-align:left;font-size:11px;color:var(--muted);margin-bottom:-4px}
-body.in-study .answer .fld-main .fld-v{font-family:'Gochi Hand',var(--card-font);font-weight:400;font-size:calc(clamp(34px,9vw,48px) * var(--card-scale,1));line-height:1.05}
+
+/* ======================================================================
+   Tanda (fase 5): pantalla cobalto, cabecera con «pregunta N de M», barra por
+   segmentos, caja de «respuesta» y los 4 botones de colores con su intervalo.
+   ====================================================================== */
+body.in-study .bar-seg{gap:4px;height:4px}
+body.in-study .bar-seg i{border-radius:2px;background:rgba(255,255,255,.3)}
+body.in-study .studybar .sb-info .where{font-size:14px;font-weight:600}
+body.in-study .studybar .sb-info .left{font-size:12.5px;font-variant-numeric:tabular-nums}
+/* Anverso: corto, a mano y grande; largo, en letra normal; con kanji, en su letra y grande */
+body.in-study .card .front .fld-main .fld-v{font-weight:600;font-size:calc(clamp(21px,5.6vw,26px) * var(--card-scale,1));line-height:1.3}
+body.in-study .card .front .fld-short .fld-v{font-family:var(--font-hand);font-weight:400;font-size:calc(clamp(42px,11.5vw,64px) * var(--card-scale,1));line-height:1.05}
+body.in-study .card .front .fld-cjk .fld-v{font-weight:400;font-size:calc(clamp(44px,13vw,72px) * var(--card-scale,1));line-height:1.2}
+body.in-study .say{background:transparent;color:#FFFFFF}
+body.in-study .say:hover{background:var(--hover)}
+/* La caja de la respuesta: borde blanco, «respuesta» encima y la respuesta a mano */
+body.in-study .card .answer{border:1.5px solid rgba(255,255,255,.75);border-radius:18px;padding:14px 18px 16px;text-align:left;display:flex;flex-direction:column;gap:8px}
+body.in-study .answer .ans-l{font-size:12px;color:var(--muted)}
+body.in-study .answer .fld{align-items:flex-start}
+body.in-study .answer .fld-v{justify-content:flex-start}
+body.in-study .card .answer .fld-main .fld-v{font-family:var(--font-hand);font-weight:400;font-size:calc(clamp(36px,10vw,48px) * var(--card-scale,1));line-height:1.1}
+body.in-study .card .answer .fld-main:not(.fld-short):not(.fld-cjk) .fld-v{font-family:var(--card-font);font-weight:600;font-size:calc(clamp(20px,5.4vw,24px) * var(--card-scale,1));line-height:1.3}
+body.in-study .card .answer .fld-cjk .fld-v{font-family:var(--card-font);font-size:calc(clamp(40px,12vw,56px) * var(--card-scale,1))}
+body.in-study .answer .fld-sub{background:transparent;padding:0;border-radius:0}
+body.in-study .card .answer .fld-sub .fld-v{color:var(--muted);font-size:calc(15px * var(--card-scale,1))}
+body.in-study .fld-l{font-size:11px;color:var(--faint)}
+/* Botones grandes: «Ver respuesta» en blanco y «No lo sé» con borde */
+body.in-study .big{min-height:60px;border-radius:30px;font-size:17px;font-weight:600}
+body.in-study .primary.big{background:#FFFFFF;color:var(--session);border:0}
+body.in-study .ghost.big{background:transparent;color:#FFFFFF;border:1.5px solid #FFFFFF}
+/* Los 4 botones: 60px de alto, radio 30 y el intervalo debajo; el sugerido, con un anillo de su color */
+body.in-study .grades{gap:8px}
+body.in-study .grade{--gc:#8EE3B5;background:var(--gc);color:#16183A;border:0;border-radius:30px;min-height:60px;padding:6px 4px;font-size:15px;font-weight:700;gap:0}
+body.in-study .grade.g1{--gc:#FF9F92}
+body.in-study .grade.g2{--gc:#FFC36B}
+body.in-study .grade.g4{--gc:#9ED4FF}
+body.in-study .grade small{font-size:12px;font-weight:500;opacity:.75}
+body.in-study .grade.suggested{box-shadow:0 0 0 3px var(--session),0 0 0 5px var(--gc)}
+/* Lo que corrige la app: acierto en menta, fallo en coral */
+body.in-study .verdict{border-radius:16px}
+body.in-study .verdict.ok{background:#8EE3B5;color:#16183A}
+body.in-study .verdict.bad{background:transparent;border:1.5px solid #FF9F92;color:#FFFFFF}
+body.in-study .vnear{color:#FFC36B}
+body.in-study .vl{color:var(--muted)}
+body.in-study .d-extra{color:#FF9F92}
+body.in-study .d-need{background:#8EE3B5;color:#16183A}
+body.in-study .choice{background:transparent;border:1.5px solid var(--line-strong);border-radius:16px;color:#FFFFFF}
+body.in-study .ckey{background:var(--soft);color:#FFFFFF}
+body.in-study .choice.right{background:#8EE3B5;color:#16183A;border-color:transparent}
+body.in-study .choice.wrong{background:#FF9F92;color:#16183A;border-color:transparent}
+body.in-study .choice.right .ckey,body.in-study .choice.wrong .ckey{background:rgba(255,255,255,.45);color:#16183A}
+body.in-study .blank{background:rgba(255,255,255,.18);color:#FFFFFF}
+body.in-study .blank.on{background:#8EE3B5;color:#16183A}
+body.in-study :is(.schip,.ochip).ok{background:#8EE3B5;color:#16183A;border-color:transparent}
+body.in-study :is(.schip,.ochip).bad{background:#FF9F92;color:#16183A;border-color:transparent}
+body.in-study .schip:is(.ok,.bad) small{color:#16183A;opacity:.7}
+body.in-study .conj-res tr.ok b{color:#8EE3B5}
+body.in-study .conj-res tr.near b{color:#FFC36B}
+body.in-study .conj-mine{color:#FF9F92}
+body.in-study .num-in{flex:1;min-width:0}
+body.in-study .num-in input{flex:1;min-width:0;width:auto}
+/* Los botones, abajo: la pregunta ocupa el alto que sobra */
+body.in-study main{min-height:calc(100dvh - 50px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+body.in-study main > .card{flex:1 0 auto}
+body.in-study main > .card .front{flex:none;padding-top:16px}
+body.in-study main > .card .answer{margin-top:auto}
+/* Fin de la tanda */
+body.in-study .done{border:0;padding:24px 0 0;align-items:stretch;text-align:left;gap:16px}
+body.in-study .done h2{font-family:var(--font-hand);font-weight:400;font-size:clamp(52px,15vw,72px);line-height:1;margin:0}
+body.in-study .done .done-sub{margin:-6px 0 0;color:var(--muted)}
+body.in-study .done .tally{justify-content:flex-start}
+body.in-study .done .tally span{border-radius:99px;padding:4px 12px;color:#16183A;font-weight:600}
+body.in-study .done .tally .g1{background:#FF9F92}
+body.in-study .done .tally .g2{background:#FFC36B}
+body.in-study .done .tally .g3{background:#8EE3B5}
+body.in-study .done .tally .g4{background:#9ED4FF}
+body.in-study .done-go{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+body.in-study .done .link{align-self:center}
 
 /* ======================================================================
    Biblioteca (fase 3): un solo árbol de carpetas con apuntes y listas juntos.

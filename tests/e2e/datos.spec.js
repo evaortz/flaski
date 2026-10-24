@@ -51,7 +51,7 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await createDeck(page, 'Copia');
   await addBasicCards(page, [['su', 'agua'], ['ekmek', 'pan']]);
   await page.locator('#main [data-start]').click();
-  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
 
   const backup = await downloadBackup(page);
@@ -75,7 +75,7 @@ test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir
   await createDeck(page, 'De la nube');
   await addBasicCards(page, [['göz', 'ojo']]);
   await page.locator('#main [data-start]').click();
-  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
 
   const { local, ...cloudLike } = await downloadBackup(page);   // sin «local»: se trata como copia de una cuenta

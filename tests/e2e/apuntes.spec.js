@@ -193,7 +193,7 @@ test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
   // Estudiar solo el apartado «Fechas» y fallarla
   await fechas.locator('.nb-sec').click();
   await expect(page.locator('.studybar .where')).toContainText('Fechas');
-  await expect(page.locator('.studybar .left')).toHaveText('1 quedan');
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 1');
   await page.locator('[data-act="reveal"]').click();
   await page.locator('[data-grade="1"]').click();
   await page.locator('.studybar [data-act="exit"]').click();      // vuelve a los apuntes
