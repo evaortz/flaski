@@ -69,3 +69,4 @@
 - Escribir la respuesta, Ordenar frase, Dictado (y Escribir a mano con dibujo libre) ya resueltos y sin más campos que enseñar: no sale la caja «respuesta»; su altavoz (y el orden de trazos) va junto a la pregunta. Vale también si fallas, porque la corrección ya enseña la respuesta.
 - «Espacio: mostrar · 1-4: valorar» no sale en pantallas táctiles (`pointer: coarse`), aunque los atajos estén activados.
 - Duda: si la pregunta ya tiene su altavoz (p. ej. la traducción en Ordenar frase), salen dos altavoces seguidos; cada uno dice qué lee al pasar por encima, pero a la vista son iguales.
+- Resuelta: junto a la pregunta queda un solo altavoz. Si la respuesta resuelta tiene idioma (la frase en Ordenar frase o Dictado), su altavoz sustituye al de la pregunta; si no, se queda el de la pregunta. `sw.js` → `flaski-v94`.

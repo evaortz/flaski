@@ -63,7 +63,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const plain = stripRuby(v), lang = fdef(id)?.lang || '';
     const ja = /^ja/.test(lang) || (!lang && /[぀-ヿ]/.test(plain)) ? ' fld-ja' : '';
     const size = !main ? '' : [...plain].some(isCJK) ? ' fld-cjk' + ja : [...plain].length <= 18 && !plain.includes('\n') ? ' fld-short' : '';
-    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${say(id)}${strokesBtn(id)}${extra}</div></div>`;
+    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${extra}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
   const strokesBtn = id => {
@@ -73,7 +73,8 @@ export function faceHTML(model, st, { preview = false } = {}) {
   };
 
   // Escribir, dictado, ordenar o dibujar ya resueltos y sin más campos que enseñar: sin caja de respuesta;
-  // su altavoz (y el orden de trazos) va junto a la pregunta
+  // su altavoz (y el orden de trazos) va junto a la pregunta, en lugar del de la pregunta: un solo altavoz,
+  // el del texto en el idioma de estudio (si la respuesta no tiene idioma, se queda el de la pregunta)
   const rest = tpl.back.filter(x => x !== tpl.answer).map(id => block(id, false)).join('');
   const resolved = tpl.mode === 'order' ? !!st.order?.checked : tpl.mode === 'draw' ? !!st.drawn && !st.drawn.gaveUp && !!st.drawn.img : !!st.typed;
   const sayAns = st.revealed && ['type', 'listen', 'order', 'draw'].includes(tpl.mode) && resolved && !rest ? say(tpl.answer) + strokesBtn(tpl.answer) : '';

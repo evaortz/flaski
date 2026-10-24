@@ -80,7 +80,7 @@ test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones', 
     await expect(page.locator('.grade')).toHaveCount(4);
     await expect(page.locator('.grade small')).toHaveCount(4);
     // Ordenar resuelta y sin más campos: sin caja «respuesta» y con el altavoz junto a la pregunta
-    if (type === 'order') { await expect(page.locator('.answer')).toHaveCount(0); await expect(page.locator('.front [data-say="f"]')).toHaveCount(1); }
+    if (type === 'order') { await expect(page.locator('.answer')).toHaveCount(0); await expect(page.locator('.front [data-say]')).toHaveCount(1); await expect(page.locator('.front [data-say="f"]')).toHaveCount(1); }
     // El japonés grande, con Klee One (y la del sistema si no carga)
     if (type === 'kanji') expect(await page.locator('.front .fld-ja .fld-v').evaluate(el => getComputedStyle(el).fontFamily)).toMatch(/^"?Klee One/);
     if (shots) await page.screenshot({ path: `test-results/tanda/${String(k + 1).padStart(2, '0')}-${type}-b.png`, fullPage: true });
