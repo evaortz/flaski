@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v154';
+const VERSION = 'flaski-v155';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -53,9 +53,8 @@ const SHELL = [
   './decks/index.json',
   './js/config.js',
   './manifest.webmanifest',
-  './icons/icon.svg',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  './icons/favicon.svg', './icons/favicon-32.png', './icons/flaski-icono-180.png',
+  './icons/flaski-icono-192.png', './icons/flaski-icono-512.png', './icons/flaski-icono-maskable-192.png', './icons/flaski-icono-maskable-512.png', './icons/flaski-icono.svg',
 ];
 
 self.addEventListener('install', e => {
@@ -132,7 +131,7 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
   e.waitUntil(self.registration.showNotification(d.title || 'Flaski', {
     body: d.body || 'Tienes tarjetas por repasar.', tag: d.tag || 'flaski', renotify: false,
-    icon: './icons/icon-192.png', badge: './icons/icon-192.png', data: { url: d.url || './' },
+    icon: './icons/flaski-icono-192.png', badge: './icons/favicon-32.png', data: { url: d.url || './' },
   }));
 });
 // Al tocar el aviso: la app, si ya está abierta; si no, se abre

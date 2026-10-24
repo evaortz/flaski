@@ -3323,3 +3323,7 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 .ent-done li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.2)}
 .ent-pill{flex:none;padding:4px 12px;border-radius:99px;color:#16183A;font-size:13px}
 .ent-pill.eg1{background:#FF9F92}.ent-pill.eg2{background:#FFC36B}.ent-pill.eg3,.ent-pill.eg4{background:#8EE3B5}
+/* Marca: la F de puntos, en el color de acento, a la izquierda de «Flaski» a mano */
+.brand .mark,.nav-brand .mark{width:26px;height:26px;background:none;border-radius:0;color:var(--accent);flex:none;display:block}
+.brand .name{font-family:var(--font-hand);font-size:24px;font-weight:400}
+@media (min-width:900px){.nav-brand{display:flex;align-items:center;gap:10px}.nav-brand .mark{width:30px;height:30px}}
