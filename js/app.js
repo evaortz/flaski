@@ -53,7 +53,7 @@ export function render() {
   document.body.classList.toggle('in-study', authed && S.view === 'study');
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
-  for (const b of document.querySelectorAll('[data-nav]')) {
+  for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
     const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }

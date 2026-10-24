@@ -1864,6 +1864,8 @@ body.in-study code{background:var(--soft);color:#FFFFFF}
 .nav button span{font-size:15px;font-weight:400}
 .nav button:not([aria-current="page"]) span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .nav button[aria-current="page"]{background:var(--accent);color:var(--accent-fg);padding:0 22px;height:46px;border-radius:23px}
+/* El bloque de usuario es solo de la barra lateral del ordenador */
+.nav .nav-me{display:none}
 .nav button svg{stroke-width:1.8;width:23px;height:23px}
 
 /* ---------- Cabecera de página: título a mano con su «+» redondo y una nota a mano que señala ---------- */
@@ -2030,7 +2032,7 @@ body.in-study .bar{height:5px;border-radius:3px}
 }
 @media (min-width:960px){
   .nav button[data-nav="home"]{order:-1}
-  .nav .nav-me{height:auto;width:auto;font-size:13px;border-radius:0}
+  .nav .nav-me{display:flex;height:auto;width:auto;font-size:13px;border-radius:0}
   .nav .nav-me .pf-av{width:36px;height:36px;display:grid;place-items:center;background:var(--soft);border-radius:50%;font-family:var(--font-hand);font-size:20px;color:var(--fg)}
   .nav .nav-me .nav-me-t span{font-size:12px}
 }
