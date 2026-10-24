@@ -28,7 +28,8 @@ async function send(s: Sub, msg: { title: string; body: string; tag: string; url
     return 'error';
   }
 }
-const CHEER: Record<string, string> = { clap: '👏', fire: '🔥', go: '💪' };
+// Lo mismo que se ve en la app (CHEERS en js/pantallas/amigos.js); el fuego, que allí es el icono de la racha, va como 🔥
+const CHEER: Record<string, string> = { clap: '¡Ánimo!', go: '¡Tú puedes!', fire: '🔥' };
 // Un ánimo nuevo (webhook de la tabla cheers): avisa en los dispositivos de quien lo recibe
 async function cheer(rec: { to_user: string; from_user: string; kind: string }) {
   const { data: subs } = await sb.from('push_subs').select('*').eq('user_id', rec.to_user).eq('cheers', true);
@@ -36,7 +37,7 @@ async function cheer(rec: { to_user: string; from_user: string; kind: string }) 
   const { data: p } = await sb.from('profiles').select('display_name').eq('id', rec.from_user).maybeSingle();
   const name = (p?.display_name || '').trim() || 'Un amigo';
   let sent = 0;
-  for (const s of subs as Sub[]) if (await send(s, { title: `${name} te ha animado ${CHEER[rec.kind] || '👏'}`, body: 'Entra en Flaski para verlo y seguir con tu racha.', tag: 'flaski-animo' }) === 'sent') sent++;
+  for (const s of subs as Sub[]) if (await send(s, { title: `${name} te dice: «${CHEER[rec.kind] || CHEER.clap}»`, body: 'Entra en Flaski para verlo y seguir con tu racha.', tag: 'flaski-animo' }) === 'sent') sent++;
   return { sent };
 }
 

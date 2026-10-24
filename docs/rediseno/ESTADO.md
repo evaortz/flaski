@@ -114,5 +114,5 @@
 
 ## Fase 4c · dudas resueltas
 - Tu fila, si te queda algo para hoy y aún no has estudiado: «¡Te toca!» (como «¡Ánimo!») empieza una tanda corta. Sin nada pendiente, vacía.
-- El ánimo recibido va sin hora y dice «Carmen te dice: «¡Tú puedes!»». La pantalla Amigos no enseña los ánimos recibidos (solo Hoy). La notificación del ánimo (`supabase/functions/recordatorio`) sigue con «te ha animado».
+- El ánimo recibido va sin hora y dice «Carmen te dice: «¡Tú puedes!»». La pantalla Amigos no enseña los ánimos recibidos (solo Hoy). La notificación del ánimo (`supabase/functions/recordatorio`) dice lo mismo: «Carmen te dice: «¡Tú puedes!»» (el fuego, como 🔥); hay que volver a desplegar la función.
 - Tras animar a alguien, «enviado» con el corazón. `sw.js` → `flaski-v113`.
