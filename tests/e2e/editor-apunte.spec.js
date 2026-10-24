@@ -116,3 +116,14 @@ test('móvil: si el navegador no dice dónde está el teclado, la barra se queda
   await page.locator('#selBar .sb-done').click();
   await expect(page.locator('#selBar')).toBeHidden();
 });
+
+test('entre 700 y 960 px, «Nueva pregunta» sale como hoja desde abajo', async ({ page }, info) => {
+  test.skip(info.project.name !== 'escritorio', 'solo con ratón y pantalla mediana');
+  await page.setViewportSize({ width: 820, height: 900 });
+  await setup(page);
+  await select(page, 1, 'crédito');
+  await page.locator('#selBar [data-act="sel-card"]').click();
+  const box = await page.locator('#sheetBody').boundingBox();
+  expect(Math.round(box.y + box.height)).toBe(900);
+  expect(box.y).toBeGreaterThan(900 * 0.2);
+});

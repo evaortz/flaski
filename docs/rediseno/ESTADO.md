@@ -84,3 +84,7 @@
 - Margen: raya del color del estado de las preguntas de su apartado (menta al día, ámbar toca repasar, coral te cuesta, azul sin estudiar; `cardsStatus`) y la píldora «● N» de cada bloque. `sw.js` → `flaski-v97`. E2e nueva `editor-apunte.spec.js`; capturas con `SHOT=… npx playwright test e2e/capturas-editor.spec.js`.
 - No hecho (de otras fases o no existe): ideas clave, Explícalo / ¿Qué pasaría si…? y sus sugerencias (fase 9), el selector de tipos del panel (fase 8), la vista «Así se verá en la tanda» en azul, y «Estudiar este apunte» arriba sustituyendo a la fila de estado.
 - Dudas: en el diseño, el estado va también como texto bajo cada apartado («Al día», «Toca repasar») y el apartado lleva «Estudiar este apartado · 3»; he dejado los botones que ya había («Estudiar N»). En pantallas de 700–960 px el panel tapa la parte derecha del apunte, que no se estrecha.
+
+## Fase 6b · dudas resueltas
+- Se quedan los botones «Estudiar N» de cada apartado; no se añade el texto de estado bajo cada uno.
+- Entre 700 y 960 px, «Nueva pregunta» sale como la hoja del móvil (desde abajo); el panel lateral solo desde 960 px. `sw.js` → `flaski-v103`.

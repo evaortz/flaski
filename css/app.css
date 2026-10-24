@@ -2377,12 +2377,13 @@ body[data-view="home"] main{gap:40px}
 .ed-kb{font-size:12px;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:1px 6px;background:transparent}
 @media (pointer:coarse){.ed-kb{display:none}}
 .nb.is-src{background:color-mix(in srgb,var(--accent) 11%,transparent)}
-@media (min-width:700px){
+@media (min-width:960px){
   .sheet.sheet-side{left:auto;width:min(420px,100%);align-items:stretch;justify-content:stretch}
   .sheet-side .sheet-card{height:100%;max-height:none;border-radius:0;border-left:1px solid var(--line);box-shadow:-10px 0 30px color-mix(in srgb,var(--accent) 8%,transparent)}
 }
 @media (min-width:960px){html.side-open body{padding-right:calc(420px + 32px)}}
-@media (max-width:699px){
+@media (max-width:959px){
+  .sheet.sheet-side{align-items:flex-end;padding:0}
   .sheet-side .sheet-card{max-height:72%;border-radius:22px 22px 0 0;box-shadow:0 -8px 30px color-mix(in srgb,var(--accent) 16%,transparent)}
   .sheet-side .sheet-card::before{content:'';flex:none;align-self:center;width:40px;height:4px;margin-top:8px;border-radius:2px;background:var(--line)}
   .sheet-side .ed-top{padding-top:8px}
