@@ -20,6 +20,7 @@ import { go } from '../app.js';
 
 import { TBL_EMPTY, placeTblHandles, tblAlign, editTable, commitTable, tablePaste } from './apuntes-tablas.js';
 import { suggestFor, openSuggestions, scheduleSugMarks } from './sugerencias.js';
+import { sentences, plainText } from '../suggest.js';
 
 /* ===================== apuntes ===================== */
 // Tarjetas vinculadas a cada bloque de una página: block_id → [tarjetas]
@@ -174,7 +175,7 @@ export function renderPage() {
         <button type="button" class="iconbtn" data-act="pg-redo" aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled>${icon('redo-2', { size: 18 })}</button></span>
       <button type="button" class="iconbtn pg-tocbtn" data-act="toc" aria-label="Índice" title="Índice del apunte" aria-haspopup="true" hidden>${icon('list', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="find" aria-label="Buscar en el apunte" title="Buscar y reemplazar (Ctrl+F)">${icon('search', { size: 18 })}</button>
-      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" title="Propone preguntas a partir de este apunte">${icon('sugerencia', { size: 15 })} <span>Sugerir preguntas</span></button>
+      <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" aria-label="Sugerir preguntas" title="Propone preguntas a partir de este apunte">${icon('sugerencia', { size: 15 })} <span>Sugerir preguntas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
     <div class="pg-head">
@@ -209,6 +210,7 @@ export function renderPage() {
       <button type="button" class="sb-cloze" data-act="sel-cloze" title="Convertir en hueco">Hueco</button>
       <button type="button" class="sb-done" data-act="sel-done">Hecho</button></div>
     <div id="fmtMore" class="fmt-more" role="menu" aria-label="Más formato" hidden>
+      <button type="button" role="menuitem" class="fmt fmt-more-i" data-nfmt="i" aria-label="Cursiva"><i>I</i></button>
       <button type="button" role="menuitem" class="fmt" data-nfmt="u" aria-label="Subrayado"><u>U</u></button>
       <button type="button" role="menuitem" class="fmt" data-nfmt="s" aria-label="Tachado"><s>S</s></button>
       <button type="button" role="menuitem" class="fmt" data-nfmt="code" aria-label="Código">${icon('code', { size: 15 })}</button>
@@ -222,6 +224,7 @@ export function renderPage() {
   histStart(p);
   if (S.bsel?.pageId !== p.id) S.bsel = null;
   growTitle();
+  fitCrumbs();
   afterBlocksDrawn();
   if (S.focusBlock) {
     revealBlock(S.focusBlock);
@@ -238,7 +241,23 @@ export function growTitle() {
   t.style.height = 'auto';
   t.style.height = t.scrollHeight + 'px';
 }
-addEventListener('resize', () => { if (S.view === 'page') growTitle(); });
+addEventListener('resize', () => { if (S.view === 'page') { growTitle(); fitCrumbs(); } });
+// La ruta de arriba, si no cabe, se corta en una palabra entera con «…» (y nunca tras un paréntesis sin cerrar)
+export function fitCrumbs() {
+  for (const el of document.querySelectorAll('.pg-top .crumb-cur')) {
+    const full = el.dataset.full || el.textContent;
+    el.dataset.full = full; el.textContent = full; el.removeAttribute('title');
+    const w = full.split(' ');
+    while (el.scrollWidth > el.clientWidth + 1 && w.length > 1) {
+      w.pop();
+      let t = w.join(' ');
+      const open = t.lastIndexOf('(');
+      if (open > t.lastIndexOf(')') && open > 0) t = t.slice(0, open);
+      el.textContent = t.replace(/[\s,;:·(–-]+$/, '') + '…';
+      el.title = full;
+    }
+  }
+}
 // Intro en el título no añade una línea: termina de escribirlo
 // Intro en el título: termina de escribirlo y baja al primer bloque de texto
 document.addEventListener('keydown', e => {
@@ -1663,7 +1682,10 @@ export function cardFromSelection(kind) {
     if (x) prefill = { typeId: 'cloze', fields: { x } };
     else toast('No se ha podido marcar el hueco aquí: complétalo a mano');
   }
-  if (!prefill) prefill = deckLang(deckId) ? { typeId: 'vocab', fields: { w: text } } : { typeId: 'basic', fields: { a: text } };
+  // Básica: la frase donde está lo seleccionado, con un hueco en su sitio, como pregunta («El Terror lo dirigió ___ entre…»)
+  const sentence = sentences(plainText(b.text)).find(x => x.includes(text)) || '';
+  const ask = sentence && sentence !== text ? sentence.replace(text, '___') : '';
+  if (!prefill) prefill = deckLang(deckId) ? { typeId: 'vocab', fields: { w: text } } : { typeId: 'basic', fields: { q: ask, a: text } };
   getSelection()?.removeAllRanges();
   S.pageSel = null;
   cardForm(null, { deckId, prefill, source: { page_id: p.id, block_id: b.id } });

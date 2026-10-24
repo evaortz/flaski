@@ -950,7 +950,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* ===================== Apuntes ===================== */
 .pg-top{display:flex;align-items:center;gap:8px;min-height:36px}
 .pg-top .crumbs{min-width:0;overflow:hidden;flex-wrap:nowrap;white-space:nowrap}
-.pg-top .crumbs .crumb-cur{overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+.pg-top .crumbs .crumb-cur{overflow:hidden;text-overflow:ellipsis;max-width:40vw;min-width:0}
 .pg-saved{font-size:12.5px;color:var(--faint);white-space:nowrap}
 .pg-saved[data-state="error"]{color:var(--tag-red)}
 .pg-head{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:18px}
@@ -1285,7 +1285,8 @@ pre.nb-code{margin:0;font-size:14px;white-space:pre-wrap;line-height:1.55}
 .sug-toggle{display:block;margin:0 auto 12px}
 .sug-empty ul{padding-left:20px}
 .sug-wrap .ed-foot{flex:none;background:var(--bg);border-top:1px solid var(--line);align-items:center}
-@media (max-width:620px){.pg-suggest span{display:none}}
+/* Por debajo de 900 px, «Sugerir preguntas» solo con su icono (lleva aria-label), como los demás de la barra */
+@media (max-width:899px){.pg-suggest span{display:none}.pg-top .pg-suggest{padding:0;min-width:40px;justify-content:center}}
 
 /* ---------- Editor de tablas ---------- */
 /* Editor de tablas: celdas que crecen con el texto, asas de fila y columna, «+» para añadir */
@@ -2938,8 +2939,12 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .ed-seg{flex:1 0 auto;min-height:42px;padding:0 14px;border:0;border-radius:20px;background:transparent;color:var(--muted);font-size:14.5px;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .ed-seg:hover{color:var(--fg)}
 .ed-seg[aria-pressed="true"]{background:var(--bg);color:var(--accent-ink);font-weight:600;box-shadow:0 1px 3px rgba(20,24,60,.12)}
-.ed-page .ed-typebar,.quickform .ed-typebar{flex-wrap:nowrap;gap:8px;align-items:center}
-.ed-typebar .ed-segs{flex:1;min-width:0}
+/* Los 4 tipos caben siempre (en dos filas si hace falta) y la fila no se desplaza; «Más tipos», debajo a la derecha */
+.ed-page .ed-typebar,.quickform .ed-typebar{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.ed-typebar .ed-segs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+.ed-typebar .ed-seg{min-width:0;padding:0 8px;white-space:normal;line-height:1.15;text-align:center}
+@media (max-width:560px){.ed-typebar .ed-segs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ed-typebar .ed-seg-more{align-self:flex-end;min-height:40px;border:0;background:transparent;padding:0 4px}
 .ed-seg-more{flex:none;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 14px;border:1px solid var(--line-strong);border-radius:22px;background:var(--bg);color:var(--accent-ink);font-size:14.5px;font-weight:600;white-space:nowrap;cursor:pointer}
 .ed-seg-more:hover{background:var(--soft)}
 .ed-page .ef:hover,.ed-page .ef:focus-within{background:none;box-shadow:none}
@@ -3036,11 +3041,8 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 .tp-foot{position:sticky;bottom:0;display:flex;gap:10px;padding:14px 0 calc(14px + env(safe-area-inset-bottom,0px));margin-top:auto;background:linear-gradient(transparent,var(--bg) 18%)}
 .tp-foot .primary{flex:1;min-height:52px;border-radius:26px;font-weight:600;box-shadow:0 4px 0 var(--accent-deep)}
 .tp-foot .ghost{min-height:52px;border-radius:26px;padding:0 20px}
-@media (min-width:900px){
-  .ed-page .ed-picker{position:absolute;top:0;right:0;bottom:0;width:440px;border-left:1px solid var(--line);background:var(--bg);z-index:5;box-shadow:-10px 0 30px rgba(20,24,60,.08)}
-  .ed-page.picking > .ed-body{display:grid}
-  .ed-page.picking > .ed-foot{display:flex}
-}
+.ed.picking > .ed-top{display:none}
+.tp-top{justify-content:flex-start;gap:12px}
 .quickform.picking > :not(#typePicker){display:none}
 .quickform .ed-picker{padding:0}
 .quickform .ed-lab{margin-top:6px}
@@ -3048,3 +3050,15 @@ select#frLang{min-height:48px;border-radius:14px;font-size:16px}
 /* Ajustes › Voz: qué idiomas de tus listas tienen voz */
 .voice-test{margin:6px 0 0;font-size:13.5px;color:var(--muted)}
 .voice-test.is-warn{color:var(--fg)}
+
+/* Barra de lo seleccionado en un móvil estrecho: la cursiva también va en «…» y todo más junto, para que quepa «Hecho» */
+.fmt-more-i{display:none}
+@media (max-width:420px){
+  #selBar{padding:6px;gap:2px}
+  #selBar .fmt-btns>[data-nfmt="i"]{display:none}
+  .fmt-more .fmt-more-i{display:inline-flex}
+  #selBar .selbar-sep{margin:4px 2px}
+  #selBar :is(.sb-card,.sb-cloze,.sb-done){font-size:13.5px;padding:0 10px}
+  #selBar .sb-card{padding:0 12px}
+  #selBar .sb-done{padding:0 8px}
+}

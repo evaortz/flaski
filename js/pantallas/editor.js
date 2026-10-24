@@ -336,7 +336,7 @@ export function markPickedType(id, apply = false) {
 }
 export function useType() { if (S.pick?.sel) markPickedType(S.pick.sel, true); }
 const typePickerHTML = () => `<div class="ed-picker" id="typePicker" role="dialog" aria-label="Elige el tipo" hidden>
-      <div class="tp-top"><h2 class="tp-title">Elige el tipo</h2><button type="button" class="back-round" data-act="close-picker" aria-label="Cerrar">${icon('x', { size: 18 })}</button></div>
+      <div class="tp-top"><button type="button" class="back-round" data-act="close-picker" aria-label="Volver">${icon('chevron-left', { size: 20 })}</button><h2 class="tp-title">Elige el tipo</h2></div>
       <label class="tp-search">${icon('search', { size: 17 })}<input id="typeSearch" type="search" placeholder="Buscar un tipo" aria-label="Buscar un tipo" autocomplete="off"></label>
       <div class="tp-body"></div>
       <div class="tp-foot"><button type="button" class="primary" data-act="use-type">Usar</button><button type="button" class="ghost" data-act="close-picker">Cancelar</button></div>
@@ -373,7 +373,8 @@ function fieldPlaceholder(f, type) {
   const roles = fieldRoles(type, f.id);
   if (roles.includes('huecos')) return 'Escribe el texto y marca los huecos con {{ }}';
   if (roles.includes('ordenar')) return 'La frase en orden correcto. Piezas separadas por espacios o «/»';
-  return requiredField(type, f.id) ? `Escribe ${f.name.toLowerCase()}…` : 'Opcional';
+  if (/^nota$/i.test(f.name)) return 'Truco para recordarla, raíz, falsos amigos…';
+  return requiredField(type, f.id) ? `Escribe ${f.name.replace(/\s*\(opcional\)/i, '').toLowerCase()}…` : '';
 }
 function fieldInputs(type, values) {
   const occ = type.templates.find(t => t.mode === 'occlusion');
@@ -383,12 +384,13 @@ function fieldInputs(type, values) {
     if (occ && f.id === occ.image) return occEditorHTML(values[occ.image], values[occ.answer]);
     const req = requiredField(type, f.id);
     // Los campos que dan la pregunta llevan su nombre grande; los demás, «· opcional» (la nota, cuándo se ve)
-    const main = req || (i < 2 && fieldRoles(type, f.id).length > 0 && !/^nota$/i.test(f.name));
+    const optName = /\s*\(opcional\)/i.test(f.name), name = f.name.replace(/\s*\(opcional\)/i, '');
+    const main = !optName && (req || (i < 2 && fieldRoles(type, f.id).length > 0 && !/^nota$/i.test(f.name)));
     const cjk = /^(ja|zh)/.test(f.lang || '');
     const help = f.help || (f.lang?.startsWith('ja') ? 'Furigana: escribe el kanji y pulsa 振 en la barra (o escribe 漢字[かんじ]).' : '');
     return `<div class="ef${main ? ' ef-req' : ''}" data-ef="${f.id}">
       <div class="ef-head">
-        <label class="ef-name" for="fld-${f.id}">${esc(f.name)}${main ? '' : `<span class="ef-opt">${/^nota$/i.test(f.name) ? ' · solo la ves al dar la vuelta' : ' · opcional'}</span>`}</label>
+        <label class="ef-name" for="fld-${f.id}">${esc(name)}${main ? '' : `<span class="ef-opt">${/^nota$/i.test(f.name) ? ' · solo la ves al dar la vuelta' : ' · opcional'}</span>`}</label>
         ${f.lang && ttsAvailable() ? `<button type="button" class="ef-say" data-say-input="${f.id}" aria-label="Escuchar ${esc(f.name)}" title="Escuchar">${SPEAK_ICON}</button>` : ''}
       </div>
       <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>

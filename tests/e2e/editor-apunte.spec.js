@@ -46,7 +46,8 @@ test('barra de lo seleccionado: cobalto; pulsarla no quita la selección y se pu
   await expect(ed(page)).toBeFocused();
   expect(await ed(page).evaluate(t => t.value.slice(t.selectionStart, t.selectionEnd))).toBe('crédito');
   // Otro botón seguido, sobre la misma selección
-  await bar.locator('[data-nfmt="i"]').click();
+  if (info.project.name === 'escritorio') await bar.locator('[data-nfmt="i"]').click();
+  else { await bar.locator('[data-act="fmt-more"]').click(); await page.locator('#fmtMore [data-nfmt="i"]').click(); }   // a 375 px la cursiva va en «…»
   await expect(ed(page)).toHaveJSProperty('value', 'Si suben los tipos, el ***crédito*** sale más caro.');
   // Deshacer paso a paso
   await page.keyboard.press('Control+z');
