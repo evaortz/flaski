@@ -144,8 +144,8 @@ export function matchesDeck(d, { query = '', tagIds = [], archived = false }) {
   if (!!d.archived !== archived) return false;
   if (tagIds.length && !tagIds.every(t => (d.tags || []).includes(t))) return false;
   if (query) {
-    const q = query.toLocaleLowerCase();
-    if (!(`${d.name} ${d.description || ''}`).toLocaleLowerCase().includes(q)) return false;
+    const f = t => String(t).toLocaleLowerCase().replace(/ñ/g, '\u0001').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0001/g, 'ñ');
+    if (!f(`${d.name} ${d.description || ''}`).includes(f(query))) return false;
   }
   return true;
 }

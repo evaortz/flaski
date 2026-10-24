@@ -63,7 +63,9 @@ new MutationObserver(() => {
   queueMicrotask(() => { hydrateQueued = false; hydrate(document); });
 }).observe(document.body, { childList: true, subtree: true });
 export const plain = s => toPlain(stripImages(s));
-export const norm = s => plain(s).toLocaleLowerCase();
+// Para buscar y comparar: sin mayúsculas ni tildes ni diéresis (á→a, ü→u, ö→o…); la ñ se queda como ñ
+export const fold = s => String(s ?? '').toLocaleLowerCase().replace(/ñ/g, '\u0001').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0001/g, 'ñ');
+export const norm = s => fold(plain(s));
 export const cardList = () => [...S.cards.values()];
 let toastTimer;
 export function toast(msg) {

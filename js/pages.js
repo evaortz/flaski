@@ -212,8 +212,8 @@ export function moveBlocks(blocks, ids, dir) {
 }
 
 /* ---------------- Buscar en un texto (sin distinguir mayúsculas ni tildes) ---------------- */
-// Cada carácter se pliega a uno solo: las posiciones valen para el texto original
-export const foldSame = s => String(s ?? '').replace(/[^]/g, c => (c.normalize('NFD')[0] || c).toLowerCase());
+// Cada carácter se pliega a uno solo: las posiciones valen para el texto original (la ñ se queda como ñ)
+export const foldSame = s => String(s ?? '').replace(/[^]/g, c => (/[ñÑ]/.test(c) ? 'ñ' : (c.normalize('NFD')[0] || c).toLowerCase()));
 export function findAll(text, q) {
   const t = foldSame(text), n = foldSame(q), out = [];
   if (!n) return out;
