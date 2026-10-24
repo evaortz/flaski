@@ -15,7 +15,7 @@ import { formatCode, parseInvite } from './friends.js';
 import { PRESELECT } from './suggest.js';
 import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
-import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown } from './pages.js';
+import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
 import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
@@ -30,7 +30,7 @@ import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
-import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
+import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -46,8 +46,7 @@ export function go(view, extra = {}) {
 // Un apunte que se deja vacío y sin título (y sin preguntas) se descarta al salir de él
 function dropEmptyPage(id) {
   const p = S.pages.get(id);
-  if (!p || (p.title || '').trim() || p.icon || cardList().some(c => c.page_id === id)) return;
-  if (p.blocks.some(b => String(b.text || '').trim() || ['img', 'table', 'hr', 'code'].includes(b.type))) return;
+  if (!isEmptyPage(p, cardList().some(c => c.page_id === id))) return;
   S.pages.delete(id);
   api.deletePage(id).catch(() => {});
 }
@@ -588,6 +587,8 @@ document.addEventListener('click', async e => {
       } catch (err) { fail(err); }
       return;
     }
+    // Editor en el móvil: Borrar, Duplicar y Reiniciar progreso en «⋯ Más»
+    case 'ed-extra': { const f = b.closest('.ed-foot'), on = !f.classList.contains('show-extra'); f.classList.toggle('show-extra', on); b.setAttribute('aria-expanded', on); return; }
     case 'map-resist': return practiceResist(ds.scope);
     case 'map-practice': return practiceCell(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
     case 'map-ficha': return openFicha(b.closest('[data-map-scope]').dataset.mapScope, ds.key);
@@ -772,7 +773,7 @@ document.addEventListener('submit', async e => {
     return;
   }
   if (kind === 'renametag') {
-    const name = form.querySelector('.t-name').value.trim().slice(0, 40);
+    const name = tagName(form.querySelector('.t-name').value);
     if (!name) return;
     if ([...S.tags.values()].some(t => t.id !== form.dataset.id && t.name.toLocaleLowerCase() === name.toLocaleLowerCase())) return toast('Ya tienes una etiqueta con ese nombre');
     try { await updateTagFields(form.dataset.id, { name }); } catch (err) { fail(err); }

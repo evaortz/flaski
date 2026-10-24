@@ -22,7 +22,7 @@ function seedHoy(page) {
   Object.assign(db.cards.find(c => c.id === weak.card_id), { page_id: 'p-t4', block_id: 'b-gr' });
   Object.assign(db.cards.find(c => c.id === due.card_id), { page_id: 'p-t4', block_id: 'b-inv' });
   Object.assign(prog(due.card_id), { due: iso(now - DAY) });
-  const exam = new Date(now + 50 * DAY);
+  const exam = new Date(now); exam.setDate(exam.getDate() + 50);
   const examKey = `${exam.getFullYear()}-${String(exam.getMonth() + 1).padStart(2, '0')}-${String(exam.getDate()).padStart(2, '0')}`;
   db.settings.prefs = { home: { goal: 30 }, plan: { nodes: { 'f:f-macro': { exam: examKey } } } };
   return page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
@@ -98,7 +98,8 @@ test('Lo que flojea: también las listas con preguntas sueltas que te cuestan', 
 });
 
 // Fecha AAAA-MM-DD dentro de d días
-const dayKey = d => { const t = new Date(Date.now() + d * 864e5); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+// Días de calendario (el día del cambio de hora no tiene 24 h)
+const dayKey = d => { const t = new Date(); t.setDate(t.getDate() + d); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 function seedDb(page, db) {
   return page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
 }

@@ -12,6 +12,7 @@ import { openFirstRun, TEMAS, fileKind } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
 import { folderKey } from '../plan.js';
 import { markdownToPage, titleFromFile } from '../notesio.js';
+import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
@@ -145,6 +146,7 @@ export async function onSignedIn(session) {
     netState();
     migrateDeckLangs();
     dedupeTypes();
+    if (!S.fromCache) dropEmptyPages();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
     restoredNotice();
@@ -175,6 +177,12 @@ function applyData(d) {
   S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
   S.pagesMissing = !!d.pagesMissing;
   S.pageTagsMissing = !!d.pageTagsMissing;
+}
+
+// Apuntes vacíos de antes de que se descartaran al salir (sin título, sin nada escrito y sin preguntas): fuera
+function dropEmptyPages() {
+  const used = new Set([...S.cards.values()].map(c => c.page_id));
+  for (const p of [...S.pages.values()]) if (isEmptyPage(p, used.has(p.id))) { S.pages.delete(p.id); api.deletePage(p.id).catch(() => {}); }
 }
 
 /* ===================== bienvenida ===================== */

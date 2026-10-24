@@ -326,3 +326,8 @@ export function pageSnippet(page, n = 110) {
 
 // Texto para buscar en una página
 export const pageSearchText = page => `${page.title || ''} ${(page.blocks || []).map(b => b.text).join(' ')}`;
+// Un apunte vacío: sin título ni icono, sin preguntas y sin nada escrito (ni imagen, tabla, separador o código)
+export function isEmptyPage(p, hasCards = false) {
+  if (!p || hasCards || String(p.title || '').trim() || p.icon) return false;
+  return !(p.blocks || []).some(b => String(b.text || '').trim() || ['img', 'table', 'hr', 'code'].includes(b.type));
+}

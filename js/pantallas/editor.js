@@ -136,7 +136,7 @@ export function folderSelect(id, selected, exclude = null, rootLabel = 'Ninguna 
 export function tagPicker(selected = [], color = nextTagColor(), { compact = false, open = false } = {}) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const opt = (t, top) => `<label class="tagopt" data-tag-name="${esc(norm(t.name))}" ${top ? 'data-top' : 'hidden'}><input type="checkbox" name="f-tag" value="${t.id}" ${selected.includes(t.id) ? 'checked' : ''}>${tagSticker(t, { big: true })}</label>`;
-  const search = `<input id="f-newtag" maxlength="40" placeholder="Buscar o crear etiqueta" aria-label="Buscar o crear etiqueta" autocomplete="off">`;
+  const search = `<input id="f-newtag" maxlength="25" placeholder="Buscar o crear etiqueta" aria-label="Buscar o crear etiqueta" autocomplete="off">`;
   const colors = `<div class="tagpick-colors" role="radiogroup" aria-label="Color de la etiqueta nueva"><span>Color</span>${TAG_COLORS.map(c => `<label class="tcdot" data-tc="${c.id}" title="${c.label}"><input type="radio" name="f-newtag-color" value="${c.id}" ${c.id === color ? 'checked' : ''}><span class="sr">${c.label}</span></label>`).join('')}</div>`;
   const create = '<button type="button" class="link tag-create" data-act="add-tag-inline" hidden>Crear</button>';
   if (!compact) return `<div class="tagpick" id="tagPick">${search}
@@ -161,10 +161,10 @@ export function redrawTagPicker(checked, { open = false } = {}) {
 }
 // Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear #…»
 export function filterTagPicker() {
-  const q = norm($('#f-newtag')?.value.trim() || ''), btn = document.querySelector('#tagPick .tag-create');
+  const name = tagName($('#f-newtag')?.value), q = norm(name), btn = document.querySelector('#tagPick .tag-create');
   for (const l of document.querySelectorAll('#tagPick .tagopt')) l.hidden = q ? !l.dataset.tagName.includes(q) : !('top' in l.dataset);
   const exact = [...S.tags.values()].some(t => norm(t.name) === q);
-  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${$('#f-newtag').value.trim()}`; }
+  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${name}`; }
 }
 // El color de una etiqueta nueva: el primero que aún no usa ninguna (si están todos, por orden)
 export function nextTagColor() {
@@ -236,7 +236,7 @@ export function folderForm(f) {
 export function tagsSheet(renaming = null) {
   const tags = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   const row = t => `<li data-tag-row="${t.id}">
-      ${renaming === t.id ? `<form data-form="renametag" data-id="${t.id}" class="tl-rename"><input class="t-name" value="${esc(t.name)}" maxlength="40" aria-label="Nombre de la etiqueta" required><button class="primary small-btn" type="submit">Guardar</button><button type="button" class="link" data-act="manage-tags">Cancelar</button></form>`
+      ${renaming === t.id ? `<form data-form="renametag" data-id="${t.id}" class="tl-rename"><input class="t-name" value="${esc(t.name)}" maxlength="25" aria-label="Nombre de la etiqueta" required><button class="primary small-btn" type="submit">Guardar</button><button type="button" class="link" data-act="manage-tags">Cancelar</button></form>`
         : `<span class="tl-tag">${tagSticker(t, { big: true })}</span>`}
       <span class="tl-n">${plural(tagCount(t.id), 'pregunta', 'preguntas')}</span>
       <span class="tl-colors" role="group" aria-label="Color de #${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
@@ -244,7 +244,7 @@ export function tagsSheet(renaming = null) {
   openSheet(`<h2 class="hand-h">Gestionar etiquetas</h2>
     <p class="muted small">Sirven para juntar listas y apuntes de distintas carpetas (<i>examen junio</i>, <i>verbos</i>…) y estudiarlos juntos. Al borrar una, las preguntas se quedan: solo pierden la etiqueta.</p>
     <ul class="taglist">${tags.map(row).join('') || '<li class="muted small">Aún no tienes etiquetas.</li>'}</ul>
-    <form data-form="newtag" class="newtag-row"><input id="nt-name" maxlength="40" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta"><button class="primary" type="submit">Crear</button></form>
+    <form data-form="newtag" class="newtag-row"><input id="nt-name" maxlength="25" placeholder="Nueva etiqueta" aria-label="Nueva etiqueta"><button class="primary" type="submit">Crear</button></form>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="save-tags">Hecho</button></div>`);
   if (renaming) { const i = document.querySelector('.tl-rename .t-name'); i?.focus(); i?.select(); }
 }
@@ -514,9 +514,10 @@ export function cardForm(c, { deckId: forcedDeck, prefill = null, source = null,
     </div>
     ${typePickerHTML()}
     <footer class="ed-foot">
-      ${c ? `<button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Borrar</button>
+      ${c ? `<span class="ed-extra" id="edExtra"><button type="button" class="ghost danger small-btn" data-act="ask-delete-card">Borrar</button>
         <button type="button" class="ghost small-btn" data-act="dup-card">Duplicar</button>
-        ${p ? '<button type="button" class="ghost small-btn" data-act="ask-reset-card">Reiniciar progreso</button>' : ''}` : ''}
+        ${p ? '<button type="button" class="ghost small-btn" data-act="ask-reset-card">Reiniciar progreso</button>' : ''}</span>
+        <button type="button" class="ghost small-btn ed-xbtn" data-act="ed-extra" aria-expanded="false" aria-controls="edExtra">${icon('ellipsis', { size: 18 })} Más</button>` : ''}
       ${side ? `<button type="submit" class="primary">Crear pregunta</button>
         <button type="button" class="ghost" data-act="save-card-more">Crear y otra</button><span class="spacer"></span><kbd class="ed-kb">Ctrl+Enter</kbd>`
       : `<span class="spacer"></span>
@@ -854,8 +855,11 @@ export async function saveFolderForm(form) {
     go('decks', { folderId: f.id });
   } catch (e) { btn.disabled = false; fail(e); }
 }
+// El nombre de una etiqueta: sin la «#» del principio ni espacios alrededor, y como mucho 24 letras
+export const TAG_MAX = 24;
+export const tagName = s => String(s ?? '').trim().replace(/^#+/, '').trim().slice(0, TAG_MAX);
 export async function addTag(name, color = nextTagColor()) {
-  name = name.trim().slice(0, 40);
+  name = tagName(name);
   if (!name) return null;
   const existing = [...S.tags.values()].find(t => t.name.toLocaleLowerCase() === name.toLocaleLowerCase());
   if (existing) return existing;

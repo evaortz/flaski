@@ -3,7 +3,7 @@ import { drawStats } from '../stats.js';
 import { heatmapView, progressSeries, progressView, innerW, streaks, scrollChartsToEnd } from '../charts.js';
 import { icon } from '../icons.js';
 import { folderPath } from '../org.js';
-import { pageTitle, STATUS } from '../pages.js';
+import { pageTitle, STATUS, isEmptyPage } from '../pages.js';
 import { examStatus, nextExam, decksUnder, EXAM_NEAR } from '../plan.js';
 import { daysLeft } from '../atrasos.js';
 import { weekDays } from '../friends.js';
@@ -127,7 +127,8 @@ function pendingFolders() {
 
 // «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
 function lastPageHTML() {
-  const last = [...S.pages.values()].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
+  const used = new Set(cardList().map(c => c.page_id));
+  const last = [...S.pages.values()].filter(p => !isEmptyPage(p, used.has(p.id))).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
   if (!last) return '';
   return `<button class="hoy-last" data-page="${last.id}"><span class="hoy-last-k">Lo dejaste aquí</span><b>${esc(pageTitle(last))}</b>${icon('chevron-right', { size: 16 })}</button>`;
 }
