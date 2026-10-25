@@ -99,7 +99,7 @@ test('simulacro a medias: al volver, «te quedan N min · Seguir / Descartar», 
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
   await page.reload();
   await expect(page.locator('#sheetBody')).toContainText('Tienes un simulacro a medias');
-  await expect(page.locator('#sheetBody')).toContainText('te quedan 18 min');
+  await expect(page.locator('#sheetBody')).toContainText('te quedan 17 min');
   await page.locator('#sheetBody [data-sim="continue"]').click();
   await expect(page.locator('.sm-head')).toContainText('pregunta 2 de');
   await expect(page.locator('.sm-clock [data-clock]')).toHaveText(/^1[78]:\d\d$/);
@@ -138,4 +138,71 @@ test('Hoy: con un examen a menos de un mes, «Simulacro de la semana» abre «Pr
   await nav(page, 'Hoy');
   await page.locator('#main [data-sim="prep"]').click();
   await expect(page.locator('#sheetBody h2')).toHaveText('Preparar simulacro');
+});
+
+/* ---------------- remates ---------------- */
+// Un simulacro guardado con los números que se pidan, y su nota abierta
+async function showRec(page, deckId, rec) {
+  await page.evaluate(async ([deckId, rec]) => {
+    const { S } = await import('/js/comun.js'); const { go } = await import('/js/app.js');
+    const ids = [...S.cards.values()].map(c => c.id);
+    const res = [...Array(rec.ok).fill('o'), ...Array(rec.bad).fill('x'), ...Array(rec.blank).fill('b')];
+    const r = { id: 'r' + Math.random(), exam: deckId, at: Date.now(), done: Date.now(), date: '2026-10-20', name: 'Tema', settings: { pen: rec.pen }, n: res.length, min: 5, topics: [{ name: 'Tema', o: rec.ok, x: rec.bad, b: rec.blank }],
+      qs: res.map((v, i) => [ids[i], '', 0, v, null]), ...rec };
+    S.prefs.sims = [...(S.prefs.sims || []), r];
+    go('sim', { simShow: { id: r.id, mode: 'result' } });
+  }, [deckId, rec]);
+  await expect(page.locator('.sm-score b')).toBeVisible();
+}
+
+test('remates: penalización solo con fallos y en blanco, netas negativas y vuelta a la nota tras repasar los fallos', async ({ page }) => {
+  const deck = await setup(page);
+  await showRec(page, deck, { pen: 3, ok: 6, bad: 3, blank: 3, score: 5 });
+  await expect(page.locator('.sm-pen')).toHaveText('Los fallos restan ⅓: 6 − 3 ÷ 3 = 5 netas de 12. Dejaste 3 en blanco: si hubieras fallado esas, restarían 1 más.');
+  // Sin fallos no hay aviso
+  await showRec(page, deck, { pen: 3, ok: 6, bad: 0, blank: 3, score: 6.67 });
+  await expect(page.locator('.sm-pen')).not.toContainText('Dejaste');
+  // Netas negativas, nota 0: sin aviso
+  await showRec(page, deck, { pen: 4, ok: 1, bad: 9, blank: 2, score: 0 });
+  await expect(page.locator('.sm-pen')).toHaveText('Los fallos restan ¼: 1 − 9 ÷ 4 = −1,25 netas · la nota no baja de 0.');
+  // «Repasar los fallos» y, al salir, otra vez la nota
+  await page.locator('.sm-res [data-sim="fails"]').click();
+  await expect(page.locator('.studybar')).toBeVisible();
+  await page.locator('[data-act="exit"]').click();
+  await expect(page.locator('.sm-score b')).toHaveText('0');
+});
+
+test('remates: la gráfica con notas de 0 deja todos los puntos y el objetivo dentro, separados de las fechas', async ({ page }) => {
+  const deck = await setup(page);
+  await showRec(page, deck, { pen: 3, ok: 0, bad: 9, blank: 3, score: 0 });
+  await showRec(page, deck, { pen: 3, ok: 0, bad: 9, blank: 3, score: 0 });
+  const box = await page.evaluate(() => {
+    const svg = document.querySelector('.sm-chart svg'), [, , , H] = svg.getAttribute('viewBox').split(' ').map(Number);
+    return { H, cy: [...svg.querySelectorAll('circle')].map(c => Number(c.getAttribute('cy'))), goal: Number(svg.querySelector('.goal').getAttribute('y1')), d: Number(svg.querySelector('.d').getAttribute('y')) };
+  });
+  for (const cy of box.cy) { expect(cy).toBeGreaterThan(10); expect(cy).toBeLessThan(box.d - 16); }
+  expect(box.goal).toBeGreaterThan(10);
+  expect(box.goal).toBeLessThan(box.d - 16);
+});
+
+test('remates: la opción elegida se rellena de blanco y «te queda menos de 1 min»', async ({ page }) => {
+  await setup(page);
+  await openExam(page);
+  await page.locator('[data-sim="prep"]').click();
+  await page.locator('[data-sim="prep-set"][data-k="time"][data-v="30"]').click();
+  await page.locator('[data-sim="start"]').click();
+  const first = await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.sim.qs.findIndex(q => q.kind === 'choice')));
+  for (let i = 0; i < first; i++) await page.locator('[data-sim="next"]').click();
+  const opt = page.locator('.sm-choices .choice').first();
+  await opt.click();
+  await expect(opt).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  expect(await opt.locator('.ckey').evaluate(e => getComputedStyle(e).borderRadius)).toBe('50%');
+  // Quedan 40 s: «te queda menos de 1 min»; 90 s: «te queda 1 min»
+  await page.evaluate(() => import('/js/comun.js').then(({ S }) => { S.sim.since -= (30 * 60 - 40) * 1e3; }));
+  await page.locator('.sm-clock').click();
+  await expect(page.locator('.sm-note')).toContainText('Te queda menos de 1 min.');
+  await page.locator('[data-sim="back"]').first().click();
+  await page.evaluate(() => import('/js/comun.js').then(({ S }) => { S.sim.since += 50e3; }));
+  await page.locator('.sm-clock').click();
+  await expect(page.locator('.sm-note')).toContainText('Te queda 1 min.');
 });

@@ -190,7 +190,7 @@ function reviewHTML() {
     <div class="sm-kpis"><div><b>${done}</b><small>respondidas</small></div><div class="flag"><b>${flag}</b><small>para revisar</small></div><div><b>${blank}</b><small>en blanco</small></div></div>
     ${gridHTML('sm-grid-8')}
     <div class="sm-legend"><span><i class="st-done"></i>respondida</span><span><i class="st-flag"></i>para revisar</span><span><i class="st-blank"></i>en blanco</span><span><i class="st-unseen"></i>sin ver</span></div>
-    <p class="sm-note">${icon('alert-triangle', { size: 16 })} Toca un número para volver a esa pregunta.${left != null ? ` Te quedan ${Math.max(1, Math.ceil(left / 60e3))} minutos.` : ''}</p>
+    <p class="sm-note">${icon('alert-triangle', { size: 16 })} Toca un número para volver a esa pregunta.${left != null ? ` ${cap(leftText(left))}.` : ''}</p>
     <button class="sm-go" data-sim="submit">Entregar y ver la nota</button>
     ${flag ? `<button class="sm-go2" data-sim="goto-flag">Seguir · ir a ${flag === 1 ? 'la 1' : `las ${flag}`} para revisar</button>` : ''}</div>`;
 }
@@ -251,6 +251,9 @@ function finish() {
 
 /* ---------------- la nota y las respuestas ---------------- */
 const recOf = id => (S.prefs.sims || []).find(s => s.id === id);
+// «te quedan N min» redondea hacia abajo; con menos de un minuto, «te queda menos de 1 min»
+const leftText = ms => { const m = Math.floor(ms / 60e3); return m < 1 ? 'te queda menos de 1 min' : m === 1 ? 'te queda 1 min' : `te quedan ${m} min`; };
+const cap = t => t[0].toUpperCase() + t.slice(1);
 const penText = p => (p === 3 ? '⅓' : p === 4 ? '¼' : '');
 function resultHTML() {
   const r = recOf(S.simShow.id);
@@ -263,7 +266,7 @@ function resultHTML() {
     <div class="sm-score"><b>${dec(r.score)}</b><span>sobre 10</span></div>
     ${ctx ? `<p class="sm-ctx">${ctx}</p>` : ''}
     <div class="sm-kpis"><div><b>${r.ok}</b><small>${r.ok === 1 ? 'acierto' : 'aciertos'}</small></div><div class="bad"><b>${r.bad}</b><small>${r.bad === 1 ? 'fallo' : 'fallos'}</small></div><div><b>${r.blank}</b><small>en blanco</small></div></div>
-    ${pen ? `<p class="sm-pen">Los fallos restan ${penText(pen)}: ${r.ok} − ${r.bad} ÷ ${pen} = ${dec(net)} netas de ${r.n}.${r.blank ? ` Dejar en blanco ${r.blank} te ha salvado algo.` : ''}</p>` : ''}
+    ${pen ? `<p class="sm-pen">Los fallos restan ${penText(pen)}: ${r.ok} − ${r.bad} ÷ ${pen} = ${net < 0 ? `−${dec(-net)} netas · la nota no baja de 0` : `${dec(net)} netas de ${r.n}`}.${r.bad && r.blank && r.score > 0 ? ` Dejaste ${r.blank} en blanco: si hubieras fallado esas, restarían ${dec(Math.round((r.blank / pen) * 100) / 100)} más.` : ''}</p>` : ''}
     <h2 class="sm-h2">Por tema</h2>
     <ul class="sm-topics">${r.topics.map(t => { const n = t.o + t.x + t.b; return `<li><div><span>${esc(t.name)}</span><span>${t.o} de ${n}</span></div><div class="sm-tb"><i class="o" style="width:${(100 * t.o) / n}%"></i><i class="x" style="width:${(100 * t.x) / n}%"></i><i class="b" style="width:${(100 * t.b) / n}%"></i></div></li>`; }).join('')}</ul>
     <div class="sm-legend"><span><i class="o"></i>acierto</span><span><i class="x"></i>fallo</span><span><i class="b"></i>en blanco</span></div>
@@ -300,7 +303,12 @@ function answersHTML() {
 function chartSVG(exam, light = false) {
   const all = simsOf(exam).slice(-8), goal = goalOf(exam), W = 300, H = 120, pad = 22;
   if (!all.length) return '';
-  const x = i => (all.length === 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (all.length - 1)), y = v => H - 24 - (v / 10) * (H - 44);
+  // Escala: del mínimo al máximo (notas y objetivo) con 1 punto de margen, al menos 4 de alto y dentro de 0–10
+  const vals = [...all.map(s => s.score), goal];
+  let lo = Math.max(0, Math.floor(Math.min(...vals)) - 1), hi = Math.min(10, Math.ceil(Math.max(...vals)) + 1);
+  if (hi - lo < 4) { const pad2 = (4 - (hi - lo)) / 2; lo = Math.max(0, lo - pad2); hi = Math.min(10, lo + 4); lo = Math.max(0, hi - 4); }
+  const top = 26, bottom = H - 30;
+  const x = i => (all.length === 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (all.length - 1)), y = v => bottom - ((v - lo) / (hi - lo)) * (bottom - top);
   const pts = all.map((s, i) => `${x(i)},${y(s.score)}`).join(' ');
   return `<button type="button" class="sm-chart${light ? ' light' : ''}" data-sim="goal" data-exam="${esc(exam)}" aria-label="Tus notas; tu objetivo, ${dec(goal)}. Toca para cambiarlo">
     <svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(goal)}" y2="${y(goal)}" class="goal"/><text x="${W}" y="${y(goal) + 14}" text-anchor="end" class="goal-t">tu objetivo · ${dec(goal)}</text>
@@ -329,7 +337,7 @@ export function maybeResumeSim() {
   const p = pendingSim();
   if (!p || S.view === 'sim') return false;
   const left = p.limit ? Math.max(0, p.limit - p.elapsed) : null;
-  openSheet(`<h2 class="sheet-hand">Tienes un simulacro a medias</h2><p>${esc(p.name)} · ${left != null ? `te quedan ${Math.max(1, Math.ceil(left / 60e3))} min` : `llevas ${Math.round(p.elapsed / 60e3)} min`}</p>
+  openSheet(`<h2 class="sheet-hand">Tienes un simulacro a medias</h2><p>${esc(p.name)} · ${left != null ? leftText(left) : `llevas ${Math.round(p.elapsed / 60e3)} min`}</p>
     <div class="btnrow"><button class="ghost" data-sim="discard">Descartar</button><span class="spacer"></span><button class="primary" data-sim="continue">Seguir</button></div>`);
   return true;
 }
@@ -363,7 +371,8 @@ export function simClick(b) {
     case 'result': S.simShow = { id: S.simShow?.id || ds.id, mode: 'result' }; if (S.view !== 'sim') return go('sim'); renderSim(); return scrollTo(0, 0);
     case 'answers': S.simShow = { id: ds.id || S.simShow?.id, mode: 'answers', filter: 'all' }; if (S.view !== 'sim') return go('sim'); renderSim(); return scrollTo(0, 0);
     case 'filter': S.simShow.filter = ds.f; return renderSim();
-    case 'fails': { const r = recOf(ds.id); const ids = (r?.qs || []).filter(q => q[3] === 'x').map(q => q[0]).filter(id => S.cards.has(id)); S.simShow = null; return startSession(r.exam.startsWith('f:') ? 'folder:' + r.exam.slice(2) : r.exam, { ids }); }
+    case 'fails': { const r = recOf(ds.id); const ids = (r?.qs || []).filter(q => q[3] === 'x').map(q => q[0]).filter(id => S.cards.has(id)); S.simShow = null;
+      return startSession(r.exam.startsWith('f:') ? 'folder:' + r.exam.slice(2) : r.exam, { ids, back: ['sim', { simShow: { id: r.id, mode: 'result' } }], backLabel: 'Volver a la nota' }); }
     case 'goal': return goalSheet(ds.exam);
     case 'goal-set': S.prefs.plan.simGoal = { ...(S.prefs.plan.simGoal || {}), [ds.exam]: Number(ds.v) }; savePrefsSoon(); closeSheet(); return S.view === 'exam' ? renderExam() : renderSim();
   }

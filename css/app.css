@@ -3714,7 +3714,8 @@ i.lv-paused{border:1.5px dashed var(--line-strong)}
 .sm-bar i.st-flag{background:#FFC36B}
 .sm-topic{margin:0;font-size:13px;opacity:.8}
 .sm-q .fld-t{font-family:var(--font-hand);font-size:30px;line-height:1.2}
-.sm-choices .choice.picked{box-shadow:0 0 0 3px var(--session),0 0 0 5px #FFFFFF}
+.sm-choices .choice.picked{background:#FFFFFF;color:var(--session);border-color:#FFFFFF;font-weight:600;box-shadow:0 0 0 3px var(--session),0 0 0 5px #FFFFFF}
+.sm-choices .choice.picked .ckey{background:var(--session);color:#FFFFFF;border-radius:50%}
 .sm-typed{display:flex;align-items:center;gap:10px}
 .sm-typed input{flex:1;min-height:52px;border-radius:16px;font-size:17px}
 .sm-flipnote{margin:0;opacity:.85}

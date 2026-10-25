@@ -472,10 +472,10 @@ function segBar(ses) {
 // minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
 // firstRun: la primera tanda (tras la primera vez): explica los botones y al final pregunta la duración y el aviso
 // ids: unas preguntas concretas, toque o no repasarlas (desde el mapa); al salir se vuelve a scope
-export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids = null } = {}) {
+export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids = null, back = null, backLabel = '' } = {}) {
   const queue = ids ? ids.filter(id => S.cards.has(id)) : buildSession(scope, minutes ? shortSize(minutes) : 0);
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
-  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun, picked: !!ids };
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun, picked: !!ids, back, backLabel };
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
@@ -606,12 +606,13 @@ function countTanda() {
 }
 // Al salir, se vuelve a donde empezó la tanda: el apunte, la lista o la carpeta (si no, a Hoy)
 export function exitTarget(scope = 'all') {
+  if (S.session?.back) return S.session.back;   // p. ej. «Repasar los fallos» vuelve a la nota del simulacro
   if (scope.startsWith('page:') && S.pages.has(scope.split(':')[1])) return ['page', { pageId: scope.split(':')[1] }];
   if (scope.startsWith('folder:') && S.folders.has(scope.slice(7))) return ['decks', { folderId: scope.slice(7) }];
   if (S.decks.has(scope)) return ['deck', { deckId: scope, cardQuery: '' }];
   return ['home', {}];
 }
-const exitLabel = scope => S.mapView === scope ? 'Volver al mapa' : ({ page: 'Volver a los apuntes', decks: 'Volver a la carpeta', deck: 'Volver a la lista' }[exitTarget(scope)[0]] || 'Volver al inicio');
+const exitLabel = scope => S.session?.backLabel || (S.mapView === scope ? 'Volver al mapa' : ({ page: 'Volver a los apuntes', decks: 'Volver a la carpeta', deck: 'Volver a la lista' }[exitTarget(scope)[0]] || 'Volver al inicio'));
 export function renderStudy() {
   const ses = S.session;
   if (!ses) return go('home');
