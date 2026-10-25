@@ -472,3 +472,16 @@ mitad), repartido entre sus días, sin cambiar los de antes. Pruebas: unitaria (
 mismos antes) y e2e en `plan-d.spec.js`.
 
 **Paso D · parte 1 hecha** (puntos 0 a 3).
+
+### 4 · Ya me lo sé
+
+En la hoja de un tema, «Ya me lo sé» abre otra con «Comprobar · 10 preguntas» (y «Pasarlo a repaso sin comprobar»).
+Comprobar usa la pieza del simulacro con otras opciones: `launch({ exam, scope, n, time, pen, testOnly, fresh, mode })`
+en `simulacro.js` (el simulacro de siempre la llama con lo suyo); aquí, 10 preguntas al azar del tema (también las
+nuevas: `fresh`), sin reloj ni penalización y `mode: 'check'`. En pantalla se llama «Comprobar», nunca «simulacro» ni
+«prueba» (la cabecera, salir, entregar y el resultado). Al acabar no se guarda como simulacro: el resultado
+(`plan-tema.js`) dice «9 de 10 · Te lo sabes» o «Aún no del todo», qué pasa con el tema, «Así queda el plan» (el
+plan con el progreso como quedaría, sin guardar) y el otro caso en una nota. Al «Seguir»: con 8 o más, las acertadas
+quedan vistas, lo que no salió del tema pasa a repasos repartidos en una semana (empezando por ahí) y las falladas
+siguen como nuevas; con menos, el tema sigue en el plan y las acertadas cuentan como vistas. e2e en `plan-d.spec.js`
+(9 de 10 y 5 de 10, sin «simulacro» ni «prueba» en pantalla, y que nada cambia hasta «Seguir»).

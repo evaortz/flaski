@@ -291,3 +291,20 @@ button.p2-step-b{cursor:pointer}
 .p2-now-list b{font-weight:600;white-space:nowrap}
 .p2-after{display:flex;flex-direction:column;gap:6px;margin-top:14px;padding:18px 18px 8px;border-radius:22px;background:var(--soft)}
 .p2-after .p2-row:last-child{border-bottom:0}
+
+/* ---------- Comprobar (Ya me lo sé): el resultado ---------- */
+.p2-check{display:flex;flex-direction:column;gap:16px;padding-bottom:24px}
+.p2-check-bar{display:flex;gap:6px}
+.p2-check-bar i{flex:1;height:8px;border-radius:99px;background:var(--line-strong)}
+.p2-check-bar .r-o{background:var(--tag-green)}
+.p2-check-bar .r-x{background:var(--tag-red)}
+.p2-check-res{display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 20px;border-radius:24px;text-align:center;background:var(--tag-green-bg);color:var(--tag-green)}
+.p2-check-res.no{background:var(--tag-yellow-bg);color:var(--tag-yellow)}
+.p2-check-res > b{font-weight:400;font-size:clamp(52px,16vw,76px);line-height:1}
+.p2-check-res h1{margin:0;font-weight:400;font-size:32px}
+.p2-check-res p{margin:4px 0 0;color:var(--fg);font-size:15.5px;line-height:1.5}
+.p2-check .p2-asi{background:var(--soft)}
+.p2-check .p2-asi b{color:var(--fg)}
+.p2-check-other{padding:14px 16px;border:1.5px dashed var(--line-strong);border-radius:18px}
+.p2-check-other b{font-weight:400;font-size:19px}
+.p2-check-other p{margin:4px 0 0;font-size:14.5px;line-height:1.5}

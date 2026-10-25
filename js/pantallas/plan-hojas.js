@@ -11,6 +11,7 @@ import { plural } from './mazos.js';
 import { openSheet, closeSheet } from './editor.js';
 import { examBarHTML, shortDay, rangeDay, shortName, topicTag, topicName, deckName, calIcon, VERDICT } from './plan-ui.js';
 import { commitPlan } from './plan-guardar.js';
+import { knownSheet, startCheck, boostUntil, setBoost } from './plan-tema.js';
 import { go } from '../app.js';
 
 const FREE = [['active', 'Activo'], ['reviews', 'Solo repasar'], ['paused', 'Pausa']];
@@ -66,10 +67,12 @@ function topicSheetHTML(ex, deckId) {
   const cur = study.find(x => x.from && x.from <= dayKey()) || study[0];
   const state = t.state, starts = t.from ? `empieza el ${shortDay(t.from)}` : '';
   const rows = [];
-  if (state === 'study' || state === 'done') rows.push(row('topic-known', 'star', 'Ya me lo sé', 'pasa a repaso sin verlo como nuevo'));
+  if (state === 'study' || state === 'done') rows.push(row('topic-yalose', 'star', 'Ya me lo sé', `compruébalo con ${plural(Math.min(10, n), 'pregunta', 'preguntas')}; si aciertas ${Math.ceil(Math.min(10, n) * 0.8)}, pasa a repaso`));
   if (state === 'known') rows.push(row('topic-unknown', 'star', 'Ya lo sabes', 'volver a estudiarlo como nuevo'));
   if (state === 'study' && cur && ex.mode !== 'parallel') rows.push(row('topic-parallel', 'chart-pie', `Estudiarlo a la vez que ${topicTag(deckName(cur.id))}`, 'con un porcentaje para cada uno'));
   if (state === 'study') rows.push(row('topic-date', 'calendar', 'Fijar una fecha', ex.fixed?.[deckId] ? `antes del ${shortDay(ex.fixed[deckId])} · cambiarla` : `por ejemplo, terminarlo antes del ${shortDay(addDays(dayKey(), 10))}`));
+  const boost = boostUntil(ex.id, deckId);
+  if (seen && state !== 'exclude') rows.push(boost ? row('topic-boost-off', 'zap', `Reforzando hasta el ${shortDay(boost)}`, 'más repasos de lo que te cuesta · quitar el refuerzo') : row('topic-boost', 'zap', 'Refuerza este tema', 'más repasos de lo que te cuesta durante 7 días'));
   rows.push(state === 'exclude' ? row('topic-in', 'ban', 'Este tema no cae', 'ahora está fuera del examen · volver a meterlo') : row('topic-out', 'ban', 'Este tema no cae', 'sale del examen sin borrarlo; sus repasos siguen'));
   openSheet(`<div class="p2-sheet"><h2 class="sheet-hand">${esc(deckName(deckId))}</h2>
     <p class="muted">${esc(ex.name)} · ${plural(n, 'pregunta', 'preguntas')}, ${plural(seen, 'vista', 'vistas')}${starts ? ` · ${starts}` : ''}</p>
@@ -102,6 +105,9 @@ export function sheetClick(b) {
     case 'topic-out': closeSheet(); return commitPlan(`${topicTag(deckName(T.deckId))} no cae`, p => { const x = p.exams.find(e => e.id === T.examId); x.exclude = [...new Set([...(x.exclude || []), T.deckId])]; });
     case 'topic-in': closeSheet(); return commitPlan(`${topicTag(deckName(T.deckId))} vuelve al examen`, p => { const x = p.exams.find(e => e.id === T.examId); x.exclude = (x.exclude || []).filter(id => id !== T.deckId); });
     case 'topic-date': S.examId = T.examId; return import('./plan-examen.js').then(m => m.fixDateSheet(T.deckId));
+    case 'topic-yalose': return knownSheet(T.examId, T.deckId);
+    case 'topic-boost': return setBoost(T.examId, T.deckId, true);
+    case 'topic-boost-off': return setBoost(T.examId, T.deckId, false);
     case 'topic-parallel': {
       // Los dos a la vez, al 50 %: se abre el reparto del examen para afinarlo
       return import('./plan-reparto.js').then(m => { m.repartoSheet({ examId: T.examId, mode: 'parallel' }); S.p2Rep.within.shares = { [T.cur]: 50, [T.deckId]: 50 }; m.redrawReparto(); });

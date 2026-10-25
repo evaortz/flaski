@@ -8,6 +8,7 @@ import { newExamSheet, newExamClick, newExamInput } from './plan-nuevo.js';
 import { repartoSheet, repartoClick, shareInput, repartoAdd } from './plan-reparto.js';
 import { enTuPlanSheet, sheetClick } from './plan-hojas.js';
 import { settingsClick } from './plan-ajustes.js';
+import { startCheck } from './plan-tema.js';
 import { render, go } from '../app.js';
 
 const TIEMPO = new Set(['week', 'special', 'special-save', 'special-del', 'pause', 'pause-save', 'unpause', 'today-min', 'today-set', 'today-reset', 'time', 'late-spread', 'late-all', 'late-10']);
@@ -56,5 +57,6 @@ export function planAction(el, kind = 'click') {
     case 'entuplan': return enTuPlanSheet(ds.key);
     case 'reparto': return repartoSheet({ examId: ds.id || '' });
     case 'after-set': return setAfter(ds.id, ds.v);
+    case 'check-go': return startCheck();
   }
 }

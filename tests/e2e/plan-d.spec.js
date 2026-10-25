@@ -117,3 +117,67 @@ test('Ajustes del plan: tope de repasos, lo que quieres recordar (90 o 95 %, y l
   expect((await plan()).weekly.on).toBe(false);
   await expect(page.locator('#main #remindOn')).toBeVisible();
 });
+
+// Una oposición con un tema de 12 preguntas sin ver y su examen
+async function opoT5(page, seed) {
+  await seed({ folders: ['Opo'], decks: [{ name: 'T1 · Constitución', folder: 'Opo', cards: Array.from({ length: 20 }, (_, i) => [`c${i}`, `r${i}`]) }, { name: 'T5 · Ley 39/2015', folder: 'Opo', cards: Array.from({ length: 12 }, (_, i) => [`ley${i}`, `art${i}`]) }] });
+  await openApp(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js'); const { editPlan2 } = await import('/js/plan2-app.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const p = editPlan2();
+    p.time.week = { mon: 30, tue: 30, wed: 30, thu: 30, fri: 30, sat: 30, sun: 30 };
+    p.exams.push({ id: 'ex-opo', name: 'Opo', scope: { folders: [[...S.folders.values()][0].id], decks: [], pages: [] }, date: addDays(dayKey(), 60), lastWeek: true, after: null });
+    await api.saveSettings(S.uid, S.newPerDay, S.prefs);
+  });
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  await toPlan(page);
+  await page.locator('#main .p2-exrow').click();
+  await page.locator('#main .p2-step', { hasText: 'T5 · Ley 39/2015' }).locator('[data-p2="topic"]').click();
+}
+const noWords = async page => { const t = (await page.locator('#main').textContent()).toLowerCase(); expect(t).not.toContain('simulacro'); expect(t).not.toContain('prueba'); };
+// Las 10 preguntas (de dar la vuelta): pensarlas, entregar y decir cuántas sabías
+async function answerCheck(page, yes) {
+  for (let i = 0; i < 10; i++) {
+    await page.locator('[data-sim="think"]').click();
+    await page.locator(i < 9 ? '[data-sim="next"]' : '.sm-next[data-sim="review"]').click();
+  }
+  await noWords(page);
+  await page.locator('[data-sim="submit"]').click();
+  for (let i = 0; i < 10; i++) await page.locator(`[data-sim="self"][data-i="${i}"][data-v="${i < yes ? 'yes' : 'no'}"]`).click();
+  await page.locator('[data-sim="finish"]').click();
+}
+const progressOf = page => page.evaluate(async () => { const { S } = await import('/js/comun.js'); const d = [...S.decks.values()].find(x => x.name.startsWith('T5')).id; const cs = [...S.cards.values()].filter(c => c.deck_id === d); return { seen: cs.filter(c => S.progress.has(c.id)).length, fresh: cs.filter(c => !S.progress.has(c.id)).length }; });
+
+test('Ya me lo sé · Comprobar con 9 de 10: el tema pasa a repaso y la fallada entra como nueva («Así queda el plan» antes)', async ({ page, seed }) => {
+  await opoT5(page, seed);
+  await page.locator('#sheetBody [data-p2="topic-yalose"]').click();
+  await expect(page.locator('#sheetBody h2')).toHaveText('Ya me lo sé');
+  await page.locator('#sheetBody [data-p2="check-go"]').click();
+  await expect(page.locator('.sm-ht b')).toHaveText('Comprobar · T5 · Ley 39/2015');
+  await expect(page.locator('.sm-ht small')).toHaveText('pregunta 1 de 10');
+  await noWords(page);
+  await answerCheck(page, 9);
+  await expect(page.locator('.p2-check-res b')).toHaveText('9 de 10');
+  await expect(page.locator('.p2-check-res h1')).toHaveText('Te lo sabes');
+  await expect(page.locator('.p2-check-res p')).toContainText('La que has fallado entra como nueva');
+  await expect(page.locator('.p2-check .p2-asi')).toContainText('Así queda el plan');
+  await noWords(page);
+  // Antes de seguir no ha cambiado nada
+  expect(await progressOf(page)).toEqual({ seen: 0, fresh: 12 });
+  await page.locator('[data-sim="check-ok"]').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Opo' })).toBeVisible();
+  // 9 acertadas, vistas; 2 que no salieron, como repasos; 1 fallada, nueva
+  expect(await progressOf(page)).toEqual({ seen: 11, fresh: 1 });
+});
+
+test('Ya me lo sé · Comprobar con 5 de 10: el tema sigue en el plan y las acertadas cuentan como vistas', async ({ page, seed }) => {
+  await opoT5(page, seed);
+  await page.locator('#sheetBody [data-p2="topic-yalose"]').click();
+  await page.locator('#sheetBody [data-p2="check-go"]').click();
+  await answerCheck(page, 5);
+  await expect(page.locator('.p2-check-res b')).toHaveText('5 de 10');
+  await expect(page.locator('.p2-check-res h1')).toHaveText('Aún no del todo');
+  await page.locator('[data-sim="check-ok"]').click();
+  expect(await progressOf(page)).toEqual({ seen: 5, fresh: 7 });
+});
