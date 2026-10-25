@@ -516,3 +516,20 @@ test('13 · una fecha fijada se reparte solo entre los días en que el examen da
   assert.deepEqual(h.days[5].newBy, { b: 20 });
   assert.equal(h.exams[0].topics.find(t => t.id === 'b').finish, addDays(TODAY, 9));
 });
+
+test('14 · después del examen: con otra convocatoria siguen las nuevas; sin decidir, solo repasos; en pausa, nada', () => {
+  const past = after => {
+    const S = three([60, 0, 0], { date: addDays(TODAY, -1), after });
+    // Unos repasos del tema, para ver si siguen
+    const t0 = new Date(TODAY + 'T09:00:00').getTime();
+    for (let i = 0; i < 10; i++) { S.cards.push({ id: 'v' + i, deck_id: 'a' }); S.progress.set('v' + i, { reps: 3, interval: 5, ease: 2.5, lapses: 0, due: t0 + i * DAY, last: t0 - 5 * DAY, firstSeen: t0 - 30 * DAY }); }
+    return forecast(S);
+  };
+  const next = past('next'), keep = past('keep'), none = past(null), pause = past('pause');
+  assert.equal(next.days[0].new, 20);
+  assert.equal(next.days.reduce((s, d) => s + d.new, 0), 60);
+  for (const fc of [keep, none, pause]) assert.equal(fc.days.reduce((s, d) => s + d.new, 0), 0);
+  assert.ok(keep.days.reduce((s, d) => s + d.reviewsDue, 0) > 0);
+  assert.ok(none.days.reduce((s, d) => s + d.reviewsDue, 0) > 0);
+  assert.equal(pause.days.reduce((s, d) => s + d.reviewsDue, 0), 0);
+});

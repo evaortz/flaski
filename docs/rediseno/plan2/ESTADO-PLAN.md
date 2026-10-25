@@ -241,3 +241,8 @@ el código de antes y pasa con el arreglo.
 13. **Fechas fijadas**: confirmado. Se repartían entre todos los días con minutos hasta la fecha, también los de la
     última semana y los de la pausa del examen (`hold`), en los que ese examen no da nuevas, y el tema llegaba tarde.
     Ahora solo cuentan los días en que el examen puede dar nuevas (y, como mucho, hasta su último día de temario).
+14. **Exámenes pasados**: confirmado (lo que quedaba por ver de un examen pasado no volvía a salir nunca). Según el
+    diseño («¿Y después del examen?»: pausar, archivar, mantener o preparar otra convocatoria; por defecto, preguntar):
+    con `after: 'next'` (otra convocatoria) lo que queda sigue entrando como nuevas, con lo que no tiene examen; con
+    `keep`, o mientras no se ha contestado la pregunta (`null`), solo repasos; con `pause` o `archive`, nada (ni
+    repasos). Lo que dejaste para después (`later`) entra siempre. La pregunta al pasar la fecha es del paso D.

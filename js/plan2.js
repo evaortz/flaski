@@ -279,7 +279,12 @@ function groupsOn(P, i, rem) {
   // Lo que no tiene examen y, después de un examen, los temas que dejaste para después
   const free = [];
   for (const [id, d] of P.deckInfo) if (d.noExam && ok(id)) free.push(id);
-  for (const x of P.ex) if (x.date != null && i >= x.date) for (const id of x.later) if (ok(id) && !free.includes(id)) free.push(id);
+  // Después de un examen: lo que dejaste para después entra siempre; el resto del temario, solo si preparas otra
+  // convocatoria (after: 'next'). Sin decidir (null) o «mantener» ('keep'), solo repasos; en pausa o archivado, nada
+  for (const x of P.ex) if (x.date != null && i >= x.date) {
+    for (const id of x.later) if (ok(id) && !free.includes(id)) free.push(id);
+    if (x.e.after === 'next') for (const id of x.study) if (ok(id) && !free.includes(id)) free.push(id);
+  }
   if (free.length) gs.push({ id: 'free', x: null, ids: free, avail: free.reduce((a, id) => a + rem.get(id), 0) });
   return gs;
 }
