@@ -25,8 +25,9 @@ export function openSheet(html, { full = false, side = false } = {}) {
   // Una hoja completa (editar una pregunta) durante la tanda va con los colores de siempre, no los de la tanda
   if (full && document.body.classList.contains('in-study')) document.body.classList.replace('in-study', 'study-sheet');
   $('#sheet').hidden = false;
-  const f = $('#sheetBody').querySelector('input,textarea');
-  if (f && matchMedia('(hover:hover)').matches) setTimeout(() => f.focus(), 30);
+  // Con ratón, el cursor en el primer campo de texto (una casilla no: en la hoja de sugerencias devolvía la lista arriba)
+  const f = $('#sheetBody').querySelector('input:not([type="checkbox"]):not([type="radio"]),textarea');
+  if (f && matchMedia('(hover:hover)').matches) setTimeout(() => f.focus({ preventScroll: true }), 30);
 }
 export function closeSheet() {
   const backToSug = S.edit?.open && S.edit.sugIndex != null && S.sug;

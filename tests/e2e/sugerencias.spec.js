@@ -1,4 +1,5 @@
 // Sugerencias: actualizar tras cambiar el apunte, descartar, la ✨ de los bloques y los consejos
+import { readFileSync } from 'node:fs';
 import { test, expect, openApp, openPage } from './fixtures.js';
 
 // Un apunte ya hecho (el primer «# » es su título), abierto
@@ -139,3 +140,27 @@ test('el texto de donde sale una sugerencia acaba en «…» cuando no cabe @amb
   expect(overflow).toBe('ellipsis');
   expect(cut || text.endsWith('…')).toBe(true);
 });
+
+/* Remates de la parte 1 (revisados en el navegador), con el apunte de la Constitución */
+const CONSTITUCION = readFileSync(new URL('../../docs/rediseno/sugerencias/apuntes/constitucion-titulo-preliminar.md', import.meta.url), 'utf8');
+const openConstitucion = async (page, seed) => {
+  await withPage(page, seed, CONSTITUCION);
+  await page.locator('.pg-suggest').click();
+  await page.locator('[data-act="sug-more"]').click();
+};
+
+test('«Usar esta» en una fila de abajo: la lista no vuelve arriba y la fila sigue a la vista con sus otras formas abiertas @ambos', async ({ page, seed }) => {
+  await openConstitucion(page, seed);
+  const row = page.locator('.sug').filter({ has: page.locator('.sug-alts') }).last();
+  await row.scrollIntoViewIfNeeded();
+  await row.locator('.sug-alts summary').click();
+  const before = await page.locator('#sugMain').evaluate(el => el.scrollTop);
+  expect(before).toBeGreaterThan(200);
+  await row.locator('.sug-use').first().click();
+  await expect(page.locator('#toast')).toContainText('Cambiada');
+  const changed = page.locator('.sug').filter({ has: page.locator('.sug-alts[open]') });
+  await expect(changed).toHaveCount(1);
+  await expect(changed).toBeInViewport();
+  expect(await page.locator('#sugMain').evaluate(el => el.scrollTop)).toBeGreaterThan(200);
+});
+

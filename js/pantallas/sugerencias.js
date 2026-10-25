@@ -84,14 +84,27 @@ export function swapSuggestion(i, k) {
   if (!x?.alts?.[k]) return;
   g.list[i] = swapTo(x, x.alts[k].id);
   g.openAlts = g.list[i].id;
-  redrawSuggestions();
+  keepInView(i);
   toastAction('Cambiada', 'Deshacer', () => {
     const j = g.list.indexOf(S.sug === g ? g.list.find(y => y.id === x.alts[k].id) : null);
     if (j < 0) return;
     g.list[j] = swapTo(g.list[j], x.id);
     g.openAlts = x.id;
-    redrawSuggestions();
+    keepInView(j);
   });
+}
+// Vuelve a pintar la lista donde estaba y con la fila i a la vista (al cambiar de forma de preguntarlo)
+function keepInView(i) {
+  const top = $('#sugMain')?.scrollTop || 0;
+  redrawSuggestions();
+  const show = () => {
+    const m = $('#sugMain');
+    if (!m) return;
+    m.scrollTop = top;
+    m.querySelector(`[data-sug-alt^="${i}:"]`)?.closest('.sug')?.scrollIntoView({ block: 'nearest' });
+  };
+  show();
+  requestAnimationFrame(show);
 }
 // Lo que hay que saber de una sugerencia, para la línea de debajo: en un hueco, solo lo que falta
 const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
