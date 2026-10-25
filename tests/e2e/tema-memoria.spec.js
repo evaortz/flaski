@@ -1,6 +1,7 @@
 // El tema de ejemplo «Por qué se te olvidan las cosas»: una pregunta de cada tipo, cada una unida a su apartado,
 // con las dos imágenes del apunte y la nota de cada pregunta; y quien tenía una versión de antes pasa a las nuevas
 import { test, expect, openApp, nav } from './fixtures.js';
+import { mockCloud, openCloud } from './nube.js';
 
 const TYPES = ['basic', 'reverse', 'cloze', 'typing', 'choice', 'truefalse', 'number', 'order', 'steps', 'sort', 'match', 'explain', 'whatif', 'occlusion'];
 const deckCards = page => page.evaluate(() => import('/js/comun.js').then(({ S }) => {
@@ -126,4 +127,82 @@ test('en el móvil, las tablas del apunte no parten palabras: si no caben, se de
   expect(r.broken).toEqual([]);
   expect(r.page).toBe(true);
   expect(r.wraps.every(x => x === 'auto')).toBe(true);
+});
+
+// El tema es una lista sin idioma (no de turco por tener una de ordenar): en la de escribir, las letras del español y
+// sin altavoz. Por todos los caminos que lo crean, y una lista creada desde un apunte en español con una de ordenar.
+async function checkNoTurkish(page, source) {
+  const r = await page.evaluate(src => import('/js/comun.js').then(({ S }) => [...S.decks.values()].filter(d => d.source === src).map(d => d.options?.lang)), source);
+  expect(r).toEqual(['']);
+  await page.evaluate(async src => {
+    const { S } = await import('/js/comun.js'); const { startSession } = await import('/js/pantallas/estudio.js');
+    const d = [...S.decks.values()].find(x => x.source === src), c = [...S.cards.values()].find(x => x.deck_id === d.id && x.type_id === 'typing');
+    startSession(d.id, { ids: [c.id] });
+  }, source);
+  await expect(page.locator('.chars-study button')).toHaveText(['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡']);
+  await expect(page.locator('article.card .say')).toHaveCount(0);
+}
+const SRC = 'tema:por-que-se-te-olvidan-las-cosas';
+
+test('sin idioma: Explorar › «Añadir y leer»', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Explorar');
+  await page.locator('.ex-hero [data-ex="read-tema"]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);
+  await checkNoTurkish(page, SRC);
+});
+
+test('sin idioma: Explorar con cuenta', async ({ page }) => {
+  await mockCloud(page);
+  await openCloud(page);
+  await nav(page, 'Explorar');
+  await page.locator('.ex-hero [data-ex="read-tema"]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);
+  await checkNoTurkish(page, SRC);
+});
+
+test.describe('bienvenida', () => {
+  test.use({ intro: true });
+  test('sin idioma: la primera vez, «Leer el tema»', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('[data-fr-what="otra"]').click();
+    await page.getByRole('button', { name: 'Prueba con un tema de ejemplo' }).click();
+    await page.locator('[data-fr-tema="1"]').click();
+    await page.locator('[data-fr-go="open"]').click();
+    await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);
+    await checkNoTurkish(page, SRC);
+  });
+});
+
+test('sin idioma: una lista creada desde un apunte en español con una de ordenar y una de escribir', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
+    const { makeSuggested } = await import('/js/pantallas/sugerencias.js'); const { go } = await import('/js/app.js');
+    const p = await api.createPage({ owner: S.uid, title: 'Memoria', icon: '', deck_id: null, folder_id: null, tags: [], blocks: [{ id: 'b1', type: 'p', text: 'El efecto de espaciado: lo repartido dura más.' }] }); S.pages.set(p.id, p);
+    await makeSuggested(p, [
+      { typeId: 'order', fields: { f: 'lo repartido dura más', t: 'Ordena', n: '' }, answer: 'lo repartido', blockId: 'b1' },
+      { typeId: 'typing', fields: { q: '¿Cómo se llama el efecto?', a: 'Efecto de espaciado', n: '' }, answer: 'espaciado', blockId: 'b1' },
+    ], 'new');
+    go('page', { pageId: p.id });
+  });
+  await checkNoTurkish(page, 'apuntes');
+});
+
+test('reparación: una lista del tema que se quedó de turco sin una letra del turco pasa a sin idioma', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
+    const { readTema } = await import('/js/pantallas/cuenta.js'); const { TEMAS } = await import('/js/primera-vez.js');
+    const { temaPicks } = await import('/js/pantallas/sugerencias.js');
+    const t = TEMAS.find(x => x.old), { title, blocks } = await readTema(t);
+    const p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p);
+    const d = await api.createDeck({ owner: S.uid, name: title, description: '', source: 'tema:por-que-se-te-olvidan-las-cosas', options: { lang: 'tr-TR' } });
+    S.decks.set(d.id, { tags: [], ...d });
+    const { makeSuggested } = await import('/js/pantallas/sugerencias.js');
+    await makeSuggested(p, await temaPicks(p, await (await fetch(t.cards)).json()), d.id);
+  });
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  await checkNoTurkish(page, SRC);
 });

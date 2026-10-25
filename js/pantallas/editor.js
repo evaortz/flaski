@@ -1269,6 +1269,11 @@ export async function adoptTypes(types = []) {
 // Antes el idioma iba en los tipos (Vocabulario, Dictado y Ordenar frase en turco, y copias como
 // «Vocabulario · Japonés» para el resto). Ahora es del mazo. Esto se hace una vez por mazo y por copia.
 const LEGACY_LANG = { vocab: 'tr-TR', listen: 'tr-TR', order: 'tr-TR', kanji: 'ja-JP', 'de-noun': 'de-DE' };
+// (Vocabulario, Dictado y Ordenar frase solo cuentan como turco si la pregunta tiene letras del turco: si no, una
+// de ordenar de un tema en español volvía la lista de turco)
+const TR_LETTERS = /[çğışöİ]/i;
+const textOf = c => Object.values(c.fields || {}).join(' ');
+const legacyVote = (t, c) => (LEGACY_LANG[t.id] === 'tr-TR' && !TR_LETTERS.test(textOf(c)) ? '' : LEGACY_LANG[t.id]);
 function guessDeckLang(d) {
   const votes = new Map();
   const vote = l => { if (l) votes.set(l, (votes.get(l) || 0) + 1); };
@@ -1276,7 +1281,7 @@ function guessDeckLang(d) {
     if (c.deck_id !== d.id || !c.fields || !Object.keys(c.fields).length) continue;
     const t = getType(c.type_id);
     if (!t) continue;
-    if (t.builtin) { vote(LEGACY_LANG[t.id]); continue; }
+    if (t.builtin) { vote(legacyVote(t, c)); continue; }
     vote(t.fields.map(f => f.lang).find(l => l && !l.startsWith('@') && baseLang(l) !== 'es'));
   }
   if (votes.size) return [...votes].sort((a, b) => b[1] - a[1])[0][0];
@@ -1315,6 +1320,14 @@ export async function dedupeTypes() {
 export function migrateDeckLangs() {
   const decks = [...S.decks.values()].filter(x => !x.options || !('lang' in x.options));
   for (const d of decks) d.options = { ...(d.options || {}), lang: guessDeckLang(d) };
+  // Reparación: las listas de un apunte o de un tema que se adivinaron de turco sin una sola letra del turco
+  for (const d of S.decks.values()) {
+    const src = String(d.source || '');
+    if (d.options?.lang !== 'tr-TR' || !(src === 'apuntes' || src.startsWith('tema:'))) continue;
+    if (cardList().some(c => c.deck_id === d.id && TR_LETTERS.test(textOf(c)))) continue;
+    d.options = { ...d.options, lang: '' };
+    decks.push(d);
+  }
   const copies = [...S.types.values()].map(t => [t, legacyCopyOf(t)]).filter(([, base]) => base);
   const touched = new Set();
   for (const [t, base] of copies) {
