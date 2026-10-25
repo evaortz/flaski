@@ -13,6 +13,7 @@
 //   pace,                  // opcional: { secNew, secReview } (si no, medirRitmo(events))
 //   done,                  // opcional: lo hecho hoy { new, reviews }
 //   fallbackMin,           // minutos de un día si no hay semana (los de la tanda de Ajustes)
+//   newPerDay,             // las nuevas al día de Ajustes: el tope (null: sin tope, mandan los minutos)
 // }
 // La simulación cuenta preguntas por lista y día, no pregunta a pregunta: así cabe en unos milisegundos.
 import { DAY, startOfDay } from './srs.js';
@@ -319,12 +320,19 @@ function stageDay(P, stage, gs, budget, i, rem) {
   return out;
 }
 
+// El tope de nuevas al día: el de Ajustes del plan; si no, las nuevas al día de Ajustes; sin ninguno, sin tope
+const isCount = v => v !== null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0;
+export function newCap(state) {
+  const c = state.plan?.caps?.newPerDay;
+  return isCount(c) ? Number(c) : isCount(state.newPerDay) ? Number(state.newPerDay) : Infinity;
+}
+
 /* ===================== 5 · simular día a día ===================== */
 // forecast(state): el plan completo día a día y el veredicto de cada examen.
 // opts.light: sin la lista de días (para buscar arreglos más deprisa)
 export function forecast(state, opts = {}) {
   const P = prepare(state), { H, mins, keys, deckInfo, st, pace, plan } = P;
-  const caps = plan.caps || {}, capNew = caps.newPerDay > 0 ? caps.newPerDay : Infinity, capRev = caps.reviewsPerDay > 0 ? caps.reviewsPerDay : Infinity;
+  const caps = plan.caps || {}, capNew = newCap(state), capRev = caps.reviewsPerDay > 0 ? caps.reviewsPerDay : Infinity;
   const K = newKernel(P.r), sN = pace.secNew, sR = pace.secReview;
   const rem = new Map(), extra = new Map(), finish = new Map(), firstDay = new Map();
   for (const id of deckInfo.keys()) rem.set(id, st.fresh.get(id) || 0);
@@ -484,12 +492,26 @@ const strip = l => { const { apply, cost, ...rest } = l; return rest; };
 export function fixes(state, examId) {
   const fc = forecast(state, { light: true }), base = fc.exams.find(e => e.id === examId);
   if (!base) return { base: null, options: [], drop: null };
+  if (base.verdict !== 'no') return { base, options: [], drop: null };   // ya llegas: no hay nada que arreglar
   const L = levers(state, fc, examId), tried = [];
   const run = ls => {
     const plan = applyChange(state.plan, p => { for (const l of ls) l.apply(p); });
     const r = forecast({ ...state, plan }, { light: true }).exams.find(e => e.id === examId);
     return { levers: ls.map(strip), kinds: ls.map(l => l.kind).sort().join('+'), cost: ls.reduce((a, l) => a + l.cost, 0), plan, exam: r };
   };
+  // Si no llegas con el tope de nuevas de Ajustes: «Subir a N nuevas al día», con el N mínimo que llega
+  const cap = newCap(state);
+  if (base.verdict === 'no' && Number.isFinite(cap)) {
+    const withCap = n => applyChange(state.plan, p => { p.caps = { ...(p.caps || {}), newPerDay: n }; });
+    const at = n => forecast({ ...state, plan: withCap(n) }, { light: n !== 500 });
+    const free = at(500), hi = Math.max(cap + 1, ...free.days.map(d => d.new));
+    let n = hi;
+    if (reaches(free.exams.find(e => e.id === examId).verdict)) {
+      let lo = cap;                                  // lo: no llega · n: llega
+      while (n - lo > 1) { const mid = (lo + n) >> 1; if (reaches(at(mid).exams.find(e => e.id === examId).verdict)) n = mid; else lo = mid; }
+    }
+    if (n > cap) L.push({ kind: 'cap', from: cap, newPerDay: n, cost: 0.5 + (n - cap) / 10, apply: p => { p.caps = { ...(p.caps || {}), newPerDay: n }; } });
+  }
   const singles = L.map(l => ({ l, res: run([l]) }));
   tried.push(...singles.map(s => s.res));
   // En parejas, solo las que ayudan algo y no llegan solas, y de cada tipo las dos que menos cambian

@@ -47,8 +47,8 @@ test('los minutos de un día: pausa, «hoy solo tengo…», día especial y sema
 });
 
 /* ---------------- escenarios fijos ---------------- */
-// Los dos exámenes del diseño: 945 preguntas, T1 y T2 ya sabidos, tope de 20 nuevas al día (las de Ajustes)
-const design = change => state945(p => { p.caps.newPerDay = 20; p.exams[0].known = [T1, T2]; change?.(p); });
+// Los dos exámenes del diseño: 945 preguntas, T1 y T2 ya sabidos; tope: las 20 nuevas al día de Ajustes
+const design = change => state945(p => { p.exams[0].known = [T1, T2]; change?.(p); });
 
 test('los dos exámenes: el 80 % al más cercano; Auxiliar acaba el 23 nov (7 semanas de repaso) y después Inglés', () => {
   const S = design(), fc = forecast(S);
@@ -88,7 +88,7 @@ test('Hoy y el Plan dicen lo mismo el domingo libre: 48 repasos, sin nuevas', ()
 });
 
 test('examen a 26 días: no llegas, y las tres opciones propuestas sí llegan', () => {
-  const S = state945(p => { p.caps.newPerDay = 20; p.exams[0].date = addDays(TODAY, 26); });
+  const S = state945(p => { p.exams[0].date = addDays(TODAY, 26); });
   const id = examByName(S, 'Auxiliar').id;
   const base = exam(forecast(S), 'Auxiliar');
   assert.equal(base.verdict, 'no');
@@ -103,6 +103,36 @@ test('examen a 26 días: no llegas, y las tres opciones propuestas sí llegan', 
   // Las que cambian menos primero, y cada una distinta
   assert.ok(fx.options[0].cost <= fx.options[1].cost && fx.options[1].cost <= fx.options[2].cost);
   assert.equal(new Set(fx.options.map(o => o.kinds)).size, 3);
+  // La primera: subir el tope de Ajustes de 20 al mínimo que llega
+  assert.deepEqual(fx.options[0].levers, [{ kind: 'cap', from: 20, newPerDay: 36 }]);
+  assert.equal(fx.options[0].plan.caps.newPerDay, 36);
+  assert.equal(exam(forecast({ ...S, plan: fx.options[0].plan }), 'Auxiliar').verdict, 'justo');
+  assert.equal(exam(whatIf(S, { caps: { newPerDay: 35 } }), 'Auxiliar').verdict, 'no');
+});
+
+test('el tope de nuevas: las de Ajustes (nunca más de 20 en un día); sin valor, mandan los minutos', () => {
+  const S = state945(), fc = forecast(S);
+  assert.equal(S.newPerDay, 20);
+  assert.ok(fc.days.every(d => d.new <= 20));
+  assert.equal(fc.days[1].new, 20);                                   // el lunes cabrían 36
+  const free = forecast({ ...S, newPerDay: null });
+  assert.equal(free.days[1].new, 36);
+  assert.ok(exam(free, 'Auxiliar').finish < exam(fc, 'Auxiliar').finish);
+  // El tope de Ajustes del plan manda sobre el de Ajustes
+  assert.ok(whatIf(S, { caps: { newPerDay: 10 } }).days.every(d => d.new <= 10));
+});
+
+test('la palanca del tope solo sale si el examen no llega (y si hay tope)', () => {
+  const ok = state945();
+  assert.equal(exam(forecast(ok), 'Auxiliar').verdict, 'llegas');
+  assert.deepEqual(fixes(ok, examByName(ok, 'Auxiliar').id).options, []);
+  const late = state945(p => { p.exams[0].date = addDays(TODAY, 26); });
+  assert.ok(fixes(late, examByName(late, 'Auxiliar').id).options.some(o => o.kinds === 'cap'));
+  // Sin tope (cuenta nueva), no hay tope que subir
+  const S = { ...state945(p => { p.exams[0].date = addDays(TODAY, 12); }), newPerDay: null };
+  const fx = fixes(S, examByName(S, 'Auxiliar').id);
+  assert.equal(fx.base.verdict, 'no');
+  assert.ok(fx.options.every(o => !o.kinds.includes('cap')));
 });
 
 test('ningún arreglo llega: propone qué temas dejar para el final', () => {

@@ -60,16 +60,22 @@ en la dirección o `localStorage['flaski-plan2'] = '1'`.
 - **Retención**: se usa la más alta de los exámenes (90 % por defecto) para todo. La del 95 % de la última semana
   todavía no cambia la carga (se puede afinar en el paso D).
 - **`boost` (refuerza este tema)** no hace nada todavía en el motor: es del paso D.
-- **Sin tope, el plan nuevo mete muchas más nuevas** que el de ahora (ver la tabla): con 45 min y el ritmo por
-  defecto caben unas 36 nuevas el lunes, frente a las 20 de Ajustes. Es lo que pide el diseño («hablar en minutos»),
-  pero acaba Auxiliar el 7 nov en vez del 23. Con un tope de 20 nuevas al día (Ajustes del plan), sale el 23 nov.
-- **Los dos exámenes del diseño** (prueba «los dos exámenes»): con las 945 preguntas, tope de 20, T1 y T2 sabidos,
-  Auxiliar acaba el **23 nov** (como en el diseño, con 7 semanas de repaso) e Inglés el **4 dic**, no el 2: tras el
-  23 nov le quedan 190 nuevas y a 20 al día son 10 días con tiempo (el diseño contaba 8). El 80/20 sale igual que en
-  el diseño: el primer lunes, 16 de T3 y 4 de Inglés (de Gramática, que va antes que Vocabulario por nombre).
+- **El tope de nuevas** (decisión de Eva, 25 oct): por defecto manda el de Ajustes (`state.newPerDay`, las «nuevas
+  al día»): con 20, nunca más de 20 aunque quepan más en los minutos. `plan.caps.newPerDay` (Ajustes del plan), si lo
+  hay, manda sobre él. Sin valor en Ajustes (`newPerDay: null`, cuenta nueva) no hay tope y mandan los minutos: con
+  45 min y el ritmo por defecto caben 36 el lunes del estado de 945. `newCap(state)` dice cuál vale.
+- **«Subir a N nuevas al día»** es una palanca más de `fixes()` (`kind: 'cap'`, con `from` y `newPerDay`), solo si hay
+  tope y el examen no llega; N es el mínimo que llega (búsqueda binaria). Si el examen ya llega, `fixes()` no
+  propone nada.
+- **Los dos exámenes del diseño** (prueba «los dos exámenes»): con las 945 preguntas, el tope de 20 de Ajustes y T1 y
+  T2 sabidos, Auxiliar acaba el **23 nov** (con 7 semanas de repaso) e Inglés el **4 dic**: tras el 23 nov le quedan
+  190 nuevas y a 20 al día son 10 días con tiempo (el 2 dic del diseño estaba mal calculado). El 80/20 sale como en
+  el diseño: el primer lunes, 16 de T3 y 4 de Inglés (de Gramática, que va antes que Vocabulario por nombre). Los
+  dos llegan, así que `fixes()` no propone nada (no sale «Subir a N»).
 - **Examen a 26 días** (Auxiliar el 20 nov, tope 20): no llegas por **169** de 425 (el diseño decía 131). Los tres
-  arreglos: pausar Inglés y quitar la última semana (justo: acabas el 19 nov), quitar la última semana y dejar T8
-  para después (justo: 19 nov), dejar T6–T8 para después (justo: 10 nov). Más minutos no ayudan porque manda el tope.
+  arreglos ahora: **subir a 36 nuevas al día** (justo: acabas el 12 nov), pausar Inglés y quitar la última semana
+  (justo: 19 nov), quitar la última semana y dejar T8 para después (justo: 19 nov). Con 35 no llega. Más minutos no
+  ayudan porque manda el tope.
 - **Hoy y el Plan, el domingo libre**: `today()` da **48 repasos y 0 nuevas** (lo que hoy dice Hoy); el Plan de ahora
   decía «Hoy toca · 30 preguntas». En un día libre los repasos que tocan siguen contando; si no se hacen, pasan al
   día siguiente (el lunes tiene 105).
@@ -77,44 +83,46 @@ en la dirección o `localStorage['flaski-plan2'] = '1'`.
 
 ### Comparación (`node fixtures/comparar.mjs`)
 
+Con el tope de Ajustes (15 en la demo, 20 en el de 945).
+
 #### Demo (datos de ejemplo) · 25 oct
 
 | | Plan de ahora | Plan nuevo |
 |---|---|---|
-| Hoy | 19 repasos y 15 nuevas | 19 repasos y 30 nuevas (10 min), lo mismo en Hoy y en el Plan |
-| Un día normal | 15 nuevas (las de Ajustes) | 35 nuevas y 13 repasos el 26 oct (10 min) |
+| Hoy | 19 repasos y 15 nuevas | 19 repasos y 15 nuevas (10 min), lo mismo en Hoy y en el Plan |
+| Un día normal | 15 nuevas (las de Ajustes) | 15 nuevas y 8 repasos el 26 oct (10 min) |
 | Ritmo | no lo mide (cuenta preguntas) | 13 s por nueva, 11 s por repaso (medido en 267 respuestas) |
-| Días en que no caben los repasos | no lo mira | 1 |
+| Días en que no caben los repasos | no lo mira | 0 |
 | Exámenes | ninguno | ninguno |
 
-La demo no tiene semana: cada día vale los 10 min de la tanda de Ajustes. Sus respuestas inventadas son rápidas
-(3–18 s), por eso caben tantas nuevas.
+La demo no tiene semana: cada día vale los 10 min de la tanda de Ajustes. Sin tope cabrían 30 nuevas (sus
+respuestas inventadas son rápidas, 3–18 s).
 
 #### 945 preguntas, dos exámenes · 25 oct (domingo libre)
 
 | | Plan de ahora | Plan nuevo |
 |---|---|---|
 | Hoy | 48 repasos y 0 nuevas en Hoy; en el Plan, «Hoy toca · 30 preguntas» | 48 repasos y 0 nuevas (día libre), lo mismo en Hoy y en el Plan |
-| Un día normal | 20 nuevas (las de Ajustes) | 36 nuevas y 105 repasos el 26 oct (45 min) |
+| Un día normal | 20 nuevas (las de Ajustes) | 20 nuevas y 105 repasos el 26 oct (45 min; sin tope cabrían 36) |
 | Ritmo | no lo mide (cuenta preguntas) | 40 s por nueva, 12 s por repaso (por defecto: no hay respuestas) |
 | Días en que no caben los repasos | no lo mira | 0 |
-| Auxiliar Administrativo (16 ene) | acabas el 5 dic · llegas | acabas el 7 nov · llegas · 62 días de repaso |
-| Inglés B2 (20 mar) | acabas el 5 dic · llegas | acabas el 13 nov · llegas · 119 días de repaso |
+| Auxiliar Administrativo (16 ene) | acabas el 5 dic · llegas | acabas el 25 nov · llegas · 44 días de repaso |
+| Inglés B2 (20 mar) | acabas el 5 dic · llegas | acabas el 5 dic · llegas · 97 días de repaso |
 
 El plan de ahora reparte las 20 nuevas a partes iguales y acaba los dos el 5 dic; el nuevo acaba antes el que
-llega antes.
+llega antes (80/20). Con T1 y T2 sabidos (el diseño), Auxiliar el 23 nov e Inglés el 4 dic.
 
 ### Rendimiento (node 22, este ordenador)
 
 Con 5.000 preguntas (el 40 % vistas), 3 exámenes y un año por delante: **forecast ≈ 3 ms** (la primera vez, con
-el recuento del progreso, unos 20 ms) y **fixes ≈ 170–190 ms** (antes de podar las parejas, 355 ms). En el móvil
+el recuento del progreso, unos 20 ms) y **fixes ≈ 170–230 ms** (antes de podar las parejas, 355 ms; con la palanca del tope, unos 40 ms más). En el móvil
 con la CPU frenada 4 veces, forecast cabe de sobra en 50 ms; fixes quedaría por encima de 500 ms (≈ 700 ms):
 como dice el documento, se calcula solo al abrir «Para llegar» y sin bloquear la pantalla. Lo mide la última
 prueba de `plan2.test.js`.
 
 ### Pruebas
 
-- Unitarias: 25 nuevas (20 del motor, 5 de la migración), en verde. En total 251 de 252: falla
+- Unitarias: 27 nuevas (22 del motor, 5 de la migración), en verde. En total 251 de 252: falla
   `sw.test.js › index.html lleva la versión…` solo en este worktree, porque git lo saca con CRLF
   (`core.autocrlf=true`) y `version.mjs` escribe su bloque con LF; el contenido en git es el mismo.
 - e2e, la batería completa con `PORT=8124`: **371 pasan, 3 fallan, 15 saltadas** (6 min). Las tres son de sugerencias

@@ -43,7 +43,7 @@ function viejo(D) {
 
 function nuevo(D) {
   const plan = migrate(D.plan, { today: D.today, decks: D.decks, folders: D.folders, at: 1 });
-  const S = { plan, today: D.today, decks: D.decks, folders: D.folders, cards: D.cards, progress: D.progress, events: D.events, fallbackMin: D.tandaMin };
+  const S = { plan, today: D.today, decks: D.decks, folders: D.folders, cards: D.cards, progress: D.progress, events: D.events, fallbackMin: D.tandaMin, newPerDay: D.newPerDay };
   const fc = forecast(S), t = today(S), next = fc.days.find((d, i) => i > 0 && d.minutes > 0);
   return {
     hoy: `${t.reviews} repasos y ${t.new} nuevas (${t.minutes} min${t.rest ? ', día libre' : ''}), lo mismo en Hoy y en el Plan`,
