@@ -176,3 +176,13 @@ test('el texto de origen: de una tabla, solo la fila de la pregunta; de un párr
   await expect(page.locator('.sug-src q').filter({ hasText: '|---|' })).toHaveCount(0);
 });
 
+test('en el móvil, ningún «·» suelto al principio de una línea de la fila (el apartado va en su propia línea)', async ({ page, seed }) => {
+  await openConstitucion(page, seed);
+  const bad = await page.locator('.sug .rmeta').evaluateAll(els => els.filter(m => {
+    const kids = [...m.children];
+    return kids.some((k, j) => j > 0 && /^·/.test(k.textContent.trim()) && k.getBoundingClientRect().top > kids[j - 1].getBoundingClientRect().top + 4);
+  }).length);
+  expect(bad).toBe(0);
+  await expect(page.locator('.sug .sug-where').first()).toBeVisible();
+});
+
