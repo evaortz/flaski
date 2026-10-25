@@ -36,6 +36,8 @@ test('apunte a 375 px con tabla e imagen: nada se sale de lado (y mover y plegar
     return { diff: document.documentElement.scrollWidth - W, out: out.slice(0, 8) };
   });
   expect(await over()).toEqual({ diff: 0, out: [] });
+  // Por si acaso: el contenido no se puede arrastrar de lado
+  expect(await page.evaluate(() => [getComputedStyle(document.querySelector('main')).overflowX, getComputedStyle(document.body).overscrollBehaviorX])).toEqual(['clip', 'none']);
   // Ningún campo de escritura con menos de 16 px (Safari haría zoom al tocarlo y la página se movería de lado)
   const small = () => page.evaluate(() => [...document.querySelectorAll('#main input, #main textarea, #main select, #main [contenteditable="true"]')]
     .filter(el => el.offsetParent && parseFloat(getComputedStyle(el).fontSize) < 16).map(el => `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} ${getComputedStyle(el).fontSize}`));

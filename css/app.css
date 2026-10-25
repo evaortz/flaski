@@ -4054,3 +4054,19 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
   textarea.paste-box,input.ipick-own,.tl-rename input,.tfields input,input.prop-v,.num input[type=number],select.prop-select,.pg-props select,
   .nb-table > .nb-input,.nb-img .nb-input,.nb.nb-code .nb-input,.tbl-grid .tc,.find-row input,.help-search input,.sort-inline select,.ex-search input{font-size:16px}
 }
+
+/* Contraste (4,5:1): el día especial de la tira, «Normal» en las barras de etapa, los rojos sólidos y el «↑ N» verde */
+.ps-sp em{color:#7A4F00}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ps-sp em{color:#FFC36B}}
+:root[data-theme="dark"] .ps-sp em{color:#FFC36B}
+.lv-normal{--lv-fg:#14162E}
+.danger.solid,.danger.solid.primary{background:#C92F2F}
+.lv-up{color:color-mix(in srgb,#1F9D6B 60%,var(--fg))}
+
+/* Tira de etapas en el móvil: una etapa corta (1 día) se puede tocar */
+.ps-seg{min-width:28px}
+/* El apunte en el móvil no se arrastra de lado */
+@media (max-width:699px){
+  body[data-view="page"] main{overflow-x:clip}
+  html:has(body[data-view="page"]),body[data-view="page"]{overscroll-behavior-x:none}
+}

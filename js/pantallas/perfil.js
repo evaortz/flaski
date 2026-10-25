@@ -370,10 +370,11 @@ export function findSetting(q) {
   box.querySelectorAll('.set-sec, .set-care').forEach(s => { s.hidden = on && !s.querySelector('.set-row:not([hidden])'); });
   const found = $('#setFound'), moved = $('#setMoved');
   const gone = on ? MOVED.filter(m => hasWords(`${m.t} ${m.s} ${m.keys}`, words)) : [];
-  found.hidden = !on;
+  // Si solo sale algo que se ha ido a otro sitio, basta con «Ya no está en Ajustes» (sin «Ningún ajuste»)
+  found.hidden = !on || (!hits.length && gone.length > 0);
   if (on) {
     const secs = new Set(hits.map(r => r.dataset.sec));
-    found.textContent = hits.length ? `${plural(hits.length, 'ajuste', 'ajustes')}${secs.size === 1 ? ` en ${[...secs][0]}` : ''}` : gone.length ? 'Ningún ajuste con ese nombre' : `Ningún ajuste con «${q.trim()}»`;
+    found.textContent = hits.length ? `${plural(hits.length, 'ajuste', 'ajustes')}${secs.size === 1 ? ` en ${[...secs][0]}` : ''}` : `Ningún ajuste con «${q.trim()}»`;
   }
   moved.hidden = !gone.length;
   moved.innerHTML = gone.length ? `<p class="set-found">Ya no está en Ajustes</p>${gone.map(m => `<div class="set-gone"><div><b>${m.t}</b><small>${m.s}</small></div><button type="button" class="link" data-nav="${m.go}">${m.to} ›</button></div>`).join('')}` : '';

@@ -159,3 +159,20 @@ test('«Hagamos tu plan»: recta final del 25 % (entre 2 y 7 días), los minutos
   await page.locator('[data-pl="start-ok"]').click();
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.newPerDay))).toBe(b);
 });
+
+test('móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se puede tocar', async ({ page }, info) => {
+  test.skip(info.project.name !== 'movil', 'la tira es del móvil');
+  await openApp(page);
+  await addBuiltinDeck(page, JA);
+  await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const d = [...S.decks.values()][0], t = dayKey();
+    S.prefs.plan.stages = [{ id: 'e1', name: 'Larga', from: t, to: addDays(t, 120), levels: { [d.id]: 'normal' }, order: {}, at: 1 },
+      { id: 'e2', name: 'Un día', from: addDays(t, 121), to: addDays(t, 121), levels: { [d.id]: 'high' }, order: {}, at: 1 }];
+  });
+  await openPlan(page);
+  const seg = page.locator('.ps-seg[data-id="e2"]');
+  expect((await seg.boundingBox()).width).toBeGreaterThanOrEqual(28);
+  await seg.click();
+  await expect(page.locator('#stName')).toHaveValue('Un día');
+});

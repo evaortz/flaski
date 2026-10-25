@@ -94,6 +94,10 @@ test('Ajustes: el buscador enseña los ajustes usables con su pestaña, lo que s
   await find.press('Escape');
   await expect(find).toHaveValue('');
   await expect(page.locator('.set-sec > h2:visible')).toHaveCount(7);
+  // Algo que se ha ido a otro sitio: «Ya no está en Ajustes», sin «Ningún ajuste» a la vez
+  await find.fill('duracion de la tanda');
+  await expect(page.locator('#setMoved')).toContainText('Ya no está en Ajustes');
+  await expect(page.locator('#setFound')).toBeHidden();
   await find.fill('duracion');
   await page.locator('#setMoved [data-nav="plan"]').click();
   await expect(page.locator('body')).toHaveAttribute('data-view', 'plan');
