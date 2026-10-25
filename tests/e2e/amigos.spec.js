@@ -7,36 +7,46 @@ const CARLOS = { id: 'c0000000-0000-4000-8000-000000000003', name: 'Carlos', sin
 const BEA = { id: 'r0000000-0000-4000-8000-000000000001', other: 'b0000000-0000-4000-8000-000000000002', name: 'Bea', dir: 'in', created_at: '2026-10-01T10:00:00Z' };
 const rpcs = (srv, fn) => sent(srv, fn).map(w => w[2]);
 
-test('amigos: código para invitar, aceptar una petición, ver cómo van, animar y añadir con un código', async ({ page }) => {
+test('amigos: esta semana, te han animado, invitar con tu código, aceptar, animar, añadir con un código y quitar', async ({ page }) => {
   const srv = await mockCloud(page);
-  Object.assign(srv.social, { friends: [ANA, CARLOS], requests: [BEA] });
+  const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', streak: 2, today: 0, week: [30, 0, 0, 0, 0, 0, 0], since: new Date(Date.now() - 3 * 864e5).toISOString() };
+  Object.assign(srv.social, { friends: [ANA, CARLOS, DORA], requests: [BEA], cheers: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: new Date(Date.now() - 2 * 36e5).toISOString() }] });
   await openCloud(page);
   await nav(page, 'Perfil');
-  await expect(page.locator('#frBadge')).toHaveText('1 petición');
-  await page.locator('[data-nav="friends"]').first().click();
+  await expect(page.locator('#frBadge')).toHaveText('1 ánimo');
+  await expect(page.locator('.pr-row', { hasText: 'Amigos' })).toContainText('Ana, Carlos y 1 más');
+  await page.locator('.pr-row[data-nav="friends"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Amigos' })).toBeVisible();
+  await expect(page.locator('.fr-h')).toContainText(['Te quieren añadir', 'Esta semana', 'Te han animado', 'Invita a alguien']);
+  await expect(page.locator('.fr-sub')).toContainText(/se reinicia el lunes \d+/);
+  // Esta semana: la clasificación entera, con quien no comparte al final
+  const rows = page.locator('.fr-weeksec .frow');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toContainText('Ana · 47 preguntas');
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('hoy');
+  await expect(rows.nth(1)).toContainText('Dora · 30 preguntas');
+  await expect(rows.nth(2)).toHaveClass(/me/);
+  await expect(rows.nth(3).locator('.frow-st')).toHaveText('—');
+  // Te han animado: «Ana te dice: «¡Tú puedes!»» y quien se ha hecho amigo esta semana
+  await expect(page.locator('.fr-news li').first()).toContainText('Ana te dice: «¡Tú puedes!»');
+  await expect(page.locator('.fr-news li').first()).toContainText('hace 2 h');
+  await expect(page.locator('.fr-news')).toContainText('Dora y tú ya sois amigos');
+  await expect(page.locator('.fr-news')).not.toContainText('te ha animado');
+  // Tu código
   await expect(page.locator('#frMyCode')).toHaveText('EVA7-K2QX');
-
-  // Ana comparte su actividad; Carlos no
-  const ana = page.locator('.fr-card').filter({ has: page.locator(`[data-friend-menu="${ANA.id}"]`) });
-  await expect(ana).toContainText('5 días');
-  await expect(ana).toContainText('Hoy, 12 repasos');
-  await expect(ana).toContainText('47 repasos esta semana · Alemán, Japonés');
-  await expect(ana.locator('.fr-day')).toHaveCount(7);
-  await expect(page.locator('.fr-card').filter({ has: page.locator(`[data-friend-menu="${CARLOS.id}"]`) })).toContainText('No comparte su actividad');
+  await expect(page.locator('.fr-code small')).toHaveText('3 amigos');
 
   // Petición de Bea
   srv.social.requests = [];
-  srv.social.friends = [ANA, CARLOS, { ...ANA, id: BEA.other, name: 'Bea', streak: 1, today: 0, week: [3, 0, 0, 0, 0, 0, 0] }];
+  srv.social.friends = [ANA, CARLOS, DORA, { ...ANA, id: BEA.other, name: 'Bea', streak: 1, today: 0, week: [3, 0, 0, 0, 0, 0, 0] }];
   await page.locator(`[data-fr-accept="${BEA.id}"]`).click();
-  await expect(page.locator('.fr-card', { hasText: 'Bea' })).toBeVisible();
+  await expect(page.locator('.fr-weeksec .frow', { hasText: 'Bea' })).toBeVisible();
   expect(rpcs(srv, 'respond_friend')).toEqual([{ p_id: BEA.id, p_accept: true }]);
 
-  // Animar a Ana: una vez al día
-  await ana.locator('[data-cheer]').click();
-  await expect(page.locator(`[data-cheer="${ANA.id}"]`)).toHaveText('Ánimo enviado');
-  await expect(page.locator(`[data-cheer="${ANA.id}"]`)).toBeDisabled();
-  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: ANA.id, p_kind: 'clap' }]);
+  // Animar a Dora, que aún no ha estudiado: una vez al día
+  await page.getByRole('button', { name: 'Animar a Dora' }).click();
+  await expect(page.locator('.fr-weeksec .frow', { hasText: 'Dora' }).locator('.frow-hoy')).toHaveText('enviado');
+  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'clap' }]);
 
   // Añadir con un código, escrito de cualquier manera
   await page.locator('#frCode').fill('abcd 1234');
@@ -52,7 +62,7 @@ test('amigos: código para invitar, aceptar una petición, ver cómo van, animar
   await page.locator('#frShare').locator('xpath=..').click();
   await expect.poll(() => rpcs(srv, 'set_share')).toEqual([{ p_share: false }]);
 
-  // Quitar a Carlos
+  // Quitar a Carlos (su nombre abre sus opciones)
   await page.locator(`[data-friend-menu="${CARLOS.id}"]`).click();
   await page.locator(`[data-fr-remove="${CARLOS.id}"]`).click();
   await expect.poll(() => rpcs(srv, 'remove_friend')).toEqual([{ p_other: CARLOS.id }]);

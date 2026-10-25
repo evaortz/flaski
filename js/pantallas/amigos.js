@@ -2,11 +2,10 @@
 import * as api from '../api.js';
 import { dateKey } from '../srs.js';
 import { icon } from '../icons.js';
-import { LANGS, baseLang } from '../cardtypes.js';
-import { formatCode, cleanCode, inviteLink, WEEK_LETTERS, weekTotal, weekDays, ranking, initial } from '../friends.js';
+import { formatCode, cleanCode, inviteLink, weekTotal, weekDays, ranking, initial } from '../friends.js';
 import { streaks } from '../charts.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
-import { plural, crumbs } from './mazos.js';
+import { plural } from './mazos.js';
 import { openSheet } from './editor.js';
 import { renderProfile } from './perfil.js';
 
@@ -52,14 +51,6 @@ export function markCheered(id) {
   try { localStorage.setItem('flaski-cheered', JSON.stringify({ day: dateKey(), ids: [...ids] })); } catch {}
 }
 const avatar = (name, me = false) => `<span class="fr-av${me ? ' me' : ''}" aria-hidden="true">${esc(initial(name))}</span>`;
-const langNames = langs => (langs || []).map(b => LANGS.find(l => baseLang(l.id) === b)?.label.split(' (')[0] || b);
-
-// Barras de la semana (lunes a domingo); hoy, marcado
-function weekBars(week) {
-  const max = Math.max(1, ...week.map(n => Number(n) || 0)), today = (new Date().getDay() + 6) % 7;
-  return `<div class="fr-week" aria-label="Repasos de esta semana">${week.map((n, i) => `<span class="fr-day${i === today ? ' today' : ''}${n ? ' on' : ''}" title="${WEEK_LETTERS[i]}: ${plural(n || 0, 'repaso', 'repasos')}">
-    <i style="height:${n ? Math.max(12, Math.round((n / max) * 100)) : 0}%"></i><small>${WEEK_LETTERS[i]}</small></span>`).join('')}</div>`;
-}
 
 // Ánimos: lo que se ve de cada tipo (los tres que guarda Supabase)
 export const CHEERS = [['clap', '¡Ánimo!'], ['go', '¡Tú puedes!'], ['fire', icon('racha', { size: 18, label: 'Fuego' })]];
@@ -89,14 +80,15 @@ export function homeFriendsHTML() {
     <div class="frow-head" aria-hidden="true"><span>esta semana</span><span>racha</span><span>hoy</span></div>
     <ol class="frows">${rows.map(p => friendRow(p, cheered)).join('')}</ol></section>`;
 }
-// Una fila: puesto, avatar, nombre y preguntas de la semana, los 7 días, la racha y, a la derecha, hoy
-function friendRow(p, cheered) {
+// Una fila: puesto, avatar, nombre y preguntas de la semana, los 7 días, la racha y, a la derecha, hoy.
+// En la pantalla Amigos (full), el nombre abre las opciones de ese amigo (quitar, bloquear)
+function friendRow(p, cheered, full = false) {
   const right = p.shared && p.today ? `<span class="frow-ok">${icon('check', { size: 14 })} hoy</span>`
     : p.me ? (pendingToday() ? '<button type="button" class="frow-cheer" data-act="tanda-short">¡Te toca!</button>' : '')
     : cheered.has(p.id) ? `<span class="frow-sent">${icon('heart', { size: 14 })} enviado</span>`
     : `<button type="button" class="frow-cheer" data-cheer="${p.id}" data-cheer-kind="clap" aria-label="Animar a ${esc(p.name || 'tu amigo')}">¡Ánimo!</button>`;
   return `<li class="frow${p.me ? ' me' : ''}"><span class="frow-pos">${p.pos || ''}</span>${avatar(p.name, p.me)}
-    <span class="frow-t"><span class="frow-n"><b>${p.me ? 'Tú' : esc(p.name || 'Sin nombre')}</b>${p.shared ? ` · ${plural(weekTotal(p.week), 'pregunta', 'preguntas')}` : ''}</span>${p.shared ? weekDots(p.week) : ''}</span>
+    <span class="frow-t"><span class="frow-n">${full && !p.me ? `<button type="button" class="frow-name" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name || 'tu amigo')}">${esc(p.name || 'Sin nombre')}</button>` : `<b>${p.me ? 'Tú' : esc(p.name || 'Sin nombre')}</b>`}${p.shared ? ` · ${plural(weekTotal(p.week), 'pregunta', 'preguntas')}` : ''}</span>${p.shared ? weekDots(p.week) : ''}</span>
     <span class="frow-st">${p.shared ? `${icon(p.streak ? 'racha' : 'racha-apagada', { size: 14 })}<b${p.streak ? '' : ' class="off"'}>${p.streak || 0}</b>` : '<span class="off">—</span>'}</span>
     <span class="frow-hoy">${right}</span></li>`;
 }
@@ -109,8 +101,20 @@ function weekDots(week) {
     `<i class="${[(week || [])[i] ? 'on' : '', i === t ? 'today' : '', i > t ? 'next' : ''].filter(Boolean).join(' ')}"></i>`).join('')}</span>`;
 }
 
+// «hace 2 h», «ayer», «hace 3 días»
+function ago(t) {
+  const ms = Date.now() - new Date(t).getTime(), min = Math.round(ms / 60e3), h = Math.round(ms / 36e5);
+  if (min < 60) return min <= 1 ? 'ahora' : `hace ${min} min`;
+  const days = Math.round((new Date(dateKey()) - new Date(dateKey(new Date(t).getTime()))) / 864e5);
+  if (days < 1) return `hace ${h} h`;
+  return days === 1 ? 'ayer' : `hace ${days} días`;
+}
+// El lunes que viene («se reinicia el lunes 26»)
+const nextMonday = () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return d.getDate(); };
+
+// Pantalla Amigos: la clasificación de la semana, lo que te han dicho y tu código para invitar
 export function renderFriends() {
-  const head = `<nav class="crumbs" aria-label="Ruta"><button class="crumb" data-nav="profile">Perfil</button><span class="sep" aria-hidden="true">/</span><span class="crumb crumb-cur">Amigos</span></nav><h1>Amigos</h1>`;
+  const head = `<div class="crumbs-row fr-head"><button class="back-round" data-nav="profile" aria-label="Volver a Perfil">${icon('chevron-left', { size: 22 })}</button><h1>Amigos</h1></div>`;
   if (!api.social) {
     main.innerHTML = `${head}<div class="panel"><p>Para tener amigos necesitas una cuenta.</p>
       <p class="muted small">Ahora estás en modo local: tus datos están solo en este navegador. Conecta la app a Supabase (ver README) para crear cuentas.</p></div>`;
@@ -130,43 +134,41 @@ export function renderFriends() {
   }
   const cheered = cheeredToday();
   const inc = incoming(), out = f.requests.filter(r => r.dir === 'out'), blocked = f.requests.filter(r => r.dir === 'blocked');
-  const card = p => {
-    const total = weekTotal(p.week);
-    const langs = langNames(p.langs);
-    return `<li class="fr-card">
-      <div class="fr-top">${avatar(p.name)}<div class="fr-who"><b>${esc(p.name || 'Sin nombre')}</b>
-        ${p.shared ? `<span class="fr-meta"><span class="fr-streak">${icon(p.streak ? 'racha' : 'racha-apagada', { size: 14 })} ${plural(p.streak, 'día', 'días')}</span>
-          <span class="${p.today ? 'fr-today' : 'muted'}">${p.today ? `${icon('check', { size: 13 })} Hoy, ${plural(p.today, 'repaso', 'repasos')}` : 'Hoy aún no ha estudiado'}</span></span>`
-          : '<span class="fr-meta muted">No comparte su actividad</span>'}</div>
-        <button type="button" class="iconbtn" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name)}" title="Opciones">${icon('ellipsis', { size: 18 })}</button></div>
-      ${p.shared ? `${weekBars(p.week)}<div class="fr-foot"><span class="muted small">${plural(total, 'repaso', 'repasos')} esta semana${langs.length ? ` · ${esc(langs.join(', '))}` : ''}</span>
-        <button type="button" class="ghost small-btn" data-cheer="${p.id}" ${cheered.has(p.id) ? 'disabled' : ''}>${cheered.has(p.id) ? 'Ánimo enviado' : '👏 Animar'}</button></div>` : ''}
-    </li>`;
-  };
+  // Esta semana: tú y todos tus amigos (quien no comparte su actividad, al final y sin puesto)
+  const today = dateKey(), days = weekDays();
+  const me = { id: '', me: true, name: S.name, shared: true, week: days.map(k => S.log[k] || 0), streak: streaks(S.log).current, today: S.log[today] || 0 };
+  const rows = [...ranking(me, f.list), ...f.list.filter(x => !x.shared)];
+  const week = `<section class="fr-sec fr-weeksec" aria-labelledby="h-frweek"><h2 class="fr-h" id="h-frweek">Esta semana</h2>
+    <p class="muted small fr-sub">preguntas desde el lunes · se reinicia el lunes ${nextMonday()}</p>
+    <div class="frow-head" aria-hidden="true"><span>esta semana</span><span>racha</span><span>hoy</span></div>
+    <ol class="frows">${rows.map(p => friendRow(p, cheered, true)).join('')}</ol>
+    ${f.list.length ? '' : '<p class="muted small">Aún no tienes amigos en Flaski. Comparte tu código para empezar.</p>'}</section>`;
+  // Te han animado: los ánimos recibidos y quién se ha hecho amigo tuyo esta semana
+  const weekAgo = Date.now() - 7 * 864e5;
+  const news = [
+    ...f.cheers.map(c => ({ t: c.created_at, name: c.name, html: `<b>${esc(c.name || 'Alguien')}</b> te dice: «${cheerText(c.kind)}»` })),
+    ...f.list.filter(p => p.since && new Date(p.since).getTime() > weekAgo).map(p => ({ t: p.since, name: p.name, html: `<b>${esc(p.name || 'Alguien')}</b> y tú ya sois amigos` })),
+  ].sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 8);
+  const cheers = `<section class="fr-sec" aria-labelledby="h-frcheer"><h2 class="fr-h" id="h-frcheer">Te han animado</h2>
+    ${news.length ? `<ul class="fr-news">${news.map(x => `<li>${avatar(x.name)}<span>${x.html}</span><small>${ago(x.t)}</small></li>`).join('')}</ul>`
+      : '<p class="muted small">Cuando alguien te anime, saldrá aquí.</p>'}</section>`;
   const link = inviteLink(f.me.code);
-  main.innerHTML = `${head}
-    <section class="panel fr-invite">
-      <h2>Invita a tus amigos</h2>
-      <p class="muted small">Pásales tu enlace o tu código. Cuando lo acepten, veréis vuestras rachas y los repasos de la semana; nunca vuestras listas ni apuntes.</p>
-      <div class="fr-code"><span class="muted small">Tu código</span><b id="frMyCode">${esc(formatCode(f.me.code))}</b></div>
-      <div class="btnrow"><button class="primary" data-act="fr-share" data-link="${esc(link)}">${icon('share', { size: 16 })} Compartir enlace</button>
-        <button class="ghost" data-act="fr-copy-code">${icon('copy', { size: 16 })} Copiar código</button></div>
-      <form data-form="add-friend" class="fr-add" autocomplete="off"><label for="frCode">Añadir con el código de un amigo</label>
-        <div class="fr-addrow"><input id="frCode" placeholder="XXXX-XXXX" maxlength="12" autocapitalize="characters" spellcheck="false"><button class="ghost" type="submit">Añadir</button></div></form>
-    </section>
-    ${inc.length ? `<div class="section-h"><h2>Peticiones</h2></div><ul class="list fr-reqs">${inc.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">quiere ser tu amigo</span></span>
-      <span class="btnrow"><button class="primary small-btn" data-fr-accept="${r.id}">Aceptar</button><button class="ghost small-btn" data-fr-reject="${r.id}">Rechazar</button></span></li>`).join('')}</ul>` : ''}
-    <div class="section-h"><h2>Tus amigos${f.list.length ? ` · ${f.list.length}` : ''}</h2></div>
-    ${f.list.length ? `<ul class="fr-list">${[...f.list].sort((a, b) => weekTotal(b.week) - weekTotal(a.week)).map(card).join('')}</ul>`
-      : '<p class="muted">Aún no tienes amigos en Flaski. Comparte tu enlace para empezar.</p>'}
-    ${out.length ? `<div class="section-h"><h2>Enviadas</h2></div><ul class="list fr-reqs">${out.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">pendiente</span></span>
-      <span class="btnrow"><button class="ghost small-btn" data-fr-cancel="${r.other}">Cancelar</button></span></li>`).join('')}</ul>` : ''}
-    <section class="panel fr-privacy"><h2>Privacidad</h2>
-      <div class="set-row"><div class="set-l"><b id="frShareL">Compartir mi actividad</b><small>Tus amigos ven tu racha, tus repasos de la semana y los idiomas que estudias.</small></div>
+  const invite = `<section class="fr-sec fr-invite" aria-labelledby="h-frinv"><h2 class="fr-h" id="h-frinv">Invita a alguien</h2>
+    <p class="muted small">Con tu código aparecerá en tu clasificación y podréis animaros. Nunca veréis vuestras listas ni apuntes.</p>
+    <div class="fr-code"><b id="frMyCode">${esc(formatCode(f.me.code))}</b><small>${f.list.length ? plural(f.list.length, 'amigo', 'amigos') : 'tu código'}</small></div>
+    <div class="fr-btns"><button class="pill-tint" data-act="fr-copy-code">${icon('copy', { size: 18 })} Copiar</button><button class="primary" data-act="fr-share" data-link="${esc(link)}">${icon('share', { size: 18 })} Compartir</button></div>
+    <form data-form="add-friend" class="fr-add" autocomplete="off"><label for="frCode">¿Tienes el código de alguien?</label>
+      <div class="fr-addrow"><input id="frCode" placeholder="XXXX-XXXX" maxlength="12" autocapitalize="characters" spellcheck="false"><button class="ghost" type="submit">Añadir</button></div></form></section>`;
+  const reqs = inc.length ? `<section class="fr-sec"><h2 class="fr-h">Te quieren añadir</h2><ul class="list fr-reqs">${inc.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">quiere ser tu amigo</span></span>
+      <span class="btnrow"><button class="primary small-btn" data-fr-accept="${r.id}">Aceptar</button><button class="ghost small-btn" data-fr-reject="${r.id}">Rechazar</button></span></li>`).join('')}</ul></section>` : '';
+  const sentReqs = out.length ? `<section class="fr-sec"><h2 class="fr-h fr-h-s">Enviadas</h2><ul class="list fr-reqs">${out.map(r => `<li class="fr-req">${avatar(r.name)}<span><b>${esc(r.name || 'Alguien')}</b> <span class="muted small">pendiente</span></span>
+      <span class="btnrow"><button class="ghost small-btn" data-fr-cancel="${r.other}">Cancelar</button></span></li>`).join('')}</ul></section>` : '';
+  const privacy = `<section class="fr-sec fr-privacy"><h2 class="fr-h fr-h-s">Privacidad</h2>
+      <div class="set-row"><div class="set-l"><b id="frShareL">Compartir mi actividad</b><small>Tus amigos ven tu racha, tus preguntas de la semana y los idiomas que estudias.</small></div>
         <div class="set-c"><label class="switch"><input type="checkbox" role="switch" id="frShare" aria-labelledby="frShareL" ${f.me.share ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
       ${blocked.length ? `<p class="small" style="margin-bottom:4px"><b>Bloqueados</b></p><ul class="list fr-reqs">${blocked.map(r => `<li class="fr-req">${avatar(r.name)}<span>${esc(r.name || 'Alguien')}</span>
-        <span class="btnrow"><button class="ghost small-btn" data-fr-unblock="${r.other}">Desbloquear</button></span></li>`).join('')}</ul>` : ''}
-    </section>`;
+        <span class="btnrow"><button class="ghost small-btn" data-fr-unblock="${r.other}">Desbloquear</button></span></li>`).join('')}</ul>` : ''}</section>`;
+  main.innerHTML = `${head}<div class="fr-grid"><div class="fr-l">${reqs}${week}</div><div class="fr-r">${cheers}${invite}${sentReqs}${privacy}</div></div>`;
   loadFriends();
 }
 // Acciones de amigos: cada una llama a Supabase y vuelve a cargar la lista

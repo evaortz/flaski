@@ -3927,3 +3927,35 @@ body.in-study .studybar .sb-info .left{color:rgba(255,255,255,.85)}
 .sk-short{height:70px;width:80%}
 @keyframes sk-pulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
+
+/* ===== Amigos (paso 5) ===== */
+.fr-head h1{margin:0}
+.fr-grid{display:flex;flex-direction:column;gap:30px}
+.fr-l,.fr-r{display:flex;flex-direction:column;gap:30px;min-width:0}
+.fr-sec{display:flex;flex-direction:column;gap:8px}
+.fr-h{margin:0;font-family:var(--font-hand);font-weight:400;font-size:30px;line-height:1.1;color:var(--fg)}
+.fr-h-s{font-size:24px}
+.fr-sub{margin:-4px 0 4px}
+.frow-name{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--fg);cursor:pointer;text-align:left}
+.frow-name:hover{color:var(--accent-ink);text-decoration:underline}
+.fr-news{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.fr-news li{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.fr-news li > span:not(.fr-av){flex:1;min-width:0}
+.fr-news li > small{flex:none;font-size:13px;color:var(--muted)}
+.fr-news .fr-av{background:var(--soft);color:var(--fg)}
+.fr-sec.fr-invite{background:none;border:0;padding:0}
+.fr-invite p{margin:0}
+.fr-invite .fr-code{flex-direction:row;align-items:center;justify-content:space-between;gap:12px;border:1.5px dashed var(--line-strong);border-radius:20px;padding:18px 22px;margin:6px 0}
+.fr-invite .fr-code b{font-family:var(--font-hand);font-weight:400;font-size:clamp(34px,10vw,52px);letter-spacing:.02em;line-height:1;color:var(--fg)}
+.fr-invite .fr-code small{font-size:13px;color:var(--muted);text-align:right}
+.fr-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fr-btns > *{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;border-radius:26px;font-size:16px}
+.fr-add label{font-size:14px;color:var(--muted)}
+@media (min-width:960px){
+  body[data-view="friends"] .app{max-width:1240px}
+  .fr-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,6fr);column-gap:72px;align-items:start}
+  .fr-btns{display:flex}
+}
+.pr-list + .pr-cap{margin-top:22px}
+@media (min-width:960px){.pr-grid{grid-template-rows:auto 1fr}.pr-acc{align-self:start}}
+.set-find input,.set-find input:focus,.set-find input:focus-visible{border:0;box-shadow:none;outline:none;background:none;border-radius:0}
