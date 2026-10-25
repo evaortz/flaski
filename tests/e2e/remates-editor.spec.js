@@ -43,9 +43,9 @@ test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras @ambos', asy
   const pick = page.locator('#tagPick');
   await pick.locator('[data-act="tagpick-open"]').click();
   await page.locator('#f-newtag').fill('  #verbos ');
-  await expect(pick.locator('.tag-create')).toHaveText('Crear #verbos');
+  await expect(pick.locator('.tag-create')).toHaveText('Crear «verbos»');
   await page.locator('#f-newtag').press('Enter');
-  await expect(pick.locator('.tagsel')).toHaveText(['#verbos']);
+  await expect(pick.locator('.tagsel')).toHaveText(['verbos']);
   await pick.locator('[data-act="tagpick-open"]').click();
   await page.locator('#f-newtag').fill('#verbos');
   await expect(pick.locator('.tag-create')).toBeHidden();   // ya existe

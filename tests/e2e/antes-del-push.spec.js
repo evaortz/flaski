@@ -1,17 +1,17 @@
 // Remates de antes del push en la tanda: la respuesta numérica en su recuadro, la fila de letras especiales sin
 // idioma, la pregunta de la cara de doble sentido…
-import { test, expect, startTanda } from './fixtures.js';
+import { test, expect, startTanda, nav } from './fixtures.js';
 
 const DAY = 864e5, T0 = Date.now() - 30 * DAY;
 // Una lista con estas preguntas (todas para hoy, en este orden) y la tanda empezada
-async function tanda(page, cards, { lang = '', prefs = {} } = {}) {
+async function tanda(page, cards, { lang = '', prefs = {}, tags = [] } = {}) {
   const now = new Date().toISOString();
   const db = {
     profile: { id: 'local', display_name: '' }, settings: { new_per_day: 15, prefs },
     decks: [{ id: 'd', owner: 'local', name: 'Repaso', created_at: now, folder_id: null, icon: '', color: '', tags: [], pinned: false, archived: false, options: lang ? { lang } : {} }],
-    cards: cards.map(([type, tpl, fields], k) => ({ id: `c${k}`, deck_id: 'd', owner: 'local', type_id: type, template: tpl, fields, front: '—', back: '—', note: '', hint: '', tags: [], position: k, created_at: now })),
+    cards: cards.map(([type, tpl, fields, ctags = []], k) => ({ id: `c${k}`, deck_id: 'd', owner: 'local', type_id: type, template: tpl, fields, front: '—', back: '—', note: '', hint: '', tags: ctags, position: k, created_at: now })),
     progress: cards.map((_, k) => ({ user_id: 'local', card_id: `c${k}`, reps: 3, interval: 4, ease: 2.5, lapses: 0, stability: 4, difficulty: 5, due: new Date(T0 + k * 1000).toISOString(), first_seen: new Date(T0).toISOString(), last: new Date(T0).toISOString() })),
-    log: [], folders: [], tags: [], types: [], events: [], pages: [],
+    log: [], folders: [], tags: tags.map(([id, name]) => ({ id, owner: 'local', name, color: '' })), types: [], events: [], pages: [],
   };
   await page.addInitScript(data => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', data); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
   await page.goto('/');
@@ -43,4 +43,16 @@ test('doble sentido: «¿Qué significa?» encima del término y «¿Cómo se ll
   await page.locator('[data-grade="3"]').click();
   await expect(page.locator('article.card .rev-ask')).toHaveText('¿Cómo se llama?');
   await expect(page.locator('article.card .front')).toContainText('Fijar en la memoria');
+});
+
+test('etiquetas sin «#»: en la tanda, en los filtros de Biblioteca y en «Estudiar…»', async ({ page }) => {
+  await tanda(page, [['basic', 't1', { q: 'ev', a: 'casa', n: '' }, ['t1']]], { tags: [['t1', 'casa']] });
+  await expect(page.locator('article.card .tags')).toHaveText('casa');
+  await page.locator('.studybar [data-act="exit"]').click();
+  await nav(page, 'Biblioteca');
+  const filter = page.locator('[data-tagfilter="t1"]:visible').first();
+  await expect(filter).toHaveText('casa');
+  await filter.click();
+  await expect(page.locator('#main [data-start="tag:t1"]:visible').first()).toHaveText(/^Estudiar casa/);
+  expect(await page.locator('#main').innerText()).not.toContain('#casa');
 });

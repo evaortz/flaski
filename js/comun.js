@@ -169,7 +169,7 @@ export function folderIcon(f, big = false) {
 }
 // Una etiqueta como pegatina: a mano, con «#», de su color y un poco torcida (big: la del filtro y el editor)
 export function tagSticker(t, { big = false } = {}) {
-  return `<span class="tag${big ? ' tag-big' : ''}" data-tc="${tagColor(t.color)}" style="--tilt:${tagTilt(t.name)}deg"><i aria-hidden="true">#</i>${esc(t.name)}</span>`;
+  return `<span class="tag${big ? ' tag-big' : ''}" data-tc="${tagColor(t.color)}" style="--tilt:${tagTilt(t.name)}deg">${esc(t.name)}</span>`;
 }
 export function tagChips(ids = []) {
   return ids.map(id => S.tags.get(id)).filter(Boolean).map(t => tagSticker(t)).join('');
@@ -253,7 +253,7 @@ export function scopeName(scope = 'all') {
   }
   if (scope === 'all') return 'Todas las listas';
   if (scope.startsWith('folder:')) return S.folders.get(scope.slice(7))?.name || 'Carpeta';
-  if (scope.startsWith('tag:')) return '#' + (S.tags.get(scope.slice(4))?.name || 'etiqueta');
+  if (scope.startsWith('tag:')) return S.tags.get(scope.slice(4))?.name || 'etiqueta';
   return S.decks.get(scope)?.name || 'Lista';
 }
 export const deckName = id => scopeName(id);

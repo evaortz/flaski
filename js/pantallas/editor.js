@@ -148,7 +148,7 @@ export function tagPicker(selected = [], color = nextTagColor(), { compact = fal
   const rest = tags.filter(t => !selected.includes(t.id));
   const top = new Set(rest.map(t => [t, tagCount(t.id)]).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t.id));
   return `<div class="tagpick compact" id="tagPick">
-    <div class="tagpick-sel">${selected.map(id => S.tags.get(id)).filter(Boolean).map(t => `<span class="tagsel"><input type="checkbox" name="f-tag" value="${t.id}" checked hidden>${tagSticker(t, { big: true })}<button type="button" class="tag-x" data-act="untag" data-id="${t.id}" aria-label="Quitar #${esc(t.name)}">${icon('x', { size: 14 })}</button></span>`).join('')}
+    <div class="tagpick-sel">${selected.map(id => S.tags.get(id)).filter(Boolean).map(t => `<span class="tagsel"><input type="checkbox" name="f-tag" value="${t.id}" checked hidden>${tagSticker(t, { big: true })}<button type="button" class="tag-x" data-act="untag" data-id="${t.id}" aria-label="Quitar ${esc(t.name)}">${icon('x', { size: 14 })}</button></span>`).join('')}
       <button type="button" class="tag-add" data-act="tagpick-open" aria-expanded="${open}">+ etiqueta</button></div>
     <div class="tagpick-pop" ${open ? '' : 'hidden'}>${search}
       <div class="tagpick-list">${rest.map(t => opt(t, top.has(t.id))).join('')}${create}</div>${colors}</div>
@@ -162,12 +162,12 @@ export function redrawTagPicker(checked, { open = false } = {}) {
   box.outerHTML = tagPicker(checked ?? [...box.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value), undefined, { compact, open });
   if (S.edit?.open) S.edit.dirty = true;
 }
-// Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear #…»
+// Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear «…»»
 export function filterTagPicker() {
   const name = tagName($('#f-newtag')?.value), q = norm(name), btn = document.querySelector('#tagPick .tag-create');
   for (const l of document.querySelectorAll('#tagPick .tagopt')) l.hidden = q ? !l.dataset.tagName.includes(q) : !('top' in l.dataset);
   const exact = [...S.tags.values()].some(t => norm(t.name) === q);
-  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${name}`; }
+  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear «${name}»`; }
 }
 // El color de una etiqueta nueva: el primero que aún no usa ninguna (si están todos, por orden)
 export function nextTagColor() {
@@ -242,7 +242,7 @@ export function tagsSheet(renaming = null) {
       ${renaming === t.id ? `<form data-form="renametag" data-id="${t.id}" class="tl-rename"><input class="t-name" value="${esc(t.name)}" maxlength="25" aria-label="Nombre de la etiqueta" required><button class="primary small-btn" type="submit">Guardar</button><button type="button" class="link" data-act="manage-tags">Cancelar</button></form>`
         : `<span class="tl-tag">${tagSticker(t, { big: true })}</span>`}
       <span class="tl-n">${plural(tagCount(t.id), 'pregunta', 'preguntas')}</span>
-      <span class="tl-colors" role="group" aria-label="Color de #${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
+      <span class="tl-colors" role="group" aria-label="Color de ${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
       <span class="tl-acts">${renaming === t.id ? '' : `<button type="button" class="link" data-rename-tag="${t.id}">Renombrar</button>`}<button type="button" class="link danger" data-del-tag="${t.id}">Borrar</button></span></li>`;
   openSheet(`<h2 class="hand-h">Gestionar etiquetas</h2>
     <p class="muted small">Sirven para juntar listas y apuntes de distintas carpetas (<i>examen junio</i>, <i>verbos</i>…) y estudiarlos juntos. Al borrar una, las preguntas se quedan: solo pierden la etiqueta.</p>
