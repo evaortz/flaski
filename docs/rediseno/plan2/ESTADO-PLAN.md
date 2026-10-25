@@ -497,3 +497,50 @@ Pruebas: unitaria (hoy, justo la mitad; en la semana, unas siete veces; después
 (10 que te cuestan → «5 repasos» en Hoy y en la tanda; hechas, nada más).
 
 **Paso D · parte 2 hecha** (puntos 4 y 5).
+
+### 6 · Historial
+
+Ajustes del plan termina con «Historial»: los 20 últimos cambios del plan (`plan.history`, que ya guardaba
+`commitPlan`), el último arriba, con su hora («hoy, 10:42», «ayer, 18:05» o «12 oct, 9:30») y «Deshacer». Deshacer
+deja el plan como estaba antes de ese cambio y quita del historial ese cambio y los que vinieron después (también los
+deshace). e2e en `plan-d.spec.js`.
+
+### 7 · Domingo en Hoy
+
+- **Lo previsto** (`plan.weekly.snap`): el primer día que se abre la app cada semana, Hoy guarda los minutos y las
+  nuevas previstas de cada día hasta el domingo y cuándo acaba el temario de cada examen (`weekSnap` en `plan2.js`).
+  Al cambiar el plan (`commitPlan`) se rehace desde hoy, sin tocar los días pasados ni el día en que se guardó: lo
+  que cambias tú no es ir por detrás.
+- **Cómo va la semana** (`weekReview`): días que tocaba estudiar y días con algo respondido (por las respuestas y por
+  el progreso), nuevas hechas frente a previstas, repasos hechos y atrasados, y los días por detrás: lo que se ha
+  movido el final del temario del examen más cercano. Sin lo previsto (o si has hecho lo previsto), 0. **El domingo
+  solo sale si lo previsto se guardó antes de hoy**: el primer domingo con plan no hay semana que mirar (si no, una
+  cuenta nueva salía «6 días por detrás» por días en que aún no tenía plan).
+- **Hoy, domingo libre**: «Tu semana» (L a D, «vas bien» o «vas N días por detrás», «Acabas Auxiliar el 25 nov, como
+  estaba previsto» y «Ver la semana»), el «Simulacro de la semana · opcional» como única propuesta (las vistas de los
+  temas empezados o acabados del examen más cercano, con su formato; sin preguntas de test, también las de dar la
+  vuelta) y «Hoy es tu día libre. Tocan N repasos: si te apetece, 10 min de repasos adelantan el lunes; si no, pasan a
+  mañana.» (el enlace, en línea con el texto). **Domingo con tanda**: la tanda primero; debajo, la semana y el
+  simulacro como segunda opción. Ese día no sale el botón «Simulacro de la semana» de la fila del examen.
+- **Repaso de la semana** (vista `week`, `plan-semana.js`): días, nuevas y repasos con sus barras, qué días no
+  estudiaste y, si vas por detrás, «¿Lo recuperamos?»: «Repartir las N que faltan en la semana» (N/días más al día en
+  los días que estudias de la semana que viene, como días especiales «Recuperar la semana» con unos minutos más;
+  `weekRecover`), con «Vuelves al …», o «Dejarlo así · El plan se mueve N días» con «Llegas igual» o «Así no llegas».
+  Con 2 días o más por detrás se abre sola el domingo, una vez (`weekly.seen`).
+- **Simulacro**: el resultado ofrece «Refuerza este tema» con los temas flojos (3 preguntas o más y menos del 60 %
+  bien) que están en un examen del plan (`hooks.simWeak`).
+- Todo se apaga con «Repaso de la semana» en Ajustes del plan (`weekly.on`).
+
+Pruebas: unitarias en `plan2-semana.test.js` (lo previsto, todo hecho → vas bien, sin jueves ni viernes → faltan sus
+nuevas y vas por detrás, sin lo previsto → 0, recuperar en los días que estudias sin pisar días especiales) y e2e en
+`plan-domingo.spec.js` (domingo libre con las 945 y el simulacro con «Refuerza este tema»; una semana sin estudiar →
+el Repaso se abre solo y «Repartir» pone los días especiales; el primer domingo, nada; domingo con tanda; apagado).
+
+**La batería rápida comprueba antes que todos los módulos cargan** (`node --input-type=module --check` de cada
+`js/*.js` y `js/pantallas/*.js`): un error de sintaxis en uno deja la app en blanco y así no llega a un commit.
+
+**Paso D · parte 3 hecha** (puntos 6 y 7).
+
+**Al acabar el paso D:** unitarias 289/289. Batería completa (`PORT=8124 npx playwright test --workers=2`), de una vez:
+395 pasan, 13 se saltan y 2 fallan, las de siempre: `lista.spec.js:65` «Desde un apunte» (móvil y escritorio), que
+vienen de las sugerencias de la otra conversación y no tocan el plan. Sin merge ni push: Eva lo junta.
