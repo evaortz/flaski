@@ -1,7 +1,7 @@
 // Preferencias del usuario: valores por defecto, mezcla con lo guardado y aplicación de la apariencia.
 // Se guardan en settings.prefs (Supabase) o en el navegador (modo local) como un objeto JSON.
 import { DEFAULT_ALGO, ALGO_PRESETS } from './srs.js';
-import { emptyPlan2 } from './plan2-migrar.js';
+import { emptyPlan2, absorbV1, withMirror } from './plan2-migrar.js';
 
 export const DEFAULT_PREFS = {
   study: {
@@ -126,7 +126,11 @@ export function mergePlan(older, newer) {
   if (!isObj(newer)) return older;
   // Dos planes de antes (dos dispositivos que aún no han migrado): días especiales y etapas, por id
   if (older.v !== 2 && newer.v !== 2) return { ...newer, special: unionById(older.special, newer.special), stages: unionById(older.stages, newer.stages) };
-  if (older.v !== 2 || newer.v !== 2) return newer.v === 2 ? newer : older;   // uno ya migrado: ese
+  // Uno ya migrado y el otro de una versión vieja: el migrado, con lo que la vieja cambió desde su copia (sim.__v2)
+  if (older.v !== 2 || newer.v !== 2) {
+    const [v2, v1] = newer.v === 2 ? [newer, older] : [older, newer];
+    return v1.sim?.__v2?.v === 2 ? absorbV1(v2, v1, v1.sim.__v2) : v2;
+  }
   const out = { ...newer };
   const ex = new Map();
   for (const e of [...(older.exams || []), ...(newer.exams || [])]) if (e?.id) ex.set(e.id, ex.has(e.id) ? newest(ex.get(e.id), e) : e);
@@ -150,7 +154,8 @@ export function unionById(a = [], b = []) {
 export function mergeSynced(older, newer) {
   if (!isObj(older)) return newer;
   if (!isObj(newer)) return older;
-  const out = { ...newer, plan: mergePlan(older.plan, newer.plan) };
+  // Lo que va a la nube lleva el plan con su espejo para las versiones viejas (ver withMirror)
+  const out = { ...newer, plan: withMirror(mergePlan(older.plan, newer.plan)) };
   for (const [a, b] of SYNCED) {
     if (b) out[a][b] = unionById(older[a]?.[b], newer[a]?.[b]);
     else out[a] = unionById(older[a], newer[a]);

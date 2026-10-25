@@ -403,3 +403,24 @@ Pruebas: e2e con la demo de verdad (`?local` → «Cargar datos de ejemplo»: 5 
 mezclado y el Repaso, en `plan-c.spec.js`. `hoyCount` cuenta ahora el número del principio de cada parte de la
 leyenda (con «de 5 listas» sumaba el 5). Unitarias 280 de 280; batería completa 378 pasan y 2 fallan (las de siempre,
 `lista.spec.js:65`, de la otra conversación).
+
+## Paso D
+
+### 0 · Dos dispositivos: versión vieja (plan v1) y nueva (v2)
+
+El riesgo: una versión vieja de la app, al cargar, conserva solo las claves del plan que conoce (`nodes`, `week`,
+`special`, `stages`, `simGoal`, `sim`, `startDone`, `lateOk`) y al guardar pisa el plan de la nube con su v1 (sin
+exámenes, tiempo ni reparto del nuevo). Como su código ya está instalado, la protección va en la nueva:
+- Al guardar en la nube (`mergeSynced` → `withMirror`), el plan nuevo lleva un **espejo en v1** (`toV1`: un nodo por
+  examen con su fecha, última semana y después; los estados de lo que no tiene examen; la semana, los días especiales
+  y las etapas), para que la vieja siga viendo sus exámenes, y una **copia de sí mismo en `plan.sim.__v2`** (la vieja
+  guarda `sim` entero sin mirarlo).
+- Si la vieja escribe su v1 encima, la nueva (al entrar, en `migrate`, o al guardar, en `mergePlan`) compara ese v1
+  con el espejo de la copia y aplica **solo lo que se cambió en la vieja** (`absorbV1`: fecha, última semana y
+  después de cada examen, exámenes nuevos o quitados, estados, la semana; días especiales y etapas por id). Lo demás
+  del v2 (varios a la vez, fechas fijadas, reparto, topes, historial…) se conserva. Nunca vuelve al v1.
+- El espejo y la copia solo van en la nube: al leer, se quitan.
+
+Pruebas: unitarias (imitando cómo carga y guarda la versión vieja) en los dos órdenes, también si la nueva guarda
+sin volver a entrar; e2e `plan-dispositivos.spec.js` con la nube simulada (`nube.js` guarda ahora la fila de
+`settings`): la vieja primero y la nueva después, y la nueva con el plan abierto cuando guarda la vieja.

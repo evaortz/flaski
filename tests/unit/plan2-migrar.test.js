@@ -119,3 +119,76 @@ test('al juntar dos dispositivos, cada examen, tu tiempo y el reparto: el más r
   assert.deepEqual(p.plan.time.special, []);
   assert.equal(p.plan.split.mode, 'auto');
 });
+
+/* ---------------- dos dispositivos: una versión vieja (v1) y la nueva (v2) ---------------- */
+// Lo que hace una versión vieja de la app con el plan: al cargar, solo las claves que conoce (y sim entero); al
+// guardar, su plan con los días especiales y las etapas unidos por id con los de la nube
+const OLD_KEYS = ['nodes', 'week', 'special', 'stages', 'simGoal', 'sim', 'startDone', 'lateOk'];
+const oldLoad = plan => { const p = {}; for (const k of OLD_KEYS) p[k] = plan?.[k] !== undefined ? JSON.parse(JSON.stringify(plan[k])) : ({ nodes: {}, week: null, special: [], stages: [], simGoal: {}, sim: {}, startDone: false, lateOk: '' })[k]; return p; };
+const union = (a = [], b = []) => { const m = new Map(); for (const x of [...a, ...b]) { const o = m.get(x.id); if (!o || (x.at || 0) >= (o.at || 0)) m.set(x.id, x); } return [...m.values()]; };
+const oldSave = (cloud, mine) => ({ ...mine, special: union(cloud?.special, mine.special), stages: union(cloud?.stages, mine.stages) });
+
+function v2Plan(D) {
+  const p = migrate(D.old, ctx(D));
+  const aux = p.exams[0];
+  aux.mode = 'parallel'; aux.shares = { [T1]: 60, [T3]: 40 }; aux.fixed = { [T3]: '2026-11-20' };
+  p.split = { mode: 'manual', shares: { [p.exams[0].id]: 70, [p.exams[1].id]: 30 }, updated_at: 5 };
+  return p;
+}
+
+test('una versión vieja que guarda después de la nueva no borra el plan nuevo: se juntan los dos', async () => {
+  const { mergeSynced } = await import('../../js/prefs.js');
+  const { toV1 } = await import('../../js/plan2-migrar.js');
+  const D = load(), v2 = v2Plan(D);
+  // La nueva guarda en la nube: el plan, su espejo en v1 y su copia
+  const cloud1 = mergeSynced({}, { plan: v2 }).plan;
+  assert.equal(cloud1.v, 2);
+  assert.deepEqual(cloud1.nodes, toV1(v2).nodes);
+  // La vieja lo abre: ve los dos exámenes (por el espejo) y la semana
+  const seen = oldLoad(cloud1);
+  assert.equal(Object.values(seen.nodes).filter(n => n.exam).length, 2);
+  assert.deepEqual(seen.week, D.old.week);
+  // La vieja cambia la fecha de Auxiliar y añade un día especial, y guarda (su v1 pisa el plan de la nube)
+  const auxKey = 'f:' + AUX;
+  seen.nodes[auxKey] = { ...seen.nodes[auxKey], exam: '2027-01-30' };
+  seen.special = [...seen.special, { id: 'puente', label: 'Puente', from: '2026-12-07', to: '2026-12-08', minutes: 0, at: 9 }];
+  const cloud2 = oldSave(cloud1, seen);
+  assert.equal(cloud2.v, undefined);
+  // La nueva vuelve a entrar: lo de la vieja, encima de su plan (reparto, varios a la vez, fecha fijada siguen)
+  const back = migrate(cloud2, ctx(D));
+  const aux = back.exams.find(e => e.scope.folders[0] === AUX);
+  assert.equal(back.v, 2);
+  assert.equal(aux.date, '2027-01-30');
+  assert.equal(aux.mode, 'parallel');
+  assert.deepEqual(aux.shares, { [T1]: 60, [T3]: 40 });
+  assert.deepEqual(aux.fixed, { [T3]: '2026-11-20' });
+  assert.deepEqual(back.split.shares, v2.split.shares);
+  assert.deepEqual(back.time.special.map(s => s.id).sort(), ['puente', 'sp1']);
+  assert.equal(back.nodes, undefined);
+  assert.equal(back.sim.__v2, undefined);
+  // Y si la nueva guarda sin volver a entrar (con su plan de antes en memoria), no deshace lo de la vieja
+  const cloud3 = mergeSynced({ plan: cloud2 }, { plan: v2 }).plan;
+  assert.equal(cloud3.exams.find(e => e.scope.folders[0] === AUX).date, '2027-01-30');
+  assert.deepEqual(cloud3.exams.find(e => e.scope.folders[0] === AUX).shares, { [T1]: 60, [T3]: 40 });
+  // Si la vieja guarda sin cambiar nada del plan, la nueva lo recupera tal cual
+  const same = migrate(oldSave(cloud1, oldLoad(cloud1)), ctx(D));
+  assert.deepEqual(same.exams, v2.exams);
+  assert.deepEqual(same.split, v2.split);
+});
+
+test('al revés: la vieja guarda primero (v1 sin copia) y la nueva migra; después la vieja sigue viendo su plan', async () => {
+  const { mergeSynced } = await import('../../js/prefs.js');
+  const D = load();
+  const v1 = oldSave({}, oldLoad(D.old));
+  const v2 = migrate(v1, ctx(D));
+  assert.equal(v2.exams.length, 2);
+  // La nueva guarda; la vieja lo abre y ve los mismos exámenes y la semana que tenía
+  const seen = oldLoad(mergeSynced({ plan: v1 }, { plan: v2 }).plan);
+  assert.deepEqual(Object.keys(seen.nodes).sort(), Object.keys(D.old.nodes).sort());
+  for (const k of Object.keys(D.old.nodes)) assert.equal(seen.nodes[k].exam, D.old.nodes[k].exam);
+  assert.deepEqual(seen.week, D.old.week);
+  // Quitar un examen en la vieja lo quita en la nueva
+  delete seen.nodes['f:' + ING];
+  const back = migrate(oldSave({}, seen), ctx(D));
+  assert.deepEqual(back.exams.filter(e => !e.deleted).map(e => e.name), ['Auxiliar Administrativo']);
+});
