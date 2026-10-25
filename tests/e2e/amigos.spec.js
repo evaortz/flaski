@@ -12,7 +12,7 @@ test('amigos: código para invitar, aceptar una petición, ver cómo van, animar
   Object.assign(srv.social, { friends: [ANA, CARLOS], requests: [BEA] });
   await openCloud(page);
   await nav(page, 'Perfil');
-  await expect(page.locator('#frBadge')).toHaveText('1');
+  await expect(page.locator('#frBadge')).toHaveText('1 petición');
   await page.locator('[data-nav="friends"]').first().click();
   await expect(page.getByRole('heading', { level: 1, name: 'Amigos' })).toBeVisible();
   await expect(page.locator('#frMyCode')).toHaveText('EVA7-K2QX');

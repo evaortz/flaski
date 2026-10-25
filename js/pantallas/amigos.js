@@ -8,6 +8,7 @@ import { streaks } from '../charts.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
 import { plural, crumbs } from './mazos.js';
 import { openSheet } from './editor.js';
+import { renderProfile } from './perfil.js';
 
 /* ===================== amigos ===================== */
 // Se cargan aparte de lo demás (no retrasan la app) y se refrescan como mucho una vez por minuto
@@ -29,13 +30,19 @@ export async function loadFriends(force = false) {
 // Repinta lo que muestra amigos (la pantalla de amigos, la tarjeta de Inicio y el aviso en Perfil)
 export function friendsChanged() {
   if (S.view === 'friends') return renderFriends();
+  if (S.view === 'profile') return renderProfile();
   const el = $('#homeFriends');
   if (el && S.view === 'home') el.outerHTML = homeFriendsHTML();
   const badge = $('#frBadge');
-  if (badge) { const n = incoming().length; badge.textContent = n; badge.hidden = !n; }
+  if (badge) badge.innerHTML = friendsBadge();
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadFriends(); });
 export const incoming = () => (S.friends?.requests || []).filter(r => r.dir === 'in');
+// En Perfil, junto a Amigos: ánimos sin leer (o, si no hay, peticiones de amistad)
+export function friendsBadge() {
+  const ch = S.friends?.cheers?.length || 0, req = incoming().length;
+  return ch ? `<span class="pr-tag warm">${plural(ch, 'ánimo', 'ánimos')}</span>` : req ? `<span class="pr-tag warm">${plural(req, 'petición', 'peticiones')}</span>` : '';
+}
 // Ánimos ya mandados hoy (para no ofrecer otro al mismo amigo)
 function cheeredToday() {
   try { const c = JSON.parse(localStorage.getItem('flaski-cheered') || 'null'); return c?.day === dateKey() ? new Set(c.ids) : new Set(); } catch { return new Set(); }

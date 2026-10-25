@@ -28,7 +28,7 @@ import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, 
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
-import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
+import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm, nameSheet, creditsSheet, clearSettingFind } from './pantallas/perfil.js';
 import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
 import { focusPageBlock } from './pantallas/apuntes.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
@@ -542,6 +542,9 @@ document.addEventListener('click', async e => {
     case 'notes-help': return notesHelpSheet();
     case 'intro': return showIntro();
     case 'news': return showNews();
+    case 'edit-name': return nameSheet();
+    case 'set-find-clear': return clearSettingFind();
+    case 'credits': return creditsSheet();
     case 'ruby-ok': return rubyApply();
     case 'ruby-del': return rubyApply(true);
     case 'fmt-colors': return toggleColorMenu();
@@ -660,7 +663,7 @@ document.addEventListener('click', async e => {
     case 'fr-accept-invite': closeSheet(); return addFriend(ds.code);
     case 'push-allow': return pushAllow();
     case 'push-later': { try { localStorage.setItem(PUSH_ASK, 'no'); } catch { /* sin almacenamiento */ } $('#pushAsk')?.remove(); return; }
-    case 'goal-change': { go('settings'); $('#s-study')?.scrollIntoView(); return; }
+    case 'goal-change': { go('settings'); $('#s-home')?.scrollIntoView(); return; }
     case 'cheers-seen': {
       const ids = (S.friends?.cheers || []).map(c => c.id);
       S.friends.cheers = [];

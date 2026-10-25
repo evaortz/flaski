@@ -12,45 +12,87 @@ import { setBaseRate } from '../tts.js';
 import { imageIdsOf, exportImages, importImages } from '../media.js';
 import { BLOCK_TYPES } from '../pages.js';
 import { canVibrate, canAudio } from '../feel.js';
-import { $, main, S, esc, fmt, cardList, toast, errMsg, fail, deckIcon, scopeDecks, scopeName, deckName, algo } from '../comun.js';
+import { $, main, S, esc, fmt, fold, cardList, toast, errMsg, fail, deckIcon, scopeDecks, scopeName, deckName, algo } from '../comun.js';
 import { onSignedIn } from './cuenta.js';
 import { drawHeatmap, drawProgress } from './inicio.js';
 import { nativeLang, cardModel, grade } from './estudio.js';
 import { plural, download } from './mazos.js';
 import { AI_GUIDE_BTNS, loadAiGuide } from './explorar.js';
 import { pageRow } from './apuntes.js';
-import { openSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
-import { incoming } from './amigos.js';
+import { openSheet, closeSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
+import { examList, forecast } from './plan.js';
+import { NEWS_VERSION } from '../news.js';
+import { friendsBadge, loadFriends } from './amigos.js';
 
 /* ===================== perfil ===================== */
+// Cabecera (nombre con lápiz, racha y comodín, 4 cifras), «Tu estudio», «Flaski», la cuenta y, al final,
+// «Créditos y licencias» en una hoja. En el ordenador: la persona y la cuenta a la izquierda, las filas a la derecha.
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const newsMonth = () => { const [y, m] = NEWS_VERSION.split('-').map(Number); return `${MONTHS[m - 1]} de ${y}`; };
+// «vas bien» / «no llegas» del plan (solo si hay algún examen por delante)
+function planBadge() {
+  if (!examList().length) return '';
+  try { return forecast().exams.some(e => e.late) ? '<span class="pr-tag late">no llegas</span>' : '<span class="pr-tag ok">vas bien</span>'; } catch { return ''; }
+}
+function friendsLine() {
+  const names = (S.friends?.list || []).map(p => p.name || 'Sin nombre');
+  if (!api.social) return 'Con una cuenta, estudiad juntos y animaos';
+  if (!names.length) return 'Invita a alguien y animaos';
+  return names.length <= 2 ? names.join(' y ') : `${names.slice(0, 2).join(', ')} y ${names.length - 2} más`;
+}
 export function renderProfile() {
   const total = S.cards.size;
   let learned = 0;
   for (const p of S.progress.values()) if (p.interval >= 21) learned++;
   const st = streaks(S.log), who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]);
   const num = (n, l) => `<div class="pf-num"><b>${n}</b><span>${l}</span></div>`;
+  const row = (attr, ic, t, sub, extra = '') => `<li><button class="pr-row" ${attr}>${icon(ic, { size: 22 })}<span class="pr-t"><b>${t}</b><small>${sub}</small></span>${extra}${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>`;
+  const comodin = st.current && st.freeze.available ? ' · 1 comodín' : '';
   main.innerHTML = `<h1>Perfil</h1>
-    <div class="pf-head"><span class="pf-av" aria-hidden="true">${esc((who || '?').trim().charAt(0).toUpperCase())}</span>
-      <div class="pf-who"><b>${esc(who)}</b><span>${icon(st.current ? 'racha' : 'racha-apagada', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha</span></div></div>
-    <div class="pf-nums">${num(total, total === 1 ? 'pregunta' : 'preguntas')}${num(S.decks.size, S.decks.size === 1 ? 'lista' : 'listas')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
-    <ul class="list linklist">
-      <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-nav="plan">${icon('list-checks', { size: 20 })}<span><b>Plan de estudio</b><small>Tu semana, tus etapas y tus fechas de examen</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, lista y tipo de pregunta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-act="news">${icon('sugerencia', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-act="intro">${icon('circle-help', { size: 20 })}<span><b>Ver la presentación</b><small>Qué puedes hacer con Flaski, en un minuto</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-    </ul>
-    <form class="pf-sec" data-form="profile">
-      <label for="p-name" class="pf-h">Tu nombre<small>Lo ven quienes usan tus listas compartidas</small></label>
-      <div class="pf-row"><input id="p-name" maxlength="40" value="${esc(S.name)}"><button class="pill-tint" type="submit" aria-label="Guardar nombre">Guardar</button></div></form>
-    ${api.mode === 'local'
-      ? `<div class="pf-sec"><span class="pf-h">Cuenta</span><p class="small muted">Estás en <b>modo local</b>: no hay cuenta y todo se guarda en este navegador.</p>
-          <div class="btnrow"><button class="ghost danger" data-act="ask-reset-local">Borrar datos locales</button></div></div>`
-      : `<div class="pf-sec"><span class="pf-h">Cuenta</span><p class="small muted">Has entrado como <b>${esc(S.email)}</b></p>
-          <div class="btnrow"><button class="pill-tint" data-act="change-pass">Cambiar contraseña</button><button class="ghost danger" data-act="signout">Cerrar sesión</button></div></div>`}
-    <div class="pf-foot"><p class="muted small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
-    <p class="muted small">Flaski es software libre. <span class="hand-inline">Consejo:</span> en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p></div>`;
+    <div class="pr-grid">
+    <div class="pr-me">
+      <div class="pf-head"><span class="pf-av" aria-hidden="true">${esc((who || '?').trim().charAt(0).toUpperCase())}</span>
+        <div class="pf-who"><span class="pr-name"><b>${esc(who)}</b><button type="button" class="iconbtn pr-edit" data-act="edit-name" aria-label="Cambiar tu nombre" title="Cambiar tu nombre">${icon('pencil', { size: 18 })}</button></span>
+        <span>${icon(st.current ? 'racha' : 'racha-apagada', { size: 16, cls: 'flame' })} ${plural(st.current, 'día', 'días')} de racha${comodin}</span></div></div>
+      <div class="pf-nums">${num(total, total === 1 ? 'pregunta' : 'preguntas')}${num(S.decks.size, S.decks.size === 1 ? 'lista' : 'listas')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
+      <button type="button" class="link pr-stats" data-nav="stats">Ver tus estadísticas ${icon('chevron-right', { size: 14 })}</button>
+    </div>
+    <div class="pr-links">
+      <h2 class="pr-cap">Tu estudio</h2>
+      <ul class="pr-list">
+        ${row('data-nav="plan"', 'calendar', 'Plan de estudio', 'Tu semana, tus etapas y tus exámenes', planBadge())}
+        ${row('data-nav="stats"', 'chart-column', 'Estadísticas', 'Repasos, intervalos, horas del día y más')}
+        ${row('data-nav="friends"', 'users', 'Amigos', esc(friendsLine()), `<span id="frBadge">${friendsBadge()}</span>`)}
+      </ul>
+      <h2 class="pr-cap">Flaski</h2>
+      <ul class="pr-list">
+        ${row('data-nav="settings"', 'settings', 'Ajustes', 'Apariencia, tanda, avisos, voz, ritmo de repaso y copias')}
+        ${row('data-act="news"', 'sugerencia', 'Novedades', `Lo nuevo de ${newsMonth()}`)}
+        ${row('data-act="intro"', 'circle-help', 'Ver la presentación', 'Qué puedes hacer con Flaski, en un minuto')}
+      </ul>
+    </div>
+    <div class="pr-acc">
+      <h2 class="pr-h">Cuenta</h2>
+      ${api.mode === 'local'
+        ? `<p class="small muted">Estás en <b>modo local</b>: no hay cuenta y todo se guarda en este navegador.</p>
+          <div class="btnrow"><button class="pr-danger" data-act="ask-reset-local">Borrar datos locales</button></div>`
+        : `<p class="small">Has entrado como <b>${esc(S.email)}</b></p>
+          <div class="btnrow"><button class="pill-tint" data-act="change-pass">Cambiar contraseña</button><button class="pr-danger" data-act="signout">Cerrar sesión</button></div>`}
+      <div class="pr-foot"><button type="button" class="link" data-act="credits">Créditos y licencias</button><span>Flaski · software libre</span></div>
+    </div></div>`;
+  loadFriends();
+}
+export function nameSheet() {
+  openSheet(`<h2 class="sheet-hand">Tu nombre</h2><form data-form="profile" class="pr-nameform"><p class="muted small">Lo ven tus amigos y quienes usan tus listas compartidas.</p>
+    <input id="p-name" maxlength="40" value="${esc(S.name)}" aria-label="Tu nombre" autocomplete="name">
+    <div class="btnrow"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" type="submit">Guardar</button></div></form>`);
+  setTimeout(() => $('#p-name')?.select(), 50);
+}
+export function creditsSheet() {
+  openSheet(`<h2 class="sheet-hand">Créditos y licencias</h2>
+    <p class="small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
+    <p class="small">Flaski es software libre. <span class="hand-inline">Consejo:</span> en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p>
+    <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
 }
 
 /* ===================== estadísticas ===================== */
@@ -123,15 +165,25 @@ export const sw = (path, cur = getPref(path)) => `<label class="switch"><input t
 export const numIn = (path, { min = 0, max = 9999, step = 1, unit = '', cur = getPref(path), id = '' } = {}) =>
   `<span class="num"><input type="number" ${id ? `id="${id}"` : ''} data-pref="${path}" data-num min="${min}" max="${max}" step="${step}" inputmode="decimal" value="${cur}">${unit ? `<span>${unit}</span>` : ''}</span>`;
 // Fila: título + frase de ayuda a la izquierda, control a la derecha (debajo si no cabe).
-// El título da nombre accesible al control y la ayuda lo describe.
-let rowSeq = 0;
-const setRow = (label, hint, control, { id = '', off = false } = {}) => {
+// El título da nombre accesible al control y la ayuda lo describe. `keys`: más palabras para el buscador.
+// Cada fila lleva encima la pestaña donde vive (solo se ve al buscar).
+let rowSeq = 0, rowSec = '';
+const setRow = (label, hint, control, { id = '', off = false, keys = '', col = false } = {}) => {
   const n = ++rowSeq;
-  const ctl = control.replace(/<(input|div class="seg"|div class="swatches")/, m => `${m} aria-labelledby="sl-${n}" aria-describedby="sh-${n}"`);
-  return `<div class="set-row${off ? ' is-off' : ''}"${id ? ` id="${id}"` : ''}><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
+  const ctl = control.replace(/<(input|div class="seg"|div class="swatches"|div class="presets")/, m => `${m} aria-labelledby="sl-${n}" aria-describedby="sh-${n}"`);
+  const find = `${label} ${hint.replace(/<[^>]+>/g, '')} ${rowSec} ${keys}`;
+  return `<div class="set-row${off ? ' is-off' : ''}${col ? ' set-col' : ''}"${id ? ` id="${id}"` : ''} data-find="${esc(find)}" data-sec="${esc(rowSec)}"><span class="set-tab"><i>${esc(rowSec)}</i></span><div class="set-l"><b id="sl-${n}">${label}</b><small id="sh-${n}">${hint}</small></div><div class="set-c">${ctl}</div></div>`;
 };
-const setSec = (ic, title, body, id = '') => `<section class="set-sec"${id ? ` id="${id}"` : ''}><h2>${icon(ic, { size: 18 })} ${title}</h2><div class="set-body">${body}</div></section>`;
-const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-study', 'Estudio'], ['s-remind', 'Avisos'], ['s-session', 'Tanda'], ['s-voice', 'Voz'], ['s-home', 'Hoy'], ['s-algo', 'Ritmo'], ['s-data', 'Datos']];
+const setSec = (id, title, body) => `<section class="set-sec" id="${id}"><h2>${title}</h2><div class="set-body">${body}</div></section>`;
+const SET_SECTIONS = [['s-look', 'Apariencia'], ['s-session', 'Tanda'], ['s-remind', 'Avisos'], ['s-voice', 'Idioma y voz'], ['s-home', 'Hoy'], ['s-algo', 'Repaso'], ['s-data', 'Datos']];
+const secName = id => SET_SECTIONS.find(s => s[0] === id)[1];
+// Lo que ya no está en Ajustes: si se busca, se dice dónde ha ido
+const MOVED = [
+  { t: 'Duración de la tanda', s: 'Ahora la decides en «Tu semana», día a día.', go: 'plan', to: 'Plan', keys: 'tanda duracion minutos tiempo rato' },
+  { t: 'Plan de estudio', s: 'Tu semana, tus etapas y tus exámenes.', go: 'plan', to: 'Plan', keys: 'plan examen examenes etapas semana' },
+  { t: 'Tu nombre', s: 'Se cambia con el lápiz junto a tu nombre, en Perfil.', go: 'profile', to: 'Perfil', keys: 'nombre perfil' },
+  { t: 'Novedades', s: 'Lo nuevo de cada versión está en Perfil.', go: 'profile', to: 'Perfil', keys: 'novedades version nuevo' },
+];
 
 // Simulación: intervalos de una tarjeta que aciertas siempre con «Bien»
 function algoPreview(A) {
@@ -200,7 +252,9 @@ export async function setRemind(key, value) {
   savePrefsSoon();
   $('#row-remind')?.classList.toggle('is-off', !R.on);
 }
-// Orden: primero lo que más se cambia (apariencia, estudio diario); al final lo avanzado (ritmo) y los datos
+// Siete secciones: Apariencia · Tanda · Avisos · Idioma y voz · Hoy · Repaso · Datos. Arriba, el buscador; en el
+// ordenador, buscador e índice fijos a la izquierda y el contenido en una columna.
+const sec = (id, body) => { rowSec = secName(id); return setSec(id, rowSec, body()); };
 export function renderSettings() {
   loadAiGuide();   // para que «Copiar instrucciones» copie al instante (Safari lo exige)
   const P = S.prefs, A = algoFor(P, null);
@@ -208,64 +262,122 @@ export function renderSettings() {
   const ring = '<svg class="sw-ring" viewBox="0 0 66 66" aria-hidden="true"><path d="M36 4.5c14 1.5 25.5 12 25.5 28 0 16-12.5 29-29 29C17 61.5 4.5 49 4.5 33 4.5 17.5 16 5 31 4.2c3-.2 6 .3 8.5 1.3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   const accents = ACCENTS.map(a => `<button type="button" class="swatch" data-accent="${a.id}" aria-pressed="${P.look.accent === a.id}" aria-label="${a.label}"><span class="sw-ball">${ring}${icon('check', { size: 22 })}</span><span aria-hidden="true">${a.label}</span></button>`).join('');
   rowSeq = 0; tocLock = null;
-  main.innerHTML = `<button type="button" class="back-round head-back" data-nav="profile" aria-label="Volver a Perfil">${icon('chevron-left', { size: 20 })}</button><div class="set-head"><h1>Ajustes</h1><button type="button" class="link small set-news" data-act="news">${icon('sugerencia', { size: 14 })} Ver las últimas novedades</button></div>
+  main.innerHTML = `<div class="set-head"><button type="button" class="back-round" data-nav="profile" aria-label="Volver a Perfil">${icon('chevron-left', { size: 20 })}</button><h1>Ajustes</h1></div>
     <span class="saved" id="setSaved" role="status" aria-live="polite" hidden></span>
-    <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
-    ${setSec('palette', 'Apariencia', `
-      ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]))}
-      ${setRow('Color de acento', 'Botones, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`)}
-      ${setRow('Tamaño del texto', 'Tamaño de las preguntas al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])))}
-      ${setRow('Letra de las preguntas', 'Tipo de letra de las preguntas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])))}
+    <div class="set-wrap">
+    <aside class="set-side">
+      <div class="set-find">${icon('search', { size: 18 })}<input id="setFind" type="search" placeholder="Buscar un ajuste" aria-label="Buscar un ajuste" autocomplete="off" spellcheck="false"><button type="button" class="iconbtn" data-act="set-find-clear" aria-label="Borrar la búsqueda" hidden>${icon('x', { size: 18 })}</button></div>
+      <nav class="set-toc" aria-label="Secciones de ajustes">${SET_SECTIONS.map(([id, l]) => `<a href="#${id}" data-toc="${id}">${l}</a>`).join('')}</nav>
+    </aside>
+    <div class="set-main">
+    <p class="set-found" id="setFound" role="status" hidden></p>
+    ${sec('s-look', () => `
+      ${setRow('Tema', 'Automático sigue el modo claro u oscuro de tu dispositivo.', seg('look.theme', [['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']]), { keys: 'oscuro claro modo noche' })}
+      ${setRow('Color de acento', 'Botones, enlaces y gráficos.', `<div class="swatches" role="group">${accents}</div>`, { col: true, keys: 'color colores' })}
+      ${setRow('Tamaño de las preguntas', 'Tamaño del texto al estudiar.', seg('look.cardSize', CARD_SIZES.map(s => [s.id, s.label])), { keys: 'texto letra grande pequeño' })}
+      ${setRow('Letra de las preguntas', 'Tipo de letra de las preguntas al estudiar.', seg('look.font', FONTS.map(f => [f.id, `<span class="ff-${f.id}" title="${f.label}">${f.short || f.label}</span>`])), { keys: 'fuente tipografia' })}
       ${setRow('Alineación', 'Cómo se coloca el texto dentro de la pregunta.', seg('look.cardAlign', [['center', 'Centrada'], ['left', 'A la izquierda']]))}
       ${setRow('Densidad', 'Compacta reduce márgenes y la altura de las filas.', seg('look.density', [['comfy', 'Cómoda'], ['compact', 'Compacta']]))}
       <div class="look-pv" aria-label="Vista previa de una pregunta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
-        <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
-    ${setSec('gauge', 'Estudio diario', `
-      ${setRow('Plan de estudio', 'Tu semana, tus etapas, cuánto entra de cada cosa y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
-      ${setRow('Duración de la tanda', 'La de «Empezar una tanda», en Hoy. Cuántas preguntas caben se ajusta solo a tu ritmo.', seg('study.tandaMin', [[5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min']]))}
-      ${setRow('Preguntas nuevas al día', 'Entre 10 y 20 va bien. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
-      ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}
-      ${setRow('Meta diaria', 'Respuestas al día. Los días que llegas salen marcados en «Tu actividad», en Hoy. 0 = sin meta.', numIn('home.goal', { max: 2000 }))}
-      ${setRow('Orden de las nuevas', 'En qué orden salen las preguntas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en la lista'], ['random', 'Al azar']]))}
-      ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos primero'], ['newFirst', 'Nuevas primero']]))}
-      ${setRow('Tu idioma', 'En las listas de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`)}`, 's-study')}
-    ${setSec('bell', 'Avisos', remindRows(), 's-remind')}
-    ${setSec('layers', 'Durante la tanda', `
-      ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4 botones'], [2, '2 botones']]))}
+        <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`)}
+    ${sec('s-session', () => `
+      <p class="muted small set-intro">La duración de cada tanda se decide en el <button type="button" class="link" data-nav="plan">Plan de estudio</button>, en «Tu semana».</p>
+      ${setRow('Botones de respuesta', 'Con 2 solo eliges entre «Otra vez» y «Bien».', seg('study.buttons', [[4, '4'], [2, '2']]), { keys: 'valorar' })}
+      ${setRow('Orden de las nuevas', 'En qué orden salen las preguntas que aún no has estudiado.', seg('study.newOrder', [['order', 'Como en la lista'], ['random', 'Al azar']]), { keys: 'azar aleatorio' })}
+      ${setRow('Mezcla', 'Cómo se combinan las nuevas con los repasos.', seg('study.mix', [['mixed', 'Mezcladas'], ['reviewsFirst', 'Repasos antes'], ['newFirst', 'Nuevas antes']]))}
       ${setRow('Mostrar intervalos', 'El «3 d» debajo de cada botón: cuándo volverá la pregunta.', sw('study.showIntervals'))}
       ${setRow('Resaltar la nota sugerida', 'En preguntas de escribir, elegir, ordenar y dibujar.', sw('study.suggest'))}
-      ${setRow('Una nueva por nota', 'Si una nota genera varias preguntas (p. ej. ida y vuelta), solo sale una nueva por tanda.', sw('study.burySiblings'))}
-      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la pregunta qué teclas puedes usar.', sw('study.shortcuts'))}
-      ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: izquierda «Otra vez», derecha «Bien», arriba «Fácil», abajo «Difícil».', sw('study.swipe'))}
+      ${setRow('Deslizar para valorar', 'En el móvil, con la respuesta a la vista: ← Otra vez · → Bien · ↑ Fácil · ↓ Difícil.', sw('study.swipe'), { keys: 'gestos movil' })}
+      ${setRow('Una nueva por nota', 'Si una nota tiene ida y vuelta, solo sale una por tanda.', sw('study.burySiblings'), { keys: 'hermanas inversa' })}
+      ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la pregunta qué teclas puedes usar.', sw('study.shortcuts'), { keys: 'teclas teclado' })}
       ${canVibrate() ? setRow('Vibración', 'Una vibración muy breve al responder y al trazar kanji o hanzi.', sw('study.haptics')) : ''}
-      ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`) : ''}`, 's-session')}
-    ${setSec('volume-2', 'Voz', `
-      ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la pregunta.', sw('study.autoplay'))}
+      ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`, { keys: 'sonido sonidos' }) : ''}`)}
+    ${sec('s-remind', () => remindRows())}
+    ${sec('s-voice', () => `
+      ${setRow('Tu idioma', 'En las listas de idiomas, el de las traducciones: se leen en voz alta y se corrigen en este idioma.', `<select data-pref="study.nativeLang" aria-label="Tu idioma">${LANGS.filter(l => l.id).map(l => `<option value="${l.id}" ${l.id === nativeLang() ? 'selected' : ''}>${l.label}</option>`).join('')}</select>`, { keys: 'lengua materna traduccion' })}
+      ${setRow('Audio automático', 'Lee los campos marcados con audio al mostrar la pregunta.', sw('study.autoplay'), { keys: 'voz leer' })}
       ${setRow('Velocidad de la voz', 'Para la lectura en voz alta. Pulsa «Probar» para oírla.', `<span class="range"><input type="range" data-pref="study.rate" data-num min="0.5" max="1.5" step="0.05" value="${P.study.rate}"><output id="rateOut">${Math.round(P.study.rate * 100)} %</output><button type="button" class="ghost small-btn" data-act="test-voice">Probar</button></span>`)}
-      <p class="hint voice-test" id="voiceTest" role="status" hidden></p>`, 's-voice')}
-    ${setSec('sun', 'Hoy', `
-      ${setRow('Tu actividad', 'Los días que has estudiado en los últimos 6 meses y tu meta diaria.', sw('home.activity'))}
-      ${setRow('Cómo va lo que sabes', 'Cuántas preguntas te sabes y cómo ha ido creciendo.', sw('home.forecast'))}
+      <p class="hint voice-test" id="voiceTest" role="status" hidden></p>`)}
+    ${sec('s-home', () => `
+      ${setRow('Meta diaria', 'Respuestas al día. Los días que llegas salen marcados en «Tu actividad». 0 = sin meta.', numIn('home.goal', { max: 2000 }), { keys: 'objetivo' })}
+      ${setRow('Tu actividad', 'Los días que has estudiado en los últimos 6 meses y tu meta diaria.', sw('home.activity'), { keys: 'calendario racha' })}
+      ${setRow('Cómo va lo que sabes', 'Cuántas preguntas te sabes y cómo ha ido creciendo.', sw('home.forecast'), { keys: 'grafico progreso' })}
       ${setRow('Periodo de «Cómo va lo que sabes»', 'Lo que abarca el gráfico.', seg('home.progressPeriod', PG_PERIODS.map(p => [p.id, p.label])), { id: 'row-fcdays', off: !P.home.forecast })}
-      ${api.social ? setRow('Tus amigos', 'El último ánimo que te han mandado y un amigo al que animar.', sw('home.friends')) : ''}`, 's-home')}
-    ${setSec('brain', 'Ritmo de repaso', `
-      <p class="muted small set-intro">Decide cada cuánto vuelven las preguntas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada lista puede usar otro ritmo en sus opciones.</p>
-      <div class="presets" role="group" aria-label="Ritmo de repaso">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
-      ${P.algo.preset === 'fsrs' ? `<div class="set-row"><div class="set-l"><b id="retL">Retención deseada</b><small>Con qué probabilidad quieres recordar cada pregunta cuando vuelva. Más alta, más repasos. Entre 85 % y 92 % va bien.</small></div>
-        <div class="set-c"><span class="range"><input type="range" data-pref="algo.retention" data-num min="0.8" max="0.97" step="0.01" value="${P.algo.retention}" aria-labelledby="retL"><output id="retOut">${Math.round(P.algo.retention * 100)} %</output></span></div></div>` : ''}
-      <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una pregunta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
-      <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''} ${P.algo.preset === 'fsrs' ? 'hidden' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
-        <div class="algo-grid">${ALGO_FIELDS.map(x => `<label class="af"><span>${x.label}</span>${numIn('algo.custom.' + x.k, { min: x.min, max: x.max, step: x.step, unit: x.unit, cur: P.algo.preset === 'custom' ? P.algo.custom[x.k] : A[x.k] }).replace('<input', P.algo.preset === 'custom' ? '<input' : '<input disabled')}</label>`).join('')}</div>
-        <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
-      </details>`, 's-algo')}
-    ${setSec('database', 'Datos', `
-      ${setRow('Listas hechas con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen una lista. Lo que te respondan se pega en «Mis listas» → «Pegar».', AI_GUIDE_BTNS())}
-      ${setRow('Copia de seguridad', 'Descarga todas tus listas, preguntas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`)}
-      ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade las listas que falten.' : 'Añade las listas que no tengas, con su progreso. Las que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`)}
-      ${setRow('Reiniciar el progreso', 'Todas las preguntas vuelven a ser nuevas. Las listas no se tocan.', `<button type="button" class="ghost danger" data-act="ask-reset-progress">${icon('rotate-ccw', { size: 16 })} Reiniciar</button>`)}
-      ${setRow('Ajustes por defecto', 'Vuelve a la configuración original (no toca tus datos).', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`)}`, 's-data')}`;
+      ${api.social ? setRow('Tus amigos', 'El último ánimo que te han mandado y la clasificación de la semana.', sw('home.friends'), { keys: 'amigos animos' }) : ''}`)}
+    ${sec('s-algo', () => `
+      ${setRow('Algoritmo', `Decide cada cuánto vuelven las preguntas. Si no sabes qué elegir, deja «${esc(ALGO_PRESETS.standard?.label || 'Estándar')}». Cada lista puede usar otro en sus opciones.`, `<div class="presets" role="group">${presets.map(([k, v]) => `<button type="button" class="preset" data-preset="${k}" aria-pressed="${P.algo.preset === k}"><b>${v.label}</b><small>${v.help}</small></button>`).join('')}</div>
+        <div class="algo-pv"><span class="muted small">Si aciertas siempre con «Bien», una pregunta nueva vuelve a los:</span><b id="algoPv">${algoPreview(A)}</b></div>
+        <details class="opts" ${P.algo.preset === 'custom' ? 'open' : ''} ${P.algo.preset === 'fsrs' ? 'hidden' : ''}><summary>${icon('sliders-horizontal', { size: 16 })} Parámetros avanzados${P.algo.preset === 'custom' ? '' : ' (elige «Personalizado» para editarlos)'}</summary>
+          <div class="algo-grid">${ALGO_FIELDS.map(x => `<label class="af"><span>${x.label}</span>${numIn('algo.custom.' + x.k, { min: x.min, max: x.max, step: x.step, unit: x.unit, cur: P.algo.preset === 'custom' ? P.algo.custom[x.k] : A[x.k] }).replace('<input', P.algo.preset === 'custom' ? '<input' : '<input disabled')}</label>`).join('')}</div>
+          <div class="btnrow"><button type="button" class="ghost small-btn" data-act="algo-reset" ${P.algo.preset === 'custom' ? '' : 'disabled'}>Volver a los valores estándar</button></div>
+        </details>`, { col: true, keys: 'ritmo fsrs sm2 intervalos personalizado parametros' })}
+      ${P.algo.preset === 'fsrs' ? setRow('Retención deseada', 'Con qué probabilidad quieres recordar cada pregunta cuando vuelva. Más alta, más repasos. Entre 85 % y 92 % va bien.', `<span class="range"><input type="range" data-pref="algo.retention" data-num min="0.8" max="0.97" step="0.01" value="${P.algo.retention}"><output id="retOut">${Math.round(P.algo.retention * 100)} %</output></span>`) : ''}
+      <h3 class="set-sub">Topes de seguridad</h3>
+      <p class="muted small set-intro">Por si un día se acumula todo. El plan los respeta.</p>
+      ${setRow('Nuevas al día', 'Las de un día normal; el plan las sube o las baja según tus minutos de ese día. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`, { keys: 'tope limite maximo nuevas preguntas nuevas' })}
+      ${setRow('Repasos al día, como mucho', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }), { keys: 'tope limite maximo repasos' })}`)}
+    ${sec('s-data', () => `
+      ${setRow('Copia de seguridad', 'Todas tus listas, preguntas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`, { keys: 'exportar backup' })}
+      ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade las listas que falten.' : 'Añade las listas que no tengas, con su progreso. Las que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`, { keys: 'importar recuperar' })}
+      ${setRow('Listas hechas con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen una lista. Lo que te respondan se pega en Biblioteca › Importar › Pegar.', AI_GUIDE_BTNS(), { keys: 'inteligencia artificial chatgpt' })}
+      <div class="set-care"><h3>Con cuidado</h3>
+        ${setRow('Reiniciar el progreso', 'Todas las preguntas vuelven a ser nuevas. Las listas no se tocan. No se puede deshacer.', `<button type="button" class="pr-danger" data-act="ask-reset-progress">Reiniciar</button>`, { keys: 'borrar progreso empezar de cero' })}
+        ${setRow('Ajustes por defecto', 'Vuelve a la configuración original. No toca tus datos.', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`, { keys: 'restablecer original' })}
+      </div>`)}
+    <div class="set-moved" id="setMoved" hidden></div>
+    </div></div>`;
   markToc();
 }
+
+/* ---------------- buscar un ajuste ---------------- */
+// Sin tildes ni mayúsculas; cada palabra tiene que salir en el título, la ayuda, la pestaña o sus palabras clave.
+// Se ven las filas que casan, ya usables, con la pestaña encima y lo buscado resaltado.
+const ACC = { a: 'aáàäâ', e: 'eéèëê', i: 'iíìïî', o: 'oóòöô', u: 'uúùüû', n: 'n' };
+// Cada palabra buscada tiene que ser el principio de alguna palabra («tanda» no casa con «estándar»)
+const hasWords = (text, words) => { const ws = fold(text).split(/[^a-z0-9ñ]+/); return words.every(w => ws.some(x => x.startsWith(w))); };
+const loose = w => w.split('').map(ch => ACC[ch] ? `[${ACC[ch]}]` : ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
+function mark(el, words) {
+  if (el.dataset.orig == null) el.dataset.orig = el.innerHTML;
+  el.innerHTML = el.dataset.orig;
+  if (!words.length) return;
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])(${words.map(loose).join('|')})`, 'giu');
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walk.nextNode()) nodes.push(walk.currentNode);
+  for (const t of nodes) {
+    if (!re.test(t.data)) continue;
+    re.lastIndex = 0;
+    const span = document.createElement('span');
+    span.innerHTML = esc(t.data).replace(re, '<mark class="set-hl">$1</mark>');
+    t.replaceWith(...span.childNodes);
+  }
+}
+export function findSetting(q) {
+  const box = $('.set-main'); if (!box) return;
+  const words = fold(q.trim()).split(/\s+/).filter(Boolean);
+  const on = words.length > 0;
+  main.classList.toggle('set-finding', on);
+  $('[data-act="set-find-clear"]').hidden = !q;
+  const rows = [...box.querySelectorAll('.set-row')], hits = [];
+  for (const r of rows) {
+    const ok = !on || hasWords(r.dataset.find, words);
+    r.hidden = !ok;
+    if (on && ok) hits.push(r);
+    r.querySelectorAll(':scope > .set-l b, :scope > .set-l small').forEach(el => mark(el, on && ok ? words : []));
+  }
+  box.querySelectorAll('.set-sec, .set-care').forEach(s => { s.hidden = on && !s.querySelector('.set-row:not([hidden])'); });
+  const found = $('#setFound'), moved = $('#setMoved');
+  const gone = on ? MOVED.filter(m => hasWords(`${m.t} ${m.s} ${m.keys}`, words)) : [];
+  found.hidden = !on;
+  if (on) {
+    const secs = new Set(hits.map(r => r.dataset.sec));
+    found.textContent = hits.length ? `${plural(hits.length, 'ajuste', 'ajustes')}${secs.size === 1 ? ` en ${[...secs][0]}` : ''}` : gone.length ? 'Ningún ajuste con ese nombre' : `Ningún ajuste con «${q.trim()}»`;
+  }
+  moved.hidden = !gone.length;
+  moved.innerHTML = gone.length ? `<p class="set-found">Ya no está en Ajustes</p>${gone.map(m => `<div class="set-gone"><div><b>${m.t}</b><small>${m.s}</small></div><button type="button" class="link" data-nav="${m.go}">${m.to} ›</button></div>`).join('')}` : '';
+}
+document.addEventListener('input', e => { if (e.target.id === 'setFind') findSetting(e.target.value); });
+document.addEventListener('keydown', e => { if (e.target.id === 'setFind' && e.key === 'Escape' && e.target.value) { e.preventDefault(); e.stopPropagation(); e.target.value = ''; findSetting(''); } }, true);
+export function clearSettingFind() { const i = $('#setFind'); if (i) { i.value = ''; findSetting(''); i.focus(); } }
 // Pestañas de Ajustes: marca la sección visible bajo la barra fija.
 // Al pulsar una pestaña se queda marcada (aunque la sección no pueda subir del todo, como las últimas)
 // hasta que la persona desplace la página por su cuenta.
@@ -510,6 +622,7 @@ export async function saveProfileForm(form) {
   try {
     if (name !== S.name) { await api.saveProfile(S.uid, name); S.name = name; S.pub = null; }
     toast('Guardado');
-    renderProfile();
+    closeSheet();
+    if (S.view === 'profile') renderProfile();
   } catch (e) { btn.disabled = false; fail(e); }
 }

@@ -36,7 +36,7 @@ test('estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera
   await openApp(page);
   await page.goto('/#stats');
   await page.locator('#nav').getByRole('button', { name: 'Perfil' }).click();
-  await page.locator('[data-nav="stats"]').click();
+  await page.locator('.pr-row[data-nav="stats"]').click();
   await page.locator('[data-stp="90"]').click();
   const rev = page.locator('section[aria-labelledby="st-rev"]');
   await expect(rev.locator('.lv-of')).toHaveText('respuestas');

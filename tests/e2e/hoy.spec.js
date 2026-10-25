@@ -76,7 +76,7 @@ test('Hoy: «cambiar» la meta lleva a Ajustes', async ({ page }) => {
   await seedHoy(page);
   await openApp(page);
   await page.locator('[data-act="goal-change"]').click();
-  await expect(page.locator('#s-study')).toBeVisible();
+  await expect(page.locator('#s-home')).toBeVisible();
 });
 
 test('Lo que flojea: también las listas con preguntas sueltas que te cuestan', async ({ page }) => {

@@ -26,19 +26,11 @@ test.describe('al entrar', () => {
   });
 });
 
-test('desde Ajustes → Ver las últimas novedades', async ({ page }) => {
-  await openApp(page);
-  await nav(page, 'Perfil');
-  await page.locator('[data-nav="settings"]').click();
-  await page.locator('.set-news').click();
-  await expect(page.locator('.ob.news h1')).toHaveText('Novedades en Flaski');
-});
-
 test('desde Perfil → Novedades', async ({ page }) => {
   await openApp(page);
   await expect(page.locator('.ob.news')).toHaveCount(0);   // en las pruebas no salen solas
   await nav(page, 'Perfil');
-  await page.locator('[data-act="news"]').click();
+  await page.locator('.pr-row[data-act="news"]').click();
   const news = page.locator('.ob.news');
   await expect(news).toBeVisible();
   await news.locator('[data-ob-to="1"]').last().click();

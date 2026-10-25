@@ -34,7 +34,7 @@ for (const modern of [false, true]) {
 
     // Y el historial llega a Estadísticas
     await nav(page, 'Perfil');
-    await page.locator('[data-nav="stats"]').click();
+    await page.locator('.pr-row[data-nav="stats"]').click();
     await page.locator('#main').getByRole('button', { name: 'Todo', exact: true }).first().click();
     await expect(page.locator('#main')).toContainText('11');
   });

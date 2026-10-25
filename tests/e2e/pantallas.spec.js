@@ -4,7 +4,7 @@ test('todas las pantallas cargan sin errores con la app vacía', async ({ page }
   await openApp(page);
   for (const name of ['Biblioteca', 'Explorar', 'Perfil', 'Hoy']) await nav(page, name);
   await nav(page, 'Perfil');
-  await page.locator('[data-nav="stats"]').click();
+  await page.locator('.pr-row[data-nav="stats"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Estadísticas' })).toBeVisible();
   await nav(page, 'Perfil');
   await page.locator('[data-nav="settings"]').click();
@@ -20,7 +20,7 @@ test('estadísticas con datos: los filtros de periodo funcionan', async ({ page 
     await page.locator('[data-grade="3"]').click();
   }
   await nav(page, 'Perfil');
-  await page.locator('[data-nav="stats"]').click();
+  await page.locator('.pr-row[data-nav="stats"]').click();
   await expect(page.locator('#main')).toContainText('3');
   for (const label of ['7 días', '1 año', 'Todo']) {
     const b = page.locator('#main').getByRole('button', { name: label, exact: true });
@@ -63,7 +63,7 @@ test('en móvil ninguna pantalla tiene scroll horizontal', async ({ page }, info
   const screens = [['Hoy'], ['Biblioteca'], ['Explorar'], ['Perfil'], ['Perfil', 'stats'], ['Perfil', 'settings']];
   for (const [tab, sub] of screens) {
     await nav(page, tab);
-    if (sub) await page.locator(`[data-nav="${sub}"]`).click();
+    if (sub) await page.locator(`#main [data-nav="${sub}"]`).first().click();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, `${tab}${sub ? ' › ' + sub : ''}`).toBeLessThanOrEqual(0);
   }
