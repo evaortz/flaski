@@ -669,7 +669,7 @@ export function plainRules(sp, env = {}) {
         if (cut) { tail = obj.slice(cut.index); obj = obj.slice(0, cut.index); }
         // («Las células son capaces de dirigir…»: con «es / son», el hueco es un nombre, no una frase entera)
         // (una cantidad ya la pregunta «¿Cuántos…?»)
-        if (words(obj).length > 8 || /^(?:que|de|del|a|al)\s/i.test(obj) || new RegExp(`^${NUM}\s`, 'iu').test(obj) || (/^(?:es|son)$/i.test(vm[1]) && !ARTICLE.test(obj) && words(obj).length > 2)) continue;
+        if (words(obj).length > 8 || /^(?:que|de|del|a|al)\s/i.test(obj) || new RegExp(`^${NUM}\\s`, 'iu').test(obj) || (/^(?:es|son)$/i.test(vm[1]) && !ARTICLE.test(obj) && words(obj).length > 2)) continue;
         x = `${subj} ${vm[1]} {{${obj}}}${tail}`;
       }
       push('key', 'cloze', { x: `${capFirst(x.trim())}.`, e: '' }, 0.55);
