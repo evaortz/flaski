@@ -4170,3 +4170,10 @@ body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidde
 .nb-tbl th,.nb-tbl td{overflow-wrap:normal;word-break:normal;hyphens:manual}
 /* «Normal» elegido en «Cuánto de cada cosa»: un tono más claro del color con texto oscuro (4,5:1 o más con cualquier color) */
 .lv-seg .seg-b[aria-pressed="true"].lvb-normal{background:color-mix(in oklab,var(--accent) 45%,#FFFFFF);color:#16183A}
+/* Casillas de «¿Qué ideas te salieron?»: aspecto propio (en Safari, las nativas salen negras sobre el azul).
+   Sin marcar, borde blanco y fondo transparente; marcada, blanca con la marca en el azul de la tanda */
+.ent-idea input[type=checkbox]{appearance:none;-webkit-appearance:none;margin:0;width:22px;height:22px;flex:none;border:2px solid #FFFFFF;border-radius:6px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.ent-idea input[type=checkbox]::after{content:'';width:6px;height:11px;border:solid var(--session);border-width:0 2.5px 2.5px 0;transform:translateY(-1px) rotate(45deg);opacity:0}
+.ent-idea input[type=checkbox]:checked{background:#FFFFFF}
+.ent-idea input[type=checkbox]:checked::after{opacity:1}
+.ent-idea input[type=checkbox]:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px}

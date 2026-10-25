@@ -114,3 +114,20 @@ test('Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color d
     expect(txt.trim().length).toBeGreaterThan(0);
   }
 });
+
+// Las casillas de las ideas tienen aspecto propio: sin marcar, borde blanco y fondo transparente; marcada, blanca
+// con la marca en el azul de la tanda (también en oscuro)
+test('casillas de «¿Qué ideas te salieron?»: aspecto propio, en claro y en oscuro', async ({ page, seed }) => {
+  await create(page, seed, 'explain', { q: '¿Por qué funciona repartir?', k: 'Se olvida un poco\nRecordar cuesta y fija' });
+  await page.locator('[data-act="reveal"]').click();
+  const boxes = page.locator('.ent-idea input');
+  await boxes.nth(1).check();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(async theme => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.theme = theme; applyLook(S.prefs.look); }, theme);
+    const [off, on] = await boxes.evaluateAll(xs => xs.map(x => { const cs = getComputedStyle(x), mark = getComputedStyle(x, '::after'); return { app: cs.appearance, bg: cs.backgroundColor, border: cs.borderTopColor, mark: mark.borderRightColor, markOn: mark.opacity }; }));
+    expect(off).toMatchObject({ app: 'none', bg: 'rgba(0, 0, 0, 0)', border: 'rgb(255, 255, 255)', markOn: '0' });
+    expect(on).toMatchObject({ app: 'none', bg: 'rgb(255, 255, 255)', markOn: '1' });
+    const session = await page.evaluate(() => { const x = document.createElement('i'); x.style.color = 'var(--session)'; document.body.append(x); const c = getComputedStyle(x).color; x.remove(); return c; });
+    expect(on.mark).toBe(session);
+  }
+});
