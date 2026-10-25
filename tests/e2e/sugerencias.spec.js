@@ -64,3 +64,9 @@ test('el género de las palabras se carga al abrir las sugerencias: «¿Cuántas
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug .f')).toHaveText(['¿Cuántas legiones tiene el ejército?']);
 });
+
+test('la hoja pregunta los términos («¿Qué es el efecto de espaciado?») y la tabla «Pregunta | Respuesta» sin «→ respuesta»', async ({ page, seed }) => {
+  await withPage(page, seed, '# Memoria\n\n**Efecto de espaciado:** se recuerda mejor lo que se repasa repartido en el tiempo.\n\n| Pregunta | Respuesta |\n|---|---|\n| ¿Quién estudió la curva del olvido? | Ebbinghaus |');
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug .f')).toHaveText(['¿Qué es el efecto de espaciado?', '¿Quién estudió la curva del olvido?']);
+});

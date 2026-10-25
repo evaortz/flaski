@@ -21,6 +21,7 @@ const IMG = /!\[[^\]\n]*\]\(img:[\w-]+\)/g;
 export const plainText = s => toPlain(String(s ?? '').replace(IMG, '')).replace(/\{\{(.+?)(?:::.+?)?\}\}/g, '$1').replace(/\*\*(.+?)\*\*/g, '$1').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2').replace(/\s+/g, ' ').trim();
 const norm = s => plainText(s).toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const words = s => plainText(s).split(/\s+/).filter(Boolean);
+const normQ = s => norm(s).replace(/^(?:que|cual|cuales) (?:es|son) (?:el|la|los|las) /, '');
 const capFirst = s => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 
 // Frases de un párrafo, sin cortar en abreviaturas (p. ej., etc., Sr., a. C., EE. UU.…)
@@ -49,8 +50,9 @@ export function sentences(text) {
 // equivoca con palabras que salen mucho en los apuntes (-sis, -ie, «fase», «ley», «reforma»…), estas reglas
 let genderLib = null;
 export const useGender = fn => { genderLib = fn; };
-const FEM = /(?:sis|itis|ie|umbre|tud|ción|sión|dad|tad)$|^(?:fase|base|clase|frase|ley|reforma|forma|norma|plataforma|parte|muerte|suerte|noche|gente|fuente|mente|red|sede|llave|calle|carne|nube|nieve|torre|tarde|sangre|fe|imagen|piel|sal|flor|labor|mujer|mano|foto|moto|radio)$/;
-const MASC = /^(?:día|mapa|problema|tema|sistema|programa|esquema|clima|idioma|planeta|poema|dilema|régimen|origen|análisis|énfasis|paréntesis|virus|lunes|martes|miércoles|jueves|viernes|mes|país)$/;
+const FEM_WORD = /^(?:base|clase|frase|ley|reforma|forma|norma|plataforma|cama|crema|pluma|rama|trama|yema|lágrima|víctima|parte|muerte|suerte|noche|gente|fuente|mente|red|sede|llave|calle|carne|nube|nieve|torre|tarde|sangre|fe|imagen|piel|sal|flor|labor|mujer|mano|foto|moto|radio)$/;
+const MASC = /^(?:día|mapa|planeta|cometa|régimen|origen|análisis|énfasis|paréntesis|virus|lunes|martes|miércoles|jueves|viernes|mes|país)$|ma$/;
+const FEM = /(?:sis|itis|ie|umbre|tud|ción|sión|dad|tad|fase)$/;
 // «fases» → «fase», «leyes» → «ley», «funciones» → «función», «meses» → «mes»
 export function singular(w) {
   w = String(w).toLocaleLowerCase();
@@ -63,6 +65,7 @@ export function singular(w) {
 }
 export function genderOf(noun) {
   const w = singular(noun);
+  if (FEM_WORD.test(w)) return 'f';
   if (MASC.test(w)) return 'm';
   if (FEM.test(w)) return 'f';
   const g = genderLib?.(w);
@@ -347,6 +350,30 @@ export function emphasize(src) {
   return out.replace(/\*\*\*\*/g, '');
 }
 
+/* ---------------- Un término como pregunta ---------------- */
+// Títulos y términos que no dicen de qué («Estructura», «Reformas»): necesitan el apartado o el título del apunte
+const GENERIC_TOPIC = /^(definición|concepto|características|propiedades|funciones|función|estructura|tipos|clasificación|origen|orígenes|importancia|historia|evolución|causas|consecuencias|ventajas|inconvenientes|desventajas|partes|composición|ejemplos|aplicaciones|usos|descripción|funcionamiento|objetivos|etapas|fases|reformas|organización|contenido|requisitos|competencias|principios|naturaleza|objeto|ámbito|duración|sede|miembros|elementos|antecedentes|contexto)$/i;
+const TERM_VERB = /^\p{L}{3,}(?:ó|ió|aron|ieron)$/u;
+// «Efecto de espaciado» → ¿Qué es el efecto de espaciado? · «Descubrió la **curva del olvido**» → ¿Qué es la curva del olvido?
+// · con un término genérico, de qué: «Estructura» → ¿Cuál es la estructura de la Constitución Española?
+// (los nombres propios de varias palabras, como «Hermann Ebbinghaus», se quedan tal cual)
+export function termQuestion(term, ctx = '') {
+  let t = String(term).trim();
+  const bold = /\*\*([^*]+)\*\*/.exec(t), lead = bold ? plainText(t.slice(0, bold.index)).trim().split(/\s+/).filter(Boolean) : [];
+  if (bold && lead.length && lead.length <= 2 && TERM_VERB.test(lead[0]) && (lead.length === 1 || /^(el|la|los|las|un|una)$/i.test(lead[1]))) t = `${lead[1] ? lead[1] + ' ' : ''}${bold[1]}`;
+  t = plainText(t).replace(/[:.]$/, '').trim();
+  if (/^(qué|cuál|cómo|quién|por qué|cuándo|dónde)(?![\p{L}])/iu.test(t) || /\?$/.test(t)) return capFirst(t.replace(/^¿?/, '¿').replace(/\??$/, '?'));
+  const art = (/^(el|la|los|las)\s/i.exec(t) || [])[1]?.toLowerCase(), bare = t.replace(ARTICLE, '');
+  const ws = words(bare);
+  if (!ws.length || ws.length > 6 || (ws.length > 1 && isProperName(bare))) return t;
+  const head = ws[0], plural = /s$/i.test(head) && singular(head) !== head.toLocaleLowerCase(), fem = genderOf(head) === 'f';
+  const a = art || (plural ? (fem ? 'las' : 'los') : (fem ? 'la' : 'el'));
+  const low = /^\p{Lu}\p{Ll}/u.test(bare) ? bare.charAt(0).toLocaleLowerCase() + bare.slice(1) : bare;
+  if (/^(definición|concepto)$/i.test(bare) && ctx) return termQuestion(ctx);
+  if (GENERIC_TOPIC.test(bare) && ctx) return `¿${plural ? 'Cuáles son' : 'Cuál es'} ${a} ${low} ${dePrep(ctx)}?`;
+  return fixGrammar(`¿Qué ${plural ? 'son' : 'es'} ${a} ${low}?`);
+}
+
 /* ---------------- Reglas ---------------- */
 const GENERIC_HEAD = /^(introducción|resumen|conclusi[oó]n(es)?|índice|contenidos?|referencias|bibliograf[ií]a|enlaces externos|véase también|notas|ejercicios|actividades|anexos?|apéndices?|glosario|fuentes|documento \d+|tema \d+|unidad \d+|bloque \d+|parte \d+|capítulo \d+|cuestiones|preguntas|soluciones|evaluación)$/i;
 
@@ -558,8 +585,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   const isLangDeck = !!lang;
   const nativeEs = baseLang(native) === 'es';
   const blocks = page?.blocks || [];
+  // Apuntes en español (para preguntar «¿Qué es…?»; en otro idioma, el término tal cual)
+  const pageEs = !isLangDeck && looksSpanish(blocks.slice(0, 80).map(b => plainText(b.text)).join(' ')) >= 0.12;
   const out = [];
-  const seen = new Set(existing.map(c => norm(c.front)).filter(Boolean));
+  // (también «Mitosis» y «¿Qué es la mitosis?» son la misma pregunta)
+  const seen = new Set(existing.flatMap(c => [norm(c.front), normQ(c.front)]).filter(Boolean));
   // Lo que ya es tarjeta en la misma parte del apunte, aunque se retocara el anverso: por su respuesta
   const fromBlock = new Set(existing.filter(c => c.block_id).map(c => c.block_id + '|' + norm(c.back)));
   const used = new Set();   // bloques ya convertidos por una regla más fiable
@@ -577,8 +607,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (!active.length) return false;
     const sum = summarize(type, active[0], note.fields);
     const key = norm(sum.front) + '|' + norm(sum.back);
-    if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
-    seen.add(key); seen.add(norm(sum.front));
+    if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(normQ(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
+    seen.add(key); seen.add(norm(sum.front)); seen.add(normQ(sum.front));
     out.push({ key: `${kind}:${blockId}:${out.length}`, id: `${kind}|${blockId}|${norm(sum.front).slice(0, 60)}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
       front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.1 : 0)), ...extra });
     return true;
@@ -683,6 +713,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (head.length === 2 && (!head[0] || !head[1])) {
       const ctx = nearestHeading(b.id) || title || head[0] || head[1];
       for (const r of rows) if (plainText(r[0]) && plainText(r[1])) add('table', b.id, 'basic', { q: `${plainText(r[0])} — ${ctx}`, a: r[1].trim(), n: '' }, 0.66);
+      used.add(b.id); continue;
+    }
+    // «Pregunta | Respuesta»: la pregunta es la celda de la izquierda, tal cual
+    if (head.length === 2 && /^(preguntas?|questions?|anverso|frente)$/i.test(head[0]) && /^(respuestas?|answers?|reverso|soluci[oó]n)$/i.test(head[1])) {
+      for (const r of rows) if (plainText(r[0]) && plainText(r[1])) add('table', b.id, 'basic', { q: r[0].trim(), a: r[1].trim(), n: '' }, 0.8);
       used.add(b.id); continue;
     }
     // En general: una tarjeta por celda («fila → columna»)
@@ -880,7 +915,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         const subj = termP;
         const q = /^(qué|cuál|cómo|quién|por qué|cuándo|dónde|what|how|why|who|when|where)\b/i.test(subj) || /\?$/.test(subj)
           ? capFirst(subj.replace(/^¿?/, '¿').replace(/\??$/, '?'))
-          : def.term.replace(/\*\*/g, '').trim();   // el término tal cual, como en una pregunta de toda la vida
+          : pageEs ? termQuestion(def.term, ctx) : def.term.replace(/\*\*/g, '').trim();   // en otro idioma, el término tal cual
         add('def', b.id, 'basic', { q, a: capFirst(cleanAnswer(defP)), n: '' }, 0.85);
         continue;
       }
@@ -935,7 +970,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       const sdef = s !== text && !bolds.length && splitDef(s);
       if (sdef && words(plainText(sdef.term)).length <= 5 && words(plainText(sdef.def)).length >= 2 && !/^(\d|[a-z])/.test(plainText(sdef.term))) {
         const tp = plainText(sdef.term);
-        if (add('def', b.id, 'basic', { q: tp, a: capFirst(plainText(sdef.def).replace(/[.]$/, '')), n: '' }, 0.8)) continue;
+        if (add('def', b.id, 'basic', { q: pageEs ? termQuestion(sdef.term, ctx) : tp, a: capFirst(plainText(sdef.def).replace(/[.]$/, '')), n: '' }, 0.8)) continue;
       }
       // Enunciados de ejercicios y frases que empiezan a medias (un trozo de otra) no dan tarjetas
       if (EXERCISE.test(sp) || /^\p{Ll}/u.test(sp) || /(?<![\p{L}])\p{Lu}{4,}\s+\p{Lu}{2,}(?![\p{L}])/u.test(sp)) continue;
@@ -957,7 +992,6 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
 
   /* 5) Apartados: el título y la primera frase de su primer párrafo (su idea principal) */
-  const GENERIC_TOPIC = /^(definición|concepto|características|propiedades|funciones|función|estructura|tipos|clasificación|origen|orígenes|importancia|historia|evolución|causas|consecuencias|ventajas|inconvenientes|desventajas|partes|composición|ejemplos|aplicaciones|usos|descripción|funcionamiento|objetivos|etapas|fases)$/i;
   for (let i = 0; i < blocks.length; i++) {
     const h = blocks[i];
     if (!/^h[1-3]$/.test(h.type)) continue;
@@ -972,7 +1006,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (out.some(x => x.blockId === p.id && (norm(x.front).includes(norm(head)) || norm(first).includes(norm(x.back))))) continue;
     // Un título genérico («Definición», «Características») necesita saber de qué
     const ctx = GENERIC_TOPIC.test(head) ? (headOf.get(h.id)?.slice(0, -1).at(-1) || title) : '';
-    add('section', p.id, 'basic', { q: ctx ? `${head} — ${ctx}` : head, a: cleanAnswer(first).replace(/\.$/, ''), n: '' }, first.length <= 180 && (words(head).length <= 2 || norm(first).includes(norm(head))) ? 0.66 : 0.55);
+    add('section', p.id, 'basic', { q: pageEs ? termQuestion(head, ctx) : ctx ? `${head} — ${ctx}` : head, a: cleanAnswer(first).replace(/\.$/, ''), n: '' }, first.length <= 180 && (words(head).length <= 2 || norm(first).includes(norm(head))) ? 0.66 : 0.55);
   }
 
   // Vocabulario suelto en mazos de idiomas: líneas tipo «ev (casa)»

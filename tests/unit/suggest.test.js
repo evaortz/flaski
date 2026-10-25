@@ -14,11 +14,11 @@ test('frases: no corta en abreviaturas', () => {
   assert.equal(plainText('La **célula** es *la* base {{de}} todo'), 'La célula es la base de todo');
 });
 
-test('definiciones: el término tal cual; también dentro de un párrafo; las etiquetas no', () => {
+test('definiciones: «¿Qué es…?» con su artículo; también dentro de un párrafo; las etiquetas no', () => {
   const r = run('Mitosis: división de una célula en dos células hijas.\n\nNota: repasar el tema 3.\n\nEjemplo: una célula de la piel.\n\nTodo bien. Meiosis: división que da cuatro células con la mitad de cromosomas.');
   assert.deepEqual(brief(r), [
-    ['def', 'Mitosis', 'División de una célula en dos células hijas.'],
-    ['def', 'Meiosis', 'División que da cuatro células con la mitad de cromosomas'],
+    ['def', '¿Qué es la mitosis?', 'División de una célula en dos células hijas.'],
+    ['def', '¿Qué es la meiosis?', 'División que da cuatro células con la mitad de cromosomas'],
   ]);
   assert.ok(r.every(s => s.selected));
 });
@@ -111,7 +111,7 @@ test('casos reales (PDFs de Wikipedia y de examen): conceptos bien cortados', ()
 
 test('casos reales: apartados con su idea principal; títulos genéricos con contexto; sin bibliografía', () => {
   const r = run('# Célula\n\n## Orgánulos\n\n### Definición\n\nSe define a la célula como la unidad morfológica y funcional de todo ser vivo.\n\n### Profase\n\nSe produce en ella la condensación del material genético.\n\n### Tipos celulares\n\nExisten dos grandes tipos celulares:\n\n## Referencias\n\nMcIntosh, J. Richard: «Mitosis» (https://cshperspectives.org). Cold Spring Harbor.');
-  assert.deepEqual(r.map(s => [s.kind, s.front]), [['section', 'Definición — Orgánulos'], ['section', 'Profase']]);
+  assert.deepEqual(r.map(s => [s.kind, s.front]), [['section', '¿Qué son los orgánulos?'], ['section', '¿Qué es la profase?']]);
 });
 
 test('casos reales de examen: pregunta con su respuesta, saltando la línea para rellenar; opciones → opción múltiple; fichas con casillas fuera', () => {
@@ -132,7 +132,7 @@ test('casos reales: cronologías como fechas; números de nota fuera de las resp
   assert.deepEqual(r.map(s => [s.kind, s.front, s.back]), [
     ['date', '¿Cuándo describió Robert Brown el núcleo celular?', '1831'],
     ['date', '¿Cuándo estudió Theodor Schwann la célula animal?', 'Década de 1830'],
-    ['def', 'Ribosoma', 'Los ribosomas son partículas visibles al microscopio electrónico. Están formados por ARN.'],
+    ['def', '¿Qué es el ribosoma?', 'Los ribosomas son partículas visibles al microscopio electrónico. Están formados por ARN.'],
   ]);
 });
 
@@ -306,4 +306,22 @@ test('gramática: fuera las referencias que no se entienden solas («ese mismo m
   for (const q of ['¿Qué establece esta ley?', '¿Cuál es la capital del Estado?', 'La Constitución garantiza el derecho a la autonomía.']) assert.equal(grammarIssue(q), '', q);
   const r = paste('La Segunda República\n\nLa Segunda República se proclamó el 14 de abril de 1931. Alfonso XIII abandonó España ese mismo mes.');
   assert.ok(r.length && !r.some(s => /mismo mes/.test(s.front)), r.map(s => s.front).join(' / '));
+});
+
+test('tabla «Pregunta | Respuesta»: el anverso es la celda de la izquierda, sin «→ respuesta»', () => {
+  const r = run('| Pregunta | Respuesta |\n|---|---|\n| ¿Dónde reside la soberanía nacional? | En el pueblo español (art. 1.2) |\n| ¿Cuál es la capital del Estado? | La villa de Madrid (art. 5) |');
+  assert.deepEqual(r.map(s => [s.front, s.back]), [['¿Dónde reside la soberanía nacional?', 'En el pueblo español (art. 1.2)'], ['¿Cuál es la capital del Estado?', 'La villa de Madrid (art. 5)']]);
+});
+
+test('«Verbo + **término**: definición» y el término a secas se preguntan: «¿Qué es la curva del olvido?», «¿Qué es el efecto de espaciado?»', () => {
+  const r = run('Descubrió la **curva del olvido**: olvidamos muy deprisa al principio y cada vez más despacio después.\n\n**Efecto de espaciado:** se recuerda mejor lo que se repasa repartido en el tiempo.\n\n**Dificultades deseables:** lo que cuesta un poco al practicar hace que el aprendizaje dure más.');
+  assert.deepEqual(r.map(s => s.front), ['¿Qué es la curva del olvido?', '¿Qué es el efecto de espaciado?', '¿Qué son las dificultades deseables?']);
+});
+
+test('con un término genérico («Estructura», «Reformas»), el contexto: «¿Cuál es la estructura de la Constitución Española?»', () => {
+  const r = suggestCards({ title: 'La Constitución Española · Título Preliminar', blocks: textToBlocks('## Datos clave\n\n- **Estructura:** un preámbulo, 169 artículos y diez títulos.\n- **Reformas:** tres, en 1992, 2011 y 2024.') });
+  assert.ok(r.some(s => s.front === '¿Cuál es la estructura de la Constitución Española?'), r.map(s => s.front).join(' / '));
+  assert.ok(r.some(s => s.front === '¿Cuáles son las reformas de la Constitución Española?'), r.map(s => s.front).join(' / '));
+  // En apuntes en otro idioma, el término se queda tal cual
+  assert.deepEqual(run('Photosynthesis: the process by which plants make their food from light.').map(s => s.front), ['Photosynthesis']);
 });

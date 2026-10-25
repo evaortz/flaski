@@ -623,11 +623,11 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   // Editar con el mismo editor que «+ Tarjeta»: se guarda en la sugerencia y se vuelve a la lista
   await items.nth(0).locator('[data-sug-open]').click();
   await expect(page.locator('.ed-title')).toContainText('Editar sugerencia');
-  await expect(page.locator('#fld-q')).toHaveValue('Mitosis');
-  await page.locator('#fld-q').fill('¿Qué es la mitosis?');
+  await expect(page.locator('#fld-q')).toHaveValue('¿Qué es la mitosis?');
+  await page.locator('#fld-q').fill('¿Cómo se define la mitosis?');
   await page.locator('.ed-foot button[type="submit"]').click();
   await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
-  await expect(items.nth(0)).toContainText('¿Qué es la mitosis?');
+  await expect(items.nth(0)).toContainText('¿Cómo se define la mitosis?');
   // Cerrar el editor sin guardar también vuelve a la lista
   await items.nth(2).locator('[data-sug-open]').click();
   await page.locator('.ed-x').click();
