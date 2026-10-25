@@ -72,3 +72,15 @@ for (const [given, verdict] of [['1885', 'Correcto'], ['1890', 'Casi'], ['1500',
   // Nunca un «respuesta» sin nada debajo
   expect(await box.evaluate(el => [...el.children].filter(c => !c.classList.contains('ans-l')).some(c => c.textContent.trim()))).toBe(true);
 });
+
+// En la tanda los avisos van encima de los botones de abajo: con uno abierto, «Ver respuesta» se puede pulsar
+test('con un aviso abierto al entrar en la tanda, «Ver respuesta» se puede pulsar @ambos', async ({ page }) => {
+  await tanda(page, [['basic', 't1', { q: 'ev', a: 'casa', n: '' }]]);
+  await page.evaluate(() => import('/js/comun.js').then(m => m.toast('«Por qué se te olvidan las cosas» añadido')));
+  await expect(page.locator('#toast')).toBeVisible();
+  const [t, b] = await Promise.all([page.locator('#toast').boundingBox(), page.locator('[data-act="reveal"]').boundingBox()]);
+  expect(t.y + t.height).toBeLessThanOrEqual(b.y);
+  await page.locator('[data-act="reveal"]').click({ trial: true, timeout: 2000 });
+  await page.locator('[data-act="reveal"]').click();
+  await expect(page.locator('.grades')).toBeVisible();
+});
