@@ -1,6 +1,6 @@
 // Contraste: el texto pequeño de la cabecera de la tanda («pregunta N de M · repaso») pasa 4,5:1 sobre el azul
 // (o el color) de la tanda con los 9 acentos, en claro y en oscuro
-import { test, expect, openApp, startTanda, openDeck, newCard } from './fixtures.js';
+import { test, expect, openApp, startTanda, openDeck, newCard, nav } from './fixtures.js';
 
 const ACCENTS = ['cobalto', 'violeta', 'ciruela', 'frambuesa', 'teja', 'oliva', 'bosque', 'laguna', 'tinta'];
 
@@ -86,11 +86,26 @@ test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «
   expect(bad).toEqual([]);
 });
 
-// «Normal» elegido en «Cuánto de cada cosa» de una etapa (.lvb-normal): 4,5:1 con los 9 colores, en claro y en oscuro
-test('«Normal» elegido en «Cuánto de cada cosa»: 4,5:1 con los 9 colores, en claro y en oscuro', async ({ page }) => {
+// «Normal» elegido en el nivel de cada carpeta o lista de una etapa (Ajustes del plan › etapa, .lvb-normal):
+// 4,5:1 con los 9 colores, en claro y en oscuro
+test('«Normal» elegido en una etapa de Ajustes del plan: 4,5:1 con los 9 colores, en claro y en oscuro', async ({ page, seed }) => {
+  await seed({ folders: ['Oposición'], decks: [{ name: 'Tema 1', folder: 'Oposición', cards: [['a', 'b'], ['c', 'd']] }, { name: 'Inglés', cards: [['e', 'f']] }] });
   await openApp(page);
-  await page.evaluate(() => { document.querySelector('#main').insertAdjacentHTML('beforeend', '<div class="seg lv-seg" id="lvTest"><button type="button" class="seg-b lvb-normal" aria-pressed="true">Normal</button></div>'); });
-  const btn = page.locator('#lvTest .lvb-normal');
+  // Un plan de antes con una etapa (se migra al entrar): la carpeta en «Más», lo demás en «Normal»
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const f = [...S.folders.values()].find(x => x.name === 'Oposición').id, t = dayKey();
+    S.prefs.plan = { nodes: {}, week: { mon: 30, tue: 30, wed: 30, thu: 30, fri: 30, sat: 30, sun: 0 }, special: [], stages: [{ id: 'st1', name: 'Primero la Constitución', from: t, to: addDays(t, 20), levels: { ['f:' + f]: 'high' }, order: {}, at: 1 }], simGoal: {}, sim: {}, startDone: true, lateOk: '' };
+    await api.saveSettings(S.uid, S.newPerDay, S.prefs);
+  });
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  await page.locator('#main [data-nav="planSettings"]').last().click();
+  await page.locator('#main [data-p2="stage"]').first().click();
+  const btn = page.locator('.lv-seg .lvb-normal[aria-pressed="true"]').first();
+  await expect(btn).toBeVisible();
   const bad = [];
   for (const theme of ['light', 'dark']) for (const accent of ACCENTS) {
     await page.evaluate(async ([accent, theme]) => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.accent = accent; S.prefs.look.theme = theme; applyLook(S.prefs.look); }, [accent, theme]);
