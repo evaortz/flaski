@@ -971,25 +971,39 @@ export async function saveCardForm(form, more) {
   const fields = {};
   for (const f of type.fields) fields[f.id] = String(e.fields[f.id] || '').trim();
   const btns = form.querySelectorAll('button'); btns.forEach(b => { b.disabled = true; });
+  const tags = [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value), hint = (e.hint || '').trim();
+  // «Guardar y otra»: la hoja de la siguiente se abre ya, antes de esperar al guardado, para que lo que escribas
+  // enseguida vaya a la nueva y no a la que se está guardando
+  const next = more && !e.cardId;
+  const src = next && S.edit.side ? e.source : null;
+  if (next) {
+    rememberType(deckId, type.id);
+    S.edit.dirty = false; cardForm(null, { deckId, source: src }); S.edit.dirty = false;
+    document.querySelector('[data-fld]')?.focus();
+  }
   try {
-    const out = await saveNote({
-      type, fields, deckId, hint: (e.hint || '').trim(),
-      tags: [...document.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value),
-      noteId: e.noteId, siblings: e.siblings, source: e.source,
-    });
+    const out = await saveNote({ type, fields, deckId, hint, tags, noteId: e.noteId, siblings: e.siblings, source: e.source });
     rememberType(deckId, type.id);
     // Primera tarjeta desde unos apuntes: ese mazo queda como el de la página
     const pg = e.source && S.pages.get(e.source.page_id);
     if (pg && !pg.deck_id) { pg.deck_id = deckId; savePageSoon(pg); }
     if (S.session) S.session.st = null;
     toast(e.cardId ? 'Pregunta guardada' : out.length > 1 ? `${out.length} preguntas añadidas` : 'Pregunta añadida');
-    if (more) {
-      const src = S.edit.side ? e.source : null;
-      S.edit.dirty = false; cardForm(null, { deckId, source: src }); S.edit.dirty = false;
+    if (next) {
       if (S.view === 'deck') renderDeck();
-      if (src) render(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
+      if (src) render();
+    } else if (more) {
+      const s2 = S.edit.side ? e.source : null;
+      S.edit.dirty = false; cardForm(null, { deckId, source: s2 }); S.edit.dirty = false;
+      if (S.view === 'deck') renderDeck();
+      if (s2) render(); setTimeout(() => document.querySelector('[data-fld]')?.focus(), 40); }
     else { S.edit.dirty = false; closeSheet(); render(); }
-  } catch (err) { btns.forEach(b => { b.disabled = false; }); fail(err); }
+  } catch (err) {
+    btns.forEach(b => { b.disabled = false; });
+    // No se ha guardado: si la hoja nueva sigue sin tocar, vuelve lo que habías escrito
+    if (next && S.edit?.open && !S.edit.dirty) cardForm(null, { deckId, source: src, prefill: { typeId: type.id, fields, hint, tags } });
+    fail(err, 'Guardar la pregunta');
+  }
 }
 
 /* ---------- Creación rápida: pegar una lista ---------- */
