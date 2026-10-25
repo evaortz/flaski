@@ -6,8 +6,7 @@ test('Perfil: filas en su orden, nombre con el lápiz, créditos en una hoja y �
   await openApp(page);
   await nav(page, 'Perfil');
   await expect(page.locator('.pr-cap')).toHaveText(['Tu estudio', 'Flaski']);
-  await expect(page.locator('.pr-row .pr-t b')).toHaveText(['Plan de estudio', 'Estadísticas', 'Amigos', 'Ajustes', 'Novedades', 'Ver la presentación']);
-  await expect(page.locator('.pr-row', { hasText: 'Novedades' })).toContainText(/Lo nuevo de \w+ de \d{4}/);
+  await expect(page.locator('.pr-row .pr-t b')).toHaveText(['Plan de estudio', 'Estadísticas', 'Amigos', 'Ajustes', 'Ver la presentación']);
   // Sin examen, el plan no lleva etiqueta
   await expect(page.locator('.pr-row', { hasText: 'Plan de estudio' }).locator('.pr-tag')).toHaveCount(0);
   // Ya no está el bloque «Tu nombre»: se cambia con el lápiz

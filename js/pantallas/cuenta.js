@@ -18,7 +18,7 @@ import { temaSource } from '../primera-vez.js';
 import { markdownToPage, plainTextToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
-import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
+import { openNews, NEWS_VERSION, NEWS_ALWAYS, hasNews } from '../news.js';
 import { setRemote as setImageRemote, storeImage, flushUploads } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts, fold, plain } from '../comun.js';
 import { splitTrash, purgeExpired } from './papelera.js';
@@ -318,10 +318,11 @@ function maybeNews() {
   let seen = '';
   try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
   const newcomer = !introDone() && S.decks.size === 0 && S.pages.size === 0;
-  if (newcomer || S.noNews || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
+  if (!hasNews() || newcomer || S.noNews || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
   showNews();
 }
 export function showNews() {
+  if (!hasNews()) return;
   openNews({ dark: isDark, onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } } });
 }
 export async function showIntro() {

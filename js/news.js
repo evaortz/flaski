@@ -8,33 +8,13 @@ export const NEWS_VERSION = '2026-10';
 // true: salen siempre (para revisarlas); false: una sola vez por versión
 export const NEWS_ALWAYS = false;
 
+// Las pantallas: la de entrada y una por novedad ({ id, title, text, alt }, con su captura en img/novedades/<id>-light.jpg
+// y -dark.jpg). Ahora no hay ninguna: no salen al entrar ni en Perfil hasta que se añadan las de la próxima versión
 const SLIDES = [
   { id: 'intro' },
-  { id: 'formato', title: 'Da formato a tus apuntes',
-    text: 'Selecciona un texto para ponerlo en negrita, subrayarlo, tacharlo o darle color y fondo. Y lo que pegas de Word, Google Docs o una web llega con su formato.',
-    alt: 'Unos apuntes con palabras en negrita y en color, y la barra de formato con los colores abierta' },
-  { id: 'organizar', title: 'Ordena tus apuntes a tu manera',
-    text: 'Arrastra cada bloque por su asa ⋮⋮ o tócala para convertirlo, duplicarlo o borrarlo. Selecciona varios a la vez, haz subpuntos con Tab, pliega apartados, enlaza apuntes con [[ ]], busca y reemplaza… y deshaz lo que sea con Ctrl+Z.',
-    alt: 'El menú de un bloque de los apuntes con las opciones convertir en, duplicar, mover y borrar' },
-  { id: 'tablas', title: 'Tablas mucho más fáciles',
-    text: 'Escribe celda a celda, como en una hoja de cálculo. Añade filas y columnas con el «+», y desde el menú de cada columna ordénala, alinéala o muévela. Puedes pegar celdas de Excel o Google Sheets.',
-    alt: 'Una tabla en edición con el menú de una columna abierto' },
-  { id: 'sugerencias', title: 'Preguntas sugeridas, sin IA',
-    text: `Flaski lee tus apuntes y te propone preguntas: definiciones, lo que destacas, viñetas, tablas, fechas… Mientras escribes, una ${icon('sugerencia', { size: 16 })} marca las partes de las que saldrá alguna pregunta. Y si quieres que salgan más, unos consejos te dicen cómo escribir tus apuntes.`,
-    alt: 'La ventana de preguntas sugeridas a partir de unos apuntes de biología' },
-  { id: 'tipos', title: 'Ocho tipos de pregunta nuevos',
-    text: 'Emparejar, verdadero o falso, tapar partes de una imagen, conjugación, clasificar en grupos, hueco con opciones, ordenar los pasos y respuesta numérica.',
-    alt: 'El selector de tipos de pregunta con los tipos nuevos: verdadero o falso, clasificar, hueco con opciones, ordenar los pasos…' },
-  { id: 'estudio', title: 'Repasa mejor y más a gusto',
-    text: 'Un algoritmo nuevo (FSRS) calcula mejor cuándo volver a enseñarte cada pregunta. En el móvil, desliza la pregunta para valorarla, con vibración y sonidos (se quitan en Ajustes).',
-    alt: 'Una pregunta de estudio con su respuesta y los botones para valorarla' },
-  { id: 'importar', title: 'Trae y lleva tus apuntes',
-    text: 'Importa Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian. Exporta cualquier apunte a Word, PDF, Markdown o página web, o todos de una vez.',
-    alt: 'Las opciones para exportar un apunte: Word, PDF, Markdown y página web' },
-  { id: 'letra', title: 'Más fácil de leer',
-    text: 'Nueva tipografía, Atkinson Hyperlegible, pensada para leerse sin esfuerzo, y General Sans en los títulos. Y una ayuda de «Formato y atajos» nueva, con buscador, para tenerlo todo a mano.',
-    alt: 'La ayuda de formato y atajos de los apuntes' },
 ];
+// ¿Hay novedades que enseñar?
+export const hasNews = () => SLIDES.length > 1;
 
 // opts: { dark(): boolean, onClose() }
 export function openNews(opts) {

@@ -23,7 +23,7 @@ import { pageRow } from './apuntes.js';
 import { openSheet, closeSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
 import { forecastNow } from '../plan2-app.js';
 import { dayKey } from '../plan.js';
-import { NEWS_VERSION } from '../news.js';
+import { NEWS_VERSION, hasNews } from '../news.js';
 import { friendsBadge, loadFriends } from './amigos.js';
 import { trashSummary } from './papelera.js';
 
@@ -73,7 +73,7 @@ export function renderProfile() {
       <h2 class="pr-cap">Flaski</h2>
       <ul class="pr-list">
         ${row('data-nav="settings"', 'settings', 'Ajustes', 'Apariencia, tanda, avisos, voz, ritmo de repaso y copias')}
-        ${row('data-act="news"', 'sugerencia', 'Novedades', `Lo nuevo de ${newsMonth()}`)}
+        ${hasNews() ? row('data-act="news"', 'sugerencia', 'Novedades', `Lo nuevo de ${newsMonth()}`) : ''}
         ${row('data-act="intro"', 'circle-help', 'Ver la presentación', 'Qué puedes hacer con Flaski, en un minuto')}
       </ul>
     </div>

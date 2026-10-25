@@ -38,7 +38,7 @@ npm run e2e:rapida -- plan apuntes             # …o las pruebas de esas pantal
 npm run e2e:rapida -- --last-failed            # …o repetir solo lo que falló
 npx playwright test                            # = npm run test:e2e: la batería completa, una vez al final del paso
 $env:TRACE = '1'; npx playwright test e2e/plan.spec.js   # con traza, para depurar un fallo
-npx playwright test --config capturas.config.js                # = npm run capturas (regenera img/onboarding e img/novedades)
+npx playwright test --config capturas.config.js                # = npm run capturas (regenera img/onboarding)
 ```
 
 - **Dos formas de lanzar la batería:** mientras trabajas, `npm run e2e:rapida` (menos de 1 min); al final del paso, la
