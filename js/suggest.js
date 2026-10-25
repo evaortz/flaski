@@ -619,7 +619,8 @@ export function plainRules(sp, env = {}) {
     if (/^(?:el|este|dicho)\s+(?:periodo|período|proceso|tema|ciclo)$/i.test(subj) && ctx) subj = ctx;
     const n = toNumber(m[3]), unit = m[4].toLocaleLowerCase(), f = genderOf(unit) === 'f', divide = /divide/i.test(m[2]);
     if (+n === items.length && (ARTICLE.test(subj) || /^\p{Lu}/u.test(subj))) {
-      basic('enum', divide ? `¿En qué ${m[3].toLocaleLowerCase()} ${unit} se divide ${lowerSubject(subj)}?` : `¿Qué ${m[3].toLocaleLowerCase()} ${unit} ${m[2]} ${lowerSubject(subj)}?`, m[5], 0.76);
+      // (la pregunta ya dice cuántos: «¿Cuántas fases…?» va plegada debajo, como otra forma de preguntarlo)
+      basic('enum', divide ? `¿En qué ${m[3].toLocaleLowerCase()} ${unit} se divide ${lowerSubject(subj)}?` : `¿Qué ${m[3].toLocaleLowerCase()} ${unit} ${m[2]} ${lowerSubject(subj)}?`, m[5], 0.76, { link: `@${n}` });
       if (divide) push('num', 'number', { q: `¿En ${f ? 'cuántas' : 'cuántos'} ${unit} se divide ${lowerSubject(subj)}?`, a: n, t: '', u: '', n: '' }, 0.72);
       if (/^(?:fases|etapas|pasos)$/.test(unit)) push('steps', 'steps', { q: `Ordena ${f ? 'las' : 'los'} ${unit} de ${lowerSubject(subj)}`, s: items.map(x => capFirst(x.replace(/\s*\([^)]*\)/g, ''))).join('\n'), n: '' }, 0.7);
     }

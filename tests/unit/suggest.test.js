@@ -297,7 +297,7 @@ test('gramática: nada de «del el», «de el» ni «a el»', () => {
 
 test('gramática: el sujeto sale de la frase, no del título («La mitosis tiene cuatro fases»)', () => {
   const r = paste('La célula\n\nLa célula es la unidad básica de la vida.\nLa mitosis tiene cuatro fases: profase, metafase, anafase y telofase.');
-  assert.ok(r.some(s => s.front === '¿Cuántas fases tiene la mitosis?' && s.back === '4'), r.map(s => s.front).join(' / '));
+  assert.ok(r.flatMap(s => [s, ...(s.alts || [])]).some(s => s.front === '¿Cuántas fases tiene la mitosis?' && s.back === '4'), r.map(s => s.front).join(' / '));
   assert.ok(!r.some(s => /fases tiene la célula/.test(s.front)));
 });
 
@@ -487,3 +487,10 @@ test('para entender: «Por eso» y «porque» → Explícalo; «a diferencia de�
   assert.equal(wi.fields.e, 'Lo que recuerdas en unos pocos días: baja');
   assert.ok(all.filter(s => ['explain', 'whatif'].includes(s.typeId)).every(s => !s.selected));
 });
+
+test('la pregunta de la lista ya dice cuántos («¿Qué cuatro fases tiene la mitosis?»): «¿Cuántas fases…?» va plegada debajo; «Ordena…» queda a la vista', () => {
+  const r = paste('La célula\n\nLa mitosis tiene cuatro fases: profase, metafase, anafase y telofase.');
+  assert.deepEqual(r.map(s => s.front), ['¿Qué cuatro fases tiene la mitosis?', 'Ordena las fases de la mitosis']);
+  assert.deepEqual(r[0].alts.map(a => a.front), ['¿Cuántas fases tiene la mitosis?']);
+});
+

@@ -69,9 +69,13 @@ export function badWriting(s) {
     || ((t.match(/¿/g) || []).length !== (t.match(/\?/g) || []).length ? '¿?' : '') || (/\s[,.;:?]/.test(plainText(t)) ? 'espacio' : '');
 }
 // ¿Pide un dato que ya pide otra visible? (misma respuesta con dos palabras o más, o dos huecos de la misma frase)
+// (y un «¿Cuántos…?» junto a una pregunta de la misma parte que ya dice cuántos: «¿Qué cuatro fases tiene…?»)
+const NUMW = { 2: 'dos', 3: 'tres', 4: 'cuatro', 5: 'cinco', 6: 'seis', 7: 'siete', 8: 'ocho', 9: 'nueve', 10: 'diez' };
 function repeated(list) {
   const seenA = new Set(), seenS = new Set(), out = [];
   for (const s of list) {
+    if (s.typeId === 'number' && list.some(o => o !== s && o.blockId === s.blockId && o.typeId !== 'number'
+      && new RegExp(`(?:qué|cuáles)\s+(?:son\s+)?(?:las\s+|los\s+)?(?:${s.fields.a}|${NUMW[s.fields.a] || '#'})\s`, 'i').test(o.front))) { out.push(s); continue; }
     const a = core(qa(s).a), sent = s.typeId === 'cloze' && s.kind !== 'listitem' ? fold(s.fields.x).replace(/[^\p{L}]+/gu, '') : '';
     if ((a.split(' ').length >= 2 && seenA.has(a)) || (sent && seenS.has(sent))) out.push(s);
     if (a.split(' ').length >= 2) seenA.add(a);
