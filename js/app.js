@@ -232,9 +232,7 @@ document.addEventListener('click', async e => {
     // Sugerencias del apunte elegido, para la lista desde la que se ha pedido
     const deckId = S.deckId;
     go('page', { pageId: ds.noteSug });
-    openSuggestions();
-    if (S.sug && S.decks.has(deckId)) { S.sug.deckId = deckId; refreshSuggestions(false); }
-    return;
+    return openSuggestions(null, { deckId });
   }
   if (ds.nfolder !== undefined) { Object.assign(S.org, { query: '', tagIds: [], archived: false }); S.libKind = 'all'; return go('decks', { folderId: ds.nfolder || null }); }
   if (ds.studySection) return startSession(`page:${S.pageId}:${ds.studySection}`);

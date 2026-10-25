@@ -1,6 +1,6 @@
 // Sugerencias: actualizar tras cambiar el apunte, descartar, la ✨ de los bloques y los consejos
 import { readFileSync } from 'node:fs';
-import { test, expect, openApp, openPage } from './fixtures.js';
+import { test, expect, openApp, openPage, openDeck } from './fixtures.js';
 
 // Un apunte ya hecho (el primer «# » es su título), abierto
 async function withPage(page, seed, md) {
@@ -186,3 +186,15 @@ test('en el móvil, ningún «·» suelto al principio de una línea de la fila 
   await expect(page.locator('.sug .sug-where').first()).toBeVisible();
 });
 
+test('desde una lista, «Desde un apunte» abre las sugerencias para esa lista aunque el género aún no se haya cargado', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Primera' }, { name: 'Historia' }], pages: [{ md: '# Roma\n\nEl ejército tiene seis legiones.' }] });
+  // El género tarda en llegar: la hoja se abre después, cuando ya está cargado
+  await page.route('**/js/vendor/gender-es.js*', async r => { await new Promise(res => setTimeout(res, 800)); await r.continue(); });
+  await openApp(page);
+  await openDeck(page, 'Historia');
+  await page.locator('#main [data-act="add-menu"]').click();
+  await page.locator('#sheetBody [data-act="from-note"], #dkPop:not([hidden]) [data-act="from-note"]').click();
+  await page.locator('#sheetBody [data-note-sug]').filter({ hasText: 'Roma' }).click();
+  await expect(page.locator('.sug .f')).toHaveText(['¿Cuántas legiones tiene el ejército?']);
+  await expect(page.locator('#sugDeck option:checked')).toHaveText('Historia');
+});

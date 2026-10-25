@@ -30,11 +30,13 @@ export function setSugHidden(pageId, set) {
 const GENDER_LIB = '../vendor/gender-es.js';
 let genderReady = null;
 const loadGender = () => (genderReady ||= import(GENDER_LIB).then(m => useGender(m.default)).catch(() => {}));
-// only: solo las de un bloque (desde la ✨ del apunte)
-export function openSuggestions(only = null) {
+// only: solo las de un bloque (desde la ✨ del apunte) · deckId: la lista donde se crean (si se piden desde una lista)
+// · select: los ids que salen marcados. Van como parámetros, no cambiando S.sug después: la primera vez la hoja se abre
+// cuando acaba de cargar el género de las palabras, y lo cambiado antes se perdería
+export function openSuggestions(only = null, { deckId: forDeck = null, select = null } = {}) {
   const p = curPage();
   if (!p) return;
-  if (!genderReady) { loadGender().then(() => openSuggestions(only)); return; }
+  if (!genderReady) { loadGender().then(() => openSuggestions(only, { deckId: forDeck, select })); return; }
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
   // Si ya se habían abierto en este apunte, se conserva lo retocado y lo marcado
@@ -43,12 +45,13 @@ export function openSuggestions(only = null) {
     const deckId = p.deck_id && S.decks.has(p.deck_id) && !S.decks.get(p.deck_id).archived ? p.deck_id : 'new';
     S.sug = { pageId: p.id, deckId, list: [], types: null, showMore: null, scroll: 0 };
   }
+  if (forDeck && S.decks.has(forDeck)) S.sug.deckId = forDeck;
   S.sug.only = only;
   S.sug.scroll = 0;
-  refreshSuggestions(false);
+  refreshSuggestions(false, select);
 }
 // Vuelve a leer el apunte: las nuevas aparecen, las que ya no salen se van, y lo retocado se queda
-export function refreshSuggestions(report = true) {
+export function refreshSuggestions(report = true, select = null) {
   const g = S.sug, p = S.pages.get(g?.pageId);
   if (!g || !p) return;
   const old = new Map(g.list.map(x => [x.id, x]));
@@ -64,6 +67,7 @@ export function refreshSuggestions(report = true) {
   for (const o of g.list) if (o.edited && !list.some(x => x.id === o.id) && p.blocks.some(b => b.id === o.blockId)) list.push(o);
   const pos = new Map(p.blocks.map((b, i) => [b.id, i]));
   g.list = list.sort((a, b) => (pos.get(a.blockId) ?? 0) - (pos.get(b.blockId) ?? 0));
+  if (select) for (const x of g.list) x.selected = select.has(x.id);
   if (report) {
     const added = g.list.filter(x => x.fresh).length, gone = [...old.keys()].filter(id => !g.list.some(x => x.id === id)).length;
     toast(added || gone ? [added ? plural(added, 'nueva', 'nuevas') : '', gone ? plural(gone, 'ya no sale', 'ya no salen') : ''].filter(Boolean).join(' · ') : 'Sin cambios: ya estaban todas');

@@ -24,7 +24,7 @@ import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
-import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions, drawSuggestions } from './sugerencias.js';
+import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions } from './sugerencias.js';
 import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
@@ -408,10 +408,7 @@ async function firstRunChosen(choice) {
     }
     go('page', { pageId: p.id });
     if (kind === 'review' && picks.length) {
-      openSuggestions();
-      const ids = new Set(picks.map(x => x.id));
-      for (const x of S.sug?.list || []) x.selected = ids.has(x.id);
-      drawSuggestions();
+      openSuggestions(null, { select: new Set(picks.map(x => x.id)) });
     }
   } catch (e) { fail(e); }
 }
