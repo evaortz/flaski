@@ -246,3 +246,20 @@ el código de antes y pasa con el arreglo.
     con `after: 'next'` (otra convocatoria) lo que queda sigue entrando como nuevas, con lo que no tiene examen; con
     `keep`, o mientras no se ha contestado la pregunta (`null`), solo repasos; con `pause` o `archive`, nada (ni
     repasos). Lo que dejaste para después (`later`) entra siempre. La pregunta al pasar la fecha es del paso D.
+
+### Lo que faltaba del diseño
+
+- `approx`: hecho (punto 5). Con fecha aproximada, mover la fecha es el último arreglo.
+- `after: 'next'`: hecho (punto 14).
+- `boost` («Refuerza este tema»: más repasos de lo flojo unos días) y `retentionLast` (95 % la última semana):
+  **paso D**, con sus controles («Refuerza este tema» y la retención en Ajustes del plan). En el motor serán carga
+  de repasos de más en esos días para las listas del examen (ahora no cambian nada).
+- `history` (los 20 últimos cambios con «Deshacer») y `weekly` (el repaso del domingo): **paso D**, son sus pantallas.
+  El motor no los lee; el paso C ya guardará cada cambio en `history` al cambiar el reparto o un examen.
+
+### Pruebas
+
+- Las de los pasos A y B importan `js/srs.js`, `js/rows.js`, `js/fsrs.js` y `js/plan.js` del propio worktree
+  (`../../js/…`): pasan desde `../kartlar-plan2/tests`.
+- Al final de `plan2.test.js`, una pasada de todas las propiedades con **500 casos al azar** y semilla fija (2026):
+  los mismos casos cada vez (unos 5 s). Los estados al azar están en `plan2-datos.js` (`randomState`).

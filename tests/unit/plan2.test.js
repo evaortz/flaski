@@ -533,3 +533,19 @@ test('14 · después del examen: con otra convocatoria siguen las nuevas; sin de
   assert.ok(none.days.reduce((s, d) => s + d.reviewsDue, 0) > 0);
   assert.equal(pause.days.reduce((s, d) => s + d.reviewsDue, 0), 0);
 });
+
+/* ---------------- la pasada larga ---------------- */
+// Al final, todas las propiedades con 500 estados al azar y semilla fija (siempre los mismos casos). «Un arreglo
+// que llega, llega» se mira en los 60 primeros que no llegan (cada uno busca arreglos, lo más lento)
+test('propiedades: 500 casos al azar con semilla fija', () => {
+  const r = rng(2026);
+  let late = 0;
+  for (let k = 0; k < 500; k++) {
+    const S = randomState(r, 10000 + k);
+    props.shares(S, r, k);
+    props.moreMinutes(S, r, k);
+    props.noOver(S, r, k);
+    if (late < 60 && props.fixReaches(S, r, k)) late++;
+  }
+  assert.ok(late >= 20, `solo ${late} casos sin llegar`);
+});
