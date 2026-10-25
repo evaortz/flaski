@@ -321,6 +321,18 @@
 - Visto una vez, solo en el código anterior y con la máquina muy cargada: tras «Guardar» en el editor de preguntas, la hoja tardó más de 10 s en cerrarse. No se ha vuelto a ver.
 - `sw.js` → `flaski-v201`.
 
+## Paso 7+8 · sugerencias (en curso; mensaje en `PASO-7-8-SUGERENCIAS.md`)
+- Informe de antes: `docs/rediseno/sugerencias/informe-antes.txt`. La batería (`node sugerencias.mjs`, desde `tests/`) cuenta ahora repetidas visibles, mal escritas, huecos de más de 25 palabras, tipos y marcadas de entrada; la cobertura cuenta también las «otras formas de preguntarlo» (plegadas) y aparte, solo las visibles.
+
+### Paso 7+8 · parte 1 hecha (arreglar lo que hay)
+- 1 Gramática (`fixGrammar` y `grammarIssue` en `suggest.js`, en `add()`): «cuántos/cuántas» con el género (rosaenlg-gender-es en `js/vendor/gender-es.js`, MIT, se carga con `import()` al abrir las sugerencias, no está en SHELL; acierta poco con «fase», «ley», «reforma», «-sis», así que van antes unas listas propias); «de el / del el / a el»; «El golpe de Estado del 18 de julio de 1936 provocó…» → «¿Cuándo fue el golpe de Estado que provocó…?»; el sujeto de la frase antes que el título («¿Cuántas fases tiene la mitosis?»); fuera «ese mismo mes», «dicho», «Estas se utilizarán…», «…, este será…».
+- 2 Tabla «Pregunta | Respuesta» con la pregunta tal cual; `termQuestion`: «Descubrió la **curva del olvido**: …» → «¿Qué es la curva del olvido?», «Efecto de espaciado» → «¿Qué es el efecto de espaciado?», genéricos con contexto («¿Cuál es la estructura de la Constitución Española?»). En apuntes en otro idioma, el término tal cual.
+- 3 Una por dato (`onePerDatum`): misma parte y misma respuesta, huecos y «¿Qué artículo…?» de la misma frase, o la misma respuesta larga en otra parte; se enseña la de más puntuación de donde sale antes, y las demás van en `alts` («Otras formas de preguntarlo (N)», plegadas en la hoja; un toque la cambia, y se conserva al actualizar).
+- 4 Huecos cortos (`trimCloze`): el trozo con el hueco (por «;», «, y», «, que»), con el sujeto delante, hasta 25 palabras; si no queda una frase con verbo, no sale. `verbHole`: nunca un hueco en un verbo.
+- 5 Listas de 5 o más: un hueco por elemento (los demás, acortados y en su orden) y «¿Cuántos principios garantiza la Constitución (art. 9.3)?», con la lista entera plegada debajo.
+- 6 Marcadas de entrada: 0,75 o más, como mucho 15 (`MAX_PRESELECT`); «Recomendadas» son las marcadas (`rec`). Lápiz a la vista en cada fila y «Si la escribes con tus palabras, la recordarás mejor».
+- Números (antes → después). Constitución: 51 → 37 visibles (56 con las plegadas); imprescindibles 17/18 = 17/18 (12/18 solo visibles); total 21/35 = 21/35; repetidas visibles 9 → 0; mal escritas 5 → 0; huecos de más de 25 palabras 5 → 0; marcadas 40 → 15. Olvido: 14 → 13; imprescindibles 8/8; total 11/17; marcadas 13 → 9.
+
 ## Batería más rápida (hecha)
 - Traza solo con `TRACE=1` (antes se grababa en todas: un 24 % del tiempo).
 - «Escritorio» solo ejecuta las 81 pruebas con `@ambos` (lista y porqué, abajo).
