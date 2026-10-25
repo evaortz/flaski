@@ -424,3 +424,21 @@ exámenes, tiempo ni reparto del nuevo). Como su código ya está instalado, la 
 Pruebas: unitarias (imitando cómo carga y guarda la versión vieja) en los dos órdenes, también si la nueva guarda
 sin volver a entrar; e2e `plan-dispositivos.spec.js` con la nube simulada (`nube.js` guarda ahora la fila de
 `settings`): la vieja primero y la nueva después, y la nueva con el plan abierto cuando guarda la vieja.
+
+### Revisión del paso C (2): los atrasos y el final de la tanda
+
+3. **Los atrasos vuelven, con el motor.** Cuando hay repasos de días anteriores que aún tocan, Hoy (y el Plan, en Qué
+   toca ahora) enseña una fila como «Lo dejaste aquí»: «36 atrasadas · las repartes hasta el sábado» (el primer día
+   en que, con tus minutos, no queda nada para el siguiente; `lateNow()` en `plan2-app.js`), o «las haces hoy» si
+   caben. Al tocarla, la hoja de siempre explicada con el motor (cuántas, hasta cuándo, que mientras tanto entran
+   menos nuevas) con «Repartirlas» (lo que hace el motor) y «Hacerlas todas hoy» (ese día, en este dispositivo, la
+   tanda lleva todos los repasos aunque pasen de tus minutos). Con atrasos, el final de una tanda no ofrece «N nuevas
+   más» sino «¿Adelantas 10 atrasadas?» (las más antiguas). La hoja y la acción viejas (`backlogSheet`,
+   `atrasos-all`) se han quitado; `atrasos.js` sigue, pero la app ya no lo usa.
+4. **El final de la tanda cuando ya has hecho los minutos del día**: si el plan dice «Hecho por hoy» (el mismo
+   `dayDone()` que Hoy), el botón principal es «Volver a Hoy» y lo que queda va como enlace, con los mismos minutos
+   que en Hoy (`restLink` cuenta ahora con tu ritmo del motor, `minsFor`). Si no, como antes.
+
+Pruebas: `plan-atrasos.spec.js` (de vuelta tras 19 días con las 945 preguntas: la fila, la hoja, las dos opciones,
+Hoy y el Plan con el mismo texto; con atrasos, «¿Adelantas 10 atrasadas?» en vez de nuevas; y el final de la tanda
+que completa los 5 min), y `tanda-corta.spec.js` y `hoy.spec.js` ajustadas.

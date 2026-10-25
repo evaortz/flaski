@@ -4,9 +4,8 @@ import { heatmapView, progressSeries, progressView, innerW, streaks, scrollChart
 import { icon } from '../icons.js';
 import { folderPath } from '../org.js';
 import { pageTitle, STATUS, isEmptyPage } from '../pages.js';
-import { daysLeft } from '../atrasos.js';
 import { weekDays } from '../friends.js';
-import { $, main, S, esc, plain, cardList, counts, weakSections, WEAK_SHOWN, backlog, nearDecks, daysAway } from '../comun.js';
+import { $, main, S, esc, plain, cardList, weakSections, WEAK_SHOWN, daysAway } from '../comun.js';
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
@@ -53,17 +52,6 @@ export function renderHome() {
 const doneHTML = (done, q) => `<h1 class="hero-hi hero-done">Hecho por hoy</h1>
       <p class="day-done">${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min</p>
       ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
-// Hoja de «+N atrasadas»: por qué se reparten y, si quieres, hacerlas todas hoy
-export function backlogSheet() {
-  const b = backlog();
-  if (!b) return;
-  const all = counts('all'), late = all.dueAll - all.due, until = new Date(b.until + 'T12:00:00');
-  openSheet(`<div class="atrasos"><h2>Lo atrasado, poco a poco</h2>
-    <p>Mientras no estabas se han juntado preguntas. Para que la vuelta no se haga cuesta arriba, te las repartimos hasta el ${['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][until.getDay()]} ${until.getDate()}: hoy te tocan ${plural(all.due, 'repaso', 'repasos')} y quedan ${late} para los próximos días.</p>
-    <p class="muted">Hasta que te pongas al día no entran preguntas nuevas${nearDecks().size ? ', salvo las que pide tu examen' : ''}.</p>
-    <div class="btnrow"><button class="primary" data-act="close-sheet">Vale</button><button class="ghost" data-act="atrasos-all">Hacerlas todas hoy</button></div></div>`);
-}
-
 // Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»
 const TANDA_LABELS = { 5: 'una parada o dos', 10: 'un trayecto corto', 15: 'un trayecto medio', 20: 'un trayecto largo' };
 export function tandaSheet() {

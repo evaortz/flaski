@@ -36,7 +36,7 @@ test('Hoy: cada bloque con sus datos reales @ambos', async ({ page }, info) => {
   expect((await hoyCount(page)).total).toBeGreaterThan(0);
   await expect(page.locator('#main .p2-go')).toContainText(/^Empezar · \d+ min$/);
   // Lo dejaste aquí: el último apunte editado
-  await expect(page.locator('.hoy-last')).toContainText('Política monetaria');
+  await expect(page.locator('.hoy-last[data-page]')).toContainText('Política monetaria');
   // Lo que flojea: primero lo que te cuesta, con su ruta y su estado
   const rows = page.locator('.hoy-weak');
   await expect(rows).toHaveCount(2);

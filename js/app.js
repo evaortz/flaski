@@ -17,9 +17,9 @@ import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, errorSheetHTML, errorText, lastError, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, errorSheetHTML, errorText, lastError, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, tandaMinutes, todayMinutes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
-import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
+import { renderHome, tandaSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
@@ -37,7 +37,7 @@ import { renderBye, renderByeDone } from './pantallas/borrar-cuenta.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import './plan2-app.js';
-import { renderPlanTime } from './pantallas/plan-tiempo.js';
+import { renderPlanTime, lateSheet } from './pantallas/plan-tiempo.js';
 import { renderPlanHome } from './pantallas/plan-inicio.js';
 import { renderPlanExam } from './pantallas/plan-examen.js';
 import { renderPlanSettings } from './pantallas/plan-ajustes.js';
@@ -451,8 +451,7 @@ document.addEventListener('click', async e => {
       return;
     }
     case 'remind-pick': { const t = $('#firstTime')?.value; if (t) { b.dataset.remindAt = t; b.click(); } return; }
-    case 'atrasos': return backlogSheet();
-    case 'atrasos-all': { backlogOff(); closeSheet(); return render(); }
+    case 'atrasos': return lateSheet();   // los atrasos, con el plan (plan-tiempo.js)
     case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: tandaMinutes() }); }
     case 'tanda-again': return startSession('all', { minutes: S.session?.minutes || tandaMinutes() });
     case 'close-sheet': return requestClose();

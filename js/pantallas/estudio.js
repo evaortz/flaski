@@ -500,7 +500,8 @@ export function dayDone(now = Date.now()) {
 export function restLink(q) {
   if (!q.ids.length) return '';
   const what = q.fresh ? plural(q.ids.length, 'pregunta', 'preguntas') : plural(q.ids.length, 'repaso', 'repasos');
-  const { mins } = tandaFit(q.ids.length);
+  // Los minutos, a tu ritmo con lo que queda (los mismos en Hoy, en el Plan y al acabar la tanda)
+  const mins = hooks.plan2 ? hooks.plan2.minsFor(q.due, q.fresh) : tandaFit(q.ids.length).mins;
   return `<button class="link day-rest" data-act="tanda-rest" data-min="${mins}">Quedan ${what} · otra tanda de ${mins} min</button>`;
 }
 // La tanda de hoy con lo que hay de verdad: si tocan menos preguntas de las que caben, los minutos que llevan (m preguntas, mins)
@@ -664,9 +665,15 @@ export function renderStudy() {
         <div class="done-go"><button class="primary big" data-act="first-done">Listo, ir a Hoy</button></div>${again}</div>`;
       return;
     }
-    // Tanda corta: lo que queda para hoy y otra tanda igual
+    // Tanda corta: lo que queda para hoy y otra tanda igual. Con los minutos del día ya hechos (lo dice el plan, como
+    // Hoy): «Volver a Hoy» y lo que queda, como enlace
     if (ses.minutes) {
-      const left = todayQueue('all').ids.length, done = doneToday(), tandas = tandasToday();
+      const q = todayQueue('all'), left = q.ids.length, done = doneToday(), tandas = tandasToday(), dd = left && dayDone();
+      if (dd) {
+        main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>Hecho por hoy</h2>${sub}${tally}${entDoneHTML(ses)}
+          <div class="done-go"><button class="primary big" data-act="exit">Volver a Hoy</button></div><p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>${again}</div>`;
+        return;
+      }
       main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}${entDoneHTML(ses)}
         ${left ? `<div class="done-left"><small>Para hoy</small><b>${left === 1 ? 'te queda 1' : `te quedan ${left}`}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
@@ -675,9 +682,11 @@ export function renderStudy() {
           : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
       return;
     }
-    const more = ses.picked ? 0 : Math.min(10, freshLeft(ses.scope));
+    // Con atrasos, no se ofrecen nuevas de más: «¿Adelantas 10 atrasadas?»
+    const late = ses.picked || !hooks.plan2 ? null : hooks.plan2.late();
+    const more = ses.picked || late ? 0 : Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}
-      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
+      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : late ? `<button class="ghost big" data-p2="late-10">¿Adelantas ${Math.min(10, late.n)} atrasadas?</button>` : ''}</div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];

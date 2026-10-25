@@ -9,7 +9,7 @@ import { plan2, forecastNow, stateNow, todayPlan } from '../plan2-app.js';
 import { todayQueue, dayDone, restLink } from './estudio.js';
 import { fixes, liveExams } from '../plan2.js';
 import { plural } from './mazos.js';
-import { cundeHTML } from './plan-tiempo.js';
+import { cundeHTML, lateRowHTML } from './plan-tiempo.js';
 import { examBarHTML, legendHTML, weekRowHTML, weekTotalText, fixCardHTML, shortDay, shortName, topicTag, topicName, deckName, calIcon, daysLeft, VERDICT, MONTHS, newGroups } from './plan-ui.js';
 import { commitPlan } from './plan-guardar.js';
 
@@ -34,7 +34,7 @@ export function renderPlanHome() {
     </div></div>
     ${exams.length ? `<section class="p2-sec p2-desk" aria-labelledby="h-hasta"><div class="section-h"><h2 class="p2-h2" id="h-hasta">Hasta los exámenes</h2><span class="sec-note">toca un examen para ver sus temas</span></div>${timelineHTML(fc, exams)}</section>` : ''}
     <div class="p2-cols"><div class="p2-col-l">
-      <section class="p2-sec" aria-labelledby="h-ahora"><h2 class="p2-h2" id="h-ahora">Qué toca ahora</h2>${todayLineHTML()}${nowHTML(fc, exams)}</section>
+      <section class="p2-sec" aria-labelledby="h-ahora"><h2 class="p2-h2" id="h-ahora">Qué toca ahora</h2>${todayLineHTML()}${lateRowHTML()}${nowHTML(fc, exams)}</section>
     </div><div class="p2-col-r p2-desk">
       <section class="p2-sec" aria-labelledby="h-p2cunde">${cundeHTML()}</section>
     </div></div>

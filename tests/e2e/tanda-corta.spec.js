@@ -61,14 +61,12 @@ test('la primera tanda pregunta la duración; los atrasados primero (sin nuevas 
   expect(seen.filter(s => s.endsWith('nueva'))).toEqual([]);
   expect(seen).toHaveLength(25);
 
-  // Final: recuento por botón, lo que queda para hoy y otra tanda igual
-  await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
+  // Final: con los 5 min de hoy hechos, «Hecho por hoy», el recuento por botón y lo que queda como enlace
+  await expect(page.getByRole('heading', { name: 'Hecho por hoy' })).toBeVisible();
   await expect(page.locator('.tally .g1')).toHaveText(/1\s*Otra vez/);
   await expect(page.locator('.tally .g3')).toHaveText(/25\s*Bien/);
-  await expect(page.locator('.done-left')).toContainText('te quedan');
-  await expect(page.getByRole('button', { name: 'Por hoy vale' })).toBeVisible();
-  await page.getByRole('button', { name: 'Otra tanda · 5 min' }).click();
-  await expect(left(page)).toContainText('pregunta 1 de');
+  await expect(page.locator('.done-go .primary')).toHaveText('Volver a Hoy');
+  await expect(page.locator('.done .day-rest')).toContainText('Quedan');
 
   // Con los 5 min de hoy hechos, Hoy dice «Hecho por hoy» y lo que queda es un enlace; no vuelve a preguntar
   await nav(page, 'Hoy');

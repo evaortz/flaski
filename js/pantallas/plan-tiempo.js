@@ -3,7 +3,8 @@
 import { icon } from '../icons.js';
 import { WEEK, WEEK_NAMES, dayKey, addDays, isDay, live, daysBetween, weekdayOf } from '../plan.js';
 import { main, S, esc, toast } from '../comun.js';
-import { plan2, editPlan2, todayPlan, forecastNow, minutesToday } from '../plan2-app.js';
+import { plan2, editPlan2, todayPlan, forecastNow, minutesToday, lateNow, setLateAllToday, oldestLate } from '../plan2-app.js';
+import { startSession } from './estudio.js';
 import { plural } from './mazos.js';
 import { newGroups, deckName } from './plan-ui.js';
 import { liveExams } from '../plan2.js';
@@ -148,6 +149,7 @@ export function p2Click(b) {
     case 'today-set': return setToday(Number(ds.min));
     case 'today-reset': return setToday(null);
     case 'time': return go('planTime');
+    case 'late-spread': case 'late-all': case 'late-10': return lateAction(ds.p2);
   }
 }
 
@@ -163,7 +165,7 @@ export function heroHTML({ hi, back, fresh = 0 }) {
     const next = fc.days.find((d, i) => i > 0 && d.minutes > 0);
     const opt = t.reviews ? `Hoy tocan <b class="p2-n">${plural(t.reviews, 'repaso', 'repasos')}</b>. Si te apetece, 10 min de repasos adelantan el ${next ? WEEK_NAMES[weekdayOf(next.day)] : 'próximo día'}. Si no, nada que hacer. <button class="link day-rest" data-act="tanda-short">Estudiar 10 min</button>` : 'No te toca nada. Mañana seguimos.';
     return `<h1 class="hero-hi hero-done">Hoy es tu día libre</h1><p class="day-next">${opt}</p>
-      <button class="link p2-min" data-p2="today-min">${icon('pencil', { size: 15 })} Hoy sí tengo un rato</button>`;
+      <button class="link p2-min" data-p2="today-min">${icon('pencil', { size: 15 })} Hoy sí tengo un rato</button>${lateRowHTML()}`;
   }
   if (!t.total) {
     return `<h1 class="hero-hi hero-done">${hi}, estás al día</h1><p class="muted">${fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Vuelve mañana: hoy no queda nada.'}</p>
@@ -182,6 +184,7 @@ export function heroHTML({ hi, back, fresh = 0 }) {
       <div class="p2-legend">${legend}</div>
       <button class="p2-go" data-act="tanda-short">Empezar · ${mins} min</button></div>
     ${t.short ? `<p class="p2-short">Hoy tienes ${plural(t.reviews, 'repaso', 'repasos')} y ${t.minutes} min: caben ${t.reviewsFit}. Lo que quede pasa a mañana.</p>` : ''}
+    ${lateRowHTML()}
     <p class="p2-less">${changed ? `Hoy, ${t.minutes} min. <button class="link" data-p2="today-reset">Volver a lo de siempre</button>` : `¿Hoy tienes menos tiempo? <button class="link" data-p2="today-min">Hoy solo tengo…</button>`}</p>`;
 }
 const shortName = s => s.replace(/\s*[·(].*$/, '').replace(/\s+[A-C][12]$|\s+N[1-5]$/, '').split(' ')[0] || s;
@@ -206,4 +209,36 @@ export function whyCard(c) {
   if (p.last >= new Date(k + 'T00:00:00').getTime() && p.interval === 0) return 'La has fallado hace un rato: vuelve hoy';
   const late = Math.floor((Date.now() - p.due) / 864e5);
   return late >= 1 ? `Toca repasarla: lleva ${plural(late, 'día', 'días')} esperando` : 'Toca repasarla hoy';
+}
+
+/* ===================== los atrasos ===================== */
+// La fila de Hoy y del Plan (como «Lo dejaste aquí»): «36 atrasadas · las repartes hasta el sábado»
+export function lateRowHTML() {
+  const l = lateNow();
+  if (!l) return '';
+  const when = l.all || l.today ? 'las haces hoy' : l.until ? `las repartes hasta el ${untilText(l.until)}` : 'las repartes en los próximos días';
+  return `<button class="hoy-last p2-late" data-act="atrasos"><span class="hoy-last-k">${plural(l.n, 'atrasada', 'atrasadas')}</span><b>${when}</b>${icon('chevron-right', { size: 16 })}</button>`;
+}
+// «el sábado» (esta semana) o «el sábado 7 nov»
+function untilText(k) {
+  const d = daysBetween(dayKey(), k), name = WEEK_NAMES[weekdayOf(k)];
+  return d < 7 ? name : `${name} ${shortDay(k)}`;
+}
+// La hoja: cuántas, hasta cuándo, que mientras tanto entran menos nuevas, y repartirlas o hacerlas todas hoy
+export function lateSheet() {
+  const l = lateNow();
+  if (!l) return;
+  const t = todayPlan();
+  const how = l.all ? `Hoy las haces todas: la tanda de hoy lleva ${plural(t.reviews, 'repaso', 'repasos')}, aunque pase de tus ${t.minutes} min.`
+    : l.today ? `Caben en tu tanda de hoy (${plural(t.reviews, 'repaso', 'repasos')} en ${t.minutes} min).`
+    : `Con tus minutos, las repartes hasta el ${untilText(l.until || dayKey())}: cada día haces las que caben, primero las más atrasadas. Mientras tanto entran menos nuevas (ninguna los días que no caben todos los repasos).`;
+  openSheet(`<div class="atrasos"><h2>Lo atrasado, poco a poco</h2>
+    <p>Tienes ${plural(l.n, 'repaso atrasado', 'repasos atrasados')}, de días que no estudiaste o no te dio tiempo. ${how}</p>
+    ${l.all || l.today ? '<div class="btnrow"><button class="primary" data-act="close-sheet">Vale</button></div>'
+      : `<div class="btnrow"><button class="primary" data-p2="late-spread">Repartirlas</button><button class="ghost" data-p2="late-all">Hacerlas todas hoy</button></div>`}</div>`);
+}
+export function lateAction(a) {
+  if (a === 'late-spread') { closeSheet(); return toast('Las repartes en los próximos días'); }
+  if (a === 'late-all') { setLateAllToday(); closeSheet(); render(); return toast('Hoy, todas: la tanda las lleva'); }
+  if (a === 'late-10') { const ids = oldestLate(10); if (ids.length) return startSession('all', { ids }); }
 }

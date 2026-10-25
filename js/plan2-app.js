@@ -64,8 +64,30 @@ export function stateNow() {
 let memo = null;
 export function todayPlan() {
   const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.done, st.extraNew, st.fallbackMin, S.decks.size, S.folders.size]);
-  if (memo?.key !== key) memo = { key, value: siblings(today(st)) };
+  if (memo?.key !== key) memo = { key, value: lateAll(siblings(today(st))) };
   return memo.value;
+}
+// «Hacerlas todas hoy» (los atrasos): ese día la tanda lleva todos los repasos, aunque pasen de tus minutos.
+// Vale solo para hoy y en este dispositivo
+const LATE_KEY = 'flaski-atrasadas-hoy';
+export const lateAllToday = () => { try { const x = JSON.parse(localStorage.getItem(LATE_KEY) || 'null'); return x?.day === dayKey() && x.uid === S.uid; } catch { return false; } };
+export function setLateAllToday() { try { localStorage.setItem(LATE_KEY, JSON.stringify({ day: dayKey(), uid: S.uid })); } catch {} memo = null; }
+const lateAll = t => (lateAllToday() && t.short ? { ...t, reviewsFit: t.reviews, short: false, fits: true, all: true } : t);
+// Los atrasos: los repasos de días anteriores que aún tocan, y hasta qué día tardas en ponerte al día con tus minutos
+// (el primero en que no queda nada para el día siguiente). null si no hay
+export function lateNow() {
+  const t0 = startOfDay();
+  let n = 0;
+  for (const [id, p] of S.progress) if (p.due < t0) { const c = S.cards.get(id); if (c && deckStateNow(S.decks.get(c.deck_id)) !== 'paused') n++; }
+  if (!n) return null;
+  if (lateAllToday()) return { n, all: true, today: true, until: dayKey() };
+  const days = forecastNow().days, i = days.findIndex(d => d.backlog === 0);
+  return { n, all: false, today: i === 0, until: i >= 0 ? days[i].day : null };
+}
+// Las atrasadas más antiguas (para «¿adelantas 10 atrasadas?»)
+export function oldestLate(k = 10) {
+  const t0 = startOfDay();
+  return [...S.progress].filter(([id, p]) => p.due < t0 && S.cards.has(id)).sort((a, b) => a[1].due - b[1].due).slice(0, k).map(([id]) => id);
 }
 // Hermanas (ida y vuelta de una nota): como en la tanda, una sola por día. Si una ya salió hoy o toca repasarla,
 // la otra (nueva o repaso) espera; de las nuevas de una nota, una. Así Hoy dice lo mismo que la tanda.
@@ -146,9 +168,14 @@ hooks.plan2 = {
   why: c => whyCard(c),
   state: d => deckStateNow(d),
   near: () => nearDecksNow(),
+  late: () => lateNow(),
+  // Los minutos de una tanda con estos repasos y nuevas, a tu ritmo
+  minsFor: (due, fresh) => { const { secNew, secReview } = todayPlan().pace; return Math.max(1, Math.ceil((due * secReview + fresh * secNew) / 60)); },
   // Cuántas preguntas caben en una tanda de N minutos con lo de hoy: los repasos primero y, si sobra, nuevas
+  // (con «Hacerlas todas hoy», todos los repasos)
   size(minutes) {
     const t = todayPlan(), { secNew, secReview } = t.pace, budget = minutes * 60;
+    if (t.all) return Math.max(1, t.reviews + t.new);
     const r = Math.min(t.reviews, Math.floor(budget / secReview)), n = Math.min(t.new, Math.floor((budget - r * secReview) / secNew));
     return Math.max(1, r + Math.max(0, n));
   },

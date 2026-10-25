@@ -10,7 +10,7 @@ import { enTuPlanSheet, sheetClick } from './plan-hojas.js';
 import { settingsClick } from './plan-ajustes.js';
 import { render, go } from '../app.js';
 
-const TIEMPO = new Set(['week', 'special', 'special-save', 'special-del', 'pause', 'pause-save', 'unpause', 'today-min', 'today-set', 'today-reset', 'time']);
+const TIEMPO = new Set(['week', 'special', 'special-save', 'special-del', 'pause', 'pause-save', 'unpause', 'today-min', 'today-set', 'today-reset', 'time', 'late-spread', 'late-all', 'late-10']);
 
 // kind: 'click', 'input' o 'change'
 export function planAction(el, kind = 'click') {
