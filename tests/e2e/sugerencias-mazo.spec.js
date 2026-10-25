@@ -2,6 +2,8 @@
 // en el ordenador, la lista de siempre
 import { test, expect, openApp, openPage } from './fixtures.js';
 
+test.use({ sugView: 'mazo' });
+
 // Dos apartados con 3 y 2 definiciones (todas salen marcadas) y una frase menos segura
 const DOS = '# Célula\n\n## Orgánulos\n\nRibosoma: fabrica las proteínas de la célula.\n\nLisosoma: digiere lo que la célula ya no necesita.\n\nMitocondria: produce la energía de la célula.\n\n## Núcleo\n\nNucléolo: fabrica los ribosomas dentro del núcleo.\n\nCromatina: el ADN con sus proteínas, dentro del núcleo.\n\nLa célula es la unidad básica de la vida.';
 async function openDeck(page, seed, md = DOS) {
@@ -149,4 +151,15 @@ test('en el ordenador sale la lista de siempre; en el móvil, el mazo @ambos', a
     await expect(page.locator('[data-sd-card]')).toBeVisible();
     await expect(page.locator('.sug')).toHaveCount(0);
   }
+});
+
+test('en el móvil se pasa a la lista con «Ver en lista» y se vuelve con «De una en una»; se recuerda', async ({ page, seed }) => {
+  await openDeck(page, seed);
+  await page.locator('[data-sd="list"]').click();
+  await expect(page.locator('.sug').first()).toBeVisible();
+  await page.locator('[data-act="close-sheet"]').first().click();
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug').first()).toBeVisible();
+  await page.locator('[data-sd-mazo]').click();
+  await expect(page.locator('[data-sd-card]')).toBeVisible();
 });

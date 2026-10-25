@@ -99,8 +99,11 @@ export const test = base.extend({
   // La presentación de bienvenida sale con la app vacía: en las pruebas se da por vista,
   // salvo en las que la prueban (test.use({ intro: true })).
   intro: [false, { option: true }],
-  page: async ({ page, intro }, use) => {
+  // Las sugerencias en el móvil: en las pruebas, la lista (las del mazo, test.use({ sugView: 'mazo' }))
+  sugView: ['lista', { option: true }],
+  page: async ({ page, intro, sugView }, use) => {
     if (!intro) await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } catch {} });
+    await page.addInitScript(v => { try { if (!localStorage.getItem('flaski-sug-vista')) localStorage.setItem('flaski-sug-vista', v); } catch {} }, sugView);
     await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     // Nada de red externa (trazos de kanji, etc.)
     await page.route('https://cdn.jsdelivr.net/**', route => route.abort());

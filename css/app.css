@@ -1528,7 +1528,8 @@ a.wl:hover{text-decoration:underline}
 .nb:has(.tbl-ed),.nb:has(.tbl-ed):hover{background:transparent}
 
 /* ---------- Sugerencias: de dónde sale cada una, descartar, consejos y cómo funcionan ---------- */
-.sug-wrap .ed-top{grid-template-columns:40px minmax(0,1fr) 40px}
+.sug-wrap .ed-top{grid-template-columns:40px minmax(0,1fr) auto}
+.sug-wrap .ed-top:has(.sug-mazo){grid-template-columns:40px minmax(0,1fr) 40px 40px}
 .sug-refresh{justify-self:end}
 .sug-src{grid-column:1 / -1;display:flex;align-items:center;gap:5px;min-width:0;margin-top:4px;font-size:12.5px;color:var(--faint);white-space:nowrap;overflow:hidden}
 .sug-src > span{flex:none;color:var(--muted)}
@@ -4129,7 +4130,8 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .sd-top{display:flex;align-items:center;gap:14px;margin:4px 0 12px}
 .sd-back{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--accent);background:var(--bg);color:var(--accent);cursor:pointer}
 .sd-close{border-color:var(--line-strong);color:var(--accent)}
-.sd-head{min-width:0}
+.sd-head{flex:1;min-width:0}
+.sd-list{flex:none;color:var(--muted)}
 .sd-title{margin:0;font-family:var(--font-hand);font-weight:400;font-size:28px;line-height:1.1;color:var(--accent);overflow-wrap:anywhere}
 .sd-sub{margin:2px 0 0;font-size:14.5px;color:color-mix(in srgb,var(--accent) 70%,var(--muted))}
 .sd-bar{display:flex;gap:6px;margin:0 0 10px}

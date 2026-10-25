@@ -12,7 +12,7 @@ import { typeIcon, getType, deckLang, nativeLang, typeIn } from './estudio.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet, cardForm, readEditor, migrateDeckLangs } from './editor.js';
 import { savePageSoon, renderPage, curPage, commitBlockEl } from './apuntes.js';
-import { deckMode, drawDeck } from './sugerencias-mazo.js';
+import { deckMode, drawDeck, narrow } from './sugerencias-mazo.js';
 
 /* ===================== sugerir tarjetas ===================== */
 // Lo que ya hay como tarjeta (para no proponerlo otra vez): las de este apunte y las del mazo elegido
@@ -201,6 +201,7 @@ export function drawSuggestions() {
   openSheet(`<div class="sug-wrap">
     <header class="ed-top"><button type="button" class="ed-x" data-act="close-sheet" aria-label="Cerrar">${icon('x', { size: 20 })}</button>
       <div class="ed-title"><span>Preguntas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div>
+      ${narrow() && !g.only && all.length ? `<button type="button" class="iconbtn sug-mazo" data-sd-mazo aria-label="De una en una" title="Revisarlas de una en una">${icon('layers', { size: 18 })}</button>` : ''}
       <button type="button" class="iconbtn sug-refresh" data-act="sug-refresh" aria-label="Actualizar" title="Actualizar: vuelve a leer el apunte (lo que has retocado se queda)">${icon('refresh-cw', { size: 18 })}</button></header>
     <div class="sug-main" id="sugMain">
       ${all.length ? `<p class="sug-intro">He encontrado <b>${plural(all.length, 'posible pregunta', 'posibles preguntas')}</b> en tus apuntes. Las más seguras ya están marcadas: toca una para verla, o descártala con la ✕. Si cambias el apunte, pulsa ${icon('refresh-cw', { size: 13 })} para actualizarlas.</p>

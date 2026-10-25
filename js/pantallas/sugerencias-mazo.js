@@ -13,8 +13,13 @@ import { focusPageBlock } from './apuntes.js';
 import { sugHidden, setSugHidden, swapTo, sugAnswer, openSugEditor, makeSuggested, drawSuggestions, scheduleSugMarks } from './sugerencias.js';
 
 const PER_ITEM_S = 10;   // lo que se tarda en revisar una, más o menos (para «unos 2 min»)
-// En el móvil, el mazo; en el ordenador (o desde la ✨ de un bloque), la lista
-export const deckMode = g => matchMedia('(max-width: 699px)').matches && !g.only && g.list.length > 0;
+// En el móvil, el mazo; en el ordenador (o desde la ✨ de un bloque), la lista. En el móvil se puede pasar a la lista
+// («Ver en lista») y volver («De una en una»), y se recuerda en este navegador
+const VIEW = 'flaski-sug-vista';
+export const sugView = () => { try { return localStorage.getItem(VIEW) || 'mazo'; } catch { return 'mazo'; } };
+const setSugView = v => { try { localStorage.setItem(VIEW, v); } catch { /* sin almacenamiento */ } };
+export const narrow = () => matchMedia('(max-width: 699px)').matches;
+export const deckMode = g => narrow() && !g.only && g.list.length > 0 && sugView() !== 'lista';
 
 // Los grupos del mazo: un apartado del apunte cada uno (con las que salen marcadas) y, al final, las menos seguras
 function buildDeck(g, p) {
@@ -71,7 +76,8 @@ export function drawDeck() {
   const ans = x.typeId === 'cloze' || x.typeId === 'clozechoice' ? sugAnswer(x) : x.typeId === 'truefalse' ? (x.fields.v === 'F' ? 'Falso' : 'Verdadero') : x.back;
   openSheet(`<div class="sd-wrap" data-sd-deck>
     <header class="sd-top"><button type="button" class="sd-back" data-sd="exit" aria-label="Volver al apunte">${icon('chevron-left', { size: 22 })}</button>
-      <div class="sd-head"><h2 class="sd-title">${title}</h2><p class="sd-sub">${sub}</p></div></header>
+      <div class="sd-head"><h2 class="sd-title">${title}</h2><p class="sd-sub">${sub}</p></div>
+      <button type="button" class="iconbtn sd-list" data-sd="list" aria-label="Ver en lista" title="Ver todas en lista">${icon('list', { size: 20 })}</button></header>
     <div class="sd-bar" aria-hidden="true">${grp.ids.map((id, j) => `<i class="${j < d.i ? 'sd-done' : j === d.i ? 'sd-now' : ''}"></i>`).join('')}</div>
     ${grp.weak && d.i === 0 ? '<p class="sd-weak">Estas son menos seguras: míralas con calma antes de añadirlas.</p>' : ''}
     <p class="sd-hint" aria-hidden="true">↑ Editar</p>
@@ -206,12 +212,19 @@ document.addEventListener('click', e => {
   if (['add', 'drop', 'edit'].includes(what)) return act(what);
   if (what === 'next') { d.gi++; d.i = 0; d.end = false; d.t0 = Date.now(); return drawDeck(); }
   if (what === 'stop' || what === 'exit') return leave();
+  if (what === 'list') { setSugView('lista'); return drawSuggestions(); }
   if (what === 'see') {
     // Se cierra la hoja (el mazo se queda donde estaba) y se va a ese bloque del apunte
     const x = g.list[findIdx(g, d.groups[d.gi].ids[d.i])];
     closeSheet();
     if (x) { S.focusBlock = x.blockId; focusPageBlock(); }
   }
+});
+// Desde la lista del móvil, «De una en una» vuelve al mazo
+document.addEventListener('click', e => {
+  if (!e.target.closest?.('[data-sd-mazo]') || !S.sug) return;
+  setSugView('mazo');
+  drawSuggestions();
 });
 document.addEventListener('keydown', e => {
   if (!S.sug?.deck || S.sug.deck.end || !$('[data-sd-card]') || e.target.closest?.('input, textarea, select, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
