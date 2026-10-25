@@ -325,3 +325,18 @@ test('con un término genérico («Estructura», «Reformas»), el contexto: «�
   // En apuntes en otro idioma, el término se queda tal cual
   assert.deepEqual(run('Photosynthesis: the process by which plants make their food from light.').map(s => s.front), ['Photosynthesis']);
 });
+
+test('una sugerencia por dato: el hueco del texto se enseña y la tabla de repaso y «¿Qué artículo…?» quedan plegados; dos huecos de la misma frase, uno', () => {
+  const r = suggestCards({ title: 'Constitución', blocks: textToBlocks([
+    '## Artículo 1 · El Estado', '1. La forma política del Estado español es la **Monarquía parlamentaria**.',
+    '## Artículo 3 · Las lenguas', 'Todos los españoles tienen el **deber de conocerla** y el **derecho a usarla**.',
+    '## Para no confundirse', '| Pregunta | Respuesta |\n|---|---|\n| ¿Cuál es la forma política del Estado? | La Monarquía parlamentaria (art. 1.3) |',
+  ].join('\n\n')) });
+  const mon = r.filter(s => /Monarqu/.test(s.back + s.front + (s.fields.x || '')));
+  assert.equal(mon.length, 1);
+  assert.equal(mon[0].fields.x, 'La forma política del Estado español es la {{Monarquía parlamentaria}}.');
+  assert.deepEqual(mon[0].alts.map(a => a.front).sort(), ['¿Cuál es la forma política del Estado?', '¿Qué artículo establece que la forma política del Estado español es la Monarquía parlamentaria?']);
+  const deber = r.filter(s => /españoles tienen/.test(s.fields.x || ''));
+  assert.equal(deber.length, 1);
+  assert.deepEqual(deber[0].alts.map(a => a.front), ['Todos los españoles tienen el deber de conocerla y el […].', '¿Qué artículo establece que todos los españoles tienen el deber de conocerla y el derecho a usarla?']);
+});

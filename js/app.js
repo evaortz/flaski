@@ -27,7 +27,7 @@ import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, pre
 import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
-import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
+import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, swapSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm, nameSheet, creditsSheet, clearSettingFind } from './pantallas/perfil.js';
 import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
 import { focusPageBlock } from './pantallas/apuntes.js';
@@ -245,6 +245,7 @@ document.addEventListener('click', async e => {
   if (ds.tbl) { const tid = b.closest('[data-table-ed]')?.dataset.tableEd || S.tblMenu?.id; return tid && tableAction(tid, ds.tbl); }
   if (ds.sugOpen !== undefined) return openSugEditor(+ds.sugOpen);
   if (ds.sugHide !== undefined) return hideSuggestion(+ds.sugHide);
+  if (ds.sugAlt) { const [i, k] = ds.sugAlt.split(':').map(Number); return swapSuggestion(i, k); }
   if (ds.sugBlock) return openSuggestions(ds.sugBlock);
   if (ds.sugType) {
     const g = S.sug, all = [...new Set(g.list.map(x => x.typeId))];

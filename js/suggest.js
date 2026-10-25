@@ -544,7 +544,7 @@ function relationCards(sp, s) {
   }
   // «Corresponde a los poderes públicos promover…» → ¿A quién corresponde promover…?
   m = /^(?:le\s+|les\s+)?(corresponde|compete|incumbe)\s+(a|al)\s+((?:los|las|el|la)?\s*[^,]{2,50}?)\s+(\p{L}+(?:ar|er|ir)\s.{6,})$/iu.exec(body);
-  if (m) out.push({ q: `¿A quién ${m[1].toLowerCase()} ${m[4].split(/;\s/)[0]}?`, a: capFirst(`${m[2] === 'al' ? 'al' : 'a'} ${m[3]}`), score: 0.72 });
+  if (m) out.push({ q: `¿A quién ${m[1].toLowerCase()} ${m[4].split(/;\s/)[0]}?`, a: capFirst(`${m[2] === 'al' ? 'al' : 'a'} ${m[3]}`), score: 0.76 });
   // «El mejor momento para repasar es **justo cuando…**» → ¿Cuál es el mejor momento para repasar?
   m = /^(.*?)\s+(es|son)\s+\*\*([^*]{2,80})\*\*/iu.exec(s.replace(/[.;]+$/, ''));
   if (m) {
@@ -610,7 +610,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(normQ(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
     seen.add(key); seen.add(norm(sum.front)); seen.add(normQ(sum.front));
     out.push({ key: `${kind}:${blockId}:${out.length}`, id: `${kind}|${blockId}|${norm(sum.front).slice(0, 60)}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
-      front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.1 : 0)), ...extra });
+      front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.1 : 0)),
+      src: extra.src ?? (note.typeId === 'cloze' ? norm(note.fields.x) : ''), ...extra });
     return true;
   };
 
@@ -862,7 +863,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     // En un apunte por artículos («Artículo 1 · …»): ¿Qué artículo establece que…? (sin marcar: hay una por punto)
     const ref = artRef(b.id), first = shortenCloze(sentences(plainText(text))[0] || '', 0);
     if (ref && ['p', 'ol'].includes(b.type) && first.length >= 20 && first.length <= 140 && /^\p{Lu}/u.test(first) && !VAGUE.test(first) && !/^(su|sus|estas?|estos?)\s/i.test(first)) {
-      add('art', b.id, 'basic', { q: `¿Qué artículo establece que ${ARTICLE.test(first) ? first.charAt(0).toLocaleLowerCase() + first.slice(1) : first}`.replace(/[.;:]+$/, '') + '?', a: `Art. ${ref}`, n: '' }, 0.5);
+      add('art', b.id, 'basic', { q: `¿Qué artículo establece que ${ARTICLE.test(first) || /^(todos|todas|cada|cualquier|ning[uú]n[oa]?|nadie|quien|quienes)\s/i.test(first) ? first.charAt(0).toLocaleLowerCase() + first.slice(1) : first}`.replace(/[.;:]+$/, '') + '?', a: `Art. ${ref}`, n: '' }, 0.5, { src: norm(first) });
     }
     // Cifras en negrita: «**169 artículos**» → ¿Cuántos artículos tiene la Constitución?
     for (const [, n, unit] of text.matchAll(new RegExp(`\\*\\*${NUM}\\s+(\\p{L}{4,}s)\\*\\*`, 'giu'))) {
@@ -1020,7 +1021,39 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
 
   // En el orden en que aparecen en los apuntes
   const pos = new Map(blocks.map((b, i) => [b.id, i]));
-  return out.map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s).map(s => ({ ...s, selected: s.score >= PRESELECT }));
+  return onePerDatum(out, pos).map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s).map(s => ({ ...s, selected: s.score >= PRESELECT }));
+}
+
+/* ---------------- Una sugerencia por dato ---------------- */
+// Lo que responde una sugerencia: el hueco, la respuesta…
+const answerOf = s => {
+  const f = s.fields || {};
+  if (s.typeId === 'cloze' || s.typeId === 'clozechoice') return [...String(f.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' ');
+  return ['basic', 'type', 'number', 'choice', 'vocab'].includes(s.typeId) ? f.a ?? f.t ?? '' : '';
+};
+// …sin lo que no cambia el dato: artículos y preposiciones delante, «(art. 1.3)» detrás
+const answerCore = a => norm(String(a).replace(/\([^)]*\)/g, ' ')).replace(/^(?:(?:en|a|al|de|del|el|la|los|las|un|una|lo)\s+)+/, '');
+// Las que piden lo mismo se juntan: misma parte del apunte y misma respuesta, huecos y «¿Qué artículo…?» de la misma
+// frase, o la misma respuesta larga en otra parte («Monarquía parlamentaria» en el art. 1.3 y en la tabla de repaso).
+// Se enseña la de más puntuación de la parte del apunte donde sale antes (lo que dice el texto, no la tabla de repaso
+// del final); las demás van en alts («Otras formas de preguntarlo»)
+export function onePerDatum(list, pos = new Map()) {
+  const parent = list.map((s, i) => i), owner = new Map();
+  const find = i => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  list.forEach((s, i) => {
+    const core = answerCore(answerOf(s)), keys = [];
+    if (core) keys.push(`b|${s.blockId}|${core}`);
+    if (s.src && s.kind !== 'listitem') keys.push(`s|${s.blockId}|${s.src.slice(0, 40)}`);
+    if (core.split(' ').length >= 2 && !/^[\d\s]+$/.test(core) && !['art', 'match', 'sort', 'steps', 'listitem'].includes(s.kind)) keys.push(`a|${core}`);
+    for (const k of keys) { if (owner.has(k)) parent[find(i)] = find(owner.get(k)); else owner.set(k, i); }
+  });
+  const groups = new Map();
+  list.forEach((s, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(s); });
+  return [...groups.values()].map(g => {
+    const first = Math.min(...g.map(s => pos.get(s.blockId) ?? 0)), at = s => ((pos.get(s.blockId) ?? 0) === first ? 0 : 1);
+    const [best, ...rest] = [...g].sort((a, b) => at(a) - at(b) || b.score - a.score || list.indexOf(a) - list.indexOf(b));
+    return rest.length ? { ...best, alts: rest } : best;
+  });
 }
 
 /* ---------------- Consejos para escribir los apuntes de forma que salgan más (y mejores) tarjetas ---------------- */

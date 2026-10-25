@@ -70,3 +70,20 @@ test('la hoja pregunta los términos («¿Qué es el efecto de espaciado?») y l
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug .f')).toHaveText(['¿Qué es el efecto de espaciado?', '¿Quién estudió la curva del olvido?']);
 });
+
+test('una sugerencia por dato: las otras formas de preguntarlo van plegadas y se cambia a una con un toque', async ({ page, seed }) => {
+  await withPage(page, seed, '# Constitución\n\nLa forma política del Estado español es la **Monarquía parlamentaria**.\n\n| Pregunta | Respuesta |\n|---|---|\n| ¿Cuál es la forma política del Estado? | La Monarquía parlamentaria |');
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug')).toHaveCount(1);
+  const alts = page.locator('.sug-alts');
+  await expect(alts.locator('summary')).toHaveText('Otras formas de preguntarlo (1)');
+  await expect(alts.locator('.sug-alt')).toBeHidden();
+  await alts.locator('summary').click();
+  await expect(alts.locator('.sug-alt')).toContainText('¿Cuál es la forma política del Estado?');
+  await alts.locator('.sug-alt').click();
+  await expect(page.locator('.sug > .row .f')).toHaveText('¿Cuál es la forma política del Estado?');
+  await expect(page.locator('.sug-alts .sug-alt')).toContainText('La forma política del Estado español es la […].');
+  // Al actualizar se queda la forma elegida
+  await page.locator('[data-act="sug-refresh"]').click();
+  await expect(page.locator('.sug > .row .f')).toHaveText('¿Cuál es la forma política del Estado?');
+});

@@ -53,10 +53,12 @@ export function refreshSuggestions(report = true) {
   if (!g || !p) return;
   const old = new Map(g.list.map(x => [x.id, x]));
   const hidden = sugHidden(p.id);
-  const list = suggestFor(p, g.deckId === 'new' ? '' : g.deckId).filter(x => !hidden.has(x.id)).map(x => {
-    const o = old.get(x.id);
+  // Cada dato con sus otras formas de preguntarlo: si se descartó o se eligió una de ellas, cuenta para todo el dato
+  const list = suggestFor(p, g.deckId === 'new' ? '' : g.deckId).filter(x => !sugIds(x).some(id => hidden.has(id))).map(x => {
+    const o = sugIds(x).map(id => old.get(id)).find(Boolean);
     if (!o) return { ...x, fresh: report && g.list.length > 0 };
-    return o.edited ? { ...x, ...o, fresh: false } : { ...x, selected: o.selected, fresh: false };
+    const y = o.id !== x.id ? swapTo(x, o.id) : x;
+    return o.edited ? { ...y, ...o, fresh: false } : { ...y, selected: o.selected, fresh: false };
   });
   // Las retocadas a mano se quedan aunque el texto del apunte haya cambiado (mientras su parte exista)
   for (const o of g.list) if (o.edited && !list.some(x => x.id === o.id) && p.blocks.some(b => b.id === o.blockId)) list.push(o);
@@ -68,6 +70,21 @@ export function refreshSuggestions(report = true) {
     sugScroll();
   }
   drawSuggestions();
+}
+const sugIds = x => [x.id, ...(x.alts || []).map(a => a.id)];
+// La misma sugerencia preguntada de otra forma (una de sus «alts»): la elegida pasa a enseñarse y la de antes, a las otras
+function swapTo(x, id) {
+  const k = (x.alts || []).findIndex(a => a.id === id);
+  if (k < 0) return x;
+  const { alts, ...shown } = x;
+  return { ...alts[k], alts: [shown, ...alts.filter((a, j) => j !== k)], selected: x.selected, rec: x.rec, fresh: false };
+}
+export function swapSuggestion(i, k) {
+  const g = S.sug, x = g?.list[i];
+  if (!x?.alts?.[k]) return;
+  g.list[i] = swapTo(x, x.alts[k].id);
+  g.openAlts = g.list[i].id;
+  redrawSuggestions();
 }
 // El texto del apunte de donde sale una sugerencia (para ver qué forma de escribir la ha dado)
 function sugSource(p, x) {
@@ -113,7 +130,9 @@ export function drawSuggestions() {
       <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(x.back)}</span>
         <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} preguntas</span>` : ''}${x.edited ? '<span class="muted small">· Retocada</span>' : ''}${x.fresh ? '<span class="sug-new">Nueva</span>' : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span>
         ${src ? `<span class="sug-src" title="Sale de esta parte del apunte (${esc(x.label || '')})">${icon('notebook-text', { size: 12 })} <span>${esc(x.label || '')}</span> «${esc(src)}»</span>` : ''}</button>
-      <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button></li>`;
+      <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button>
+      ${x.alts?.length ? `<details class="sug-alts"${g.openAlts === x.id ? ' open' : ''}><summary>Otras formas de preguntarlo (${x.alts.length})</summary>
+        <ul>${x.alts.map((a, k) => `<li><button type="button" class="sug-alt" data-sug-alt="${i}:${k}" title="Preguntarlo así"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></button></li>`).join('')}</ul></details>` : ''}</li>`;
   };
   const group = (title, items, key) => items.length ? `<div class="sug-group">
     <div class="sug-gh"><h3>${title} <span class="muted">· ${items.length}</span></h3>
