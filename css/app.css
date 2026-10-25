@@ -4189,3 +4189,5 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .sd-left{margin:8px 0 0;font-size:14px;color:var(--faint)}
 .sd-end-acts{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:24px}
 .sd-end-acts button{min-height:52px;border-radius:999px;font-size:17px}
+/* En el mazo, el aviso («Descartada · Deshacer») va por encima de los botones, sin taparlos */
+body:has([data-sd-deck]) #toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}

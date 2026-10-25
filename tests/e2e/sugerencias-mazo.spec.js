@@ -59,6 +59,9 @@ test('deslizar: a la derecha añade, a la izquierda descarta (con «Deshacer») 
   await page.locator('[data-sd-card]').evaluate(el => el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: 5, clientX: 0, clientY: 200 })));
   await expect(title(page)).toHaveText('Célula · 3 de 3');
   await expect(page.locator('#toast')).toContainText('Descartada');
+  // El aviso no tapa los botones
+  const [toastBox, btnBox] = [await page.locator('#toast').boundingBox(), await page.locator('.sd-acts').boundingBox()];
+  expect(toastBox.y + toastBox.height).toBeLessThanOrEqual(btnBox.y + 1);
   await page.locator('#toast .ta-btn').click();
   await expect(title(page)).toHaveText('Célula · 2 de 3');
   await expect(front(page)).toHaveText('¿Qué es el lisosoma?');
