@@ -29,9 +29,9 @@ test('amigos: esta semana, te han animado, invitar con tu código, aceptar, anim
   await expect(rows.nth(1)).toContainText('Dora · 30 preguntas');
   await expect(rows.nth(2)).toHaveClass(/me/);
   await expect(rows.nth(3).locator('.frow-st')).toHaveText('—');
-  // «¡Bravo!» a Ana: el ánimo de tipo «bravo», y pasa a «enviado»
+  // «¡Bravo!» a Ana: el ánimo de tipo «bravo», y pasa a «¡Bravo! enviado»
   await rows.nth(0).getByRole('button', { name: 'Decir «¡Bravo!» a Ana' }).click();
-  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('enviado');
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('¡Bravo! enviado');
   // Te han animado: «Ana te dice: «¡Tú puedes!»» y quien se ha hecho amigo esta semana
   await expect(page.locator('.fr-news li').first()).toContainText('Ana te dice: «¡Tú puedes!»');
   await expect(page.locator('.fr-news li').first()).toContainText('hace 2 h');
@@ -51,7 +51,7 @@ test('amigos: esta semana, te han animado, invitar con tu código, aceptar, anim
 
   // Animar a Dora, que aún no ha estudiado: una vez al día
   await page.getByRole('button', { name: 'Animar a Dora' }).click();
-  await expect(page.locator('.fr-weeksec .frow', { hasText: 'Dora' }).locator('.frow-hoy')).toHaveText('enviado');
+  await expect(page.locator('.fr-weeksec .frow', { hasText: 'Dora' }).locator('.frow-hoy')).toHaveText('¡Ánimo! enviado');
   expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: ANA.id, p_kind: 'bravo' }, { p_to: DORA.id, p_kind: 'clap' }]);
 
   // Añadir con un código, escrito de cualquier manera
@@ -101,7 +101,7 @@ test('Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de 
   await expect(rows.nth(3).locator('.frow-week')).toHaveCount(0);
   // Animar a Dora, que aún no ha estudiado hoy: pasa a «animado»
   await rows.nth(1).getByRole('button', { name: 'Animar a Dora' }).click();
-  await expect(fr.locator('.frow').nth(1).locator('.frow-hoy')).toHaveText('enviado');
+  await expect(fr.locator('.frow').nth(1).locator('.frow-hoy')).toHaveText('¡Ánimo! enviado');
   expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'clap' }]);
   // «Gracias»: el ánimo queda visto y desaparece de Hoy
   await fr.locator('[data-act="cheers-seen"]').click();
@@ -133,4 +133,55 @@ test('sin las funciones de amigos en Supabase, lo explica (y la app sigue funcio
   await nav(page, 'Perfil');
   await page.locator('[data-nav="friends"]').first().click();
   await expect(page.locator('#main')).toContainText('ejecuta otra vez supabase/schema.sql');
+});
+
+// «¡Ánimo!» y «¡Bravo!» el mismo día: dos personas simuladas (A y B) con una tabla de ánimos que cumple la regla de
+// Supabase (uno de cada clase al día por amigo: índice único sobre from_user, to_user, day y kind = 'bravo')
+test('A anima a B; B estudia; A ve «¡Bravo!» y lo manda; otro «¡Bravo!» no hace nada; B ve los dos', async ({ page }) => {
+  const srv = await mockCloud(page);
+  const A = { id: 'a0000000-0000-4000-8000-0000000000aa', name: 'Ana' }, B = { id: 'b0000000-0000-4000-8000-0000000000bb', name: 'Bea' };
+  const db = { me: A, cheers: [], today: { [A.id]: 20, [B.id]: 0 } };
+  const day = new Date().toISOString().slice(0, 10);
+  const friendOf = p => { const f = p.id === A.id ? B : A; return { ...f, since: '2026-09-01T10:00:00Z', shared: true, streak: 1, today: db.today[f.id], week: [db.today[f.id], 0, 0, 0, 0, 0, 0], langs: [] }; };
+  const received = () => db.cheers.filter(c => c.to === db.me.id).sort((x, y) => y.at.localeCompare(x.at)).map(c => ({ id: c.id, name: c.fromName, kind: c.kind, created_at: c.at }));
+  await page.route('https://test.supabase.co/rest/v1/rpc/*', route => {
+    const fn = new URL(route.request().url()).pathname.split('/').pop(), body = route.request().postData() ? route.request().postDataJSON() : null;
+    const json = x => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(x) });
+    if (fn === 'friend_summary') return json([friendOf(db.me)]);
+    if (fn === 'my_cheers') return json(received().filter(c => !db.cheers.find(x => x.id === c.id).seen));
+    if (fn === 'recent_cheers') return json(received());
+    if (fn === 'send_cheer') {
+      srv.writes.push(['rpc', fn, body]);
+      const clash = db.cheers.some(c => c.from === db.me.id && c.to === body.p_to && c.day === day && (c.kind === 'bravo') === (body.p_kind === 'bravo'));
+      if (!clash) db.cheers.push({ id: `h${db.cheers.length + 1}`, from: db.me.id, fromName: db.me.name, to: body.p_to, kind: body.p_kind, day, at: new Date(Date.now() + db.cheers.length).toISOString(), seen: false });
+      return json(null);
+    }
+    return route.fallback();
+  });
+  const friends = async () => { await nav(page, 'Perfil'); await page.locator('.pr-row[data-nav="friends"]').click(); };
+  const row = () => page.locator('.fr-weeksec .frow', { hasText: db.me === A ? 'Bea' : 'Ana' });
+  // A, con B sin estudiar: «¡Ánimo!»
+  await openCloud(page);
+  await friends();
+  await row().getByRole('button', { name: 'Animar a Bea' }).click();
+  await expect(row().locator('.frow-hoy')).toHaveText('¡Ánimo! enviado');
+  // B estudia: A ve «¡Bravo!» aunque ya le mandó el «¡Ánimo!», y lo manda
+  db.today[B.id] = 14;
+  await page.reload();
+  await friends();
+  await row().getByRole('button', { name: 'Decir «¡Bravo!» a Bea' }).click();
+  await expect(row().locator('.frow-hoy')).toHaveText('¡Bravo! enviado');
+  // (cabe en su fila, sin salirse de lado)
+  expect(await row().evaluate(el => el.scrollWidth <= el.clientWidth + 1 && [...el.children].every(c => c.getBoundingClientRect().right <= el.getBoundingClientRect().right + 1))).toBe(true);
+  expect(db.cheers.map(c => c.kind)).toEqual(['clap', 'bravo']);
+  // Otro «¡Bravo!» ese día (desde otro dispositivo, por ejemplo) no hace nada
+  await page.evaluate(id => import('/js/api.js').then(api => api.social.cheer(id, 'bravo')), B.id);
+  expect(db.cheers).toHaveLength(2);
+  // B: el aviso «¡Bravo!» en Hoy y los dos en «Te han animado»
+  db.me = B;
+  await page.reload();
+  await expect(page.locator('#homeFriends .hoy-cheer')).toContainText('Ana te dice: «¡Bravo!»');
+  await friends();
+  await expect(page.locator('.fr-news')).toContainText('Ana te dice: «¡Bravo!»');
+  await expect(page.locator('.fr-news')).toContainText('Ana te dice: «¡Ánimo!»');
 });
