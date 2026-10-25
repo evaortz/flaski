@@ -216,3 +216,38 @@ test('el apunte del tema recién añadido: «17 sin estudiar» y «Estudiar este
   // y en los apartados, «hoy» solo si no salen todas las suyas
   for (const t of await page.locator('#pgBlocks .nb-sec:not([disabled])').allTextContents()) expect(t).toMatch(/^Estudiar \d+( hoy)?$/);
 });
+
+// Quien ya tenía el tema: si su apunte está tal cual lo añadió, pasa al nuevo (cada pregunta, también las suyas,
+// unida a su apartado); si lo ha editado, se queda como está
+for (const edited of [false, true]) test(`apunte del tema de antes ${edited ? 'editado: se queda como está' : 'sin tocar: pasa al nuevo, con cada pregunta en su apartado'}`, async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async edited => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
+    const { markdownToPage } = await import('/js/notesio.js'); const { TEMAS } = await import('/js/primera-vez.js');
+    const { makeSuggested, temaPicks } = await import('/js/pantallas/sugerencias.js');
+    const t = TEMAS.find(x => x.old), { title, blocks } = markdownToPage(await (await fetch(t.oldPages[0])).text(), t.file);
+    if (edited) blocks.find(b => b.type === 'p').text += ' (lo he cambiado yo)';
+    const p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p);
+    await makeSuggested(p, await temaPicks(p, await (await fetch(t.old[0])).json()), 'new', 'tema:por-que-se-te-olvidan-las-cosas');
+    // Una tuya, unida al apartado «La curva del olvido» (que sigue en el apunte nuevo)
+    const d = [...S.decks.values()][0], h = p.blocks.find(b => b.type === 'h2' && /curva del olvido/i.test(b.text));
+    for (const c of await api.createCards([{ deck_id: d.id, owner: S.uid, front: 'Mía', back: 'sí', type_id: 'basic', template: 't1', fields: { q: 'Mía', a: 'sí' }, page_id: p.id, block_id: h.id }])) S.cards.set(c.id, c);
+    window.__pg = p.id; window.__old = JSON.stringify(p.blocks);
+  }, edited);
+  await page.evaluate(() => import('/js/pantallas/cuenta.js').then(m => m.migrateTemas()));
+  const r = await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js'); const p = S.pages.get(window.__pg), ids = new Set(p.blocks.map(b => b.id));
+    const cards = [...S.cards.values()].filter(c => c.deck_id === p.deck_id);
+    const mine = cards.find(c => c.fields.q === 'Mía');
+    return { same: JSON.stringify(p.blocks) === window.__old, imgs: p.blocks.filter(b => b.type === 'img').length, unlinked: cards.filter(c => !ids.has(c.block_id)).length,
+      mine: p.blocks.find(b => b.id === mine.block_id)?.text || '', count: cards.length };
+  });
+  if (edited) { expect(r.same).toBe(true); return; }
+  expect(r.same).toBe(false);
+  expect(r.imgs).toBe(2);
+  expect(r.unlinked).toBe(0);
+  expect(r.mine).toMatch(/curva del olvido/i);
+  expect(r.count).toBe(18);
+  // Otra vez: no cambia nada
+  expect(await page.evaluate(() => import('/js/pantallas/cuenta.js').then(m => m.migrateTemas()))).toBe(0);
+});

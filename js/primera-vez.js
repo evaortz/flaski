@@ -10,7 +10,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // leer: la primera vez se abre por el apunte (con todas sus preguntas), no con una primera tanda
 export const TEMAS = [
   { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35, page: 'La Constitución Española · Título Preliminar' },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, leer: true, old: ['temas/por-que-se-te-olvidan-las-cosas.v2.json', 'temas/por-que-se-te-olvidan-las-cosas.v1.json'], page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, leer: true, old: ['temas/por-que-se-te-olvidan-las-cosas.v2.json', 'temas/por-que-se-te-olvidan-las-cosas.v1.json'], oldPages: ['temas/por-que-se-te-olvidan-las-cosas.v2.md'], page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
 ];
 // El id de origen de un tema de ejemplo (va en «source» de su lista: «tema:constitucion-titulo-preliminar»)
 export const temaSource = t => 'tema:' + String(t.cards || '').replace(/^.*\//, '').replace(/\.json$/, '');

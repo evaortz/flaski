@@ -18,13 +18,13 @@ import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote, storeImage, flushUploads } from '../media.js';
-import { $, main, S, esc, toast, errMsg, fail, counts, fold } from '../comun.js';
+import { $, main, S, esc, toast, errMsg, fail, counts, fold, plain } from '../comun.js';
 import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
-import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions } from './sugerencias.js';
+import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions, blockFor } from './sugerencias.js';
 import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
@@ -226,6 +226,37 @@ export async function migrateEntender() {
 // de tipo o de campos, se actualizan sin cambiar su id). Lo que hayas añadido o editado tú no se toca.
 // Si se repite, no cambia nada.
 const noteKey = f => fold(String(f?.q ?? f?.x ?? f?.s ?? f?.t ?? f?.h ?? f?.a ?? '').replace(/\{\{|\}\}/g, ''));
+// Un apunte tal como se creó (sin los id de los bloques), para saber si lo has tocado
+const blockSig = b => [b.type, String(b.text || '').replace(/\s+/g, ' ').trim(), b.src || '', b.indent || 0, !!b.checked, b.icon || ''];
+const sameBlocks = (a, b) => a.length === b.length && a.every((x, i) => JSON.stringify(blockSig(x)) === JSON.stringify(blockSig(b[i])));
+// El apunte de un tema que no has tocado desde que lo añadiste (igual que el de alguna versión de antes) pasa al de
+// ahora; cada pregunta sigue unida a su apartado (el mismo texto o, si no, el mismo título por encima). Si lo has
+// editado, se queda como está. Devuelve si lo ha cambiado.
+async function renewTemaPage(t, p, want) {
+  const olds = await Promise.all((t.oldPages || []).map(u => fetch(u, { cache: 'no-cache' }).then(r => r.ok ? r.text() : null).catch(() => null)));
+  if (!olds.some(md => md && sameBlocks(p.blocks, markdownToPage(md, u0(t)).blocks))) return false;
+  const { blocks } = await readTema(t);
+  await storeTemaImages(blocks);
+  const before = p.blocks, headOf = (list, i) => { for (let k = i; k >= 0; k--) if (/^h[1-3]$/.test(list[k].type)) return list[k]; return null; };
+  const key = b => (b ? JSON.stringify(blockSig(b).slice(0, 2)) : '');
+  const relink = c => {
+    const x = want.find(w => noteKey(w.fields) === noteKey(c.fields));
+    if (x) return blockFor({ blocks }, x.block || x.answer);
+    const i = before.findIndex(b => b.id === c.block_id);
+    if (i < 0) return c.block_id;
+    const same = blocks.find(b => key(b) === key(before[i]));
+    const head = headOf(before, i), sameHead = head && blocks.find(b => key(b) === key(head));
+    return (same || sameHead)?.id || blockFor({ blocks }, plain(c.back || c.front || ''));
+  };
+  for (const c of [...S.cards.values()].filter(c => c.page_id === p.id || c.deck_id === p.deck_id)) {
+    const id = relink(c);
+    if (id && id !== c.block_id) { c.block_id = id; api.updateCard(c.id, { block_id: id }).catch(() => {}); }
+  }
+  p.blocks = blocks;
+  savePageSoon(p, 0);
+  return true;
+}
+const u0 = t => t.file;
 export async function migrateTemas() {
   let n = 0;
   for (const t of TEMAS.filter(t => t.old)) {
@@ -236,6 +267,8 @@ export async function migrateTemas() {
     if (!now || !befores.some(Boolean)) continue;
     const oldKeys = new Set(befores.filter(Boolean).flatMap(b => temaCards(b).map(x => noteKey(x.fields))));
     for (const d of decks) {
+      const pg = [...S.pages.values()].find(p => p.deck_id === d.id);
+      if (pg && await renewTemaPage(t, pg, temaCards(now))) n++;
       const notes = new Map();
       for (const c of [...S.cards.values()].filter(c => c.deck_id === d.id)) (notes.get(c.note_id || c.id) || notes.set(c.note_id || c.id, []).get(c.note_id || c.id)).push(c);
       const byKey = new Map([...notes.values()].map(cs => [noteKey(cs[0].fields), cs]));
