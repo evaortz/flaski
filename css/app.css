@@ -2207,9 +2207,11 @@ body.in-study .done .link{align-self:center}
    Carpetas azules con su dibujo asomando; fichas de apunte (esquina doblada),
    de lista (otras debajo) y de subcarpeta. Solo en esta pantalla.
    ====================================================================== */
+/* Título y botones de la Biblioteca: 16 px entre ellos, como en el resto de pantallas */
+.lib-root-top{display:flex;flex-direction:column;gap:16px}
 .lib-head{display:flex;align-items:center;gap:12px}
 .lib-head h1{font-family:var(--font-hand);font-weight:400;font-size:44px;line-height:1;margin:0}
-.lib-head .add-round{margin-bottom:0}
+.lib-head .add-round{margin-bottom:0;position:relative;top:-5px}   /* con su sombra, centrado con la letra del título */
 .lib-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .lib-quick button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:64px;border:1px solid var(--line-strong);border-radius:18px;background:var(--bg);color:var(--fg);font-size:12.5px;font-weight:600;padding:8px 4px}
 .lib-quick button:hover{background:var(--soft)}
@@ -2781,7 +2783,7 @@ body.has-testbar.in-study .app{min-height:calc(100dvh - 46px - var(--tb-h,44px) 
 /* Biblioteca en el ordenador: botones en fila arriba, carpetas en 3 columnas y sueltos en 5 */
 .lib-drag-hint{display:none}
 @media (min-width:960px){
-  .lib-root-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .lib-root-top{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .lib-head .add-round{display:none}
   .lib-head h1{font-size:60px}
   .lib-quick{display:flex;gap:10px}
