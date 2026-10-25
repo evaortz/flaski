@@ -73,7 +73,9 @@ export async function addTema(t) {
   if (p && cardList().some(c => c.page_id === p.id)) return null;
   if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
   if (!p.deck_id || !S.decks.has(p.deck_id)) {
-    const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null });
+    // Una lista del tema que se quedó vacía (algo falló a medias): se reutiliza en vez de crear otra
+    const empty = [...S.decks.values()].find(d => d.source === temaSource(t) && !cardList().some(c => c.deck_id === d.id));
+    const deck = empty || await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null });
     S.decks.set(deck.id, { tags: [], ...deck });
     // Con cuenta, savePage va por la cola de envíos y no devuelve el apunte: se cambia el que ya tenemos
     p.deck_id = deck.id; S.pages.set(p.id, p);

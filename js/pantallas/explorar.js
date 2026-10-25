@@ -4,7 +4,7 @@ import { cardsFromCSV } from '../csv.js';
 import { icon } from '../icons.js';
 import { isNotesDeck, notesToDeck } from '../notes.js';
 import { importImages } from '../media.js';
-import { $, main, S, esc, fmt, norm, fold, toast, fail } from '../comun.js';
+import { $, main, S, esc, fmt, norm, fold, toast, fail, cardList } from '../comun.js';
 import { plural, parseDeckFile, download } from './mazos.js';
 import { openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
@@ -35,7 +35,14 @@ export function sameName(a, b) {
   const [s, l] = x.length <= y.length ? [x, y] : [y, x];
   return s.length >= 2 && s.every(w => l.includes(w));
 }
+// El tema ya está en tu cuenta (con sus preguntas). Si se quedó a medias (el apunte o la lista sin preguntas),
+// no: «Añadir» lo completa (addTema sigue donde se quedó)
 function ownTema(t) {
+  const own = findTema(t);
+  const has = own && ((own.deck && cardList().some(c => c.deck_id === own.deck.id)) || (own.page && cardList().some(c => c.page_id === own.page.id)));
+  return has ? own : null;
+}
+function findTema(t) {
   const src = temaSource(t), decks = [...S.decks.values()].filter(d => !d.archived);
   const deck = decks.find(d => d.source === src);
   if (deck) return { deck, page: [...S.pages.values()].find(p => p.deck_id === deck.id) || null };

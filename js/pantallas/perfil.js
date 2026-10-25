@@ -1,4 +1,5 @@
 // Flaski · perfil, estadísticas, plan de estudio y ajustes (sale de app.js)
+import { digest } from '../sha256.js';
 import * as api from '../api.js';
 import { toRow, progressCols } from '../rows.js';
 import { schedule, ALGO_PRESETS } from '../srs.js';
@@ -455,7 +456,8 @@ export async function backupData() {
 // todas las cuentas): hash de cuenta + id original con forma de UUID. Restaurar la misma copia otra vez
 // da el mismo id, así que se reconoce y no se duplica.
 async function derivedId(id) {
-  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${S.uid}:${id}`))).slice(0, 16);
+  // (digest: sin crypto.subtle, como al abrir la app por la wifi con http://, el mismo SHA-256 en JavaScript)
+  const h = (await digest(new TextEncoder().encode(`${S.uid}:${id}`))).slice(0, 16);
   h[6] = (h[6] & 0x0f) | 0x80; h[8] = (h[8] & 0x3f) | 0x80;   // versión 8 (propia) y variante RFC 9562
   const x = [...h].map(n => n.toString(16).padStart(2, '0')).join('');
   return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20)}`;

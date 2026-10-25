@@ -47,12 +47,22 @@ async function tx(mode, fn) {
   return new Promise((ok, ko) => {
     const t = d.transaction(STORE, mode), req = fn(t.objectStore(STORE));
     t.oncomplete = () => ok(req?.result);
-    t.onerror = () => ko(t.error);
+    // (Safari a veces falla sin decir por qué: error null)
+    t.onerror = t.onabort = () => ko(t.error || req?.error || Object.assign(new Error('El navegador no ha podido guardar la imagen'), { name: 'IndexedDBError' }));
   });
 }
-const getRec = id => tx('readonly', s => s.get(id));
-const putRec = rec => tx('readwrite', s => s.put(rec));
-const allRecs = () => tx('readonly', s => s.getAll());
+// Safari (WebKit) no siempre deja guardar un Blob en IndexedDB: entonces se guardan sus bytes y su tipo
+const fromRec = r => (r && !r.blob && r.bytes ? { ...r, blob: new Blob([r.bytes], { type: r.type || '' }) } : r);
+const getRec = id => tx('readonly', s => s.get(id)).then(fromRec);
+async function putRec(rec) {
+  try { return await tx('readwrite', s => s.put(rec)); }
+  catch (e) {
+    if (!(rec.blob instanceof Blob)) throw e;
+    const { blob, ...rest } = rec, bytes = await blob.arrayBuffer();
+    try { return await tx('readwrite', s => s.put({ ...rest, bytes, type: blob.type })); } catch { throw e; }
+  }
+}
+const allRecs = () => tx('readonly', s => s.getAll()).then(list => list.map(fromRec));
 
 /* ---------------- Nube ---------------- */
 // remote: { upload(id, blob), download(id) → Blob|null } o null (sin cuenta)
@@ -113,10 +123,22 @@ export async function addImage(file) {
 // Guarda una imagen con un id ya elegido (al importar de Anki). No sube nada hasta flushUploads().
 const EXT = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', avif: 'image/avif' };
 export const imageType = name => EXT[String(name).split('.').pop().toLowerCase()] || '';
+// Si el navegador no deja guardarla, no falla: se queda en memoria (se ve en esta sesión), con cuenta se sube
+// directamente y se vuelve a intentar guardar más tarde. Una imagen nunca tumba lo demás (un tema, un mazo de Anki…)
 export async function storeImage(id, bytes, type) {
   let blob = new Blob([bytes], { type });
   try { blob = await compress(blob); } catch {}   // si el navegador no sabe abrirla, tal cual
-  await putRec({ id, blob, pending: !!remote });
+  try { await putRec({ id, blob, pending: !!remote }); }
+  catch (e) {
+    console.warn('No se ha podido guardar la imagen', id, e);
+    if (!urls.has(id)) urls.set(id, URL.createObjectURL(blob));
+    if (remote) remote.upload(id, blob).catch(() => {});
+    retryLater(id, blob);
+  }
+}
+function retryLater(id, blob, n = 1) {
+  if (n > 3) return;
+  setTimeout(() => putRec({ id, blob, pending: false }).catch(() => retryLater(id, blob, n + 1)), 20000 * n);
 }
 
 // Borra todas las imágenes guardadas en este navegador (al borrar la cuenta)
