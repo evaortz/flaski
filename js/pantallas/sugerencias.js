@@ -12,6 +12,7 @@ import { typeIcon, getType, deckLang, nativeLang, typeIn } from './estudio.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet, cardForm, readEditor, migrateDeckLangs } from './editor.js';
 import { savePageSoon, renderPage, curPage, commitBlockEl } from './apuntes.js';
+import { deckMode, drawDeck } from './sugerencias-mazo.js';
 
 /* ===================== sugerir tarjetas ===================== */
 // Lo que ya hay como tarjeta (para no proponerlo otra vez): las de este apunte y las del mazo elegido
@@ -21,7 +22,7 @@ export function suggestFor(p, deckId) {
 }
 // Sugerencias descartadas (por apunte, en este navegador): no vuelven a salir al actualizar
 const SUG_HIDDEN = 'flaski-sug-hidden';
-function sugHidden(pageId) { try { return new Set(JSON.parse(localStorage.getItem(SUG_HIDDEN) || '{}')[pageId] || []); } catch { return new Set(); } }
+export function sugHidden(pageId) { try { return new Set(JSON.parse(localStorage.getItem(SUG_HIDDEN) || '{}')[pageId] || []); } catch { return new Set(); } }
 export function setSugHidden(pageId, set) {
   try { const all = JSON.parse(localStorage.getItem(SUG_HIDDEN) || '{}'); if (set.size) all[pageId] = [...set]; else delete all[pageId]; localStorage.setItem(SUG_HIDDEN, JSON.stringify(all)); } catch { /* sin almacenamiento */ }
 }
@@ -77,7 +78,7 @@ export function refreshSuggestions(report = true, select = null) {
 }
 const sugIds = x => [x.id, ...(x.alts || []).map(a => a.id)];
 // La misma sugerencia preguntada de otra forma (una de sus «alts»): la elegida pasa a enseñarse y la de antes, a las otras
-function swapTo(x, id) {
+export function swapTo(x, id) {
   const k = (x.alts || []).findIndex(a => a.id === id);
   if (k < 0) return x;
   const { alts, ...shown } = x;
@@ -111,7 +112,7 @@ function keepInView(i) {
   requestAnimationFrame(show);
 }
 // Lo que hay que saber de una sugerencia, para la línea de debajo: en un hueco, solo lo que falta
-const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
+export const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
 // El texto del apunte de donde sale una sugerencia (para ver qué forma de escribir la ha dado)
 // (de una tabla, la fila de la pregunta; de un párrafo, desde el trozo de la frase donde está la respuesta, con «…» delante)
 function sugSource(p, x) {
@@ -148,6 +149,7 @@ export const SUG_HOW = [
 export function drawSuggestions() {
   const g = S.sug, p = S.pages.get(g?.pageId);
   if (!g || !p) return;
+  if (deckMode(g)) return drawDeck();   // en el móvil, de una en una
   const all = g.list, list = g.only ? all.filter(x => x.blockId === g.only) : all;
   const picked = all.filter(x => x.selected);
   const nCards = picked.reduce((n, x) => n + (x.cards || 1), 0);
