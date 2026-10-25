@@ -181,7 +181,7 @@ export function statsView(ctx, f) {
   const hardHTML = D.hard.length ? `<ul class="list hard-list">${D.hard.map(({ c, p, lapses, miss }) => `<li><button class="row" data-card="${c.id}">
       <span class="f">${ctx.cardFront(c)}</span><span class="hard-meta"><span class="hard-bar" style="--w:${Math.round(((lapses + miss) / maxHard) * 100)}%"></span>${[lapses && plural(lapses, 'olvido', 'olvidos'), miss && `${plural(miss, 'fallo', 'fallos')} en el periodo`, p && `facilidad ${Math.round((p.ease || 2.5) * 100)} %`].filter(Boolean).join(' · ')}</span>
       <span class="b">${ctx.deckLabel(c.deck_id)} ${escA(ctx.deckName(c.deck_id))}</span></button></li>`).join('')}</ul>`
-    : none('Ninguna pregunta se te resiste. 🎉');
+    : none('Ninguna pregunta se te resiste.');
 
   const fcOpts = [7, 30, 90].map(d => `<button type="button" class="seg-b" data-stfc="${d}" aria-pressed="${d === f.fcDays}">${d} d</button>`).join('');
   const fcSum = D.fc.reduce((a, b) => a + b, 0);
