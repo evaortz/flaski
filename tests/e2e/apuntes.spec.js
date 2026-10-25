@@ -613,12 +613,14 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await expect(items).toHaveCount(3);
   await expect(page.locator('.sug.on')).toHaveCount(3);
   await expect(items.nth(0)).toContainText('Mitosis');
-  await expect(items.nth(1)).toContainText('La […] protege la célula.');
+  // (de «La **membrana** protege la célula», la pregunta; el hueco va en sus otras formas)
+  await expect(items.nth(1)).toContainText('¿Qué protege la membrana?');
+  await expect(items.nth(1).locator('.sug-alts summary')).toHaveText('Otras formas de preguntarlo (1)');
   await expect(items.nth(2)).toContainText('Ordena: fases de la mitosis');
   // Filtro por tipo de tarjeta
-  await page.locator('[data-sug-type="cloze"]').click();
+  await page.locator('[data-sug-type="steps"]').click();
   await expect(items).toHaveCount(2);
-  await page.locator('[data-sug-type="cloze"]').click();
+  await page.locator('[data-sug-type="steps"]').click();
   await expect(items).toHaveCount(3);
   // Editar con el mismo editor que «+ Tarjeta»: se guarda en la sugerencia y se vuelve a la lista
   await items.nth(0).locator('.row[data-sug-open]').click();

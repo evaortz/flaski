@@ -26,7 +26,9 @@ test('texto pegado en «Trae tus apuntes»: título de la primera línea, fechas
   expect(n).toBeGreaterThanOrEqual(6);
   await page.locator('[data-fr-go="review"]').click();
   await expect(page.locator('#pgTitle')).toHaveValue('Tema 1. La Constitución Española de 1978');
-  const fronts = (await page.locator('#sheetBody li.sug').allTextContents()).join(' | ');
+  // (la hoja se abre cuando ha cargado el género de las palabras: se espera a que esté)
+  await expect(page.locator('#sheetBody li.sug').first()).toBeVisible();
+  const fronts = (await page.locator('#sheetBody li.sug .row .f').allTextContents()).join(' | ');
   expect(fronts).toContain('¿Cuándo fue ratificada la Constitución en referéndum?');
   expect(fronts).toContain('¿Cuándo entró la Constitución en vigor?');
   expect(fronts).toContain('¿Cuántos artículos tiene la Constitución Española de 1978?');

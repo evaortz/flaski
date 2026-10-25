@@ -1295,7 +1295,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       if (bolds.length && pageEs) for (const r of anyRules(sp, { prev: lastSentHere })) add(r.kind, b.id, r.typeId, r.fields, r.score, r.extra);
       // El sujeto en negrita y lo que hace: «Los **partidos políticos** expresan el pluralismo político, …» → ¿Qué expresan los partidos políticos?
       const bs = /^((?:El|La|Los|Las|Un|Una)\s+\*\*[^*]{2,50}\*\*)\s+(\p{Ll}\p{L}+(?:a|e|an|en|á|án))\s+((?:el|la|los|las)\s[^,;*]{3,60}?)(?=,|;|\.?$|\s+y\s)/u.exec(s.replace(/[.]+$/, ''));
-      if (bs && pageEs && !/^(?:es|son|está|están|era|eran|fue|fueron|tiene|tienen)$/i.test(bs[2])) add('term', b.id, 'basic', { q: withArt(`¿Qué ${bs[2]} ${lowerSubject(plainText(bs[1]))}?`), a: capFirst(bs[3]), n: '' }, 0.7);
+      // (va con los huecos de la misma frase: uno delataría al otro)
+      if (bs && pageEs && !/^(?:es|son|está|están|era|eran|fue|fueron|tiene|tienen)$/i.test(bs[2])) add('term', b.id, 'basic', { q: withArt(`¿Qué ${bs[2]} ${lowerSubject(plainText(bs[1]))}?`), a: capFirst(bs[3]), n: '' }, 0.76, { src: norm(trimCloze(sp.replace(/^(\S+)/, '{{$1}}')) || sp) });
       if (bolds.length && bolds.length <= 4) {
         for (const bt of bolds) {
           if (fragment || done.has(norm(bt)) || (isDate(bt) && (done.has('date') || nDates > 1)) || (listed.has(b.id) && src.trim().startsWith(`**${bt}`))) continue;

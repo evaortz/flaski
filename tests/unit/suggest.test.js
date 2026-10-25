@@ -219,7 +219,7 @@ test('lo resaltado, subrayado o en color cuenta como negrita; los subpuntos dan 
     { id: 'b', type: 'li', text: 'Núcleo' }, { id: 'c', type: 'li', text: 'ADN', indent: 1 }, { id: 'd', type: 'li', text: 'Nucléolo', indent: 1 }, { id: 'e', type: 'li', text: 'Citoplasma' },
   ] };
   const s = suggestCards(page);
-  assert.ok(s.some(x => x.kind === 'bold' && x.fields.x.includes('{{membrana}}')), 'hueco del resaltado');
+  assert.ok(s.flatMap(x => [x, ...(x.alts || [])]).some(x => x.kind === 'bold' && x.fields.x.includes('{{membrana}}')), 'hueco del resaltado');
   const sub = s.find(x => x.kind === 'sub');
   assert.equal(sub.front, '¿Qué incluye el núcleo?');
   assert.equal(sub.back, '- ADN\n- Nucléolo');
