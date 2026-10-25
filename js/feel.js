@@ -107,10 +107,11 @@ export function chime(kind) {
 /* ---------------- Deslizar ---------------- */
 // Hace «deslizable» una tarjeta. dirs: { left, right, up, down } → etiqueta de cada dirección (o nada si no se usa).
 // onSwipe(dir) se llama cuando la tarjeta sale de la pantalla. onCross() al cruzar el umbral (para vibrar).
+// ceiling() (opcional): hasta dónde puede subir el borde de arriba de la tarjeta (en px de la pantalla), para no tapar la cabecera.
 // Devuelve { up, down }: si se puede deslizar hacia arriba y hacia abajo (para las pistas).
 // Solo con el dedo o el lápiz: con el ratón ya están el teclado y los botones.
 const SKIP = 'button, a, input, textarea, select, canvas, label, [contenteditable], .say, .hw-box';
-export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
+export function swipeable(el, { dirs, onSwipe, onCross, onDrag, ceiling }) {
   if (!el) return;
   // Si la página no necesita scroll, también se puede deslizar hacia arriba y hacia abajo; si no, el gesto vertical es para hacer scroll
   const fits = document.documentElement.scrollHeight <= innerHeight + 4;
@@ -118,7 +119,7 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
   el.style.touchAction = allowUp || allowDown ? 'none' : 'pan-y';
   el.classList.add('swipeable');
 
-  let start = null, axis = null, dir = null, armed = false;
+  let start = null, axis = null, dir = null, armed = false, top = 0;
   const limit = () => Math.min(120, el.offsetWidth * 0.28);
   const reset = (animate = true) => {
     el.style.transition = animate ? 'transform .2s ease' : '';
@@ -132,6 +133,7 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
   el.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' || !e.isPrimary || e.target.closest(SKIP)) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    top = ceiling ? el.getBoundingClientRect().top - ceiling() : Infinity;
     axis = dir = null; armed = false;
     el.style.transition = '';
   });
@@ -146,11 +148,12 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
       try { el.setPointerCapture(e.pointerId); } catch {}
       onDrag?.(true);
     }
-    const d = axis === 'x' ? dx : dy;
+    // Hacia arriba, la tarjeta se queda debajo de la cabecera: lo que falta lo cuenta el gesto, no el dibujo
+    const d = axis === 'x' ? dx : dy, ty = Math.max(dy, -Math.max(0, top));
     dir = axis === 'x' ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
     if (!dirs[dir]) { el.style.transform = `translate(${axis === 'x' ? d * 0.15 : 0}px, ${axis === 'y' ? d * 0.15 : 0}px)`; return; }
     const p = Math.min(1, Math.abs(d) / limit());
-    el.style.transform = axis === 'x' ? `translateX(${dx}px) rotate(${dx / 22}deg)` : `translateY(${dy}px)`;
+    el.style.transform = axis === 'x' ? `translateX(${dx}px) rotate(${dx / 22}deg)` : `translateY(${ty}px)`;
     el.style.setProperty('--swipe', p.toFixed(2));
     el.dataset.swipe = dir; el.dataset.swipeLabel = dirs[dir];
     if (p >= 1 && !armed) { armed = true; onCross?.(); }
@@ -160,10 +163,13 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
   const end = e => {
     if (!start || e.pointerId !== start.id) return;
     if (armed && dir && dirs[dir]) {
-      const out = { left: 'translateX(-130vw) rotate(-18deg)', right: 'translateX(130vw) rotate(18deg)', up: 'translateY(-130vh)', down: 'translateY(130vh)' }[dir];
+      const up = dir === 'up' && Number.isFinite(top);
+      const out = { left: 'translateX(-130vw) rotate(-18deg)', right: 'translateX(130vw) rotate(18deg)', up: up ? el.style.transform : 'translateY(-130vh)', down: 'translateY(130vh)' }[dir];
       const d = dir;
-      el.style.transition = 'transform .2s ease-in';
+      // (hacia arriba, sin pasar por encima de la cabecera: se desvanece donde está)
+      el.style.transition = up ? 'opacity .17s ease-in' : 'transform .2s ease-in';
       el.style.transform = out;
+      if (up) el.style.opacity = '0';
       start = null;
       onDrag?.(false);
       setTimeout(() => onSwipe(d), 170);

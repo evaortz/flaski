@@ -4121,3 +4121,31 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .toast{pointer-events:none}.toast .ta-btn{pointer-events:auto}
 
 .ht-why{margin:0 0 6px;font-size:14px;color:var(--muted)}
+
+/* Antes del push */
+/* Deslizar en la tanda: sin marco ni capa de color en la tarjeta; la etiqueta, una pastilla del color de su botón
+   con el intervalo («Bien · 9 d»), y ese botón se ilumina con un anillo de su color separado por una franja del fondo.
+   Colores y anillo en variables: los reutiliza la hoja de sugerencias (añadir, quitar, cambiar) */
+:root{--sw-add:#8EE3B5;--sw-drop:#FF9F92;--sw-edit:#9ED4FF;--sw-hard:#FFC36B;--sw-ink:#16183A;--sw-gap:var(--session,var(--bg))}
+/* .sw-lit: el elemento iluminado (con --sw-c, su color): un poco más grande y con el anillo */
+.sw-lit{opacity:1;transform:scale(1.08);box-shadow:0 0 0 3px var(--sw-gap),0 0 0 6px var(--sw-c)}
+.card.swipeable[data-swipe]{box-shadow:none!important;border-radius:22px}
+.card.swipeable[data-swipe=right]{--sw-c:var(--sw-add)}
+.card.swipeable[data-swipe=left]{--sw-c:var(--sw-drop)}
+.card.swipeable[data-swipe=up]{--sw-c:var(--sw-edit)}
+.card.swipeable[data-swipe=down]{--sw-c:var(--sw-hard)}
+.card.swipeable[data-swipe]::after{background:var(--sw-c);color:var(--sw-ink);border:0;border-radius:999px;padding:8px 18px;font-size:18px;font-weight:700;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.18);z-index:2}
+.card.swipeable[data-swipe=down]::after{left:50%;top:auto;bottom:14px;transform:translateX(-50%)}
+.card.swipeable[data-swipe=up]::after{top:14px;bottom:auto}
+body.in-study .grade.g1{--sw-c:var(--sw-drop)}
+body.in-study .grade.g2{--sw-c:var(--sw-hard)}
+body.in-study .grade.g3{--sw-c:var(--sw-add)}
+body.in-study .grade.g4{--sw-c:var(--sw-edit)}
+body.in-study:has(.card[data-swipe]) .grade{transition:opacity .15s,transform .15s,box-shadow .15s;opacity:.35}
+body.in-study:has(.card[data-swipe=left]) .grade.g1,body.in-study:has(.card[data-swipe=down]) .grade.g2,
+body.in-study:has(.card[data-swipe=right]) .grade.g3,body.in-study:has(.card[data-swipe=up]) .grade.g4{opacity:1;transform:scale(1.08);box-shadow:0 0 0 3px var(--sw-gap),0 0 0 6px var(--sw-c)}
+@media (prefers-reduced-motion:reduce){
+  .card.swipeable[data-swipe]::after{transform:none}
+  .card.swipeable[data-swipe=down]::after,.card.swipeable[data-swipe=up]::after{transform:translateX(-50%)}
+  body.in-study:has(.card[data-swipe]) .grade,.sw-lit{transition:none;transform:none!important}
+}

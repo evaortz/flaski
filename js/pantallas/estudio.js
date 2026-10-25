@@ -740,8 +740,12 @@ export function renderStudy() {
   if (ses.revealed && S.prefs.study.swipe) {
     const two = S.prefs.study.buttons === 2;
     const map = { left: 1, right: 3, up: 4, down: 2 };
+    const names = ENT_MODES.includes(model.tpl.mode) ? { left: 'Todavía no', right: 'Lo sé explicar', up: null, down: 'A medias' } : { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' };
+    // La etiqueta dice también el intervalo de su botón: «Bien · 9 d»
+    const when = d => main.querySelector(`.grade.g${map[d]} small`)?.textContent.trim();
     const sw = swipeable(main.querySelector('article.card'), {
-      dirs: ENT_MODES.includes(model.tpl.mode) ? { left: 'Todavía no', right: 'Lo sé explicar', up: null, down: 'A medias' } : { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
+      dirs: Object.fromEntries(Object.entries(names).map(([d, l]) => [d, l && when(d) ? `${l} · ${when(d)}` : l])),
+      ceiling: () => (main.querySelector('.bar') || main.querySelector('.studybar'))?.getBoundingClientRect().bottom + 8 || 0,
       onCross: () => haptic('tick'),
       onSwipe: d => { countSwipe(); grade(map[d]); },
       // Mientras arrastras, las cuatro direcciones (si aún te hacen falta)
