@@ -121,3 +121,12 @@ test('«ir a Hoy» la cierra y la presentación se puede ver desde Perfil', asyn
   await page.locator('[data-ob-pick="ia"]').click();
   await expect(page.getByRole('heading', { name: 'Pegar una lista' })).toBeVisible();
 });
+
+test('oposición: «del tema 1» no se parte al final de la línea y los iconos de «¿Cómo empiezas?» no salen en blanco', async ({ page }) => {
+  await open(page);
+  await page.locator('[data-fr-what="opo"]').click();
+  await expect(page.locator('.fr-how', { hasText: 'Subo mis apuntes' }).locator('small')).toHaveText('PDF, Word… lo que tengas del tema 1');
+  // Cada opción con su dibujo (un icono que no existe sale vacío)
+  const empty = await page.locator('.fr-how-ic').evaluateAll(els => els.filter(e => !e.querySelector('svg, img')).length);
+  expect(empty).toBe(0);
+});

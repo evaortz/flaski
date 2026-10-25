@@ -130,7 +130,7 @@ export function openFirstRun(opts) {
         <div class="fr-row"><div class="fr-month"><button type="button" id="frExam" class="fr-month-b${st.exam && !st.noExam ? '' : ' is-empty'}" data-fr-cal aria-expanded="${st.cal}" ${st.noExam ? 'disabled' : ''}><span>${st.exam && !st.noExam ? esc(monthText(st.exam)) : 'Elige el mes'}</span>${icon('chevron-down', { size: 18 })}</button>${st.cal && !st.noExam ? calendar() : ''}</div><button type="button" class="fr-pill" data-fr-noexam aria-pressed="${st.noExam}">Aún no lo sé</button></div>
         <p class="fr-label" id="frHowL">¿Cómo empiezas?</p>
         <div class="fr-hows" role="radiogroup" aria-labelledby="frHowL">
-          ${how('notes', 'file-text', 'Subo mis apuntes', `PDF, Word… lo que tengas${opo ? ' del tema 1' : ''}`, 'lo más rápido')}
+          ${how('notes', 'file-text', 'Subo mis apuntes', `PDF, Word… lo que tengas${opo ? ' del tema 1' : ''}`, 'lo más rápido')}
           ${how('ia', 'message-square', 'Le pido preguntas a una IA', 'Te damos las instrucciones para ChatGPT, Gemini o Claude')}
           ${how('anki', 'download', 'Importo de Anki', 'Tus mazos, con su progreso')}
         </div>
