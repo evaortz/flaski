@@ -4070,3 +4070,7 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
   body[data-view="page"]{overflow-x:clip}
   html:has(body[data-view="page"]),body[data-view="page"]{overscroll-behavior-x:none}
 }
+/* El aviso de abajo no se come los toques de lo que tapa (solo su botón, «Deshacer» o «Ver», se puede tocar) */
+.toast{pointer-events:none}.toast .ta-btn{pointer-events:auto}
+
+.ht-why{margin:0 0 6px;font-size:14px;color:var(--muted)}

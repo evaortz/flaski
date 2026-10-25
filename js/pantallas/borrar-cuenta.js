@@ -5,6 +5,7 @@ import { icon } from '../icons.js';
 import { dateKey } from '../srs.js';
 import { streaks } from '../charts.js';
 import { deleteSnapshot, forgetUser } from '../snapshot.js';
+import { clearImages } from '../media.js';
 import { $, main, S, esc, errMsg } from '../comun.js';
 import { plural, download } from './mazos.js';
 import { backupData } from './perfil.js';
@@ -73,6 +74,7 @@ document.addEventListener('click', async e => {
       renderBye(); const w = $('#byeWord'); if (w) { w.value = word; $('[data-bye="go"]').disabled = !ready(); }
       return;
     }
+    await clearImages();   // y las copias de las imágenes en este navegador
     S.byeDone = { file: st.file };
     S.bye = null;
     deleteSnapshot(uid).catch?.(() => {}); forgetUser();

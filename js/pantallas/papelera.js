@@ -8,6 +8,7 @@ import { $, main, S, esc, toast, toastAction, fail, deckIcon, folderIcon } from 
 import { plural } from './mazos.js';
 import { openSheet, closeSheet } from './editor.js';
 import { pageRow } from './apuntes.js';
+import { imageIdsOf, deleteImage } from '../media.js';
 import { go, render } from '../app.js';
 
 const DAY = 864e5, KEEP = 30;
@@ -107,6 +108,16 @@ export async function restoreItem(e, folder = placeOf(e)) {
   toastAction(`«${name}» recuperad${e.kind === 'page' ? 'o' : 'a'} en ${where}`, 'Ver', open, { icon: 'check' });
   return e;
 }
+// Las imágenes de lo que se ha borrado del todo, si ya no las usa nada (ni lo que queda ni lo demás de la papelera):
+// fuera del navegador y, con cuenta, del almacén «media»
+const foldersOf = e => [...(e.kind === 'folder' ? [e.item] : []), ...e.folders];
+async function dropImages(e) {
+  const ids = imageIdsOf({ cards: e.cards, pages: e.pages, folders: foldersOf(e) });
+  if (!ids.size) return;
+  const rest = [...S.trash.values()];
+  const used = imageIdsOf({ cards: [...S.cards.values(), ...rest.flatMap(x => x.cards)], pages: [...S.pages.values(), ...rest.flatMap(x => x.pages)], folders: [...S.folders.values(), ...rest.flatMap(foldersOf)] });
+  for (const id of ids) if (!used.has(id)) await deleteImage(id).catch(() => {});
+}
 // Borrar del todo (con todo lo que llevaba dentro)
 async function purge(e) {
   if (e.kind === 'deck') await api.deleteDeck(e.id);
@@ -118,6 +129,7 @@ async function purge(e) {
     await api.deleteFolder(e.id);
   }
   S.trash.delete(keyOf(e));
+  await dropImages(e);
 }
 // Al abrir la app: lo que lleva más de 30 días en la papelera se borra del todo
 export async function purgeExpired() {

@@ -209,3 +209,43 @@ test('borrar la cuenta (con cuenta): si falla, lo dice y la sesión sigue; si va
   await page.locator('[data-bye="close"]').click();
   await expect(page.locator('label[for="a-email"]')).toBeVisible();
 });
+
+test('con cuenta: lo borrado del todo se lleva sus imágenes del almacén, salvo las que aún usa otra pregunta o apunte', async ({ page }) => {
+  const srv = await mockCloud(page);
+  const UID = '11111111-1111-4111-8111-111111111111';
+  for (const id of ['solaenlalista', 'compartida01', 'enlacarpeta1']) srv.files.set(`media/${UID}/${id}`, { body: Buffer.from('x'), type: 'image/webp' });
+  await openCloud(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
+    const mk = async (name, folder_id = null) => { const d = await api.createDeck({ owner: S.uid, name, folder_id }); S.decks.set(d.id, { tags: [], ...d }); return d; };
+    const card = async (d, q) => { for (const c of await api.createCards([{ deck_id: d.id, owner: S.uid, front: q, back: 'b', type_id: 'basic', template: 't1', fields: { q, a: 'b' } }])) S.cards.set(c.id, c); };
+    const a = await mk('Con imágenes'), b = await mk('Otra');
+    await card(a, 'Una ![](img:solaenlalista)'); await card(a, 'Dos ![](img:compartida01)'); await card(b, 'Tres ![](img:compartida01)');
+    const f = await api.createFolder({ owner: S.uid, name: 'Carpeta', parent_id: null, icon: 'i:enlacarpeta1' }); S.folders.set(f.id, f);
+    const { trashItem } = await import('/js/pantallas/papelera.js');
+    await trashItem('deck', a.id); await trashItem('folder', f.id);
+  });
+  const has = id => [...srv.files.keys()].some(k => k.endsWith('/' + id));
+  await page.evaluate(() => import('/js/app.js').then(({ go }) => go('trash')));
+  // «Borrar ya» la lista: se va su imagen; la compartida se queda
+  await page.locator('.tr-row', { hasText: 'Con imágenes' }).locator('[data-tr="ask-purge"]').click();
+  await page.locator('#sheetBody [data-tr="purge"]').click();
+  await expect.poll(() => has('solaenlalista')).toBe(false);
+  expect(has('compartida01')).toBe(true);
+  // «Vaciar»: la imagen del icono de la carpeta
+  await page.locator('[data-tr="ask-empty"]').click();
+  await page.locator('#sheetBody [data-tr="empty"]').click();
+  await expect.poll(() => has('enlacarpeta1')).toBe(false);
+  expect(has('compartida01')).toBe(true);
+});
+
+test('con cuenta: la limpieza de 30 días también se lleva las imágenes', async ({ page }) => {
+  const srv = await mockCloud(page);
+  const UID = '11111111-1111-4111-8111-111111111111';
+  srv.files.set(`media/${UID}/caducada0001`, { body: Buffer.from('x'), type: 'image/webp' });
+  const old = new Date(Date.now() - 31 * 864e5).toISOString();
+  srv.tables.decks.push({ id: 'dddd0000-0000-4000-8000-0000000000aa', owner: UID, name: 'Vieja', created_at: old, tags: [], deleted_at: old });
+  srv.tables.cards.push({ id: 'cccc0000-0000-4000-8000-0000000000aa', deck_id: 'dddd0000-0000-4000-8000-0000000000aa', owner: UID, front: 'x ![](img:caducada0001)', back: 'y', position: 1, note_id: 'nx', type_id: 'basic', template: 't1', fields: { q: 'x ![](img:caducada0001)', a: 'y' }, hint: '', tags: [] });
+  await openCloud(page);
+  await expect.poll(() => [...srv.files.keys()].some(k => k.endsWith('/caducada0001'))).toBe(false);
+});

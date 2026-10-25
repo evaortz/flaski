@@ -176,3 +176,16 @@ test('móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se
   await seg.click();
   await expect(page.locator('#stName')).toHaveValue('Un día');
 });
+
+test('Plan › Hoy toca: dice el porqué de las nuevas de hoy («Hoy 20 nuevas: tienes 90 min») y nunca pasa del doble', async ({ page }) => {
+  await openApp(page);
+  await addBuiltinDeck(page, JA);
+  await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js'); const { WEEK, weekdayOf, dayKey } = await import('/js/plan.js');
+    S.newPerDay = 10;
+    S.prefs.plan.week = Object.fromEntries(WEEK.map(d => [d, 30]));
+    S.prefs.plan.week[WEEK[weekdayOf(dayKey())]] = 90;
+  });
+  await openPlan(page);
+  await expect(page.locator('.ht-why')).toHaveText('Hoy 20 nuevas: tienes 90 min, más que un día normal (39 min). Como mucho, el doble.');
+});

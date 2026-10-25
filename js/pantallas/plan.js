@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { tandaSize } from '../tanda.js';
 import {
   childrenOf, decksUnder, folderKey, WEEK, WEEK_SHORT, WEEK_NAMES, dayKey, isDay, dayDate, addDays, daysBetween, weekdayOf,
-  live, weekTotal, weekAverage, minutesOn, LEVELS, levelLabel, levelOf, levelNode, sortStages, stageOn, nodesOn, topicOrder, orderedTopics, simulate,
+  live, weekTotal, weekAverage, minutesOn, newOn, LEVELS, levelLabel, levelOf, levelNode, sortStages, stageOn, nodesOn, topicOrder, orderedTopics, simulate,
 } from '../plan.js';
 import { main, S, esc, toast, folderIcon, deckIcon, freshByDeck, planNodes, newPlan, todayMinutes, tandaMinutes } from '../comun.js';
 import { plural } from './mazos.js';
@@ -292,8 +292,11 @@ function todayHTML() {
   const btn = !q.ids.length ? '<p class="muted">Lo de hoy ya está hecho.</p>'
     : m === 0 ? `<p class="muted">Hoy es tu día libre.</p><button class="ghost" data-act="tanda-short">Estudiar igualmente · ${tandaMinutes()} min</button>`
     : `<button class="primary big" data-act="tanda-short">Empezar la tanda · ${tandaMinutes()} min</button>`;
+  // El porqué de las nuevas de hoy: con tu semana, más minutos dan más nuevas (como mucho el doble) y menos, menos
+  const nNew = m ? newOn(P(), t, S.newPerDay, S.prefs.study.tandaMin) : 0, avg = Math.round(weekAverage(P().week, S.prefs.study.tandaMin));
+  const why = m && P().week ? `<p class="ht-why">Hoy ${plural(nNew, 'nueva', 'nuevas')}: tienes ${m} min${m > avg ? `, más que un día normal (${avg} min)` : m < avg ? `, menos que un día normal (${avg} min)` : ''}${nNew >= 2 * S.newPerDay && m > avg ? '. Como mucho, el doble' : ''}.</p>` : '';
   return `<div class="section-h"><h2 id="h-today">Hoy toca</h2><span class="sec-note">${head}</span></div>
-    ${q.ids.length ? `<div class="ht-bar">${bar}</div><div class="ht-legend">${legend}</div>` : ''}
+    ${why}${q.ids.length ? `<div class="ht-bar">${bar}</div><div class="ht-legend">${legend}</div>` : ''}
     ${topics ? `<p class="ht-topics">${topics}</p>` : ''}${btn}`;
 }
 // «Turco A1» → «Turco» en las leyendas cortas

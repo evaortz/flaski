@@ -119,6 +119,13 @@ export async function storeImage(id, bytes, type) {
   await putRec({ id, blob, pending: !!remote });
 }
 
+// Borra todas las imágenes guardadas en este navegador (al borrar la cuenta)
+export async function clearImages() {
+  if (flushing) await flushing.catch(() => {});
+  for (const u of urls.values()) URL.revokeObjectURL(u);
+  urls.clear();
+  await tx('readwrite', s => s.clear()).catch(() => {});
+}
 // Borra una imagen que ya no usa nada: del navegador y, con cuenta, de la nube (si falla, queda allí sin más)
 export async function deleteImage(id) {
   if (flushing) await flushing.catch(() => {});   // que no se suba después de borrarla
