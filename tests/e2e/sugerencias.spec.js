@@ -78,11 +78,22 @@ test('una sugerencia por dato: las otras formas de preguntarlo van plegadas y se
   const alts = page.locator('.sug-alts');
   await expect(alts.locator('summary')).toHaveText('Otras formas de preguntarlo (1)');
   await expect(alts.locator('.sug-alt')).toBeHidden();
+  // En los huecos, la línea de debajo es solo lo que falta
+  await expect(page.locator('.sug > .row .b')).toHaveText('Monarquía parlamentaria');
   await alts.locator('summary').click();
   await expect(alts.locator('.sug-alt')).toContainText('¿Cuál es la forma política del Estado?');
-  await alts.locator('.sug-alt').click();
+  const use = alts.locator('.sug-use');
+  await expect(use).toHaveText('Usar esta');
+  const box = await use.boundingBox();
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await use.click();
   await expect(page.locator('.sug > .row .f')).toHaveText('¿Cuál es la forma política del Estado?');
   await expect(page.locator('.sug-alts .sug-alt')).toContainText('La forma política del Estado español es la […].');
+  // «Cambiada», con «Deshacer»
+  await expect(page.locator('#toast')).toContainText('Cambiada');
+  await page.locator('#toast .ta-btn').click();
+  await expect(page.locator('.sug > .row .f')).toHaveText('La forma política del Estado español es la […].');
+  await page.locator('.sug-alts .sug-use').click();
   // Al actualizar se queda la forma elegida
   await page.locator('[data-act="sug-refresh"]').click();
   await expect(page.locator('.sug > .row .f')).toHaveText('¿Cuál es la forma política del Estado?');
@@ -116,4 +127,15 @@ test('la hoja marca como mucho 15 de entrada, con el lápiz a la vista y «Si la
   await expect(page.locator('.sug').first().locator('.sug-ed')).toBeVisible();
   await page.locator('.sug').first().locator('.sug-ed').click();
   await expect(page.locator('.ed-title')).toContainText('Editar sugerencia');
+});
+
+test('el texto de donde sale una sugerencia acaba en «…» cuando no cabe @ambos', async ({ page, seed }) => {
+  await withPage(page, seed, '# Constitución\n\n- **Aprobación por las Cortes:** 31 de octubre de 1978, tras un largo debate parlamentario en el Congreso y en el Senado de aquella legislatura.');
+  await page.locator('.pg-suggest').click();
+  const q = page.locator('.sug-src q').first();
+  await expect(q).toBeVisible();
+  // O no cabe y la línea lo corta con «…», o cabe y ya acaba en «…» (el texto se corta a 90 letras)
+  const [overflow, cut, text] = await q.evaluate(el => [getComputedStyle(el).textOverflow, el.scrollWidth > el.clientWidth, el.textContent]);
+  expect(overflow).toBe('ellipsis');
+  expect(cut || text.endsWith('…')).toBe(true);
 });

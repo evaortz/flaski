@@ -7,7 +7,7 @@ import { temaCards } from '../primera-vez.js';
 import { stripImages, storeImage, flushUploads } from '../media.js';
 import { toPlain } from '../inline.js';
 import { pageTitle } from '../pages.js';
-import { $, S, esc, fmt, cardList, toast, fail } from '../comun.js';
+import { $, S, esc, fmt, cardList, toast, toastAction, fail } from '../comun.js';
 import { typeIcon, getType, deckLang, nativeLang, typeIn } from './estudio.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet, cardForm, readEditor, migrateDeckLangs } from './editor.js';
@@ -85,7 +85,16 @@ export function swapSuggestion(i, k) {
   g.list[i] = swapTo(x, x.alts[k].id);
   g.openAlts = g.list[i].id;
   redrawSuggestions();
+  toastAction('Cambiada', 'Deshacer', () => {
+    const j = g.list.indexOf(S.sug === g ? g.list.find(y => y.id === x.alts[k].id) : null);
+    if (j < 0) return;
+    g.list[j] = swapTo(g.list[j], x.id);
+    g.openAlts = x.id;
+    redrawSuggestions();
+  });
 }
+// Lo que hay que saber de una sugerencia, para la línea de debajo: en un hueco, solo lo que falta
+const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
 // El texto del apunte de donde sale una sugerencia (para ver qué forma de escribir la ha dado)
 function sugSource(p, x) {
   const b = p.blocks.find(y => y.id === x.blockId);
@@ -97,7 +106,7 @@ export const SUG_HOW = [
   ['<code>Mitosis: división de una célula</code>', 'Una pregunta y su respuesta: «Mitosis» → «División de una célula»'],
   ['Algo en <b>negrita</b>, <mark class="hl hl-yellow">resaltado</mark>, <u>subrayado</u> o <span class="tc tc-red">en color</span>', 'Una frase para completar, con eso oculto'],
   ['Un título o «Las fases son:» y unas viñetas debajo', '«¿Cuáles son…?» con los puntos; si llevan numeración, ordenar los pasos'],
-  ['Un punto con subpuntos (con <kbd>Tab</kbd>)', '«Núcleo: ¿qué incluye?» → sus subpuntos'],
+  ['Un punto con subpuntos (con <kbd>Tab</kbd>)', '«¿Qué incluye el núcleo?» → sus subpuntos'],
   ['Una tabla', 'Una pregunta por celda («Locativo → sufijo» = «-de»); en idiomas, vocabulario o conjugación'],
   ['Una pregunta (<code>¿…?</code>) con la respuesta debajo', 'Esa misma pregunta, con su respuesta'],
   ['«En 1789…», «Década de 1830: …»', '«¿Cuándo?», con el año como respuesta'],
@@ -127,13 +136,14 @@ export function drawSuggestions() {
     const where = x.section && x.section !== pageTitle(p) ? x.section.split(' › ').at(-1) : '';
     const src = sugSource(p, x);
     return `<li class="sug${x.selected ? ' on' : ''}${x.fresh ? ' is-new' : ''}"><label class="sug-check" title="${x.selected ? 'Se creará' : 'No se creará'}"><input type="checkbox" data-sug="${i}" ${x.selected ? 'checked' : ''} aria-label="Crear esta pregunta"></label>
-      <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(x.back)}</span>
+      <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(sugAnswer(x))}</span>
         <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} preguntas</span>` : ''}${x.edited ? '<span class="muted small">· Retocada</span>' : ''}${x.fresh ? '<span class="sug-new">Nueva</span>' : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span>
-        ${src ? `<span class="sug-src" title="Sale de esta parte del apunte (${esc(x.label || '')})">${icon('notebook-text', { size: 12 })} <span>${esc(x.label || '')}</span> «${esc(src)}»</span>` : ''}</button>
+        ${src ? `<span class="sug-src" title="Sale de esta parte del apunte (${esc(x.label || '')})">${icon('notebook-text', { size: 12 })} <span>${esc(x.label || '')}</span> <q>${esc(src)}</q></span>` : ''}</button>
       <button type="button" class="iconbtn sug-ed" data-sug-open="${i}" aria-label="Escribirla con tus palabras" title="Escribirla con tus palabras">${icon('pencil', { size: 15 })}</button>
       <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button>
       ${x.alts?.length ? `<details class="sug-alts"${g.openAlts === x.id ? ' open' : ''}><summary>Otras formas de preguntarlo (${x.alts.length})</summary>
-        <ul>${x.alts.map((a, k) => `<li><button type="button" class="sug-alt" data-sug-alt="${i}:${k}" title="Preguntarlo así"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></button></li>`).join('')}</ul></details>` : ''}</li>`;
+        <ul>${x.alts.map((a, k) => `<li class="sug-alt"><span class="sug-alt-q"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></span>
+          <button type="button" class="ghost sug-use" data-sug-alt="${i}:${k}" title="Ponerla en lugar de la de arriba">Usar esta</button></li>`).join('')}</ul></details>` : ''}</li>`;
   };
   const group = (title, items, key) => items.length ? `<div class="sug-group">
     <div class="sug-gh"><h3>${title} <span class="muted">· ${items.length}</span></h3>
