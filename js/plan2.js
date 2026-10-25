@@ -110,7 +110,7 @@ export function stock(state, r = 0.9) {
   const hit = holder && typeof holder === 'object' && stockMemo.get(holder);
   if (hit?.key === key && hit.cards === state.cards) return hit.value;
   const t0 = startOfDay(dayDate(state.today).getTime()), prog = progressOf(state.progress);
-  const fresh = new Map(), total = new Map(), seen = new Map(), base = new Map();
+  const fresh = new Map(), total = new Map(), seen = new Map(), base = new Map(), weak = new Map();
   const row = id => { let a = base.get(id); if (!a) base.set(id, a = new Float64Array(H_MAX + 1)); return a; };
   const ivl = S => Math.max(1, Math.round(intervalFor(S, r)));
   for (const c of asList(state.cards)) {
@@ -120,6 +120,8 @@ export function stock(state, r = 0.9) {
     const p = prog.get(c.id);
     if (!p) { fresh.set(id, (fresh.get(id) || 0) + 1); continue; }
     seen.set(id, (seen.get(id) || 0) + 1);
+    // Lo que te cuesta: menos de una semana de intervalo o algún fallo («Refuerza este tema»)
+    if ((p.interval || 0) < 7 || (p.lapses || 0) > 0) weak.set(id, (weak.get(id) || 0) + 1);
     const a = row(id);
     let { S, D } = memoryOf(p, r), iv = p.interval || 0;
     let i = Math.max(0, dayIndex(ms(p.due), t0));
@@ -132,7 +134,7 @@ export function stock(state, r = 0.9) {
       i += iv;
     }
   }
-  const value = { fresh, total, seen, base };
+  const value = { fresh, total, seen, base, weak };
   if (holder && typeof holder === 'object') stockMemo.set(holder, { key, cards: state.cards, value });
   return value;
 }
@@ -369,6 +371,8 @@ export function forecast(state, opts = {}) {
   const done0 = { new: Math.max(0, state.done?.new || 0), reviews: Math.max(0, state.done?.reviews || 0) }, spent0 = done0.reviews * sR + done0.new * sN;
   const extra0 = Math.max(0, state.extraNew || 0);
   const live = [...deckInfo].filter(([id]) => st.base.has(id));
+  // «Refuerza este tema» (exam.boost[lista] = hasta qué día): cada pregunta que te cuesta, un repaso de más cada dos días
+  const boostX = P.ex.flatMap(x => Object.entries(x.e.boost || {}).filter(([id, k]) => isDay(k) && k >= state.today && deckInfo.has(id)).map(([id, k]) => ({ id, to: Math.min(H, daysBetween(state.today, k)), perDay: Math.ceil((st.weak.get(id) || 0) / 2) })));
   // Las últimas semanas con más retención que el resto (share: qué parte de lo visto necesita ese repaso de más)
   const lastWeekX = P.ex.filter(x => x.date != null && x.e.lastWeek && x.date - LAST_WEEK >= 0 && (Number(x.e.retentionLast) || 0) > P.r)
     .map(x => ({ from: x.date - LAST_WEEK, to: Math.min(H, x.date - 1), ids: x.study.concat(x.e.known || []).filter(id => deckInfo.has(id)), share: Math.min(1, ((Number(x.e.retentionLast) || 0) - P.r) / (1 - P.r)) }));
@@ -376,6 +380,8 @@ export function forecast(state, opts = {}) {
     let due = backlog;
     for (const [id, d] of live) if (i < d.stop) due += st.base.get(id)[i];
     for (const [id, a] of extra) if (i < deckInfo.get(id).stop) due += a[i];
+    // (hoy, las que quedan de verdad si la app lo sabe: state.boostToday)
+    for (const b of boostX) if (i <= b.to && i < deckInfo.get(b.id).stop) due += i === 0 && state.boostToday?.[b.id] != null ? state.boostToday[b.id] : b.perDay;
     // La última semana, con más retención (retentionLast, 95 %): un repaso más de cada pregunta ya vista del examen
     // que no tenga ya uno esa semana, repartidos entre sus días (al empezarla se cuentan)
     for (const x of lastWeekX) if (i === x.from) {

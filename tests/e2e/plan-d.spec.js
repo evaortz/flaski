@@ -181,3 +181,39 @@ test('Ya me lo sé · Comprobar con 5 de 10: el tema sigue en el plan y las acer
   await page.locator('[data-sim="check-ok"]').click();
   expect(await progressOf(page)).toEqual({ seen: 5, fresh: 7 });
 });
+
+test('Refuerza este tema: 7 días con más repasos de lo que te cuesta; Hoy y la tanda dicen lo mismo', async ({ page, seed }) => {
+  await seed({ folders: ['Opo'], decks: [{ name: 'T1 · Constitución', folder: 'Opo', cards: Array.from({ length: 10 }, (_, i) => [`c${i}`, `r${i}`]), studied: { due: 3, interval: 3 } }] });
+  await openApp(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js'); const { editPlan2 } = await import('/js/plan2-app.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const p = editPlan2();
+    p.time.week = { mon: 30, tue: 30, wed: 30, thu: 30, fri: 30, sat: 30, sun: 30 };
+    p.exams.push({ id: 'ex-opo', name: 'Opo', scope: { folders: [[...S.folders.values()][0].id], decks: [], pages: [] }, date: addDays(dayKey(), 60), lastWeek: true, after: null });
+    await api.saveSettings(S.uid, S.newPerDay, S.prefs);
+  });
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  // Hoy no toca nada
+  await expect(page.locator('#main .hero-done')).toContainText('estás al día');
+  await toPlan(page);
+  await page.locator('#main .p2-exrow').click();
+  await page.locator('#main .p2-step', { hasText: 'T1 · Constitución' }).locator('[data-p2="topic"]').click();
+  await page.locator('#sheetBody [data-p2="topic-boost"]').click();
+  await expect(page.locator('#toast')).toContainText('Refuerzas T1 hasta el');
+  // Hoy: la mitad de las que te cuestan, y la tanda las saca
+  await nav(page, 'Hoy');
+  await expect(page.locator('#main .p2-legend')).toHaveText('5 repasos');
+  await page.locator('#main .p2-go').click();
+  const go = page.locator('#sheetBody [data-act="tanda-go"]');
+  if (await go.isVisible().catch(() => false)) await go.click();
+  await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 5 · repaso');
+  for (let i = 0; i < 5; i++) { await page.locator('[data-act="reveal"]').click(); await page.locator('[data-grade="3"]').click(); }
+  await nav(page, 'Hoy');
+  await expect(page.locator('#main .p2-legend')).toHaveCount(0);
+  // La hoja del tema lo dice, y se puede quitar
+  await toPlan(page);
+  await page.locator('#main .p2-exrow').click();
+  await page.locator('#main .p2-step', { hasText: 'T1 · Constitución' }).locator('[data-p2="topic"]').click();
+  await expect(page.locator('#sheetBody [data-p2="topic-boost-off"]')).toContainText('Reforzando hasta el');
+});

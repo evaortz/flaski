@@ -405,6 +405,8 @@ function buildSession(scope, size = 0) {
     const q = allocate(cap, sh, byDeck, floors), used = new Map();
     dueCards = dueCards.filter(c => { if (seenToday(S.progress.get(c.id))) return true; const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
   }
+  // «Refuerza este tema» (plan): las que te cuestan de ese tema, aunque hoy no tocaran
+  if (hooks.plan2 && scope === 'all') { const have = new Set(dueCards.map(c => c.id)); for (const id of hooks.plan2.boost()) if (!have.has(id) && S.cards.has(id)) dueCards.push(S.cards.get(id)); }
   // Hermanas (ida y vuelta de una nota): una sola por tanda. Si una ya sale (o la viste hoy), la otra espera:
   // un repaso de la misma nota, a otra tanda; una nueva, a otro día
   const notes = new Set();

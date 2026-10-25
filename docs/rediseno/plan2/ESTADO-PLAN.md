@@ -485,3 +485,15 @@ plan con el progreso como quedaría, sin guardar) y el otro caso en una nota. Al
 quedan vistas, lo que no salió del tema pasa a repasos repartidos en una semana (empezando por ahí) y las falladas
 siguen como nuevas; con menos, el tema sigue en el plan y las acertadas cuentan como vistas. e2e en `plan-d.spec.js`
 (9 de 10 y 5 de 10, sin «simulacro» ni «prueba» en pantalla, y que nada cambia hasta «Seguir»).
+
+### 5 · Refuerza este tema
+
+En la hoja de un tema (con algo visto), «Refuerza este tema» pone `exam.boost[lista]` hasta dentro de 7 días; luego
+dice «Reforzando hasta el …» y se puede quitar. En el motor (`boost`, que antes no hacía nada): cada día del refuerzo,
+un repaso de más por cada dos preguntas de lo que te cuesta del tema (menos de una semana de intervalo o algún fallo;
+`stock().weak`). En la app (`boostToday` en `plan2-app.js`), las de hoy son esa mitad menos las que ya has repasado,
+y la tanda de «Todo» las añade aunque hoy no tocaran, las más flojas primero; Hoy y la tanda dicen el mismo número.
+Pruebas: unitaria (hoy, justo la mitad; en la semana, unas siete veces; después, nada) y e2e en `plan-d.spec.js`
+(10 que te cuestan → «5 repasos» en Hoy y en la tanda; hechas, nada más).
+
+**Paso D · parte 2 hecha** (puntos 4 y 5).

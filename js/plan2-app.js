@@ -4,7 +4,7 @@
 import { S, hooks, extraNew } from './comun.js';
 import { today, forecast, minutesOn, liveExams } from './plan2.js';
 import { migrate, emptyPlan2 } from './plan2-migrar.js';
-import { dayKey, isDay, stageOn } from './plan.js';
+import { dayKey, isDay, stageOn, live } from './plan.js';
 import { startOfDay } from './srs.js';
 import { whyCard } from './pantallas/plan-tiempo.js';
 
@@ -57,13 +57,43 @@ export function stateNow() {
   return {
     plan: plan2(), today: dayKey(), decks: S.decks, folders: S.folders, pages: S.pages, cards: S.cards, progress: S.progress,
     stockKey: stockKey(), events: S.events, newPerDay: S.newPerDay, fallbackMin: S.prefs.study.tandaMin,
-    done: doneToday(), extraNew: extraNew(),
+    done: doneToday(), extraNew: extraNew(), boostToday: boostToday(),
   };
+}
+// «Refuerza este tema»: de cada lista reforzada, las preguntas que te cuestan que la tanda de hoy añade (la mitad
+// de las que te cuestan, sin las que ya tocaban ni las que ya has visto hoy). Las mismas en Hoy y en la tanda
+export function boostToday(k = dayKey()) {
+  const out = {}, t0 = startOfDay(), now = Date.now();
+  for (const e of live(S.prefs.plan?.exams)) for (const [id, until] of Object.entries(e.boost || {})) {
+    if (!(until >= k)) continue;
+    // Las que te cuestan (también las repasadas hoy) y, de ellas, las que se pueden añadir; menos las ya repasadas
+    let weak = 0, doneW = 0, cand = 0;
+    for (const c of S.cards.values()) {
+      if (c.deck_id !== id) continue;
+      const p = S.progress.get(c.id);
+      if (!p) continue;
+      // Lo repasado hoy cuenta como de lo que te cuesta (al repasarla, su intervalo sube y ya no lo parecería)
+      if (p.last >= t0 && p.firstSeen < t0) { weak++; doneW++; continue; }
+      if (!((p.interval || 0) < 7 || (p.lapses || 0) > 0)) continue;
+      weak++;
+      if (!(p.due <= now)) cand++;
+    }
+    out[id] = Math.min(cand, Math.max(0, Math.ceil(weak / 2) - doneW));
+  }
+  return out;
+}
+export function boostCards() {
+  const n = boostToday(), t0 = startOfDay(), now = Date.now(), out = [];
+  for (const [id, k] of Object.entries(n)) {
+    const cand = [...S.cards.values()].filter(c => c.deck_id === id).map(c => [c.id, S.progress.get(c.id)]).filter(([, p]) => p && ((p.interval || 0) < 7 || (p.lapses || 0) > 0) && !(p.due <= now) && !(p.last >= t0)).sort((a, b) => (a[1].interval || 0) - (b[1].interval || 0));
+    out.push(...cand.slice(0, k).map(x => x[0]));
+  }
+  return out;
 }
 // Lo de hoy (today() del motor), calculado una vez mientras no cambie nada
 let memo = null;
 export function todayPlan() {
-  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.done, st.extraNew, st.fallbackMin, S.decks.size, S.folders.size]);
+  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.done, st.extraNew, st.fallbackMin, st.boostToday, S.decks.size, S.folders.size]);
   if (memo?.key !== key) memo = { key, value: lateAll(siblings(today(st))) };
   return memo.value;
 }
@@ -114,7 +144,7 @@ function siblings(t) {
 }
 let fcMemo = null;
 export function forecastNow() {
-  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.fallbackMin, S.decks.size, S.folders.size]);
+  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.fallbackMin, st.boostToday, S.decks.size, S.folders.size]);
   if (fcMemo?.key !== key) fcMemo = { key, value: forecast(st) };
   return fcMemo.value;
 }
@@ -169,6 +199,7 @@ hooks.plan2 = {
   state: d => deckStateNow(d),
   near: () => nearDecksNow(),
   late: () => lateNow(),
+  boost: () => boostCards(),
   // Los minutos de una tanda con estos repasos y nuevas, a tu ritmo
   minsFor: (due, fresh) => { const { secNew, secReview } = todayPlan().pace; return Math.max(1, Math.ceil((due * secReview + fresh * secNew) / 60)); },
   // Cuántas preguntas caben en una tanda de N minutos con lo de hoy: los repasos primero y, si sobra, nuevas

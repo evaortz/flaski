@@ -587,3 +587,16 @@ test('D3 · la última semana con el 95 % trae más repasos esos días (y no ant
   assert.ok(win(b) > win(a) + 50, `${win(a)} → ${win(b)}`);
   assert.equal(before(b), before(a));
 });
+
+test('D5 · Refuerza este tema: más repasos de lo que te cuesta durante 7 días, y después como antes', () => {
+  const S = invent({ seed: 12, n: 300, nExams: 1, nTopics: 2, seen: 0.8, days: [60] });
+  for (const [id, p] of S.progress) if (S.cards.find(c => c.id === id).deck_id === 'd0-0') S.progress.set(id, { ...p, interval: 3, lapses: 1, due: p.due + 30 * DAY });
+  const weak = [...S.progress].filter(([id]) => S.cards.find(c => c.id === id).deck_id === 'd0-0').length;
+  const plain = forecast(S).days, boosted = forecast({ ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], boost: { 'd0-0': addDays(TODAY, 6) } }] } }).days;
+  // Hoy, justo la mitad de lo que te cuesta; en la semana, unas 7 veces eso (menos lo que cambian las nuevas)
+  assert.equal(boosted[0].reviewsDue - plain[0].reviewsDue, Math.ceil(weak / 2));
+  const sum = (d, a, b) => d.slice(a, b).reduce((s, x) => s + x.reviewsDue, 0);
+  assert.ok(sum(boosted, 0, 7) - sum(plain, 0, 7) >= 5 * Math.ceil(weak / 2), `${sum(plain, 0, 7)} → ${sum(boosted, 0, 7)}`);
+  // Y pasada la semana, el refuerzo ya no suma
+  assert.ok(boosted.slice(7).every((d, i) => d.reviewsDue <= plain[i + 7].reviewsDue + Math.ceil(weak / 2) / 2));
+});
