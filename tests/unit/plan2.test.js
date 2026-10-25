@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { medirRitmo, newKernel, forecast, today, whatIf, fixes, sharesToday, toPercent, minutesOn, plan2On } from '../../js/plan2.js';
 import { addDays, daysBetween } from '../../js/plan.js';
 import { startOfDay } from '../../js/srs.js';
-import { state945, TODAY, deckByName, examByName, invent, rng } from './plan2-datos.js';
+import { state945, TODAY, deckByName, examByName, invent, rng, randomState } from './plan2-datos.js';
 
 const DAY = 864e5;
 const T1 = 'f1a4a82c-3197-48d2-a180-b00b1dccd8cc', T2 = '0902a08c-7fbe-4181-b75c-86ba22f2e128';
@@ -258,76 +258,81 @@ test('el interruptor de pruebas «plan2»', () => {
 });
 
 /* ---------------- propiedades ---------------- */
-function randomState(r, seed) {
-  const nExams = 1 + Math.floor(r() * 3);
-  const days = [5 + Math.floor(r() * 60), 30 + Math.floor(r() * 120), 60 + Math.floor(r() * 200)];
-  const week = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, r() < 0.2 ? 0 : 5 * Math.floor(r() * 19)]));
-  const S = invent({ seed, n: 100 + Math.floor(r() * 500), nExams, nTopics: 1 + Math.floor(r() * 5), seen: r() * 0.6, days, week });
-  if (r() < 0.4) { S.plan.split = { mode: 'manual', shares: Object.fromEntries(S.plan.exams.map(e => [e.id, Math.floor(r() * 100)])) }; }
-  for (const e of S.plan.exams) {
-    e.lastWeek = r() < 0.5;
-    if (r() < 0.3) { e.mode = 'parallel'; e.shares = { [`${e.scope.folders[0].replace('f', 'd')}-0`]: 60, [`${e.scope.folders[0].replace('f', 'd')}-1`]: 40 }; }
-  }
-  if (r() < 0.3) S.plan.caps.newPerDay = 5 + Math.floor(r() * 30);
-  // A veces un tema está en dos exámenes (el segundo examen incluye una lista del primero)
-  if (S.plan.exams.length > 1 && r() < 0.3) S.plan.exams[1].scope.decks = ['d0-0'];
-  if (r() < 0.2) S.plan.time.special = [{ id: 's', from: addDays(TODAY, 3), to: addDays(TODAY, 9), minutes: 0 }];
-  return S;
-}
-
-test('propiedad: los porcentajes del reparto siempre suman 100', () => {
-  const r = rng(11);
-  for (let k = 0; k < 200; k++) {
-    const S = randomState(r, k + 1), sh = sharesToday(S, Math.floor(r() * 5));
+// Cada propiedad, para un estado al azar (r: los números al azar de la pasada; k: el número del caso)
+const RANKV = { no: 0, justo: 1, llegas: 2 };
+const props = {
+  // Los porcentajes del reparto siempre suman 100
+  shares(S, r) {
+    const sh = sharesToday(S, Math.floor(r() * 5));
     if (sh.size) assert.equal([...sh.values()].reduce((a, b) => a + b, 0), 100);
     const w = new Map(Array.from({ length: 1 + Math.floor(r() * 6) }, (_, i) => [i, r() * 10]));
     assert.equal([...toPercent(w).values()].reduce((a, b) => a + b, 0), 100);
-  }
-});
-
-test('propiedad: más minutos nunca retrasan una fecha', () => {
-  const r = rng(12);
-  for (let k = 0; k < 200; k++) {
-    const S = randomState(r, k + 300), more = 5 + 5 * Math.floor(r() * 6);
-    const a = forecast(S, { light: true });
-    const b = whatIf(S, p => { for (const d of Object.keys(p.time.week)) if (p.time.week[d] > 0) p.time.week[d] += more; }, { light: true });
-    a.exams.forEach((e, i) => {
-      const f = b.exams[i];
-      if (e.finish) assert.ok(f.finish && f.finish <= e.finish, `caso ${k}: ${e.id} ${e.finish} → ${f.finish}`);
-      assert.ok(f.left <= e.left, `caso ${k}: quedan ${e.left} → ${f.left}`);
-    });
-  }
-});
-
-test('propiedad: nunca más nuevas de las que hay ni más minutos de los del día', () => {
-  const r = rng(13);
-  for (let k = 0; k < 200; k++) {
-    const S = randomState(r, k + 600), fc = forecast(S), fresh = new Map();
+  },
+  // Más minutos (todos los días que estudias, o un día suelto) nunca retrasan la fecha del primer examen ni la de
+  // un plan con un solo examen. Los demás, como mucho 2 días: más nuevas de un examen traen más repasos después,
+  // que quitan sitio al siguiente (ver ESTADO-PLAN.md)
+  moreMinutes(S, r, k) {
+    const more = 5 + 5 * Math.floor(r() * 6), day = addDays(TODAY, Math.floor(r() * 40)), m0 = minutesOn(S.plan, day, 10);
+    const a = forecast(S, { light: true }), first = [...a.exams].sort((x, y) => x.date.localeCompare(y.date))[0].id;
+    const changes = [
+      p => { for (const d of Object.keys(p.time.week)) if (p.time.week[d] > 0) p.time.week[d] += more; },
+      p => { p.time.special = [...(p.time.special || []), { id: 'mas', from: day, to: day, minutes: m0 + more, at: 9 }]; },
+    ];
+    for (const ch of changes) {
+      const b = whatIf(S, ch, { light: true });
+      a.exams.forEach((e, i) => {
+        const f = b.exams[i], strict = e.id === first || a.exams.length === 1;
+        if (!e.finish) return;
+        assert.ok(f.finish, `caso ${k}: ${e.id} acababa el ${e.finish} y ya no acaba`);
+        assert.ok(daysBetween(e.finish, f.finish) <= (strict ? 0 : 2), `caso ${k}: ${e.id} ${e.finish} → ${f.finish}`);
+        if (strict) assert.ok(f.left <= e.left && RANKV[f.verdict] >= RANKV[e.verdict], `caso ${k}: ${e.id} ${e.verdict} → ${f.verdict}`);
+      });
+    }
+  },
+  // Nunca más nuevas de las que hay (también con temas en dos exámenes) ni más minutos de los del día
+  noOver(S, r, k) {
+    const fc = forecast(S), fresh = new Map(), got = new Map();
     for (const c of S.cards) if (!S.progress.has(c.id)) fresh.set(c.deck_id, (fresh.get(c.deck_id) || 0) + 1);
-    const got = new Map();
     for (const d of fc.days) {
       assert.ok(d.secs <= d.minutes * 60, `caso ${k}: ${d.day} ${d.secs} s en ${d.minutes} min`);
       for (const [id, n] of Object.entries(d.newBy)) { assert.ok(n > 0); got.set(id, (got.get(id) || 0) + n); }
       if (S.plan.caps.newPerDay) assert.ok(d.new <= S.plan.caps.newPerDay);
     }
     for (const [id, n] of got) assert.ok(n <= (fresh.get(id) || 0), `caso ${k}: ${id} ${n} de ${fresh.get(id)}`);
-  }
+  },
+  // Un arreglo que llega, aplicado, llega; y ninguno empeora otro examen. Devuelve si había algo que arreglar
+  fixReaches(S, r, k) {
+    const fc = forecast(S, { light: true }), late = fc.exams.find(e => e.verdict === 'no');
+    if (!late) return false;
+    for (const o of fixes(S, late.id).options) {
+      const after = forecast({ ...S, plan: o.plan }, { light: true }).exams, e = after.find(x => x.id === late.id);
+      assert.equal(e.verdict, o.exam.verdict);
+      assert.ok(reaches(e.verdict), `caso ${k}`);
+      for (const x of after) if (x.id !== late.id) assert.ok(RANKV[x.verdict] >= RANKV[fc.exams.find(y => y.id === x.id).verdict], `caso ${k}: ${x.id} empeora`);
+    }
+    return true;
+  },
+};
+
+test('propiedad: los porcentajes del reparto siempre suman 100', () => {
+  const r = rng(11);
+  for (let k = 0; k < 200; k++) props.shares(randomState(r, k + 1), r, k);
 });
 
-test('propiedad: un arreglo que llega, aplicado, llega', () => {
+test('propiedad: más minutos nunca retrasan el primer examen ni un plan con un examen; los demás, como mucho 2 días', () => {
+  const r = rng(12);
+  for (let k = 0; k < 200; k++) props.moreMinutes(randomState(r, k + 300), r, k);
+});
+
+test('propiedad: nunca más nuevas de las que hay ni más minutos de los del día', () => {
+  const r = rng(13);
+  for (let k = 0; k < 200; k++) props.noOver(randomState(r, k + 600), r, k);
+});
+
+test('propiedad: un arreglo que llega, aplicado, llega (y no empeora otro examen)', () => {
   const r = rng(14);
   let checked = 0;
-  for (let k = 0; k < 200 && checked < 40; k++) {
-    const S = randomState(r, k + 900), fc = forecast(S, { light: true }), late = fc.exams.find(e => e.verdict === 'no');
-    if (!late) continue;
-    checked++;
-    const fx = fixes(S, late.id);
-    for (const o of fx.options) {
-      const e = forecast({ ...S, plan: o.plan }, { light: true }).exams.find(x => x.id === late.id);
-      assert.equal(e.verdict, o.exam.verdict);
-      assert.ok(reaches(e.verdict));
-    }
-  }
+  for (let k = 0; k < 200 && checked < 40; k++) if (props.fixReaches(randomState(r, k + 900), r, k)) checked++;
   assert.ok(checked >= 10, `solo ${checked} casos sin llegar`);
 });
 

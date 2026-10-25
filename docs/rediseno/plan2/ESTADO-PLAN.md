@@ -194,3 +194,34 @@ Todo detrás del interruptor «plan2» (`?plan2` o `localStorage['flaski-plan2']
   interruptor, Hoy como antes.
 - Batería completa con `PORT=8124`: **381 pasan, 2 fallan, 15 saltadas** (7,5 min). Las dos que fallan son
   `lista.spec.js:65` «Desde un apunte…» (móvil y escritorio), de la otra conversación (ya avisada).
+
+## Revisión del paso A (25 oct 2026)
+
+Un commit por punto, cada uno con la prueba unitaria del caso (`plan2.test.js`, «1 ·» a «8 ·»). Cada prueba falla con
+el código de antes y pasa con el arreglo.
+
+1. **Un tema en dos exámenes se repartía dos veces** (47 nuevas → 94 en un día). Ahora cada examen ve lo que han
+   dejado los de antes, y lo que uno no puede usar pasa a los demás en una segunda vuelta. Los estados al azar de
+   las propiedades meten a veces un tema en dos exámenes.
+2. **Respuestas de menos de medio segundo** daban 0 s por repaso y el plan entero en NaN. Ahora como poco 1 s (en
+   `medirRitmo` y en `forecast`), y una prueba recorre todo el forecast buscando NaN.
+3. **El tope de repasos al día** contaba como «no caben». Ahora un día es corto solo si los repasos que tocan (con
+   el tope) no caben en los minutos; el tiempo que deja el tope va a las nuevas (tope 5, lunes de 45 min: 66 nuevas).
+4. **«Pausar otro examen»** pausaba también los que van antes. Ahora solo los posteriores (o sin fecha), y `fixes()`
+   descarta cualquier arreglo que empeore el veredicto de otro examen (de «llegas» a «justo» o a «no»).
+5. **Mover la fecha** solo se propone si el examen tiene `approx: true`, y solo si ningún otro arreglo llega (+1, +2,
+   +4 u +8 semanas, la primera que llega).
+6. **«Dejar para el final»** podía dejar todo el temario y darlo por «llegas». Ahora deja como mucho todos los temas
+   menos el primero; si ni así llega, `drop.exam` dice «no» y lo que falta.
+7. **Hoy, tras hacer los repasos, ofrecía 0 nuevas** con tiempo libre. La fórmula ya era la de la revisión (minutos −
+   repasos que faltan − lo gastado). El fallo estaba en la caché del motor: la app cambia el progreso en el sitio y
+   la caché seguía con los 196 repasos de antes. Ahora la clave lleva una huella del progreso (cuántas, cuándo tocan y
+   cuándo se respondieron). Prueba: 196 repasos y 45 min → 8 nuevas; hechos los 196 en el mismo `Map`, siguen 8.
+8. **«Más minutos nunca retrasan una fecha»**: con varios exámenes no se cumple siempre, y no puede cumplirse sin
+   desperdiciar tiempo. Con 1.200 casos al azar (semilla 98, sumando minutos a un día suelto) sale 1 caso: +20 min el
+   30 oct dan 23 nuevas más a ex0 (examen al día siguiente, que no llega de todas formas). Esas nuevas traen repasos
+   el 31 oct y el 3 nov, que quitan sitio a ex2, y ex2 acaba el 5 nov en vez del 3 (sigue en «llegas»). Es el
+   efecto real de estudiar más hoy: más repasos después. La propiedad ahora dice: el primer examen, y un plan con
+   un solo examen, nunca se retrasan (ni empeora su veredicto); los demás, como mucho **2 días** (lo peor
+   encontrado en unos 6.600 exámenes de 3.600 casos con tres semillas). Se prueba sumando minutos a todos los días
+   y a un día suelto.
