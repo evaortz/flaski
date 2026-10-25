@@ -4,6 +4,7 @@ import { toast, toastAction } from '../comun.js';
 import { editPlan2 } from '../plan2-app.js';
 import { savePrefsSoon } from './perfil.js';
 import { render } from '../app.js';
+import { resnapWeek } from './plan-semana.js';
 
 export const HISTORY = 20;
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -14,6 +15,7 @@ const snapshot = p => { const { history, v1, ...rest } = p; return clone(rest); 
 export function commitPlan(what, change, { quiet = false, redraw = true } = {}) {
   const p = editPlan2(), before = snapshot(p), at = Date.now();
   change(p);
+  resnapWeek(p);
   // Cada examen, la semana y el reparto llevan su updated_at: al juntar dos dispositivos gana el más reciente
   for (const e of p.exams || []) if (JSON.stringify(e) !== JSON.stringify((before.exams || []).find(x => x.id === e.id))) e.updated_at = at;
   if (p.time && JSON.stringify(p.time) !== JSON.stringify(before.time)) p.time.updated_at = at;

@@ -643,3 +643,77 @@ export function sharesToday(state, i = 0) {
   const P = prepare(state), rem = new Map([...P.deckInfo.keys()].map(id => [id, P.st.fresh.get(id) || 0]));
   return splitShares(P, groupsOn(P, i, rem));
 }
+
+/* ===================== 7 · la semana ===================== */
+// El domingo, Hoy compara lo hecho en la semana con lo previsto. Lo previsto se guarda el primer día que se abre la
+// app esa semana (plan.weekly.snap) y se rehace al cambiar el plan (lo que cambias tú no es ir por detrás).
+export const weekStart = k => addDays(k, -weekdayOf(k));
+// weekSnap(fc, done, old): los minutos y las nuevas previstas de cada día que queda hasta el domingo (los días ya
+// pasados, los de old), y cuándo acababas el temario de cada examen
+export function weekSnap(fc, done = {}, old = null) {
+  const mon = weekStart(fc.today), sun = addDays(mon, 6);
+  const days = old?.week === mon && old.days ? { ...old.days } : {};
+  fc.days.forEach((d, i) => { if (d.day <= sun) days[d.day] = { min: d.minutes, new: d.new + (i === 0 ? Math.max(0, done.new || 0) : 0) }; });
+  return { week: mon, at: old?.week === mon && old.at ? old.at : fc.today, days, finish: Object.fromEntries(fc.exams.filter(e => e.date).map(e => [e.id, e.finish])) };
+}
+// weekReview({ fc, plan, snap, progress, events, late, fallbackMin }): cómo va la semana, de lunes a hoy.
+//   days: de lunes a domingo { day, planned, studied, past, today } · planned/studied: días hasta hoy
+//   newDone/newPlanned: nuevas (de cada día pasado, lo previsto; hoy, lo hecho cuenta en las dos) · missing: las que
+//   faltan · reviewsDone (respuestas que no eran nuevas) y late (repasos atrasados) · exam: el más cercano con
+//   temario, con cuándo acabas ahora (finish) y cuándo acababas (was) · behind: días por detrás (lo que se ha movido
+//   el final del temario desde que se guardó lo previsto; sin ello, 0: puede que aún no tuvieras plan)
+export function weekReview({ fc, plan, snap, progress, events = [], late = 0, fallbackMin = 10 }) {
+  const today = fc.today, mon = weekStart(today), s = snap?.week === mon ? snap : null, from = s?.at || today;
+  const keys = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+  const answered = new Set(), fresh = new Map();
+  let answers = 0;
+  for (const e of events) { const t = when(e); if (!Number.isFinite(t)) continue; const k = dateKey(t); if (k >= mon && k <= today) { answered.add(k); answers++; } }
+  for (const p of (progress instanceof Map ? progress.values() : Object.values(progress || {}))) {
+    // Un día con algo respondido: también por el progreso (la última vez de cada pregunta), por si faltan respuestas
+    if (p?.last) { const k = dateKey(p.last); if (k >= mon && k <= today) answered.add(k); }
+    if (!p?.firstSeen) continue;
+    const k = dateKey(p.firstSeen);
+    if (k >= mon && k <= today) fresh.set(k, (fresh.get(k) || 0) + 1);
+  }
+  const days = keys.map(k => {
+    const min = (k >= from ? s?.days?.[k]?.min : null) ?? minutesOn(plan, k, fallbackMin);
+    return { day: k, planned: min > 0, studied: answered.has(k), past: k < today, today: k === today };
+  });
+  const upTo = days.filter(d => d.past || (d.today && d.studied));
+  const planned = upTo.filter(d => d.planned).length, studied = upTo.filter(d => d.studied).length;
+  let newDone = 0, newPlanned = 0;
+  for (const d of days) {
+    if (d.day > today) break;
+    const n = fresh.get(d.day) || 0, was = d.day >= from && !d.today ? s?.days?.[d.day] : null;
+    newDone += n;
+    newPlanned += was ? Number(was.new) || 0 : n;
+  }
+  const missing = Math.max(0, newPlanned - newDone);
+  // El examen más cercano con temario por ver (o que lo tenía al empezar la semana)
+  const ex = fc.exams.filter(e => e.date && e.date >= today && (e.left > 0 || e.finish || s?.finish?.[e.id])).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+  let behind = 0, exam = null;
+  if (ex) {
+    const was = s?.finish?.[ex.id] ?? null, now = ex.finish;
+    exam = { id: ex.id, name: ex.name, date: ex.date, verdict: ex.verdict, review: ex.review, finish: now, was };
+    if (was) behind = now ? Math.max(0, daysBetween(was, now)) : Math.max(2, daysBetween(was, ex.date));
+  }
+  // Si has hecho lo previsto, vas bien (el final se mueve un poco con tu ritmo, que se vuelve a medir)
+  if (!missing && studied >= planned) behind = 0;
+  return { week: mon, days, planned: Math.max(planned, studied), studied, newDone, newPlanned: Math.max(newPlanned, newDone), missing,
+    reviewsDone: Math.max(0, answers - newDone), late, exam, behind };
+}
+// weekRecover(plan, review, pace, today): «Repartir las N que faltan en la semana»: los días que estudias de la
+// semana que viene (sin los que ya tienen un día especial), con unos minutos más cada uno para N/días nuevas más
+export function weekRecover(plan, review, pace = PACE_DEFAULT, today) {
+  const days = [];
+  for (let i = 1; i <= 7; i++) {
+    const k = addDays(today, i);
+    if (specialOn(plan?.time?.special, k) || !(minutesOn(plan, k) > 0)) continue;
+    days.push(k);
+  }
+  if (!review.missing || !days.length) return null;
+  const perDay = Math.ceil(review.missing / days.length), more = Math.max(1, Math.ceil((perDay * (Number(pace.secNew) || PACE_DEFAULT.secNew)) / 60));
+  const at = Date.now();
+  const special = days.map(k => ({ id: 'rec-' + k, label: 'Recuperar la semana', from: k, to: k, minutes: minutesOn(plan, k) + more, at }));
+  return { days, perDay, more, special };
+}

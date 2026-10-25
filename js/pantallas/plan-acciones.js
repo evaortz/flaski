@@ -9,6 +9,7 @@ import { repartoSheet, repartoClick, shareInput, repartoAdd } from './plan-repar
 import { enTuPlanSheet, sheetClick } from './plan-hojas.js';
 import { settingsClick } from './plan-ajustes.js';
 import { startCheck } from './plan-tema.js';
+import { weekClick } from './plan-semana.js';
 import { render, go } from '../app.js';
 
 const TIEMPO = new Set(['week', 'special', 'special-save', 'special-del', 'pause', 'pause-save', 'unpause', 'today-min', 'today-set', 'today-reset', 'time', 'late-spread', 'late-all', 'late-10']);
@@ -31,6 +32,7 @@ export function planAction(el, kind = 'click') {
     if (a === 'set-drip' || a === 'set-retlast' || a === 'set-weekly') return settingsClick(el);
     return;
   }
+  if (a.startsWith('week-')) return weekClick(el);
   if (TIEMPO.has(a)) return p2Click(el);
   if (a.startsWith('new-')) return newExamClick(el);
   if (a.startsWith('rep-')) return repartoClick(el);

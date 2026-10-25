@@ -167,6 +167,7 @@ test('«En tu plan»: la carpeta del examen, uno de sus temas y una lista sin ex
   await deckMenu(page, '[data-p2="entuplan"]');
   await expect(page.locator('#sheetBody h2')).toHaveText('T2 · Cortes');
   await expect(page.locator('#sheetBody')).toContainText('Oposición · 30 preguntas, 0 vistas');
+  await page.locator('#sheetBody [data-p2="topic-yalose"]').click();
   await page.locator('#sheetBody [data-p2="topic-known"]').click();
   await expect(page.locator('#toast')).toContainText('T2: ya lo sabes');
   expect((await plan(page)).exams[0].known).toHaveLength(1);

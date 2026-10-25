@@ -12,7 +12,10 @@ import { homeFriendsHTML } from './amigos.js';
 import { shortSize, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES } from '../tanda.js';
-import { heroHTML as p2Hero, examCardHTML as p2Exam } from './plan-tiempo.js';
+import { heroHTML as p2Hero, examCardHTML as p2Exam, lateRowHTML } from './plan-tiempo.js';
+import { keepWeekSnap, weekAuto, sundayOn, sundayFreeHTML, sundayStudyHTML } from './plan-semana.js';
+import { todayPlan } from '../plan2-app.js';
+import { go } from '../app.js';
 
 
 /* ===================== Hoy ===================== */
@@ -24,7 +27,11 @@ export function renderHome() {
       <div class="btnrow"><button class="primary" data-nav="explore">Ver listas para empezar</button><button class="ghost" data-act="new-deck">Crear una lista</button></div></div>`;
     return;
   }
+  // Lo previsto de la semana (para el domingo) y, si vas 2 días o más por detrás, el Repaso de la semana
+  keepWeekSnap();
+  if (weekAuto()) return go('week');
   // Lo de hoy, con las cuentas del plan (plan2.js): la tanda, «Hecho por hoy», el día libre o la pausa
+  const sunday = sundayOn(), free = sunday && todayPlan().rest;
   const q = todayQueue('all'), H = S.prefs.home;
   const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
   const fresh = q.ids.length ? 0 : Math.min(10, freshLeft('all'));
@@ -32,11 +39,12 @@ export function renderHome() {
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      ${done ? doneHTML(done, q) : p2Hero({ hi, back, fresh })}
+      ${free ? sundayFreeHTML(lateRowHTML()) : done ? doneHTML(done, q) : p2Hero({ hi, back, fresh })}
     ${lastPageHTML()}
     </section>
+    ${sunday && !free ? sundayStudyHTML() : ''}
     ${weakHTML()}
-    ${p2Exam()}
+    ${p2Exam({ simBtn: !sunday })}
     ${H.activity ? activityHTML() : ''}
     </div>
     <div class="home-r">

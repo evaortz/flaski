@@ -29,13 +29,15 @@ const kindOf = mode => (['choice', 'clozechoice'].includes(mode) ? 'choice' : mo
 export const simsOf = exam => (S.prefs.sims || []).filter(s => s && !s.deleted && s.exam === exam).sort((a, b) => a.done - b.done);
 const goalOf = exam => Number(S.prefs.plan.simGoal?.[exam]) || 7;
 // Lo que entra: preguntas ya empezadas de un ámbito (el examen o una de sus partes) y de los tipos que se pueden corregir
-function eligible(scopeKey, testOnly, fresh = false) {
-  const ids = new Set(keyDecks(scopeKey).map(d => d.id));
+function eligible(scopeKey, testOnly, fresh = false, decks = null) {
+  const ids = new Set(decks || keyDecks(scopeKey).map(d => d.id));
   return cardList().filter(c => ids.has(c.deck_id) && (fresh || S.progress.get(c.id))).filter(c => {
     const m = cardModel(c).tpl.mode;
     return TEST.includes(m) || (!testOnly && FLIP.includes(m));
   });
 }
+// Cuántas preguntas vistas de esas listas se pueden corregir (el Simulacro de la semana)
+export const seenCount = (decks, testOnly = true) => eligible('', testOnly, false, decks).length;
 // Las partes de un examen que se pueden elegir: sus subcarpetas y sus listas
 function scopesOf(exam) {
   if (!exam.startsWith('f:')) return [];
@@ -111,8 +113,8 @@ function start() {
 // La pieza de las preguntas al azar sin corregir hasta entregar. Opciones: exam y scope (qué temas), n (cuántas),
 // time (reloj en minutos; 0, sin reloj), pen (los fallos restan), testOnly, fresh (también las nuevas) y mode: 'sim'
 // (simulacro: la nota se guarda y los fallos pasan a mañana) o 'check' («Comprobar» un tema de «Ya me lo sé»)
-export function launch({ exam, scope = '', n = 40, time = 0, pen = 0, testOnly = true, fresh = false, mode = 'sim', name = '', deckId = '', examId = '' }) {
-  const pool = eligible(scope || exam, testOnly, fresh);
+export function launch({ exam, scope = '', decks = null, n = 40, time = 0, pen = 0, testOnly = true, fresh = false, mode = 'sim', name = '', deckId = '', examId = '' }) {
+  const pool = eligible(scope || exam, testOnly, fresh, decks);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const qs = pool.slice(0, n).map(c => {
     const m = cardModel(c), kind = kindOf(m.tpl.mode), q = { id: c.id, kind, ans: null, flag: false };
@@ -286,6 +288,7 @@ function resultHTML() {
     <ul class="sm-topics">${r.topics.map(t => { const n = t.o + t.x + t.b; return `<li><div><span>${esc(t.name)}</span><span>${t.o} de ${n}</span></div><div class="sm-tb"><i class="o" style="width:${(100 * t.o) / n}%"></i><i class="x" style="width:${(100 * t.x) / n}%"></i><i class="b" style="width:${(100 * t.b) / n}%"></i></div></li>`; }).join('')}</ul>
     <div class="sm-legend"><span><i class="o"></i>acierto</span><span><i class="x"></i>fallo</span><span><i class="b"></i>en blanco</span></div>
     <h2 class="sm-h2">Tus simulacros</h2>${chartSVG(r.exam, true)}
+    ${hooks.simWeak?.(r) || ''}
     ${r.bad ? `<p class="sm-note">${icon('refresh-cw', { size: 16 })} ${r.bad === 1 ? 'El fallo ya está' : `Los ${r.bad} fallos ya están`} en tu tanda de mañana.</p>` : ''}
     ${fails.length ? `<button class="sm-go" data-sim="fails" data-id="${esc(r.id)}">Repasar ${fails.length === 1 ? 'el fallo' : `los ${fails.length} fallos`} ahora</button>` : ''}
     ${r.qs ? `<button class="sm-go2" data-sim="answers" data-id="${esc(r.id)}">${r.n === 1 ? 'Ver la respuesta' : `Ver las ${r.n} respuestas`}</button>` : ''}</div>`;

@@ -190,7 +190,7 @@ export function heroHTML({ hi, back, fresh = 0 }) {
 }
 const shortName = s => s.replace(/\s*[·(].*$/, '').replace(/\s+[A-C][12]$|\s+N[1-5]$/, '').split(' ')[0] || s;
 // El examen más cercano, con lo que dice el motor: «Auxiliar · llegas · acabas el temario el 23 nov · faltan 80 días»
-export function examCardHTML() {
+export function examCardHTML({ simBtn = true } = {}) {
   // Un examen que ya pasó, sin decidir qué hacer: la pregunta va antes
   const after = afterQuestionHTML();
   if (after) return after;
@@ -201,7 +201,7 @@ export function examCardHTML() {
   const sim = liveExams(plan2()).find(x => x.id === e.id), key = sim?.scope?.folders?.[0] ? 'f:' + sim.scope.folders[0] : sim?.scope?.decks?.[0];
   return `<button class="p2-exam" data-p2="exam" data-id="${esc(e.id)}"><span class="hoy-cal" aria-hidden="true"><i></i><b>${d.d}</b></span>
     <span><b>${esc(shortName(e.name))} · ${e.verdict === 'no' ? 'no llegas' : e.verdict === 'justo' ? 'llegas justo' : 'llegas'}</b><small>${say} · ${days === 0 ? 'es hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`}</small></span>${icon('chevron-right', { size: 18 })}</button>
-    ${days < 30 && key ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
+    ${simBtn && days < 30 && key ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
 }
 // «Por qué esta pregunta» (al mantenerla pulsada en la tanda)
 export function whyCard(c) {

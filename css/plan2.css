@@ -313,3 +313,51 @@ button.p2-step-b{cursor:pointer}
 .p2-hist li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .p2-hist li > span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .p2-hist small{color:var(--muted);font-size:13px}
+
+/* ---------------- el domingo: Tu semana, el Simulacro de la semana y el Repaso de la semana ---------------- */
+.p2-wk{display:flex;flex-direction:column;gap:12px;margin-top:6px;padding:18px;border-radius:24px;background:var(--soft)}
+.p2-wk-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.p2-wk h2{margin:0;font-size:30px;line-height:1.1}
+.p2-wk p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+.p2-wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.p2-wd{display:flex;flex-direction:column;align-items:center;gap:6px}
+.p2-wd i{display:block;width:100%;height:36px;border-radius:10px;background:var(--accent)}
+.p2-wd small{font-size:12px;color:var(--muted)}
+.p2-wd.miss i{background:var(--bg);border:2px solid var(--line-strong)}
+.p2-wd.free i{background:transparent;border:2px dashed var(--line-strong)}
+.p2-wd.next i{background:var(--bg);border:2px solid var(--line)}
+.p2-wsim{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding:18px;border-radius:24px;border:1px solid var(--line)}
+.p2-wsim > small{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
+.p2-wsim h2{margin:0;font-size:28px;line-height:1.15}
+.p2-wsim p{margin:0;font-size:15px;line-height:1.5}
+.p2-wsim.main{border:0;background:var(--accent);color:var(--accent-fg)}
+.p2-wsim.main > small{color:inherit;opacity:.9}
+.p2-sunfree{margin:16px 0 0;color:var(--muted);line-height:1.5}
+.p2-sunfree .link{display:inline;margin:0;padding:0;min-height:0;font:inherit;vertical-align:baseline}
+.p2-week h1{margin:8px 0 14px;font-size:42px}
+.p2-wstats{display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:20px;background:var(--soft)}
+.p2-wstats p{margin:0;color:var(--muted);font-size:14.5px}
+.p2-wbar > div{display:flex;justify-content:space-between;gap:10px;font-size:15px;margin-bottom:6px}
+.p2-wbar > div span{color:var(--muted)}
+.p2-wbar > i{display:block;height:8px;border-radius:99px;background:linear-gradient(90deg,var(--accent) var(--w),var(--bg) var(--w))}
+.p2-wbehind,.p2-wok{margin-top:14px;padding:18px;border-radius:20px;background:var(--tag-yellow-bg);color:var(--tag-yellow)}
+.p2-wok{background:var(--tag-green-bg);color:var(--tag-green)}
+.p2-wbehind h2,.p2-wok h2{margin:0 0 6px;font-size:28px}
+.p2-wbehind p,.p2-wok p{margin:0;line-height:1.5}
+.p2-wopts{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.p2-wopt{display:flex;gap:12px;align-items:flex-start;width:100%;padding:16px;border:1px solid var(--line-strong);border-radius:18px;background:var(--bg);color:var(--fg);text-align:left;cursor:pointer;font:inherit}
+.p2-wopt[aria-checked="true"]{border:2px solid var(--accent);padding:15px}
+.p2-wopt > i{flex:none;width:22px;height:22px;margin-top:1px;border-radius:50%;border:2px solid var(--accent)}
+.p2-wopt[aria-checked="true"] > i{background:radial-gradient(var(--accent) 45%,transparent 50%)}
+.p2-wopt > span{display:flex;flex-direction:column;gap:6px}
+.p2-wopt small{color:var(--muted);font-size:14.5px}
+.p2-wopt .p2-tag{font-style:normal}
+.p2-wfoot{text-align:center;margin-top:10px}
+.p2-weak{list-style:none;margin:0 0 14px;padding:0}
+.p2-weak li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.p2-weak li > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.p2-weak small{color:var(--muted);font-size:13px}
+.p2-tag.no{background:var(--tag-red-bg);color:var(--tag-red)}
+.p2-wd{border:0}
+.p2-wk h2,.p2-wsim h2,.p2-week h1,.p2-wbehind h2,.p2-wok h2{font-family:var(--font-hand);font-weight:400}
+.p2-wk .link{display:inline;margin:0;padding:0;min-height:0;font:inherit;vertical-align:baseline}
