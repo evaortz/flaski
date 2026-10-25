@@ -48,8 +48,17 @@ test('Hoy: cada bloque con sus datos reales @ambos', async ({ page }, info) => {
   const pills = (await rows.locator('.hoy-pill').allTextContents()).reduce((n, t) => n + parseInt(t, 10), 0);
   await expect(page.locator('.hoy-weak-go')).toHaveText(`Repasar solo lo que flojea · ${pills}`);
   // Examen de la carpeta
-  await expect(page.locator('#main .p2-exam')).toContainText('Macroeconomía');
-  await expect(page.locator('#main .p2-exam')).toContainText('faltan 50 días');
+  // Como en el lienzo: «Examen de Macroeconomía · …» en pequeño, «faltan 50 días» a mano, cómo vas en verde, el
+  // calendario a la izquierda y la flecha a la derecha, en una tarjeta con borde redondeado; lleva al Plan
+  const exam = page.locator('#main .p2-exam');
+  await expect(exam.locator('.hoy-exam-t small')).toHaveText(/^Examen de Macroeconomía · \d+ \w+$/);
+  await expect(exam.locator('.hoy-exam-t b')).toHaveText('faltan 50 días');
+  expect(await exam.locator('.hoy-exam-t b').evaluate(b => getComputedStyle(b).fontFamily)).toMatch(/Gochi|hand/i);
+  await expect(exam.locator('.hoy-ok')).toHaveText('vas a buen ritmo · ver el plan');
+  expect(await exam.evaluate(el => [parseFloat(getComputedStyle(el).borderTopWidth) > 0, parseFloat(getComputedStyle(el).borderTopLeftRadius) >= 12])).toEqual([true, true]);
+  const [cal, arrow, card] = [await exam.locator('.hoy-cal').boundingBox(), await exam.locator('svg').last().boundingBox(), await exam.boundingBox()];
+  expect(cal.x - card.x).toBeLessThan(40);
+  expect(card.x + card.width - (arrow.x + arrow.width)).toBeLessThan(40);
   // Cómo va lo que sabes: sin «Aprendiendo» (cuenta como por aprender)
   await expect(page.locator('#pgHost .lv-k')).toContainText('Cómo va lo que sabes');
   await expect(page.locator('#pgHost .pg-lab-m1')).toHaveCount(0);
@@ -151,7 +160,7 @@ test('Examen cerca: Hoy lo dice y sus preguntas van primero', async ({ page }) =
   const exam = page.locator('#main .p2-exam');
   await expect(exam).toContainText('Macroeconomía');
   await expect(exam).toContainText('faltan 9 días');
-  await expect(exam).toContainText(/llegas|no llegas/);
+  await expect(exam).toContainText(/vas a buen ritmo|vas con el tiempo justo|así no llegas/);
   // Va justo después de «Lo que flojea» (o de lo de arriba, si no hay)
   expect(await exam.evaluate(el => el.previousElementSibling?.className)).toMatch(/hoy-flojea|hero/);
   // Las nuevas del examen: las de la tarjeta de la tanda, como en el plan

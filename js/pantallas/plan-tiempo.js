@@ -197,10 +197,11 @@ export function examCardHTML({ simBtn = true } = {}) {
   const k = dayKey(), e = forecastNow().exams.filter(x => x.date && x.date >= k).sort((a, b) => a.date.localeCompare(b.date))[0];
   if (!e) return '';
   const d = dd(e.date), days = daysBetween(k, e.date);
-  const say = e.verdict === 'no' ? `así no llegas · te faltarían ${e.left}` : e.finish ? `acabas el temario el ${shortDay(e.finish)}` : 'ya lo has visto todo: a repasar';
+  // Como en el lienzo (HoyMovil): «Examen de Macro · 12 dic» en pequeño, «faltan 50 días» a mano y, en su color, cómo vas
+  const [cls, say] = e.verdict === 'no' ? ['hoy-late', `así no llegas · te faltarían ${e.left}`] : e.verdict === 'justo' ? ['hoy-tight', 'vas con el tiempo justo'] : ['hoy-ok', 'vas a buen ritmo'];
   const sim = liveExams(plan2()).find(x => x.id === e.id), key = sim?.scope?.folders?.[0] ? 'f:' + sim.scope.folders[0] : sim?.scope?.decks?.[0];
-  return `<button class="p2-exam" data-p2="exam" data-id="${esc(e.id)}"><span class="hoy-cal" aria-hidden="true"><i></i><b>${d.d}</b></span>
-    <span><b>${esc(shortName(e.name))} · ${e.verdict === 'no' ? 'no llegas' : e.verdict === 'justo' ? 'llegas justo' : 'llegas'}</b><small>${say} · ${days === 0 ? 'es hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`}</small></span>${icon('chevron-right', { size: 18 })}</button>
+  return `<button class="hoy-exam p2-exam" data-nav="plan"><span class="hoy-cal" aria-hidden="true"><i></i><b>${d.d}</b></span>
+    <span class="hoy-exam-t"><small>Examen de ${esc(shortName(e.name))} · ${shortDay(e.date)}</small><b>${days === 0 ? 'es hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`}</b><span class="${cls}">${say} · ver el plan</span></span>${icon('chevron-right', { size: 18 })}</button>
     ${simBtn && days < 30 && key ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
 }
 // «Por qué esta pregunta» (al mantenerla pulsada en la tanda)

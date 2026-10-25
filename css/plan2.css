@@ -24,11 +24,6 @@
 .p2-n{font-weight:600}
 
 /* ---------- Hoy: el examen más cercano ---------- */
-.p2-exam{display:flex;align-items:center;gap:14px;width:100%;margin-top:14px;padding:14px 16px;border:0;border-radius:20px;background:var(--soft);color:var(--fg);text-align:left;cursor:pointer}
-.p2-exam > span:nth-child(2){display:flex;flex-direction:column;gap:2px;min-width:0}
-.p2-exam b{font-size:16px;font-weight:600}
-.p2-exam small{font-size:13px;color:var(--muted)}
-.p2-exam > svg{flex:none;margin-left:auto}
 
 /* ---------- Tu tiempo ---------- */
 .p2-lead{margin:4px 0 14px;color:var(--muted);font-size:15.5px;line-height:1.5}
