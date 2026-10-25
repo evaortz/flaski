@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v239';
+const VERSION = 'flaski-v240';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -30,6 +30,7 @@ const SHELL = [
   './js/tts.js',
   './js/handwriting.js',
   './js/icons.js', './js/dibujos.js', './js/primera-vez.js',
+  './img/novedades/flaski-asi-es.jpg',   // el póster del vídeo de Novedades (el .mp4, no: ver el fetch de abajo)
   './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md', './temas/tema-curva-olvido.svg', './temas/tema-repasos.svg',
   './js/vendor/hanzi-writer.min.js',
   './js/vendor/supabase.js',
@@ -112,6 +113,9 @@ self.addEventListener('fetch', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Los vídeos (img/novedades/*.mp4) no pasan por aquí ni se guardan: van directos a la red, sin respondWith.
+  // Safari en el iPhone los pide por trozos (cabecera Range) y una respuesta entera sacada de la caché no se reproduce
+  if (url.pathname.endsWith('.mp4')) return;
   // (una petición de navegación no se puede copiar con opciones: se pide por su dirección)
   const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(

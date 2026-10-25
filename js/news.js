@@ -1,85 +1,80 @@
-// Novedades: unas pantallas con lo nuevo de la última versión, con capturas de la app (img/novedades, se
-// regeneran con «npm run capturas» en tests/). Usa el mismo diseño que la presentación de bienvenida.
+// Novedades: una pantalla con lo nuevo de la última versión. Ahora, el vídeo «Así es Flaski» (img/novedades).
+// Usa el mismo marco que la presentación de bienvenida.
 // No sabe nada del estado de la app: recibe lo que necesita y avisa con onClose().
 import { icon } from './icons.js';
 
 // Cambia NEWS_VERSION en cada versión con novedades: a quien no las haya visto se le enseñan al entrar
-export const NEWS_VERSION = '2026-10';
+export const NEWS_VERSION = '2026-10-video';
 // true: salen siempre (para revisarlas); false: una sola vez por versión
 export const NEWS_ALWAYS = false;
 
-// Las pantallas: la de entrada y una por novedad ({ id, title, text, alt }, con su captura en img/novedades/<id>-light.jpg
-// y -dark.jpg). Ahora no hay ninguna: no salen al entrar ni en Perfil hasta que se añadan las de la próxima versión
-const SLIDES = [
-  { id: 'intro' },
-];
+const VIDEO = 'img/novedades/flaski-asi-es.mp4', POSTER = 'img/novedades/flaski-asi-es.jpg';
 // ¿Hay novedades que enseñar?
-export const hasNews = () => SLIDES.length > 1;
+export const hasNews = () => true;
 
-// opts: { dark(): boolean, onClose() }
-export function openNews(opts) {
+// opts: { online: boolean, onClose() }. El vídeo empieza solo al tocar «Reproducir» (un gesto: así iOS deja que
+// suene); al acabar, «¡A probarlo!» cierra. Se cierre como se cierre (Cerrar, Escape o «¡A probarlo!»), el vídeo se para
+export function openNews(opts = {}) {
   if (document.querySelector('.ob')) return;
+  const online = opts.online ?? navigator.onLine;
   const root = document.createElement('div');
   root.className = 'ob news';
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
-  root.setAttribute('aria-label', 'Novedades de Flaski');
+  root.setAttribute('aria-labelledby', 'newsT');
   root.tabIndex = -1;
+  root.innerHTML = `
+    <div class="ob-top"><span></span><button type="button" class="link ob-skip" data-news-close>Cerrar</button></div>
+    <div class="ob-body news-video">
+      <div class="news-head"><h1 id="newsT">Así es Flaski</h1><p>Todo lo que puedes hacer, de un vistazo</p></div>
+      <div class="news-frame">
+        <video playsinline preload="none" poster="${POSTER}" aria-label="Vídeo: así es Flaski">${online ? `<source src="${VIDEO}" type="video/mp4">` : ''}</video>
+        ${online ? `<button type="button" class="news-play" data-news-play aria-label="Reproducir">${icon('play', { size: 30 })}<span>Reproducir</span></button>`
+          : '<p class="news-off" role="status">Necesitas conexión para ver el vídeo</p>'}
+      </div>
+    </div>
+    <div class="ob-nav news-nav"></div>`;
   document.body.appendChild(root);
   document.body.classList.add('ob-open');
-  let i = 0;
-  const last = SLIDES.length - 1;
-  const img = id => `img/novedades/${id}-${opts.dark() ? 'dark' : 'light'}.jpg`;
-  const intro = () => `
-    <div class="ob-hero"><div class="ob-mark" aria-hidden="true">${icon('sugerencia', { size: 32 })}</div>
-      <h1>Novedades en Flaski</h1>
-      <p class="ob-lead">Hemos mejorado mucho los apuntes y el estudio. Esto es lo más importante:</p>
-      <ul class="ob-feats news-list">${SLIDES.slice(1).map((s, k) => `<li><button type="button" class="news-jump" data-ob-to="${k + 1}">${icon(['pencil', 'blocks', 'table', 'sugerencia', 'layers', 'brain', 'download', 'book-open-check'][k], { size: 20 })}<span><b>${s.title}</b></span>${icon('chevron-right', { size: 16, cls: 'chev' })}</button></li>`).join('')}</ul></div>`;
-  const shot = s => `
-    <figure class="ob-shot"><div class="ob-phone"><img src="${img(s.id)}" alt="${s.alt}" width="390" height="760" decoding="async"></div></figure>
-    <div class="ob-copy"><h2>${s.title}</h2><p>${s.text}</p></div>`;
-  function draw() {
-    const s = SLIDES[i];
-    root.dataset.slide = s.id;
-    root.innerHTML = `
-      <div class="ob-top">
-        <div class="ob-dots" role="tablist" aria-label="Pantallas">${SLIDES.map((x, k) => `<button type="button" role="tab" class="ob-dot" data-ob-to="${k}" aria-selected="${k === i}" aria-label="Pantalla ${k + 1} de ${SLIDES.length}"></button>`).join('')}</div>
-        <button type="button" class="link ob-skip" data-news-close>Cerrar</button>
-      </div>
-      <div class="ob-body ob-${s.id === 'intro' ? 'welcome' : s.id}" aria-live="polite">${s.id === 'intro' ? intro() : shot(s)}</div>
-      <div class="ob-nav">${i ? `<button type="button" class="ghost" data-ob-to="${i - 1}">Atrás</button>` : '<span></span>'}
-        ${i < last ? `<button type="button" class="primary" data-ob-to="${i + 1}">${i ? 'Siguiente' : 'Ver las novedades'}</button>` : '<button type="button" class="primary" data-news-close>¡A probarlo!</button>'}</div>`;
-    const next = SLIDES[i + 1];
-    if (next?.title) { const pre = new Image(); pre.src = img(next.id); }
-    root.focus({ preventScroll: true });
-    root.scrollTop = 0;
+  const video = root.querySelector('video'), nav = root.querySelector('.news-nav');
+  root.focus({ preventScroll: true });
+
+  function play() {
+    root.querySelector('[data-news-play]')?.remove();
+    video.controls = true;
+    video.muted = false;
+    video.play().catch(() => { /* sin conexión o sin permiso: quedan los controles del vídeo */ });
+    video.focus({ preventScroll: true });
   }
-  const go = k => { i = Math.max(0, Math.min(last, k)); draw(); };
+  video.addEventListener('ended', () => {
+    if (nav.firstChild) return;
+    nav.innerHTML = '<button type="button" class="primary" data-news-close>¡A probarlo!</button>';
+    nav.querySelector('button').focus({ preventScroll: true });
+  });
   function close() {
     removeEventListener('keydown', onKey, true);
+    try { video.pause(); video.removeAttribute('src'); video.querySelector('source')?.remove(); video.load(); } catch { /* ya parado */ }
     root.remove();
     document.body.classList.remove('ob-open');
     opts.onClose?.();
   }
+  // Escape cierra; el foco no sale de la pantalla mientras está abierta
   function onKey(e) {
-    if (e.key === 'ArrowRight') { e.preventDefault(); go(i + 1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(i - 1); }
-    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key !== 'Tab') return;
+    const els = [...root.querySelectorAll('button, video[controls]')].filter(el => el.offsetParent !== null);
+    if (!els.length) return;
+    const first = els[0], last = els.at(-1);
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === root)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!root.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
   }
   root.addEventListener('click', e => {
     e.stopPropagation();
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.obTo !== undefined) return go(Number(b.dataset.obTo));
+    if (b.dataset.newsPlay !== undefined) return play();
     if (b.dataset.newsClose !== undefined) return close();
   });
-  let x0 = null;
-  root.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
-  root.addEventListener('touchend', e => {
-    if (x0 == null) return;
-    const dx = e.changedTouches[0].clientX - x0; x0 = null;
-    if (Math.abs(dx) > 60) go(i + (dx < 0 ? 1 : -1));
-  }, { passive: true });
   addEventListener('keydown', onKey, true);
-  draw();
 }

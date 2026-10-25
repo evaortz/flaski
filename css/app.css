@@ -1583,20 +1583,18 @@ a.wl:hover{text-decoration:underline}
 :root{--font-head:"General Sans",var(--font)}
 h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.nb-h1 .nb-input,.nb-h2 .nb-input,.nb-h3 .nb-input,
 .ed-title > span,.help-h,.toc-h,.ob-mark,.brand .name,.brand .mark{font-family:var(--font-head);letter-spacing:-.005em}
-/* Novedades (mismo diseño que la bienvenida) */
-.news .ob-mark{color:var(--bg)}
-.news-list li{padding:0;background:none}
-.news-jump{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--soft);color:var(--muted);font:inherit;font-size:15px;line-height:1.35;text-align:left;cursor:pointer}
-.news-jump:hover{background:var(--hover)}
-.news-jump b{color:var(--fg);font-weight:600}
-.news-jump .lu{flex:none;color:var(--fg)}
-.news-jump .chev{margin-left:auto;color:var(--faint)}
-@media (min-width:900px){
-  .news .ob-body:not(.ob-welcome){flex-direction:row;gap:56px}
-  .news .ob-body:not(.ob-welcome) .ob-phone{width:min(300px,calc((100dvh - 190px) * 390 / 760))}
-  .news .ob-body:not(.ob-welcome) .ob-copy{text-align:left;max-width:440px}
-  .news .ob-copy h2{font-size:28px}
-}
+/* Novedades: el vídeo «Así es Flaski», en 9:16 y centrado; en el ordenador, a una altura que quepa sin desplazar */
+.news-video{gap:14px;justify-content:center}
+.news-head{text-align:center}
+.news-head h1{font-size:26px;line-height:1.15;letter-spacing:-.02em;margin:0 0 6px}
+.news-head p{color:var(--muted);font-size:16px;margin:0}
+.news-frame{position:relative;flex:none;height:min(calc(100dvh - 272px),calc((100vw - 40px) * 16 / 9),720px);min-height:260px;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#2D3FB2;box-shadow:0 0 0 1px var(--line),0 18px 48px rgba(15,15,15,.18)}
+.news-frame video{display:block;width:100%;height:100%;object-fit:contain;background:#2D3FB2}
+.news-play,.news-off{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);margin:0}
+.news-play{display:inline-flex;align-items:center;gap:10px;min-height:58px;padding:0 28px 0 22px;border:0;border-radius:99px;background:#fff;color:#1F2B80;font:inherit;font-size:18px;font-weight:650;white-space:nowrap;cursor:pointer;box-shadow:0 10px 30px rgba(10,15,60,.35)}
+.news-play:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.news-off{width:max-content;max-width:calc(100% - 32px);padding:12px 18px;border-radius:14px;background:rgba(255,255,255,.95);color:#1F2B80;font-size:15px;font-weight:600;text-align:center}
+.news-nav{justify-content:center;min-height:76px}
 /* Editor de tablas, como una hoja de cálculo: números de fila y menú en cada cabecera, siempre a la vista */
 .tbl-ed{padding-left:0}
 .tbl-tools button:not(.tbl-done):not(.danger){color:var(--fg)}

@@ -27,6 +27,7 @@ export const DEFAULT_PREFS = {
   },
   types: { hidden: [] },    // tipos de pregunta que no quieres ver en el editor
   intro: { done: false },   // ya has visto la presentación de bienvenida
+  seen: { news: '' },       // la versión de las Novedades que ya viste (en cualquier dispositivo)
   algo: { preset: 'fsrs', custom: { ...DEFAULT_ALGO }, retention: 0.9 },   // FSRS para quien empieza
   look: {
     theme: 'system',        // 'system' | 'light' | 'dark'

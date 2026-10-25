@@ -312,18 +312,36 @@ const isDark = () => {
   const t = document.documentElement.dataset.theme;
   return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
 };
-// Novedades de la versión: al entrar, a quien aún no las ha visto (no a quien acaba de llegar: a ese, la bienvenida)
+// Novedades de la versión: al entrar, una vez por persona, también a quien acaba de llegar (después de la bienvenida,
+// nunca encima). Se recuerdan en este navegador y en la cuenta (prefs.seen.news, se sincroniza): si cualquiera de las
+// dos dice que están vistas, no salen. Sin conexión no se abren ni se marcan: salen la próxima vez
 const NEWS_KEY = 'flaski-news-seen';
 function maybeNews() {
   let seen = '';
   try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
-  const newcomer = !introDone() && S.decks.size === 0 && S.pages.size === 0;
-  if (!hasNews() || newcomer || S.noNews || S.session || S.recovery || document.querySelector('.ob') || seen === 'never' || (!NEWS_ALWAYS && seen === NEWS_VERSION)) return;
-  showNews();
+  const done = seen === NEWS_VERSION || S.prefs.seen?.news === NEWS_VERSION;
+  if (!hasNews() || S.noNews || S.session || S.recovery || seen === 'never' || (!NEWS_ALWAYS && done) || !navigator.onLine || S.fromCache) return;
+  // Con la bienvenida (o cualquier otra pantalla así) abierta, esperan a que se cierre y estés en Hoy
+  if (document.querySelector('.ob') || S.view !== 'home') { newsLater(); return; }
+  showNews({ mark: true });
 }
-export function showNews() {
+let newsWait = 0;
+function newsLater() {
+  if (newsWait) return;
+  newsWait = setInterval(() => {
+    if (document.querySelector('.ob') || S.view !== 'home' || !document.getElementById('sheet')?.hidden) return;
+    clearInterval(newsWait); newsWait = 0;
+    maybeNews();
+  }, 600);
+}
+// Desde Perfil › Novedades se abren sin cambiar la marca (y sin conexión, con el aviso en lugar del vídeo)
+export function showNews({ mark = false } = {}) {
   if (!hasNews()) return;
-  openNews({ dark: isDark, onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } } });
+  openNews({ online: navigator.onLine, onClose: () => {
+    if (!mark) return;
+    try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ }
+    if (S.prefs.seen?.news !== NEWS_VERSION) { S.prefs.seen = { ...(S.prefs.seen || {}), news: NEWS_VERSION }; savePrefsSoon(); }
+  } });
 }
 export async function showIntro() {
   if (document.querySelector('.ob')) return;

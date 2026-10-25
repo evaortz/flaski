@@ -122,6 +122,7 @@ export async function loadSampleData(btn) {
     document.querySelector('.ob')?.dispatchEvent(new Event('ob-close'));
     closeSheet();
     Object.assign(S, { uid: null, view: 'home', session: null, noNews: true });
+    S.noNews = true;   // (al volver a cargar con los datos de ejemplo no salen las Novedades)
     await onSignedIn(await api.auth.session());
     window.scrollTo(0, 0);
     toast(added || notes ? `Datos de ejemplo cargados: ${[added && (added === 1 ? '1 lista' : `${added} listas`), notes && (notes === 1 ? '1 apunte' : `${notes} apuntes`)].filter(Boolean).join(' y ')}` : 'Los datos de ejemplo ya estaban');

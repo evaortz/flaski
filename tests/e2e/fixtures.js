@@ -102,7 +102,8 @@ export const test = base.extend({
   // Las sugerencias en el móvil: en las pruebas, la lista (las del mazo, test.use({ sugView: 'mazo' }))
   sugView: ['lista', { option: true }],
   page: async ({ page, intro, sugView }, use) => {
-    if (!intro) await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } catch {} });
+    // (las Novedades, en ninguna: novedades.spec.js quita la marca)
+    await page.addInitScript(skip => { try { if (skip) localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } catch {} }, !intro);
     await page.addInitScript(v => { try { if (!localStorage.getItem('flaski-sug-vista')) localStorage.setItem('flaski-sug-vista', v); } catch {} }, sugView);
     await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     // Nada de red externa (trazos de kanji, etc.)
