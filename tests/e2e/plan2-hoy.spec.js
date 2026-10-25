@@ -182,3 +182,25 @@ test('945 preguntas, lunes 26 oct: la tanda de Hoy y «Cuánto te cunde» dan la
   await page.locator('#main [data-p2="time"]').click();
   await expect(page.locator('#p2Cunde')).toContainText('Un día de 45 min da para unos 100 repasos y 20 nuevas.');
 });
+
+test('945 preguntas: hechos todos los repasos, Hoy sigue ofreciendo las nuevas que caben y dice lo mismo que el Plan', async ({ page }) => {
+  await open945(page);
+  await expect(page.locator('#main .p2-legend')).toContainText('100 repasos');
+  // Los 100 repasos, respondidos como en la tanda (12 s cada uno)
+  const n = await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js'); const { recordAnswer } = await import('/js/pantallas/estudio.js');
+    const end = new Date(); end.setHours(24, 0, 0, 0);
+    const due = [...S.progress].filter(([, p]) => p.due < end.getTime()).map(([id]) => id);
+    for (const id of due) recordAnswer(id, 3, 12000);
+    return due.length;
+  });
+  expect(n).toBe(100);
+  await nav(page, 'Biblioteca');
+  await nav(page, 'Hoy');
+  await expect(page.locator('#main .hero h1')).not.toHaveText('Hecho por hoy');
+  await expect(page.locator('#main .p2-legend')).toHaveText('16 nuevas de Auxiliar4 de Inglés');
+  await expect(page.locator('#main .p2-go')).toContainText('Empezar');
+  await toPlan(page);
+  await expect(page.locator('#main .section-h:has(#h-today) .sec-note')).toContainText('20 preguntas');
+  await expect(page.locator('#main .ht-why')).toHaveText('Hoy 20 nuevas: tienes 45 min y 0 repasos.');
+});
