@@ -164,11 +164,11 @@ export function faceHTML(model, st, { preview = false } = {}) {
         <span class="num-in"><input id="numIn" inputmode="decimal" placeholder="Tu respuesta" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>${unit ? `<span class="muted">${esc(unit)}</span>` : ''}</span>
         <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>`;
     } else {
-      const r = st.number, right = `<b>${esc(val(tpl.answer))}${unit ? ' ' + esc(unit) : ''}</b>${tol ? ` <span class="muted">(±${esc(tol)})</span>` : ''}`;
-      // (sin haber contestado, el número va en el recuadro de la respuesta, como en el resto de tipos)
+      // El número va en el recuadro de la respuesta, como en el resto de tipos; arriba, solo el veredicto con lo que escribiste
+      const r = st.number, given = r && (Number.isFinite(r.given) ? esc(String(r.given)) : '<i>no es un número</i>');
       ask = !r ? ''
-        : r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto: ${right}${r.diff ? ` · pusiste ${esc(String(r.given))}` : ''}</div>`
-        : `<div class="verdict bad">${r.near ? '<div class="vnear">Casi</div>' : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span>${Number.isFinite(r.given) ? esc(String(r.given)) : '<i>(no es un número)</i>'}</span></div><div class="vrow"><span class="vl">Correcta</span><span>${right}</span></div></div>`;
+        : r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto${r.diff ? ` · pusiste ${given}` : ''}</div>`
+        : `<div class="verdict bad">${r.near ? '<div class="vnear">Casi</div>' : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span>${given}</span></div></div>`;
     }
   }
   if (tpl.mode === 'conj') {
@@ -244,7 +244,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
   let answer = '';
   if (st.revealed) {
     if (tpl.mode === 'flip') answer = tpl.back.map((id, i) => block(id, i === 0)).join('');
-    else if (tpl.mode === 'number' && !st.number) {
+    else if (tpl.mode === 'number') {
       const unit = String(fields.u || '').trim(), tol = String(fields.t || '').trim();
       answer = `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${esc(val(tpl.answer))}${unit ? ' ' + esc(unit) : ''}${tol ? ` <span class="muted">(±${esc(tol)})</span>` : ''}</span></div></div>` + tpl.back.map(id => block(id, false)).join('');
     }

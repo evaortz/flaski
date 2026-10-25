@@ -56,3 +56,19 @@ test('etiquetas sin «#»: en la tanda, en los filtros de Biblioteca y en «Estu
   await expect(page.locator('#main [data-start="tag:t1"]:visible').first()).toHaveText(/^Estudiar casa/);
   expect(await page.locator('#main').innerText()).not.toContain('#casa');
 });
+
+// Respuesta numérica contestada: arriba solo el veredicto con lo que escribiste; el 1885, dentro de «respuesta»
+for (const [given, verdict] of [['1885', 'Correcto'], ['1890', 'Casi'], ['1500', 'Tu respuesta']]) test(`respuesta numérica, ${verdict.toLowerCase()} (${given}): el número va en el recuadro «respuesta»`, async ({ page }) => {
+  await tanda(page, [['number', 't1', { q: '¿En qué año publicó Ebbinghaus su estudio?', a: '1885', t: '', u: '', n: 'Über das Gedächtnis' }]]);
+  await page.locator('#numIn').fill(given);
+  await page.locator('#numIn').press('Enter');
+  const box = page.locator('article.card .answer');
+  await expect(box.locator('.fld-main')).toContainText('1885');
+  await expect(box).toContainText('Über das Gedächtnis');
+  const v = page.locator('article.card .verdict');
+  await expect(v).toContainText(verdict);
+  if (given !== '1885') await expect(v).toContainText(given);
+  await expect(v).not.toContainText(given === '1885' ? 'Correcta' : '1885');
+  // Nunca un «respuesta» sin nada debajo
+  expect(await box.evaluate(el => [...el.children].filter(c => !c.classList.contains('ans-l')).some(c => c.textContent.trim()))).toBe(true);
+});
