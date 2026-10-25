@@ -382,3 +382,20 @@ test('1 · un tema de dos exámenes no se reparte dos veces', () => {
   assert.equal(fc.days[0].newBy['d0-0'], 47);                       // 47, no 60
   assert.equal(fc.days.reduce((s, d) => s + (d.newBy['d0-0'] || 0), 0), 47);
 });
+
+// Ningún número del forecast (ni de sus exámenes y días) sale NaN
+function noNaN(o, path = 'forecast') {
+  if (typeof o === 'number') assert.ok(!Number.isNaN(o), `${path} es NaN`);
+  else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) noNaN(v, `${path}.${k}`);
+}
+test('2 · un ritmo de menos de medio segundo cuenta como 1 s: nada sale NaN', () => {
+  const ev = Array.from({ length: 60 }, (_, i) => ({ card_id: 'c' + i, ts: `2026-10-20T10:${String(i).padStart(2, '0')}:00Z`, state: 'review', ms: 400 }));
+  const pace = medirRitmo(ev);
+  assert.equal(pace.secReview, 1);
+  const S = { ...state945(), pace: undefined, events: ev };
+  const fc = forecast(S);
+  noNaN(fc);
+  assert.equal(fc.days[0].minutes, 0);                  // el domingo libre: 0 / 0 daba NaN
+  assert.deepEqual(fc.exams.map(e => e.verdict), ['llegas', 'llegas']);
+  noNaN(today(S), 'today');
+});

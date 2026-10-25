@@ -52,8 +52,9 @@ export function medirRitmo(events = []) {
   }
   const n = median([...fresh.values()]), r = median(rev);
   return {
-    secNew: n ? Math.round(n / 1000) : PACE_DEFAULT.secNew,
-    secReview: r ? Math.round(r / 1000) : PACE_DEFAULT.secReview,
+    // Como poco, 1 s: con 0 s el día tendría sitio infinito (y las cuentas, NaN)
+    secNew: n ? Math.max(1, Math.round(n / 1000)) : PACE_DEFAULT.secNew,
+    secReview: r ? Math.max(1, Math.round(r / 1000)) : PACE_DEFAULT.secReview,
     measured: true, n: ok.length,
   };
 }
@@ -334,7 +335,7 @@ export function newCap(state) {
 export function forecast(state, opts = {}) {
   const P = prepare(state), { H, mins, keys, deckInfo, st, pace, plan } = P;
   const caps = plan.caps || {}, capNew = newCap(state), capRev = caps.reviewsPerDay > 0 ? caps.reviewsPerDay : Infinity;
-  const K = newKernel(P.r), sN = pace.secNew, sR = pace.secReview;
+  const K = newKernel(P.r), sN = Math.max(1, Number(pace.secNew) || PACE_DEFAULT.secNew), sR = Math.max(1, Number(pace.secReview) || PACE_DEFAULT.secReview);
   const rem = new Map(), extra = new Map(), finish = new Map(), firstDay = new Map();
   for (const id of deckInfo.keys()) rem.set(id, st.fresh.get(id) || 0);
   const start = new Map(P.ex.map(x => [x.id, x.study.reduce((a, id) => a + (rem.get(id) || 0), 0)]));
