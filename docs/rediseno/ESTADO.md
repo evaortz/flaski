@@ -321,7 +321,7 @@
 - Visto una vez, solo en el código anterior y con la máquina muy cargada: tras «Guardar» en el editor de preguntas, la hoja tardó más de 10 s en cerrarse. No se ha vuelto a ver.
 - `sw.js` → `flaski-v201`.
 
-## Paso 7+8 · sugerencias (en curso; mensaje en `PASO-7-8-SUGERENCIAS.md`)
+## Paso 7+8 · sugerencias (hecho; mensaje en `PASO-7-8-SUGERENCIAS.md`)
 - Informe de antes: `docs/rediseno/sugerencias/informe-antes.txt`. La batería (`node sugerencias.mjs`, desde `tests/`) cuenta ahora repetidas visibles, mal escritas, huecos de más de 25 palabras, tipos y marcadas de entrada; la cobertura cuenta también las «otras formas de preguntarlo» (plegadas) y aparte, solo las visibles.
 
 ### Paso 7+8 · parte 1 hecha (arreglar lo que hay)
@@ -359,6 +359,19 @@
 | Huecos de más de 25 palabras | 5 | 0 |
 | Marcadas de entrada (Constitución) | 40 de 51 | 15 |
 | Opción múltiple o V/F (Constitución, con plegadas) | 0 | 16 |
+
+### Paso 7+8 · parte 3 hecha (revisar de una en una en el móvil)
+- `js/pantallas/sugerencias-mazo.js` (en SHELL): en el móvil (ancho < 700 px) la hoja de sugerencias es un mazo; en el ordenador y desde la ✨ de un bloque, la lista. Grupos: un apartado del apunte cada uno con las marcadas de entrada y, al final, las demás («Estas son menos seguras», con aviso).
+- Tarjeta: tipo, pregunta (huecos como recuadro), «Respuesta:», «Otras formas de preguntarlo» (cambia sin salir del mazo, con «Cambiada · Deshacer»), «de: Artículo 1 · punto 2» y «Ver en el apunte» (cierra la hoja, va al bloque; al volver, el mazo sigue donde estaba). Arriba «Título Preliminar · 3 de 8» y «apartado 1 de 5 · …» (o «Sugerencias · 3 de 6» y «de tu apunte «…»» sin apartados), barra de progreso y «↑ Editar»; abajo ✕, lápiz y ✓, y «Se añaden a…».
+- Gestos con `swipeable` de la tanda (respeta el ajuste «deslizar» y la vibración; no hay ajuste de sensibilidad aparte: el umbral es el mismo de la tanda). Nuevo en `swipeable`: `vertical` (en una hoja, el gesto hacia arriba es de la tarjeta) y, con «reducir movimiento», sin giro ni salida volando. Teclado ← → E.
+- Al arrastrar: sin marco ni capa de color; pastilla (`::before`) con `--sw-add` / `--sw-drop` / `--sw-edit` y texto `--sw-ink`, definidas en `:root` de `app.css` con los valores de la otra conversación (al juntar, una sola definición); el botón de esa acción crece con un anillo separado por una franja del fondo (`:has()`), los otros a 0,35.
+- Añadir/editar: al acabar un apartado se crean las añadidas (lo retocado en el editor cuenta como añadido) y sale la pantalla de fin («Orgánulos, revisado», «3 sugerencias en 1 min», añadidas / descartadas, «Las 3 nuevas entran en tus tandas como preguntas nuevas, unas pocas cada día», el siguiente apartado con sus sugerencias y «unos N min» a 10 s cada una, «Seguir con el apartado 2» / «Por hoy vale»). Con 1 o 2 sugerencias en total, sin pantalla de fin: se crean y se vuelve al apunte. Salir con ‹ crea lo añadido hasta ahí.
+- Descartar: `flaski-sug-hidden` y «Descartada · Deshacer» (vuelve a esa tarjeta).
+- Pruebas: `e2e/sugerencias-mazo.spec.js` (cabecera y tarjeta, deslizar a cada lado y arriba con pastilla y botón, botones y teclado, «Deshacer», fin de apartado, menos seguras, 1 o 2 sugerencias, otras formas, y la lista en el ordenador @ambos). Capturas para Eva en `tests/test-results/sugerencias-mazo/`.
+- En el móvil se puede pasar a la lista («Ver en lista», arriba a la derecha del mazo) y volver («De una en una», en la cabecera de la lista); se recuerda en `flaski-sug-vista`. En las pruebas, la opción `sugView` del fixture (por defecto, la lista; `sugerencias-mazo.spec.js` usa el mazo). El aviso «Descartada · Deshacer» va por encima de los botones del mazo.
+- Al final: unitarias 243 de 243; batería completa (`--workers=2`) 392 pasan, 15 omitidas, 0 fallan (8,9 min, con las otras conversaciones trabajando a la vez). Antes, dos pasadas: la primera con 20 fallos esperados (las pruebas de la lista se encontraban el mazo en el móvil y unas pocas daban por hechas las sugerencias de antes) y la segunda con 1 de la propia prueba (leía el anillo a mitad de su transición); arreglados y repetida entera.
+- `sw.js` → `flaski-v219`.
+- Decisión: el texto de cuándo entran no dice «a partir de mañana» (las nuevas pueden salir hoy si quedan nuevas del día), sino «unas pocas cada día».
 
 ## Batería más rápida (hecha)
 - Traza solo con `TRACE=1` (antes se grababa en todas: un 24 % del tiempo).
