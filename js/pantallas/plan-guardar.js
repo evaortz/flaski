@@ -33,7 +33,7 @@ export function undoTo(at) {
   for (const e of p.exams || []) e.updated_at = now;
   if (p.time) p.time.updated_at = now;
   if (p.split) p.split.updated_at = now;
-  p.history = p.history.filter(h => h.at !== at);
+  p.history = p.history.slice(i + 1);
   savePrefsSoon();
   render();
   toast('Deshecho');

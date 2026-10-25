@@ -118,6 +118,37 @@ test('Ajustes del plan: tope de repasos, lo que quieres recordar (90 o 95 %, y l
   await expect(page.locator('#main #remindOn')).toBeVisible();
 });
 
+test('Historial: los cambios del plan en Ajustes del plan, el último arriba; «Deshacer» lo deja como estaba antes', async ({ page }) => {
+  await open945(page);
+  await toPlan(page);
+  await page.locator('#main [data-nav="planSettings"]').last().click();
+  const plan = () => page.evaluate(() => import('/js/plan2-app.js').then(m => m.plan2()));
+  await expect(page.locator('#main #h-hist + p')).toContainText('Aún no has cambiado nada del plan');
+  const before = (await plan()).caps.reviewsPerDay;
+  // Dos cambios: el tope de repasos y lo que quieres recordar
+  await page.locator('#main [data-p2="set-revcap"]').click();
+  await page.locator('#p2revc').fill('60');
+  await page.locator('#sheetBody [data-p2="revcap-save"]').click();
+  await page.locator('#main [data-p2="set-ret"][data-v="0.95"]').click();
+  const rows = page.locator('#main .p2-hist li');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('95');
+  await expect(rows.first()).toContainText(/hoy, \d+:\d\d/);
+  await expect(rows.nth(1)).toContainText('60');
+  // Deshacer el último: vuelve al 90 % y se queda el tope
+  await rows.first().locator('[data-p2="hist-undo"]').click();
+  await expect(rows).toHaveCount(1);
+  expect((await plan()).exams.map(e => e.retention)).toEqual([0.9, 0.9]);
+  expect((await plan()).caps.reviewsPerDay).toBe(60);
+  // Deshacer el del tope: como al principio, sin nada en el historial
+  await rows.first().locator('[data-p2="hist-undo"]').click();
+  await expect(rows).toHaveCount(0);
+  expect((await plan()).caps.reviewsPerDay).toBe(before);
+  // Como mucho los 20 últimos
+  for (let i = 0; i < 22; i++) await page.locator('#main [data-p2="set-ret"]').nth(i % 2 ? 0 : 1).click();
+  await expect(rows).toHaveCount(20);
+});
+
 // Una oposición con un tema de 12 preguntas sin ver y su examen
 async function opoT5(page, seed) {
   await seed({ folders: ['Opo'], decks: [{ name: 'T1 · Constitución', folder: 'Opo', cards: Array.from({ length: 20 }, (_, i) => [`c${i}`, `r${i}`]) }, { name: 'T5 · Ley 39/2015', folder: 'Opo', cards: Array.from({ length: 12 }, (_, i) => [`ley${i}`, `art${i}`]) }] });

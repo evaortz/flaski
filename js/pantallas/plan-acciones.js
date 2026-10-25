@@ -35,7 +35,7 @@ export function planAction(el, kind = 'click') {
   if (a.startsWith('new-')) return newExamClick(el);
   if (a.startsWith('rep-')) return repartoClick(el);
   if (a.startsWith('sheet-') || a.startsWith('topic-') || a === 'free-set') return sheetClick(el);
-  if (a.startsWith('set-') || a.startsWith('cap-') || a.startsWith('revcap-') || a.startsWith('stage')) return settingsClick(el);
+  if (a.startsWith('set-') || a.startsWith('cap-') || a.startsWith('revcap-') || a.startsWith('stage') || a === 'hist-undo') return settingsClick(el);
   switch (a) {
     case 'exam-new': return newExamSheet();
     case 'exam-edit': return newExamSheet({ id: ds.id });

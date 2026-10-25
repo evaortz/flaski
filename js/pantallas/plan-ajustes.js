@@ -9,7 +9,7 @@ import { liveExams, sharesToday, newCap } from '../plan2.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet } from './editor.js';
 import { rangeDay, shortName, shortDay } from './plan-ui.js';
-import { commitPlan } from './plan-guardar.js';
+import { commitPlan, undoTo } from './plan-guardar.js';
 
 const FREE = [['paused', 'Pausa'], ['reviews', 'Solo repasar'], ['active', 'Activo']];
 const byName = (a, b) => a.name.localeCompare(b.name, 'es', { numeric: true });
@@ -55,7 +55,17 @@ export function renderPlanSettings() {
     <section class="p2-sec" aria-labelledby="h-avisos"><h2 class="p2-h2" id="h-avisos">Avisos</h2>
       <div class="set-row"><div class="set-l"><b id="p2weekly">Repaso de la semana</b><small>El domingo, cómo vas y un ajuste de un toque.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2weekly" data-p2="set-weekly" ${p.weekly?.on === false ? '' : 'checked'}><span class="slider" aria-hidden="true"></span></label></div></div>
       <div class="set-row"><div class="set-l"><b id="p2remind">Recordatorio diario</b><small>Un aviso en este dispositivo si te toca repasar. La hora, en Ajustes › Avisos.</small><small id="remindMsg"></small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2remind" id="remindOn" ${S.prefs.remind?.on ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
-      <button class="p2-row" data-p2="time"><span><b>Tu tiempo</b><small>minutos de cada día, días especiales y pausa</small></span>${icon('chevron-right', { size: 18 })}</button></section></div>`;
+      <button class="p2-row" data-p2="time"><span><b>Tu tiempo</b><small>minutos de cada día, días especiales y pausa</small></span>${icon('chevron-right', { size: 18 })}</button></section>
+    <section class="p2-sec" aria-labelledby="h-hist"><h2 class="p2-h2" id="h-hist">Historial</h2>
+      ${(p.history || []).length ? `<p class="muted small">Los ${Math.min(20, p.history.length)} últimos cambios del plan. «Deshacer» lo deja como estaba antes de ese cambio (y deshace también los que vinieron después).</p>
+      <ul class="p2-hist">${p.history.slice(0, 20).map(h => `<li><span><b>${esc(h.what)}</b><small>${whenText(h.at)}</small></span><button class="link" data-p2="hist-undo" data-at="${h.at}">Deshacer</button></li>`).join('')}</ul>`
+        : '<p class="muted">Aún no has cambiado nada del plan. Cada cambio saldrá aquí, con «Deshacer».</p>'}</section></div>`;
+}
+
+// «hoy, 10:42», «ayer, 18:05» o «12 oct, 9:30»
+function whenText(t) {
+  const d = new Date(t), k = dayKey(d.getTime()), hm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${k === dayKey() ? 'hoy' : k === addDays(dayKey(), -1) ? 'ayer' : shortDay(k)}, ${hm}`;
 }
 
 /* ---------------- el tope ---------------- */
@@ -144,6 +154,7 @@ export function settingsClick(b) {
     case 'stage-lv': { readStage(); S.p2Stage.levels = { ...(S.p2Stage.levels || {}), [ds.key]: ds.v }; if (ds.v === 'normal') delete S.p2Stage.levels[ds.key]; return drawStage(); }
     case 'stage-save': return saveStage();
     case 'stage-del': return saveStage(true);
+    case 'hist-undo': return undoTo(Number(ds.at));
   }
 }
 export { shortDay };
