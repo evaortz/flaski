@@ -24,73 +24,20 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/app.css">
 <!-- Todos los módulos a la vez: si no, el navegador los descubre import a import y la cuenta (supabase.js) llega la última -->
-<link rel="modulepreload" href="js/api.js">
-<link rel="modulepreload" href="js/config.js">
-<link rel="modulepreload" href="js/rows.js">
-<link rel="modulepreload" href="js/dibujos.js">
-<link rel="modulepreload" href="js/primera-vez.js">
-<link rel="modulepreload" href="js/modo.js">
-<link rel="modulepreload" href="js/backend-supabase.js">
-<link rel="modulepreload" href="js/vendor/supabase.js">
-<link rel="modulepreload" href="js/outbox.js">
-<link rel="modulepreload" href="js/backend-local.js">
-<link rel="modulepreload" href="js/srs.js">
-<link rel="modulepreload" href="js/fsrs.js">
-<link rel="modulepreload" href="js/prefs.js">
-<link rel="modulepreload" href="js/charts.js">
-<link rel="modulepreload" href="js/emoji-picker.js">
-<link rel="modulepreload" href="js/icons.js">
-<link rel="modulepreload" href="js/cardtypes.js">
-<link rel="modulepreload" href="js/tts.js">
-<link rel="modulepreload" href="js/snapshot.js">
-<link rel="modulepreload" href="js/notes.js">
-<link rel="modulepreload" href="js/friends.js">
-<link rel="modulepreload" href="js/suggest.js">
-<link rel="modulepreload" href="js/pages.js">
-<link rel="modulepreload" href="js/inline.js">
-<link rel="modulepreload" href="js/media.js">
-<link rel="modulepreload" href="js/liveedit.js">
-<link rel="modulepreload" href="js/feel.js">
-<link rel="modulepreload" href="js/comun.js">
-<link rel="modulepreload" href="js/plan.js">
-<link rel="modulepreload" href="js/org.js">
-<link rel="modulepreload" href="js/pantallas/cuenta.js">
-<link rel="modulepreload" href="js/onboarding.js">
-<link rel="modulepreload" href="js/news.js">
-<link rel="modulepreload" href="js/pantallas/estudio.js">
-<link rel="modulepreload" href="js/tanda.js">
-<link rel="modulepreload" href="js/atrasos.js">
-<link rel="modulepreload" href="js/handwriting.js">
-<link rel="modulepreload" href="js/pantallas/mazos.js">
-<link rel="modulepreload" href="js/csv.js">
-<link rel="modulepreload" href="js/anki.js">
-<link rel="modulepreload" href="js/zip.js">
-<link rel="modulepreload" href="js/sqlite.js">
-<link rel="modulepreload" href="js/vendor/fzstd.js">
-<link rel="modulepreload" href="js/pantallas/explorar.js">
-<link rel="modulepreload" href="js/pantallas/editor.js">
-<link rel="modulepreload" href="js/pantallas/apuntes.js">
-<link rel="modulepreload" href="js/pdf.js">
-<link rel="modulepreload" href="js/paste.js">
-<link rel="modulepreload" href="js/notesio.js">
-<link rel="modulepreload" href="js/pantallas/perfil.js">
-<link rel="modulepreload" href="js/stats.js">
-<link rel="modulepreload" href="js/push.js">
-<link rel="modulepreload" href="js/pantallas/inicio.js">
-<link rel="modulepreload" href="js/pantallas/amigos.js">
-<link rel="modulepreload" href="js/pantallas/pruebas.js">
-<link rel="modulepreload" href="js/pantallas/apuntes-tablas.js">
-<link rel="modulepreload" href="js/pantallas/apuntes-ayuda.js">
-<link rel="modulepreload" href="js/pantallas/sugerencias.js">
-<link rel="modulepreload" href="js/pantallas/biblioteca.js">
-<link rel="modulepreload" href="js/pantallas/mapa.js">
-<link rel="modulepreload" href="js/pantallas/plan.js">
-<link rel="modulepreload" href="js/pantallas/simulacro.js">
-<link rel="modulepreload" href="js/pantallas/papelera.js">
-<link rel="modulepreload" href="js/pantallas/borrar-cuenta.js">
-<link rel="modulepreload" href="js/pantallas/apuntes-repaso.js">
-<link rel="modulepreload" href="js/mapa.js">
-<link rel="modulepreload" href="js/entender.js">
+<!-- módulos (los escribe tests/version.mjs) -->
+<script>
+// Import map con la versión en la dirección de cada módulo y sus precargas (ver tests/version.mjs)
+(function () {
+  var V = '175', M = ["js/app.js","js/anki.js","js/api.js","js/atrasos.js","js/backend-local.js","js/backend-supabase.js","js/cardtypes.js","js/charts.js","js/comun.js","js/config.js","js/csv.js","js/dibujos.js","js/emoji-picker.js","js/entender.js","js/feel.js","js/friends.js","js/fsrs.js","js/handwriting.js","js/icons.js","js/inline.js","js/liveedit.js","js/mapa.js","js/media.js","js/modo.js","js/news.js","js/notes.js","js/notesio.js","js/onboarding.js","js/org.js","js/outbox.js","js/pages.js","js/pantallas/amigos.js","js/pantallas/apuntes-ayuda.js","js/pantallas/apuntes-repaso.js","js/pantallas/apuntes-tablas.js","js/pantallas/apuntes.js","js/pantallas/biblioteca.js","js/pantallas/borrar-cuenta.js","js/pantallas/cuenta.js","js/pantallas/editor.js","js/pantallas/estudio.js","js/pantallas/explorar.js","js/pantallas/inicio.js","js/pantallas/mapa.js","js/pantallas/mazos.js","js/pantallas/papelera.js","js/pantallas/perfil.js","js/pantallas/plan.js","js/pantallas/pruebas.js","js/pantallas/simulacro.js","js/pantallas/sugerencias.js","js/paste.js","js/pdf.js","js/plan.js","js/prefs.js","js/primera-vez.js","js/push.js","js/rows.js","js/snapshot.js","js/sqlite.js","js/srs.js","js/stats.js","js/suggest.js","js/tanda.js","js/tts.js","js/vendor/fzstd.js","js/vendor/supabase.js","js/zip.js"];
+  var b = ''; try { b = sessionStorage.getItem('flaski-bust') || ''; } catch (e) {}
+  var q = '?v=' + V + (b ? '-' + b : ''), map = {};
+  M.forEach(function (m) { map['./' + m] = './' + m + q; });
+  var s = document.createElement('script'); s.type = 'importmap'; s.textContent = JSON.stringify({ imports: map });
+  document.currentScript.after(s);
+  M.forEach(function (m) { var l = document.createElement('link'); l.rel = 'modulepreload'; l.href = m + q; document.head.appendChild(l); });
+})();
+</script>
+<!-- /módulos -->
 </head>
 <body class="no-nav">
 <div class="app">
@@ -130,12 +77,16 @@
     var jobs = [];
     if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
     if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^flaski-v/.test(k); }).map(function (k) { return caches.delete(k); })); }));
+    // Safari, al recargar, reutiliza los módulos que tiene en memoria: con una marca nueva en sus direcciones
+    // (ver el import map de arriba) los pide otra vez
+    try { sessionStorage.setItem('flaski-bust', String(Date.now())); } catch (e) {}
     Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
   }
   addEventListener('error', function (e) {
     var t = e.target, src = t && (t.src || t.href) || '';
     if ((t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && t.rel === 'modulepreload')) && /\/js\//.test(src))
-      || /does not provide an export named/.test(e.message || '')
+      // Módulos de dos versiones: «does not provide an export named» (Chrome), «Importing binding name … is not found» (Safari), «import not found» (Firefox)
+      || /does not provide an export named|Importing binding name .* is not found|import not found/.test(e.message || '')
       || (/Failed to fetch dynamically imported module/.test(e.message || '') && (e.message || '').indexOf(location.origin + '/js/') >= 0)) recover();
   }, true);
   // Si la app arranca bien (ya no está el esqueleto de carga), se puede volver a intentar en otra ocasión
@@ -153,6 +104,6 @@
   }, 15000);
 })();
 </script>
-<script type="module" src="js/app.js"></script>
+<script type="module">import './js/app.js';</script>
 </body>
 </html>

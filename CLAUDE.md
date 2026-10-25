@@ -46,7 +46,9 @@ npx playwright test --config capturas.config.js                # = npm run captu
 ## Reglas al cambiar archivos
 
 - **Service worker**: cada vez que cambie cualquier archivo servido (js, css, html, fuentes, imágenes del shell…) sube
-  `VERSION` en `sw.js` (`flaski-vNN` → `flaski-vNN+1`). Si añades un archivo nuevo que la app carga al arrancar, añádelo a `SHELL`.
+  `VERSION` en `sw.js` (`flaski-vNN` → `flaski-vNN+1`) y ejecuta `node version.mjs` desde `tests/` (pone la versión en las
+  direcciones de los módulos de `index.html`; sin eso, Safari puede mezclar módulos de dos versiones). Si añades un archivo nuevo
+  que la app carga al arrancar, añádelo a `SHELL` (y `version.mjs` lo añade a la lista de módulos).
 - **Novedades**: si la función es visible para quien usa la app, actualiza las pantallas de `js/news.js`, sube
   `NEWS_VERSION` y regenera capturas (`npm run capturas`). Ver `04-flujo-de-trabajo.md`.
 - **Esquema**: los cambios en `supabase/schema.sql` deben ser idempotentes (`if not exists`, `create or replace`);

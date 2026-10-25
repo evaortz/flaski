@@ -30,7 +30,7 @@ export async function mockCloud(page) {
     // Amigos: lo que devuelven las funciones de schema.sql (missing: como si faltara ejecutarlo)
     social: { code: 'EVA7K2QX', share: true, friends: [], requests: [], cheers: [], result: 'sent', missing: false },
   };
-  await page.route('**/js/config.js', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
+  await page.route('**/js/config.js*', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
   await page.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, ['sb-test-auth-token', JSON.stringify(SESSION)]);
   await page.route(`${URL}/**`, async route => {
     if (!srv.reachable) return route.abort('internetdisconnected');

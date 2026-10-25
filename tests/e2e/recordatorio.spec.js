@@ -19,7 +19,7 @@ async function fakePush(page, answer = 'granted', initial = 'default') {
 }
 async function cloudWithPush(page, answer, initial) {
   const srv = await mockCloud(page);
-  await page.route('**/js/config.js', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
+  await page.route('**/js/config.js*', r => r.fulfill({ contentType: 'text/javascript', body: CONFIG }));
   await fakePush(page, answer, initial);
   await openCloud(page);
   return srv;

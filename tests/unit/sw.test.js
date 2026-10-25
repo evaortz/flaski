@@ -29,12 +29,13 @@ test('el service worker guarda todos los módulos que carga la app', async () =>
 });
 
 // Sin modulepreload, el navegador descubre los módulos import a import y supabase.js (que hace falta
-// para pedir los datos) llega el último, tras varios viajes por la red
+// para pedir los datos) llega el último, tras varios viajes por la red. Las precargas las crea un script de
+// index.html con la lista de módulos (la escribe tests/version.mjs)
 test('index.html pide a la vez todos los módulos que carga la app', async () => {
   const html = await readFile(join(ROOT, 'index.html'), 'utf8');
-  const pre = new Set([...html.matchAll(/<link rel="modulepreload" href="([^"]+)">/g)].map(m => m[1]));
-  const missing = (await modulesFrom('js/app.js')).filter(f => f !== 'js/app.js' && !pre.has(f));
-  assert.deepEqual(missing, [], 'añade estos módulos con <link rel="modulepreload"> en index.html');
+  const list = new Set(JSON.parse(/var V = '\d+', M = (\[.*?\]);/.exec(html)[1]));
+  const missing = (await modulesFrom('js/app.js')).filter(f => !list.has(f));
+  assert.deepEqual(missing, [], 'ejecuta «node version.mjs» desde tests/');
 });
 
 test('la app no carga código de fuera (para abrir sin conexión)', async () => {
@@ -42,4 +43,12 @@ test('la app no carga código de fuera (para abrir sin conexión)', async () => 
     const src = await readFile(join(ROOT, f), 'utf8');
     assert.doesNotMatch(src, /(?:from\s+|import\s*\(\s*)['"]https?:/, `${f} importa algo de internet`);
   }
+});
+
+// Las direcciones de los módulos llevan la versión de sw.js («?v=175»): si no, Safari puede mezclar módulos de dos versiones
+test('index.html lleva la versión de sw.js en el import map, las precargas y app.js', async () => {
+  const { versionedIndex } = await import('../version.mjs');
+  const { html } = await versionedIndex();
+  const cur = await readFile(join(ROOT, 'index.html'), 'utf8');
+  assert.ok(cur === html, 'ejecuta «node version.mjs» desde tests/ tras subir VERSION en sw.js');
 });
