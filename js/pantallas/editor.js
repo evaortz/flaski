@@ -1269,11 +1269,11 @@ export async function adoptTypes(types = []) {
 // Antes el idioma iba en los tipos (Vocabulario, Dictado y Ordenar frase en turco, y copias como
 // «Vocabulario · Japonés» para el resto). Ahora es del mazo. Esto se hace una vez por mazo y por copia.
 const LEGACY_LANG = { vocab: 'tr-TR', listen: 'tr-TR', order: 'tr-TR', kanji: 'ja-JP', 'de-noun': 'de-DE' };
-// (Vocabulario, Dictado y Ordenar frase solo cuentan como turco si la pregunta tiene letras del turco: si no, una
-// de ordenar de un tema en español volvía la lista de turco)
+// (Ordenar frase, que también se usa fuera de los idiomas, solo cuenta como turco si la pregunta tiene letras del
+// turco: si no, una de ordenar de un tema en español volvía la lista de turco)
 const TR_LETTERS = /[çğışöİ]/i;
 const textOf = c => Object.values(c.fields || {}).join(' ');
-const legacyVote = (t, c) => (LEGACY_LANG[t.id] === 'tr-TR' && !TR_LETTERS.test(textOf(c)) ? '' : LEGACY_LANG[t.id]);
+const legacyVote = (t, c) => (t.id === 'order' && !TR_LETTERS.test(textOf(c)) ? '' : LEGACY_LANG[t.id]);
 function guessDeckLang(d) {
   const votes = new Map();
   const vote = l => { if (l) votes.set(l, (votes.get(l) || 0) + 1); };
