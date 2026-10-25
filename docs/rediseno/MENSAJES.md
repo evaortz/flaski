@@ -1,6 +1,6 @@
 # Cola del rediseño · 5 pasos (en orden · una conversación nueva por paso)
 
-Hechos: pasos 1, 2 y 3 (y el logo). Siguiente: paso 4.
+Hechos: pasos 1 a 4 (y el logo). Siguiente: paso 5.
 
 Reglas para que no se eternice:
 - Un paso = una conversación. Los remates que salgan se pegan al principio del paso siguiente.
@@ -52,7 +52,19 @@ Antes de programar, dime en un solo mensaje:
 Espera mi OK. Después haz a, b, c y d seguidas.
 
 ## 5 · Perfil, Ajustes, Amigos y cierre (OK solo para Supabase)
-Lee docs/rediseno/ESTADO.md, docs/rediseno/perfil-ajustes/LEEME.md y docs/rediseno/amigos/LEEME.md con sus pantallas.
+Remates del paso 4 (cada uno con su e2e), antes de empezar:
+- Explorar: La Constitución sale con «Añadir» aunque ya la tengo («La Constitución Española · Título Preliminar»). Reconoce las listas de los temas de ejemplo por su id de origen; si no se puede, compara el nombre sin acentos.
+- Explorar: la vista previa enseña «{{6 de diciembre de 1978}}». Pinta los huecos como en la tanda («[…]»).
+- Estimaciones: en «N min · X preguntas» de Hoy y «salen unas X al día» del Plan, usa como mínimo 6 s por pregunta. Ahora sale «3 min · 27 preguntas» y «200 al día con 10 min».
+- Simulacro, gráfica «Tus simulacros»: con notas de 0 no se ve nada. Escala de 0 a 10 (o del mínimo al máximo con margen), con el objetivo y todos los puntos dentro.
+- Simulacro, opción elegida: rellena de blanco, con el texto azul y la letra en un círculo azul, como en SimuPregunta. Ahora apenas cambia el borde.
+- Simulacro, aviso de penalización: solo si hay penalización, algún fallo y algo en blanco. El texto: «Dejaste N en blanco: si hubieras fallado esas, restarían X más». Nunca con nota 0.
+- Simulacro, netas negativas: «… = −1,25 netas · la nota no baja de 0».
+- Simulacro: al salir de «Repasar los fallos», vuelve a la nota, no a la lista.
+- Simulacro, minutos: «te quedan N min» redondea hacia abajo; con menos de 1, «te queda menos de 1 min». Igual en «¿Entregas ya?».
+
+Lee docs/rediseno/ESTADO.md, docs/rediseno/perfil-ajustes/LEEME.md, docs/rediseno/amigos/LEEME.md y docs/rediseno/papelera-cuenta/LEEME.md con sus pantallas.
 a) Reordena Perfil y Ajustes (con el buscador) como dice el LEEME; no borres ningún ajuste sin decirme dónde ha ido.
 b) Pantalla Amigos nueva y el texto «X te dice: …». Para «¡Bravo!» como tipo de ánimo, dime qué cambio necesitas en Supabase y espera mi OK; lo demás hazlo sin parar.
-c) Cierre: repasa toda la app en modo oscuro, a 375 px y a 1440 px, arregla lo que se vea roto y deja ESTADO.md al día. Después hago yo el push.
+c) Papelera (borrar va a la papelera 30 días, «Deshacer», recuperar) y borrar la cuenta (pantalla de 3 pasos). Antes de programar c, dime qué necesitas en Supabase para el borrado suave y para borrar la cuenta, y espera mi OK.
+d) Cierre: repasa toda la app en modo oscuro, a 375 px y a 1440 px, arregla lo que se vea roto y deja ESTADO.md al día. Después hago yo el push.
