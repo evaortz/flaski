@@ -17,6 +17,14 @@ const firstRun = async page => { await page.goto('/'); await expect(page.locator
 
 test.describe('primera vez', () => {
 test.use({ intro: true });
+test('lo que pegas la primera vez sigue empezando con la primera tanda', async ({ page }) => {
+  await firstRun(page);
+  await page.locator('#frText').fill('Mi tema corto\n\nArtículo 3: El castellano es la lengua española oficial del Estado.\n\nLa capital del Estado es la villa de Madrid.');
+  await page.locator('[data-fr-go="pegar"]').click();
+  await page.locator('[data-fr-go="tanda"]').click();
+  await expect(page.locator('.studybar')).toBeVisible();
+});
+
 test('texto pegado en «Trae tus apuntes»: título de la primera línea, fechas, cifras y huecos (al menos 6 preguntas)', async ({ page }) => {
   await firstRun(page);
   await page.locator('#frText').fill(TEMA);

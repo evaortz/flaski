@@ -354,7 +354,7 @@ export async function storeTemaImages(blocks) {
 }
 export async function readTema(t) {
   const md = await (await fetch(t.file, { cache: 'no-cache' })).text();
-  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards };
+  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards, count: t.count, leer: !!t.leer };
 }
 // Apartados de un apunte (los títulos de más arriba), cuántas preguntas salen y con cuántas se empieza
 function analyzePage(page) {
@@ -409,9 +409,16 @@ async function firstRunChosen(choice) {
     const p = { id: api.newId(), owner: S.uid, title: title || '', icon: '', deck_id: null, folder_id: folderId, tags: [], blocks };
     S.pages.set(p.id, p);
     savePageSoon(p, 0);
-    // Un tema de ejemplo empieza con sus 5 preguntas cortas; «Ver las 5 antes» las crea y abre su lista
     const tema = choice.page.cards;
     const temaSrc = tema ? temaSource({ cards: tema }) : 'apuntes';
+    // Un tema de ejemplo se abre por el apunte, arriba del todo, con todas sus preguntas ya creadas: desde ahí
+    // se estudia con su botón «Estudiar»
+    if (tema && kind === 'open') {
+      const list = await (await fetch(tema, { cache: 'no-cache' })).json();
+      await makeSuggested(p, await temaPicks(p, list), 'new', temaSrc);
+      go('page', { pageId: p.id });
+      return scrollTo(0, 0);
+    }
     const picks = tema ? await temaFirst(p, tema) : firstPicks(suggestFor(p, ''));
     if (tema && kind === 'review' && picks.length) {
       const { deckId } = await makeSuggested(p, picks, 'new', temaSrc);

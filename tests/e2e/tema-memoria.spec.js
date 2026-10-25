@@ -13,8 +13,8 @@ test('al añadirlo: 17 preguntas, una nota de cada tipo, todas unidas a su apart
   await openApp(page);
   await nav(page, 'Explorar');
   await expect(page.locator('.ex-hero')).toContainText('Un recorrido por todos los tipos de pregunta');
-  await page.locator('.ex-hero [data-ex="start-tema"]').click();
-  await expect(page.locator('.studybar')).toBeVisible();
+  await page.locator('.ex-hero [data-ex="read-tema"]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);
   const cards = await deckCards(page);
   expect(cards).toHaveLength(17);
   expect([...new Set(cards.map(c => c.type))].sort()).toEqual([...TYPES].sort());
