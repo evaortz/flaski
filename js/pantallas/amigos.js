@@ -19,7 +19,9 @@ export async function loadFriends(force = false) {
   f.at = Date.now();
   try {
     const [me, list, requests, cheers] = await Promise.all([api.social.me(), api.social.summary(dateKey()), api.social.requests(), api.social.cheers()]);
-    Object.assign(f, { me, list: list || [], requests: requests || [], cheers: cheers || [], missing: false, error: '' });
+    // Los de los últimos 7 días (también los vistos), para «Te han animado»; sin esa función, los sin ver
+    const recent = await api.social.recent().catch(() => null);
+    Object.assign(f, { me, list: list || [], requests: requests || [], cheers: cheers || [], recent: recent || cheers || [], missing: false, error: '' });
   } catch (e) {
     if (api.social.isMissingFn(e)) f.missing = true; else f.error = errMsg(e);
   }
@@ -52,8 +54,8 @@ export function markCheered(id) {
 }
 const avatar = (name, me = false) => `<span class="fr-av${me ? ' me' : ''}" aria-hidden="true">${esc(initial(name))}</span>`;
 
-// Ánimos: lo que se ve de cada tipo (los tres que guarda Supabase)
-export const CHEERS = [['clap', '¡Ánimo!'], ['go', '¡Tú puedes!'], ['fire', icon('racha', { size: 18, label: 'Fuego' })]];
+// Ánimos: lo que se ve de cada tipo (los que guarda Supabase); «¡Bravo!», para quien ya ha estudiado hoy
+export const CHEERS = [['clap', '¡Ánimo!'], ['go', '¡Tú puedes!'], ['fire', icon('racha', { size: 18, label: 'Fuego' })], ['bravo', '¡Bravo!']];
 const cheerText = kind => (CHEERS.find(c => c[0] === kind) || CHEERS[0])[1];
 
 // «Tus amigos» en Hoy: el último ánimo recibido y la clasificación de la semana, con un «¡Ánimo!» para quien no ha estudiado hoy
@@ -83,9 +85,9 @@ export function homeFriendsHTML() {
 // Una fila: puesto, avatar, nombre y preguntas de la semana, los 7 días, la racha y, a la derecha, hoy.
 // En la pantalla Amigos (full), el nombre abre las opciones de ese amigo (quitar, bloquear)
 function friendRow(p, cheered, full = false) {
-  const right = p.shared && p.today ? `<span class="frow-ok">${icon('check', { size: 14 })} hoy</span>`
-    : p.me ? (pendingToday() ? '<button type="button" class="frow-cheer" data-act="tanda-short">¡Te toca!</button>' : '')
+  const right = p.me ? (p.today ? `<span class="frow-ok">${icon('check', { size: 14 })} hoy</span>` : pendingToday() ? '<button type="button" class="frow-cheer" data-act="tanda-short">¡Te toca!</button>' : '')
     : cheered.has(p.id) ? `<span class="frow-sent">${icon('heart', { size: 14 })} enviado</span>`
+    : p.shared && p.today ? `<button type="button" class="frow-cheer bravo" data-cheer="${p.id}" data-cheer-kind="bravo" aria-label="Decir «¡Bravo!» a ${esc(p.name || 'tu amigo')}">${icon('racha', { size: 15 })}¡Bravo!</button>`
     : `<button type="button" class="frow-cheer" data-cheer="${p.id}" data-cheer-kind="clap" aria-label="Animar a ${esc(p.name || 'tu amigo')}">¡Ánimo!</button>`;
   return `<li class="frow${p.me ? ' me' : ''}"><span class="frow-pos">${p.pos || ''}</span>${avatar(p.name, p.me)}
     <span class="frow-t"><span class="frow-n">${full && !p.me ? `<button type="button" class="frow-name" data-friend-menu="${p.id}" aria-label="Opciones de ${esc(p.name || 'tu amigo')}">${esc(p.name || 'Sin nombre')}</button>` : `<b>${p.me ? 'Tú' : esc(p.name || 'Sin nombre')}</b>`}${p.shared ? ` · ${plural(weekTotal(p.week), 'pregunta', 'preguntas')}` : ''}</span>${p.shared ? weekDots(p.week) : ''}</span>
@@ -146,7 +148,7 @@ export function renderFriends() {
   // Te han animado: los ánimos recibidos y quién se ha hecho amigo tuyo esta semana
   const weekAgo = Date.now() - 7 * 864e5;
   const news = [
-    ...f.cheers.map(c => ({ t: c.created_at, name: c.name, html: `<b>${esc(c.name || 'Alguien')}</b> te dice: «${cheerText(c.kind)}»` })),
+    ...(f.recent || f.cheers).map(c => ({ t: c.created_at, name: c.name, html: `<b>${esc(c.name || 'Alguien')}</b> te dice: «${cheerText(c.kind)}»` })),
     ...f.list.filter(p => p.since && new Date(p.since).getTime() > weekAgo).map(p => ({ t: p.since, name: p.name, html: `<b>${esc(p.name || 'Alguien')}</b> y tú ya sois amigos` })),
   ].sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 8);
   const cheers = `<section class="fr-sec" aria-labelledby="h-frcheer"><h2 class="fr-h" id="h-frcheer">Te han animado</h2>

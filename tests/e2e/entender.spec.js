@@ -72,3 +72,16 @@ test('las básicas del tema de ejemplo pasan a «Explícalo» sin perder el prog
   await page.waitForTimeout(300);
   expect(await read()).toEqual(want);
 });
+
+test('Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color de la tanda sobre blanco', async ({ page }) => {
+  await create(page, 'explain', { q: '¿Por qué sube el paro?', k: 'Cae la demanda' });
+  for (const m of ['write', 'think']) {
+    const b = page.locator(`[data-ex-mode="${m}"]`);
+    await b.click();
+    await expect(b).toHaveAttribute('aria-pressed', 'true');
+    const [bg, fg, txt] = await b.evaluate(el => { const c = getComputedStyle(el); return [c.backgroundColor, c.color, el.textContent]; });
+    expect(bg).toBe('rgb(255, 255, 255)');
+    expect(fg).not.toBe(bg);
+    expect(txt.trim().length).toBeGreaterThan(0);
+  }
+});

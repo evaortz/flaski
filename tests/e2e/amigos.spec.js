@@ -10,7 +10,9 @@ const rpcs = (srv, fn) => sent(srv, fn).map(w => w[2]);
 test('amigos: esta semana, te han animado, invitar con tu código, aceptar, animar, añadir con un código y quitar', async ({ page }) => {
   const srv = await mockCloud(page);
   const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', streak: 2, today: 0, week: [30, 0, 0, 0, 0, 0, 0], since: new Date(Date.now() - 3 * 864e5).toISOString() };
-  Object.assign(srv.social, { friends: [ANA, CARLOS, DORA], requests: [BEA], cheers: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: new Date(Date.now() - 2 * 36e5).toISOString() }] });
+  const ago = h => new Date(Date.now() - h * 36e5).toISOString();
+  Object.assign(srv.social, { friends: [ANA, CARLOS, DORA], requests: [BEA], cheers: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: ago(2) }],
+    recent: [{ id: 'h1', name: 'Ana', kind: 'go', created_at: ago(2) }, { id: 'h0', name: 'Carlos', kind: 'bravo', created_at: ago(30) }] });
   await openCloud(page);
   await nav(page, 'Perfil');
   await expect(page.locator('#frBadge')).toHaveText('1 ánimo');
@@ -23,14 +25,18 @@ test('amigos: esta semana, te han animado, invitar con tu código, aceptar, anim
   const rows = page.locator('.fr-weeksec .frow');
   await expect(rows).toHaveCount(4);
   await expect(rows.nth(0)).toContainText('Ana · 47 preguntas');
-  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('hoy');
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('¡Bravo!');   // Ana ya ha estudiado hoy
   await expect(rows.nth(1)).toContainText('Dora · 30 preguntas');
   await expect(rows.nth(2)).toHaveClass(/me/);
   await expect(rows.nth(3).locator('.frow-st')).toHaveText('—');
+  // «¡Bravo!» a Ana: el ánimo de tipo «bravo», y pasa a «enviado»
+  await rows.nth(0).getByRole('button', { name: 'Decir «¡Bravo!» a Ana' }).click();
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('enviado');
   // Te han animado: «Ana te dice: «¡Tú puedes!»» y quien se ha hecho amigo esta semana
   await expect(page.locator('.fr-news li').first()).toContainText('Ana te dice: «¡Tú puedes!»');
   await expect(page.locator('.fr-news li').first()).toContainText('hace 2 h');
   await expect(page.locator('.fr-news')).toContainText('Dora y tú ya sois amigos');
+  await expect(page.locator('.fr-news')).toContainText('Carlos te dice: «¡Bravo!»');   // ya visto, pero de esta semana
   await expect(page.locator('.fr-news')).not.toContainText('te ha animado');
   // Tu código
   await expect(page.locator('#frMyCode')).toHaveText('EVA7-K2QX');
@@ -46,7 +52,7 @@ test('amigos: esta semana, te han animado, invitar con tu código, aceptar, anim
   // Animar a Dora, que aún no ha estudiado: una vez al día
   await page.getByRole('button', { name: 'Animar a Dora' }).click();
   await expect(page.locator('.fr-weeksec .frow', { hasText: 'Dora' }).locator('.frow-hoy')).toHaveText('enviado');
-  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: DORA.id, p_kind: 'clap' }]);
+  expect(rpcs(srv, 'send_cheer')).toEqual([{ p_to: ANA.id, p_kind: 'bravo' }, { p_to: DORA.id, p_kind: 'clap' }]);
 
   // Añadir con un código, escrito de cualquier manera
   await page.locator('#frCode').fill('abcd 1234');
@@ -83,7 +89,7 @@ test('Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de 
   await expect(rows.nth(0).locator('.frow-pos')).toHaveText('1');
   await expect(rows.nth(0).locator('.frow-week i')).toHaveCount(7);
   await expect(rows.nth(0).locator('.frow-st')).toHaveText('5');
-  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('hoy');
+  await expect(rows.nth(0).locator('.frow-hoy')).toHaveText('¡Bravo!');
   await expect(rows.nth(1)).toContainText('Dora · 30 preguntas');
   await expect(rows.nth(2)).toHaveClass(/me/);
   await expect(rows.nth(2)).toContainText('Tú · 0 preguntas');

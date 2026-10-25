@@ -271,7 +271,7 @@ document.addEventListener('click', async e => {
     e.target.closest('button').disabled = true;
     try { await api.social.cheer(ds.cheer, ds.cheerKind || 'clap'); } catch (err) { e.target.closest('button').disabled = false; return fail(err); }
     markCheered(ds.cheer);
-    toast(`Le has mandado ánimos a ${p?.name || 'tu amigo'} 👏`);
+    toast(ds.cheerKind === 'bravo' ? `Le has dicho «¡Bravo!» a ${p?.name || 'tu amigo'}` : `Le has mandado ánimos a ${p?.name || 'tu amigo'}`);
     if (S.view === 'friends') renderFriends();
     if (S.view === 'home') friendsChanged();
     return;

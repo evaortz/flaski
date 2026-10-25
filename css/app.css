@@ -3295,7 +3295,7 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 .card.mode-explain .front,.card.mode-whatif .front{display:flex;flex-direction:column;align-items:flex-start;text-align:left}
 .ent-modes{display:flex;gap:8px;margin:14px 0 8px}
 .ent-modes button{border:1.5px solid rgba(255,255,255,.45);background:transparent;color:inherit;border-radius:99px;min-height:44px;padding:0 18px;font:inherit;font-weight:600;cursor:pointer}
-.ent-modes button[aria-pressed="true"]{background:#fff;color:var(--accent);border-color:#fff}
+.ent-modes button[aria-pressed="true"]{background:#fff;color:var(--session);border-color:#fff}
 .ent-tip,.ent-q{opacity:.8;font-size:15px;margin:6px 0 0}
 .ent-text{width:100%;min-height:110px;border-radius:16px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:inherit;padding:12px 14px;font:inherit;font-size:16px;resize:vertical}
 .ent-text::placeholder{color:inherit;opacity:.6}
@@ -3959,3 +3959,5 @@ body.in-study .studybar .sb-info .left{color:rgba(255,255,255,.85)}
 .pr-list + .pr-cap{margin-top:22px}
 @media (min-width:960px){.pr-grid{grid-template-rows:auto 1fr}.pr-acc{align-self:start}}
 .set-find input,.set-find input:focus,.set-find input:focus-visible{border:0;box-shadow:none;outline:none;background:none;border-radius:0}
+.frow-cheer.bravo{display:inline-flex;align-items:center;gap:4px;background:var(--tag-yellow-bg);color:var(--tag-yellow)}
+.frow-cheer.bravo:hover{background:color-mix(in srgb,var(--tag-yellow-bg) 80%,var(--tag-yellow))}

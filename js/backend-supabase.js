@@ -303,6 +303,7 @@ export const social = {
   summary: today => rpc('friend_summary', { p_today: today }),         // [{ id, name, since, shared, streak, today, week, langs }]
   cheer: (to, kind = 'clap') => rpc('send_cheer', { p_to: to, p_kind: kind }),
   cheers: () => rpc('my_cheers'),                                      // [{ id, name, kind, created_at }]
+  recent: () => rpc('recent_cheers'),                                  // los de 7 días, también los ya vistos
   seen: async ids => { if (ids.length) check(await sb.from('cheers').update({ seen: true }).in('id', ids)); },
   isMissingFn,
 };

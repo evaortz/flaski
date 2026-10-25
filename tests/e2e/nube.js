@@ -63,9 +63,9 @@ export async function mockCloud(page) {
       return json(srv.writes.filter(w => w[1] === 'bump_review_log' && w[2].p_day === p_day).reduce((s, w) => s + w[2].p_delta, 0));
     }
     const SOCIAL = { my_social: () => [{ code: srv.social.code, share: srv.social.share }], friend_summary: () => srv.social.friends,
-      friend_requests: () => srv.social.requests, my_cheers: () => srv.social.cheers, request_friend: () => srv.social.result };
+      friend_requests: () => srv.social.requests, my_cheers: () => srv.social.cheers, recent_cheers: () => srv.social.recent || srv.social.cheers, request_friend: () => srv.social.result };
     const fn = path.startsWith('rpc/') ? path.slice(4) : '';
-    if (['my_social', 'friend_summary', 'friend_requests', 'my_cheers', 'request_friend', 'respond_friend', 'remove_friend', 'block_friend', 'unblock_friend', 'send_cheer', 'set_share'].includes(fn)) {
+    if (['my_social', 'friend_summary', 'friend_requests', 'my_cheers', 'recent_cheers', 'request_friend', 'respond_friend', 'remove_friend', 'block_friend', 'unblock_friend', 'send_cheer', 'set_share'].includes(fn)) {
       if (srv.social.missing) return json({ code: 'PGRST202', message: 'Could not find the function' }, 404);
       srv.writes.push(['rpc', fn, req.postData() ? req.postDataJSON() : null]);
       return json(SOCIAL[fn] ? SOCIAL[fn]() : null);

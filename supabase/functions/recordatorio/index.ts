@@ -29,7 +29,7 @@ async function send(s: Sub, msg: { title: string; body: string; tag: string; url
   }
 }
 // Lo mismo que se ve en la app (CHEERS en js/pantallas/amigos.js); el fuego, que allí es el icono de la racha, va como 🔥
-const CHEER: Record<string, string> = { clap: '¡Ánimo!', go: '¡Tú puedes!', fire: '🔥' };
+const CHEER: Record<string, string> = { clap: '¡Ánimo!', go: '¡Tú puedes!', fire: '🔥', bravo: '¡Bravo!' };
 // Un ánimo nuevo (webhook de la tabla cheers): avisa en los dispositivos de quien lo recibe
 async function cheer(rec: { to_user: string; from_user: string; kind: string }) {
   const { data: subs } = await sb.from('push_subs').select('*').eq('user_id', rec.to_user).eq('cheers', true);

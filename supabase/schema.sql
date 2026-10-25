@@ -209,9 +209,15 @@ drop policy if exists "editar mi perfil" on public.profiles;
 create policy "editar mi perfil" on public.profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
+-- Papelera (versión 11): lo borrado lleva la fecha en «deleted_at» durante 30 días; la app lo limpia del todo al abrirse.
+-- (Va antes de las políticas porque las de lectura pública ya la usan.)
+alter table public.decks   add column if not exists deleted_at timestamptz;
+alter table public.pages   add column if not exists deleted_at timestamptz;
+alter table public.folders add column if not exists deleted_at timestamptz;
+
 drop policy if exists "ver mazos" on public.decks;
 create policy "ver mazos" on public.decks
-  for select to authenticated using (owner = auth.uid() or is_public);
+  for select to authenticated using (owner = auth.uid() or (is_public and deleted_at is null));
 drop policy if exists "crear mazos" on public.decks;
 create policy "crear mazos" on public.decks
   for insert to authenticated with check (owner = auth.uid());
@@ -226,7 +232,7 @@ drop policy if exists "ver tarjetas" on public.cards;
 create policy "ver tarjetas" on public.cards
   for select to authenticated using (
     owner = auth.uid()
-    or exists (select 1 from public.decks d where d.id = deck_id and d.is_public)
+    or exists (select 1 from public.decks d where d.id = deck_id and d.is_public and d.deleted_at is null)
   );
 drop policy if exists "crear tarjetas" on public.cards;
 create policy "crear tarjetas" on public.cards
@@ -341,7 +347,7 @@ create table if not exists public.cheers (
   id         uuid primary key default gen_random_uuid(),
   from_user  uuid not null references auth.users on delete cascade,
   to_user    uuid not null references auth.users on delete cascade,
-  kind       text not null default 'clap' check (kind in ('clap', 'fire', 'go')),
+  kind       text not null default 'clap' check (kind in ('clap', 'fire', 'go', 'bravo')),
   day        date not null default current_date,
   seen       boolean not null default false,
   created_at timestamptz not null default now(),
@@ -548,3 +554,54 @@ create policy "mis avisos" on public.push_subs
 -- Qué avisos quiere cada dispositivo: el recordatorio diario y/o cuando alguien le anima
 alter table public.push_subs add column if not exists daily  boolean not null default true;
 alter table public.push_subs add column if not exists cheers boolean not null default false;
+
+-- ---------- Paso 5 (versión 11): «¡Bravo!», papelera y borrar la cuenta ----------
+-- IMPORTANTE: ejecuta este archivo en el SQL Editor ANTES de subir la app nueva (la app pide deleted_at).
+-- Después, vuelve a desplegar la función «recordatorio» (avisa también de «¡Bravo!»).
+
+-- «¡Bravo!»: un tipo de ánimo más (en bases creadas antes, la comprobación antigua se cambia por esta)
+alter table public.cheers drop constraint if exists cheers_kind_check;
+alter table public.cheers add constraint cheers_kind_check check (kind in ('clap', 'fire', 'go', 'bravo'));
+
+-- «Te han animado»: los ánimos recibidos de los últimos 7 días, también los ya vistos
+create or replace function public.recent_cheers()
+returns table (id uuid, name text, kind text, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select c.id, coalesce(p.display_name, ''), c.kind, c.created_at from cheers c join profiles p on p.id = c.from_user
+  where c.to_user = auth.uid() and c.created_at > now() - interval '7 days' order by c.created_at desc limit 20;
+$$;
+revoke execute on function public.recent_cheers() from public, anon;
+grant execute on function public.recent_cheers() to authenticated;
+
+-- Borrar la cuenta: se borra la fila de auth.users y todo lo demás cae con ella («on delete cascade»).
+-- Comprobación: las claves ajenas hacia auth.users y qué hacen al borrar (todas deberían decir «cascade»).
+-- Para ver el resultado, ejecuta solo esta consulta.
+select c.conrelid::regclass as tabla, a.attname as columna,
+  case c.confdeltype when 'c' then 'cascade' when 'n' then 'set null' when 'r' then 'restrict' when 'a' then 'no action' when 'd' then 'set default' end as al_borrar
+from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+where c.contype = 'f' and c.confrelid = 'auth.users'::regclass
+order by 1, 2;
+-- Y si alguna de las tablas de la app no fuera «cascade», se cambia aquí
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname, c.conrelid::regclass as tbl, pg_get_constraintdef(c.oid) as def
+    from pg_constraint c
+    where c.contype = 'f' and c.confrelid = 'auth.users'::regclass and c.connamespace = 'public'::regnamespace and c.confdeltype <> 'c'
+  loop
+    execute format('alter table %s drop constraint %I', r.tbl, r.conname);
+    execute format('alter table %s add constraint %I %s on delete cascade', r.tbl, r.conname,
+      regexp_replace(r.def, '\s+ON DELETE (SET NULL|SET DEFAULT|RESTRICT|NO ACTION|CASCADE)', '', 'i'));
+  end loop;
+end $$;
+
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'Sin sesión'; end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke execute on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
