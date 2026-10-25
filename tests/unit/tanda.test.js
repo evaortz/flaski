@@ -20,6 +20,8 @@ test('ritmo: solo las últimas 100 respuestas, sin contar las que no tienen tiem
   const old = evs(...Array(200).fill(60)), recent = evs(...Array(100).fill(9));
   assert.equal(pace([...old, ...recent]), 9);
   assert.equal(pace([...evs(...Array(30).fill(15)), ...Array(50).fill({ ms: 0 })]), 15);
+  // Nunca menos de 6 s por pregunta, aunque respondas más rápido
+  assert.equal(pace(evs(...Array(40).fill(2))), 6);
 });
 
 test('tamaño: minutos × 60 / ritmo, redondeado y como mínimo 5', () => {

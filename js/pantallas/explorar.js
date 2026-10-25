@@ -4,11 +4,11 @@ import { cardsFromCSV } from '../csv.js';
 import { icon } from '../icons.js';
 import { isNotesDeck, notesToDeck } from '../notes.js';
 import { importImages } from '../media.js';
-import { $, main, S, esc, fmt, norm, toast, fail } from '../comun.js';
+import { $, main, S, esc, fmt, norm, fold, toast, fail } from '../comun.js';
 import { plural, parseDeckFile, download } from './mazos.js';
 import { openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
-import { TEMAS } from '../primera-vez.js';
+import { TEMAS, temaSource } from '../primera-vez.js';
 import { addTema } from './pruebas.js';
 import { readTema } from './cuenta.js';
 import { startSession, langLabel } from './estudio.js';
@@ -26,7 +26,24 @@ async function loadExplore(force) {
 // Filtros por objetivo (los que tienen algo) y lo que sale en cada uno
 const GOALS = [['all', 'Todo'], ['idiomas', 'Idiomas'], ['oposiciones', 'Oposiciones'], ['carrera', 'Carrera'], ['amigos', 'De tus amigos']];
 const GOAL_TITLE = { idiomas: 'Idiomas', oposiciones: 'Oposiciones', carrera: 'Carrera' };
-const ownTema = t => [...S.pages.values()].find(p => p.title === t.title || p.title === t.page);
+// ¿Ya tienes este tema de ejemplo? Por el origen de su lista («tema:…»); si no lo tiene (listas de antes), por el
+// nombre sin acentos ni palabras vacías: «La Constitución · Título Preliminar» = «La Constitución Española · Título Preliminar»
+const STOP = new Set(['las', 'los', 'del', 'por', 'que', 'una', 'uno', 'con', 'para', 'como', 'espanola', 'espanol']);
+const words = s => fold(s).replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter(w => w.length > 2 && !STOP.has(w));
+export function sameName(a, b) {
+  const x = words(a), y = words(b);
+  const [s, l] = x.length <= y.length ? [x, y] : [y, x];
+  return s.length >= 2 && s.every(w => l.includes(w));
+}
+function ownTema(t) {
+  const src = temaSource(t), decks = [...S.decks.values()].filter(d => !d.archived);
+  const deck = decks.find(d => d.source === src);
+  if (deck) return { deck, page: [...S.pages.values()].find(p => p.deck_id === deck.id) || null };
+  const page = [...S.pages.values()].find(p => p.title === t.title || p.title === t.page || sameName(p.title, t.title));
+  if (page) return { page, deck: page.deck_id ? S.decks.get(page.deck_id) || null : null };
+  const d2 = decks.find(d => sameName(d.name, t.title));
+  return d2 ? { deck: d2, page: null } : null;
+}
 const friendIds = () => new Set((S.friends?.list || []).map(f => f.id));
 export function renderExplore() {
   if (!S.pub || !S.builtin) {
@@ -107,14 +124,14 @@ export async function exploreClick(b) {
       const t = TEMAS[Number(ds.i)];
       try {
         const r = await addTema(t);
-        const p = r?.page || ownTema(t);
+        const p = r?.page || ownTema(t)?.page;
         closeSheet();
         if (ds.ex === 'start-tema' && p?.deck_id) return startSession(p.deck_id, { minutes: 5 });
         toast(`«${t.title}» añadido`); renderExplore();
       } catch (e) { b.disabled = false; fail(e); }
       return;
     }
-    case 'open-tema': { const p = ownTema(TEMAS[Number(ds.i)]); closeSheet(); return p && go('page', { pageId: p.id }); }
+    case 'open-tema': { const o = ownTema(TEMAS[Number(ds.i)]); closeSheet(); if (o?.page) return go('page', { pageId: o.page.id }); return o?.deck && go('deck', { deckId: o.deck.id, cardQuery: '' }); }
     case 'see-tema': return temaPreview(Number(ds.i));
   }
 }
@@ -127,9 +144,17 @@ async function temaPreview(i) {
     const text = blocks.filter(b => b.type === 'p').slice(0, 2).map(b => `<p>${fmt(b.text)}</p>`).join('');
     const own = ownTema(t);
     openSheet(`<h2 class="sheet-hand">${esc(t.title)}</h2><p class="muted small">tema de ejemplo · apunte y ${t.count} preguntas</p>${text}
-      <ul class="preview">${qs.slice(0, 5).map(x => `<li><span>${esc(x.pregunta)}</span><b>${esc(String(x.respuesta))}</b></li>`).join('')}</ul>
+      <ul class="preview">${qs.slice(0, 5).map(x => { const v = holes(x.pregunta, x.respuesta); return `<li><span>${esc(v.q)}</span><b>${esc(v.a)}</b></li>`; }).join('')}</ul>
       <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button>${own ? `<button class="primary" data-ex="open-tema" data-i="${i}">Abrir</button>` : `<button class="primary" data-ex="start-tema" data-i="${i}">Añadir y empezar</button>`}</div>`);
   } catch (e) { closeSheet(); fail(e); }
+}
+// Una pregunta con huecos, como en la tanda: «[…]» en la pregunta y lo que va en el hueco como respuesta
+const HOLE = /\{\{(.+?)(?:::(.+?))?\}\}/g;
+export function holes(q, a) {
+  const text = String(q ?? ''), fills = [...text.matchAll(HOLE)].map(m => m[1]);
+  if (!fills.length) return { q: text, a: String(a ?? '') };
+  const rest = String(a ?? '').replace(HOLE, '$1').trim();
+  return { q: text.replace(HOLE, '[…]'), a: rest && !fills.includes(rest) && rest !== text.replace(HOLE, '$1') ? rest : fills.join(' · ') };
 }
 // La lista tuya que salió de una incluida o compartida (source «incluido:…» o «compartido:…»)
 export const ownedDeck = src => [...S.decks.values()].find(d => d.source === src && !d.archived) || [...S.decks.values()].find(d => d.source === src);
@@ -154,7 +179,7 @@ function showPreview(byline) {
   const p = S.preview;
   // Una fila por nota (con varias plantillas, la primera cara): «die Wohnung · el piso»
   const seen = new Set(), rows = p.cards.filter(c => !c.note_id || (!seen.has(c.note_id) && seen.add(c.note_id)));
-  const sample = rows.slice(0, 6).map(c => `<li><span>${fmt(c.front)}</span><b>${fmt(c.back)}</b></li>`).join('');
+  const sample = rows.slice(0, 6).map(c => { const v = holes(c.front, c.back); return `<li><span>${fmt(v.q)}</span><b>${fmt(v.a)}</b></li>`; }).join('');
   openSheet(`<h2 class="sheet-hand">${esc(p.name)}</h2><p class="muted small">${p.cards.length} preguntas${p.lang ? ` · ${esc(langLabel(p.lang))}` : ''} · ${byline}</p>
     ${p.description ? `<p>${fmt(p.description)}</p>` : ''}
     <ul class="preview">${sample}</ul>${rows.length > 6 ? `<p class="muted small">…y ${rows.length - 6} más.</p>` : ''}

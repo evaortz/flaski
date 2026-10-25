@@ -3,6 +3,7 @@
 
 export const TANDA_MINUTES = [5, 10, 15, 20];
 export const DEFAULT_PACE = 20;   // segundos por pregunta si aún no hay datos
+export const MIN_PACE = 6;        // como mínimo, segundos por pregunta en las estimaciones
 
 // Segundos por pregunta: la mediana de las últimas 100 respuestas (cada una ya trae su tiempo, con tope de 2 min).
 // La mediana aguanta los ratos en que dejas el móvil a mitad de pregunta. Con menos de 20 respuestas, 20 s.
@@ -16,7 +17,8 @@ export function pace(events, { last = 100, min = 20 } = {}) {
   ms.sort((a, b) => a - b);
   const m = ms.length >> 1;
   const med = ms.length % 2 ? ms[m] : (ms[m - 1] + ms[m]) / 2;
-  return Math.max(3, Math.round(med / 1000));
+  // Nunca menos de 6 s: con respuestas muy rápidas las cuentas («200 al día con 10 min») no serían creíbles
+  return Math.max(MIN_PACE, Math.round(med / 1000));
 }
 
 // Preguntas que caben: minutos × 60 / ritmo, redondeado, mínimo 5

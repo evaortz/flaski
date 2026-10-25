@@ -5,7 +5,7 @@ import { dateKey } from '../srs.js';
 import { S, toast, fail, cardList } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
 import { onSignedIn, readTema } from './cuenta.js';
-import { TEMAS, temaCards } from '../primera-vez.js';
+import { TEMAS, temaCards, temaSource } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
 import { makeSuggested, blockFor } from './sugerencias.js';
 import { closeSheet } from './editor.js';
@@ -72,7 +72,7 @@ export async function addTema(t) {
   if (p && cardList().some(c => c.page_id === p.id)) return null;
   if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
   if (!p.deck_id || !S.decks.has(p.deck_id)) {
-    const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: 'apuntes', folder_id: p.folder_id || null });
+    const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null });
     S.decks.set(deck.id, { tags: [], ...deck });
     p = await api.savePage({ ...p, deck_id: deck.id }); S.pages.set(p.id, p);
   }

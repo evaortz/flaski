@@ -54,7 +54,7 @@ test('preparar, responder, «¿Entregas ya?», nota y respuestas; los fallos pas
   await expect(page.locator('.sm-h')).toHaveText('¿Entregas ya?');
   await expect(page.locator('.sm-kpis .flag b')).toHaveText('1');
   await expect(page.locator('.sm-grid .sm-n')).toHaveCount(n);
-  await expect(page.locator('[data-sim="goto-flag"]')).toContainText('ir a las 1 para revisar');
+  await expect(page.locator('[data-sim="goto-flag"]')).toHaveText('Seguir · ir a la 1 para revisar');
   await page.locator('[data-sim="submit"]').click();
   // Nota
   await expect(page.locator('.sm-score b')).toBeVisible();
@@ -80,6 +80,10 @@ test('preparar, responder, «¿Entregas ya?», nota y respuestas; los fallos pas
   await page.locator('[data-sim="close"]').click();
   await expect(page.locator('.sm-last li')).toHaveCount(1);
   await expect(page.locator('.sm-chart')).toBeVisible();
+  // Una fila de «Los últimos» abre «Las respuestas»
+  await page.locator('.sm-last button').first().click();
+  await expect(page.locator('.sm-h')).toHaveText('Las respuestas');
+  await expect(page.locator('.sm-a')).toHaveCount(n);
 });
 
 test('simulacro a medias: al volver, «te quedan N min · Seguir / Descartar», y el reloj sigue desde donde estaba', async ({ page }) => {

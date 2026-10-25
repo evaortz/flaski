@@ -84,20 +84,20 @@ export function prepSheet(exam) {
 }
 function drawPrep() {
   const p = S.simPrep, avail = eligible(p.scope || p.exam, p.testOnly).length;
-  const ns = N_OPTS.filter(n => n <= avail);
-  if (!ns.length && avail) ns.push(avail);
+  // 20 · 40 · 60 · 100 (las que no caben, apagadas); con menos de 20, también «todas»
+  const opts = avail && avail < N_OPTS[0] ? [avail, ...N_OPTS] : N_OPTS, ns = opts.filter(n => n <= avail);
   if (!ns.includes(p.n)) p.n = ns.filter(n => n <= p.n).at(-1) || ns[0] || 0;
   const seg = (k, opts) => `<div class="sm-seg" role="group">${opts.map(([v, l, off]) => `<button type="button" class="sm-opt" data-sim="prep-set" data-k="${k}" data-v="${v}" aria-pressed="${String(p[k]) === String(v)}" ${off ? 'disabled' : ''}>${l}</button>`).join('')}</div>`;
   const scopes = scopesOf(p.exam);
   openSheet(`<div class="sm-prep"><h2 class="sheet-hand">Preparar simulacro</h2><p class="muted small">Elige como en tu examen. Se guarda para la próxima vez.</p>
     ${scopes.length ? `<label class="st-lab" for="smScope">De qué temas</label><select id="smScope"><option value="">Todo · ${esc(keyName(p.exam))}</option>${scopes.map(k => `<option value="${esc(k)}" ${p.scope === k ? 'selected' : ''}>${esc(keyName(k))}</option>`).join('')}</select>` : `<p class="st-lab">De qué temas</p><p>${esc(keyName(p.exam))}</p>`}
     <p class="muted small">Solo entra lo que ya has empezado a estudiar: ${plural(avail, p.testOnly ? 'pregunta de test' : 'pregunta', p.testOnly ? 'preguntas de test' : 'preguntas')}.</p>
-    <p class="st-lab">Cuántas preguntas</p>${seg('n', (ns.length ? [...new Set([...N_OPTS.filter(n => n < Math.max(...ns)), ...ns])] : N_OPTS).map(n => [n, n, n > avail]))}
+    <p class="st-lab">Cuántas preguntas</p>${seg('n', opts.map(n => [n, n, n > avail]))}
     <p class="st-lab">Tiempo</p>${seg('time', TIME_OPTS.map(t => [t, t ? `${t} min` : 'Sin límite']))}
     <p class="st-lab">Los fallos restan</p>${seg('pen', PEN_OPTS)}
     <p class="muted small">${p.pen ? `Cada ${p.pen} fallos te quitan un acierto. «En blanco» no resta.` : 'Los fallos no restan.'}</p>
     <div class="set-row"><div class="set-l"><b id="smTestL">Solo preguntas de test</b><small>Las de dar la vuelta las corriges tú al final.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="smTestL" id="smTest" ${p.testOnly ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
-    <button class="primary big" data-sim="start" ${p.n ? '' : 'disabled'}>${p.n ? `Empezar · ${p.n} preguntas${p.time ? `, ${p.time} min` : ''}` : 'Aún no hay preguntas empezadas'}</button>
+    <button class="primary big" data-sim="start" ${p.n ? '' : 'disabled'}>${p.n ? `Empezar · ${plural(p.n, 'pregunta', 'preguntas')}${p.time ? `, ${p.time} min` : ''}` : 'Aún no hay preguntas empezadas'}</button>
     <button class="link sm-later" data-act="close-sheet">Ahora no</button></div>`);
   $('#smScope')?.addEventListener('change', e => { p.scope = e.target.value; drawPrep(); });
   $('#smTest').addEventListener('change', e => { p.testOnly = e.target.checked; drawPrep(); });
@@ -145,7 +145,7 @@ const headHTML = (sub, back = 'exit') => {
     <div class="sm-ht"><b>Simulacro · ${esc(sim.name)}</b><small>${sub}</small></div>
     <button class="sm-clock${left != null && left <= 5 * 60e3 ? ' warn' : ''}" data-sim="review" aria-label="Tiempo · ¿Entregas ya?">${icon('timer', { size: 16 })}<span data-clock>${clock(left ?? elapsed(sim))}</span></button></div>`;
 };
-const qState = (q, i) => (i === S.sim.cur ? 'cur' : q.flag ? 'flag' : answered(q) ? 'done' : S.sim.seen.includes(i) ? 'blank' : 'unseen');
+const qState = (q, i) => (i === S.sim.cur && S.sim.phase === 'q' ? 'cur' : q.flag ? 'flag' : answered(q) ? 'done' : S.sim.seen.includes(i) ? 'blank' : 'unseen');
 const answered = q => q.ans != null && String(q.ans).trim() !== '';
 function gridHTML(cols = '') {
   return `<div class="sm-grid ${cols}">${S.sim.qs.map((q, i) => `<button type="button" class="sm-n st-${qState(q, i)}" data-sim="goto" data-i="${i}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('')}</div>`;
@@ -192,7 +192,7 @@ function reviewHTML() {
     <div class="sm-legend"><span><i class="st-done"></i>respondida</span><span><i class="st-flag"></i>para revisar</span><span><i class="st-blank"></i>en blanco</span><span><i class="st-unseen"></i>sin ver</span></div>
     <p class="sm-note">${icon('alert-triangle', { size: 16 })} Toca un número para volver a esa pregunta.${left != null ? ` Te quedan ${Math.max(1, Math.ceil(left / 60e3))} minutos.` : ''}</p>
     <button class="sm-go" data-sim="submit">Entregar y ver la nota</button>
-    ${flag ? `<button class="sm-go2" data-sim="goto-flag">Seguir · ir a las ${flag} para revisar</button>` : ''}</div>`;
+    ${flag ? `<button class="sm-go2" data-sim="goto-flag">Seguir · ir a ${flag === 1 ? 'la 1' : `las ${flag}`} para revisar</button>` : ''}</div>`;
 }
 // Las de dar la vuelta: tras entregar, «¿La sabías?» de cada una
 function selfHTML() {
@@ -259,10 +259,10 @@ function resultHTML() {
   const ctx = !prev ? '' : r.score === prev.score ? 'Igual que el anterior' : `${best && r.score > prev.score ? 'Tu mejor simulacro hasta ahora · ' : ''}${r.score > prev.score ? '+' : '−'}${dec(Math.abs(r.score - prev.score))} que el anterior`;
   const pen = r.settings.pen, net = Math.round((r.ok - (pen ? r.bad / pen : 0)) * 100) / 100;
   const fails = (r.qs || []).filter(q => q[3] === 'x').map(q => q[0]).filter(id => S.cards.has(id));
-  return `<div class="sm-page sm-res"><div class="sm-head"><button class="sm-x" data-sim="close" aria-label="Cerrar">${icon('x', { size: 22 })}</button><div class="sm-ht"><b>Simulacro · ${esc(r.name)}</b><small>${r.n} preguntas · ${r.min} min${pen ? ' · con penalización' : ''}</small></div><span></span></div>
+  return `<div class="sm-page sm-res"><div class="sm-head"><button class="sm-x" data-sim="close" aria-label="Cerrar">${icon('x', { size: 22 })}</button><div class="sm-ht"><b>Simulacro · ${esc(r.name)}</b><small>${plural(r.n, 'pregunta', 'preguntas')} · ${r.min} min${pen ? ' · con penalización' : ''}</small></div><span></span></div>
     <div class="sm-score"><b>${dec(r.score)}</b><span>sobre 10</span></div>
     ${ctx ? `<p class="sm-ctx">${ctx}</p>` : ''}
-    <div class="sm-kpis"><div><b>${r.ok}</b><small>aciertos</small></div><div class="bad"><b>${r.bad}</b><small>fallos</small></div><div><b>${r.blank}</b><small>en blanco</small></div></div>
+    <div class="sm-kpis"><div><b>${r.ok}</b><small>${r.ok === 1 ? 'acierto' : 'aciertos'}</small></div><div class="bad"><b>${r.bad}</b><small>${r.bad === 1 ? 'fallo' : 'fallos'}</small></div><div><b>${r.blank}</b><small>en blanco</small></div></div>
     ${pen ? `<p class="sm-pen">Los fallos restan ${penText(pen)}: ${r.ok} − ${r.bad} ÷ ${pen} = ${dec(net)} netas de ${r.n}.${r.blank ? ` Dejar en blanco ${r.blank} te ha salvado algo.` : ''}</p>` : ''}
     <h2 class="sm-h2">Por tema</h2>
     <ul class="sm-topics">${r.topics.map(t => { const n = t.o + t.x + t.b; return `<li><div><span>${esc(t.name)}</span><span>${t.o} de ${n}</span></div><div class="sm-tb"><i class="o" style="width:${(100 * t.o) / n}%"></i><i class="x" style="width:${(100 * t.x) / n}%"></i><i class="b" style="width:${(100 * t.b) / n}%"></i></div></li>`; }).join('')}</ul>
@@ -270,7 +270,7 @@ function resultHTML() {
     <h2 class="sm-h2">Tus simulacros</h2>${chartSVG(r.exam, true)}
     ${r.bad ? `<p class="sm-note">${icon('refresh-cw', { size: 16 })} ${r.bad === 1 ? 'El fallo ya está' : `Los ${r.bad} fallos ya están`} en tu tanda de mañana.</p>` : ''}
     ${fails.length ? `<button class="sm-go" data-sim="fails" data-id="${esc(r.id)}">Repasar ${fails.length === 1 ? 'el fallo' : `los ${fails.length} fallos`} ahora</button>` : ''}
-    ${r.qs ? `<button class="sm-go2" data-sim="answers" data-id="${esc(r.id)}">Ver las ${r.n} respuestas</button>` : ''}</div>`;
+    ${r.qs ? `<button class="sm-go2" data-sim="answers" data-id="${esc(r.id)}">${r.n === 1 ? 'Ver la respuesta' : `Ver las ${r.n} respuestas`}</button>` : ''}</div>`;
 }
 function answersHTML() {
   const r = recOf(S.simShow.id);
@@ -322,15 +322,16 @@ export function simBlockHTML(exam) {
     ${chartSVG(exam)}
     ${all.length >= 2 ? `<p class="sm-up">${icon('chart-line', { size: 16 })} ${up > 0 ? `Vas subiendo: +${dec(up)} desde el primero` : up < 0 ? `${dec(up)} desde el primero` : 'Igual que el primero'}</p>` : ''}
     ${pend?.exam === exam ? `<button class="primary big" data-sim="continue">Seguir el simulacro a medias</button>` : `<button class="primary big" data-sim="prep" data-exam="${esc(exam)}">Hacer un simulacro</button>`}</section>
-    ${last.length ? `<div class="section-h"><h2>Los últimos</h2></div><ul class="sm-last">${last.map(s => `<li><button data-sim="${s.qs ? 'answers' : 'result'}" data-id="${esc(s.id)}"><b>${dec(s.score)}</b><span><span>${esc(s.name)} · ${s.n} preguntas</span><small>${shortDate(s.date)} · ${s.min} min · ${plural(s.bad, 'fallo', 'fallos')}</small></span>${icon('chevron-right', { size: 18 })}</button></li>`).join('')}</ul>` : ''}`;
+    ${last.length ? `<div class="section-h"><h2>Los últimos</h2></div><ul class="sm-last">${last.map(s => `<li><button data-sim="${s.qs ? 'answers' : 'result'}" data-id="${esc(s.id)}"><b>${dec(s.score)}</b><span><span>${esc(s.name)} · ${plural(s.n, 'pregunta', 'preguntas')}</span><small>${shortDate(s.date)} · ${s.min} min · ${plural(s.bad, 'fallo', 'fallos')}</small></span>${icon('chevron-right', { size: 18 })}</button></li>`).join('')}</ul>` : ''}`;
 }
 // Al abrir la app con un simulacro a medias
 export function maybeResumeSim() {
   const p = pendingSim();
-  if (!p || S.view === 'sim') return;
+  if (!p || S.view === 'sim') return false;
   const left = p.limit ? Math.max(0, p.limit - p.elapsed) : null;
   openSheet(`<h2 class="sheet-hand">Tienes un simulacro a medias</h2><p>${esc(p.name)} · ${left != null ? `te quedan ${Math.max(1, Math.ceil(left / 60e3))} min` : `llevas ${Math.round(p.elapsed / 60e3)} min`}</p>
     <div class="btnrow"><button class="ghost" data-sim="discard">Descartar</button><span class="spacer"></span><button class="primary" data-sim="continue">Seguir</button></div>`);
+  return true;
 }
 
 /* ===================== clics y teclado ===================== */

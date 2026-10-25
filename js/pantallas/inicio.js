@@ -97,7 +97,7 @@ export function backlogSheet() {
 // «Empezar una tanda · N min · M preguntas», la tanda de siempre («las X de hoy») y cambiar la duración
 function shortHTML(avail) {
   const { minutes, n, secs } = shortInfo(), m = Math.min(n, avail);
-  const mins = m < n ? Math.max(1, Math.round((m * secs) / 60)) : minutes;
+  const mins = m < n ? Math.max(1, Math.ceil((m * secs) / 60)) : minutes;
   return `<button class="primary big hero-go" data-act="tanda-short"><span class="hero-go-t">Empezar una tanda<small>${mins} min · ${plural(m, 'pregunta', 'preguntas')}</small></span></button>
     <div class="hero-more">${avail > m ? `<button class="hero-all" data-start="all"><span class="hero-m">o hacer las ${avail} de hoy</span><span class="hero-d">Hacer las ${avail} de hoy</span></button>` : ''}
       ${todayMinutes() == null ? `<button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button>`

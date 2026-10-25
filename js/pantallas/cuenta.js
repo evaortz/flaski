@@ -12,6 +12,7 @@ import { openFirstRun, TEMAS, fileKind, temaCards } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
 import { folderKey, normalizeWeights } from '../plan.js';
 import { maybeResumeSim } from './simulacro.js';
+import { temaSource } from '../primera-vez.js';
 import { markdownToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
@@ -157,9 +158,7 @@ export async function onSignedIn(session) {
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
-    maybeResumeSim();
-    maybeIntro();
-    maybeNews();
+    if (!maybeResumeSim()) { maybeIntro(); maybeNews(); }
     pushAutoSync();
   } catch (e) {
     S.loading = false;
@@ -345,13 +344,14 @@ async function firstRunChosen(choice) {
     savePageSoon(p, 0);
     // Un tema de ejemplo empieza con sus 5 preguntas cortas; «Ver las 5 antes» las crea y abre su lista
     const tema = choice.page.cards;
+    const temaSrc = tema ? temaSource({ cards: tema }) : 'apuntes';
     const picks = tema ? await temaFirst(p, tema) : firstPicks(suggestFor(p, ''));
     if (tema && kind === 'review' && picks.length) {
-      const { deckId } = await makeSuggested(p, picks, 'new');
+      const { deckId } = await makeSuggested(p, picks, 'new', temaSrc);
       return go('deck', { deckId, cardQuery: '' });
     }
     if (kind === 'tanda' && picks.length) {
-      await makeSuggested(p, picks, 'new');
+      await makeSuggested(p, picks, 'new', temaSrc);
       return startSession('page:' + p.id, { firstRun: true });
     }
     go('page', { pageId: p.id });

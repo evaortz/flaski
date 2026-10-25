@@ -199,9 +199,9 @@ export function saveSugEditor() {
 }
 export function readSugEdit() {}
 // Crea las preguntas de unas sugerencias del apunte (en una lista nueva con su nombre si deckId es 'new')
-export async function makeSuggested(p, picked, deckId) {
+export async function makeSuggested(p, picked, deckId, source = 'apuntes') {
   if (deckId === 'new' || !deckId) {
-    const deck = await api.createDeck({ owner: S.uid, name: pageTitle(p).slice(0, 80) || 'Apuntes', description: '', source: 'apuntes', folder_id: p.folder_id || null });
+    const deck = await api.createDeck({ owner: S.uid, name: pageTitle(p).slice(0, 80) || 'Apuntes', description: '', source, folder_id: p.folder_id || null });
     S.decks.set(deck.id, { tags: [], ...deck });
     deckId = deck.id;
   }
