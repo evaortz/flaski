@@ -4170,6 +4170,8 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .sd-drop{background:var(--sw-drop)}
 .sd-add{background:var(--sw-add)}
 .sd-edit{width:56px;height:56px;background:color-mix(in srgb,var(--accent) 9%,var(--bg));color:var(--accent)}
+/* (la franja del anillo es el fondo de la hoja: --sw-gap de la tanda sale del color de la sesión, que aquí no hay) */
+.sd-wrap{--sw-gap:var(--bg)}
 .sd-add{--sw-c:var(--sw-add)}
 .sd-drop{--sw-c:var(--sw-drop)}
 .sd-edit{--sw-c:var(--sw-edit)}

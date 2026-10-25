@@ -355,6 +355,8 @@ test('remates: un título que no es un término no da «¿Qué es…?»; las lis
   assert.equal(termQuestion('Y dormir'), '');
   assert.equal(termQuestion('Cómo lo usa Flaski'), '');
   assert.equal(termQuestion('Recordar enseña más que releer'), '');
+  assert.equal(termQuestion('En cinco minutos'), '');
+  assert.equal(grammarIssue('¿Qué es el en cinco minutos?'), 'no es un término');
   assert.equal(grammarIssue('¿Qué es el Y dormir?'), 'no es un término');
   assert.equal(grammarIssue('…de los poderes públicos..'), 'dos puntos seguidos');
   const r = run('## Y dormir\n\nMientras duermes, el cerebro consolida lo aprendido durante el día.\n\nAlgunas dificultades deseables:\n\n- Espaciar los repasos.\n- Intercalar temas.\n- Recordar en vez de releer.');

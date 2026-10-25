@@ -94,7 +94,7 @@ export function grammarIssue(s) {
   if (/(?<![\p{L}])(?:de|del|a)\s+el(?![\p{L}])/u.test(t)) return 'del el';
   for (const [, end, n] of t.matchAll(/(?<![\p{L}])[Cc]uánt(os|as)\s+(\p{L}+)/gu)) if (!NOT_NOUN.test(n) && (end === 'as') !== (genderOf(n) === 'f')) return 'cuántos';
   if (VAGUE_REF.test(t)) return 'referencia';
-  if (/¿Qu[eé] (?:es|son) (?:el|la|los|las|lo) (?:y|e|o|u|ni|pero|que|qué|cómo|cuándo|dónde|si)(?![\p{L}])/iu.test(t)) return 'no es un término';
+  if (/¿Qu[eé] (?:es|son) (?:el|la|los|las|lo) (?:y|e|o|u|ni|pero|que|qué|cómo|cuándo|dónde|si|en|de|con|por|para|sin|sobre|desde|hasta|entre|a|al|del)(?![\p{L}])/iu.test(t)) return 'no es un término';
   if (/(?<![.…])\.\.(?!\.)|…\./u.test(t)) return 'dos puntos seguidos';
   return '';
 }
@@ -359,7 +359,7 @@ export function emphasize(src) {
 // Títulos y términos que no dicen de qué («Estructura», «Reformas»): necesitan el apartado o el título del apunte
 const GENERIC_TOPIC = /^(definición|concepto|características|propiedades|funciones|función|estructura|tipos|clasificación|origen|orígenes|importancia|historia|evolución|causas|consecuencias|ventajas|inconvenientes|desventajas|partes|composición|ejemplos|aplicaciones|usos|descripción|funcionamiento|objetivos|etapas|fases|reformas|organización|contenido|requisitos|competencias|principios|naturaleza|objeto|ámbito|duración|sede|miembros|elementos|antecedentes|contexto)$/i;
 const TERM_VERB = /^\p{L}{3,}(?:ó|ió|aron|ieron)$/u;
-const NOT_TERM = /^(?:y|e|o|u|ni|pero|aunque|porque|pues|que|qué|cómo|como|cuándo|cuando|dónde|donde|por\s+qué|para\s+qué|quién|cuál|si|no|sí)(?![\p{L}])/iu;
+const NOT_TERM = /^(?:y|e|o|u|ni|pero|aunque|porque|pues|que|qué|cómo|como|cuándo|cuando|dónde|donde|por\s+qué|para\s+qué|quién|cuál|si|no|sí|en|de|con|por|para|sin|sobre|desde|hasta|entre|hacia|tras|a|al|del)(?![\p{L}])/iu;
 // «Efecto de espaciado» → ¿Qué es el efecto de espaciado? · «Descubrió la **curva del olvido**» → ¿Qué es la curva del olvido?
 // · con un término genérico, de qué: «Estructura» → ¿Cuál es la estructura de la Constitución Española?
 // (los nombres propios de varias palabras, como «Hermann Ebbinghaus», se quedan tal cual)
