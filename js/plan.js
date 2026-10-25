@@ -202,6 +202,15 @@ export function newOn(plan, k, newPerDay, fallbackMin = 10) {
   const f = Math.min(2, Math.max(0.5, m / weekAverage(plan?.week, fallbackMin)));
   return Math.round(newPerDay * f);
 }
+// Nuevas de un día normal (para las cuentas del plan, no las de hoy): la media de los días de tu semana que tienen
+// minutos. Sin semana, las de siempre. Así un día libre no deja el plan en «0 al día»
+export function normalNew(plan, newPerDay, fallbackMin = 10) {
+  const week = plan?.week;
+  if (!week) return newPerDay;
+  const avg = weekAverage(week, fallbackMin), days = WEEK.map(d => Number(week[d]) || 0).filter(m => m > 0);
+  if (!days.length) return newPerDay;
+  return Math.round(days.reduce((s, m) => s + Math.round(newPerDay * Math.min(2, Math.max(0.5, m / avg))), 0) / days.length);
+}
 
 // Etapas: cada una con su rango de fechas; la que cubre un día manda ese día (la primera por fecha)
 export const LEVELS = [

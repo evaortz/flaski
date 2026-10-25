@@ -1,7 +1,7 @@
 // Flaski · estado compartido (S) y utilidades comunes de la interfaz (sale de app.js)
 import { DAY, startOfDay, dateKey } from './srs.js';
 import { loadPrefs, algoFor } from './prefs.js';
-import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder, nodesOn, dayKey, newOn, minutesOn, stageOn, topicOrder } from './plan.js';
+import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder, nodesOn, dayKey, newOn, normalNew, minutesOn, stageOn, topicOrder } from './plan.js';
 import { backlogPlan, backlogActive, BACKLOG_DAYS } from './atrasos.js';
 import { icon } from './icons.js';
 import { colorVar, folderColor, tagColor, tagTilt, decksInFolder, drawingOf, drawingSVG, imageOf, iconText } from './org.js';
@@ -407,7 +407,7 @@ export function newPlan(scope = 'all', { steady = false } = {}) {
   for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. una lista archivada que estudias a propósito
   const floors = new Map();
   for (const [id, f] of examFloors(S.decks, S.folders, nodes, remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
-  let total = steady ? newPerDayToday() : newLeft();
+  let total = steady ? normalNew(S.prefs.plan, S.newPerDay, S.prefs.study.tandaMin) : newLeft();
   // Mientras se reparte lo atrasado no entran nuevas: solo el ritmo de los exámenes y las «10 nuevas más»
   if (!steady && backlogNoNew()) total = Math.min(total, [...floors.values()].reduce((a, n) => a + n, 0) + Math.max(0, extraNew() - newSeenToday()));
   return allocate(total, sh, avail, floors);

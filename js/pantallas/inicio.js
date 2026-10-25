@@ -39,6 +39,7 @@ export function renderHome() {
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
       ${done ? doneHTML(done, q)
+      : todayMinutes() === 0 ? freeHTML(q)
       : avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
@@ -74,6 +75,13 @@ export function renderHome() {
 const doneHTML = (done, q) => `<h1 class="hero-hi hero-done">Hecho por hoy</h1>
       <p class="day-done">${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min</p>
       ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
+// Día libre (tu semana): sin «Empezar una tanda» como botón principal; la tanda, como opción
+function freeHTML(q) {
+  const more = q.ids.length ? 0 : Math.min(10, freshLeft('all'));
+  const opt = q.ids.length ? `Hoy tocarían ${plural(q.ids.length, 'pregunta', 'preguntas')}: lo que quede pasa a mañana. <button class="link day-rest" data-act="tanda-short">Estudiar igualmente · ${tandaFit(q.ids.length).mins} min</button>`
+    : more ? `<button class="link day-rest" data-act="more-today" data-more="${more}">Si te apetece, ${more === 1 ? '1 nueva' : `${more} nuevas`}</button>` : '';
+  return `<h1 class="hero-hi hero-done">Hoy es tu día libre</h1>${opt ? `<p class="day-next">${opt}</p>` : ''}`;
+}
 // La línea de las nuevas: cuántas y de dónde (el examen cercano o cuántas carpetas); sin nuevas mientras se reparte lo atrasado
 function newLine(q, folders, b) {
   const n = q.fresh;
