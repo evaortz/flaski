@@ -336,6 +336,30 @@
 - Remates revisados en el navegador (un commit con su e2e cada uno, en `sugerencias.spec.js` con el apunte de la Constitución): 1 «Usar esta» ya no devuelve la lista arriba en el ordenador (`#sugMain` de 925 a 0): `openSheet` ponía el cursor en el primer campo, que era la primera casilla; ahora solo campos de texto y con `preventScroll`, y la fila cambiada se queda a la vista con sus otras formas abiertas (@ambos). 2 El origen de una pregunta de tabla es su fila con « · » («¿Qué lengua es oficial en todo el Estado? · El castellano (art. 3.1)»), no el Markdown. 3 El origen empieza en el trozo de la frase con la respuesta («…y reconoce y garantiza el derecho a la autonomía…», «…Todos los españoles tienen el deber…») y corta a 90 letras desde ahí. 4 El apartado va en su propia línea (sin «·» suelto al bajar de línea en el móvil). 5 «Añadir › Desde un apunte» desde una lista volvía a «+ Lista nueva» la primera vez (`lista.spec.js:65`): `openSuggestions(only, { deckId, select })` usa la lista al crear la hoja, también cuando la abre tras cargar el género; lo mismo para las marcadas de la primera vez (`cuenta.js`). e2e nueva con el género retrasado.
 - Números (antes → después). Constitución: 51 → 37 visibles (56 con las plegadas); imprescindibles 17/18 = 17/18 (12/18 solo visibles); total 21/35 = 21/35; repetidas visibles 9 → 0; mal escritas 5 → 0; huecos de más de 25 palabras 5 → 0; marcadas 40 → 15. Olvido: 14 → 13; imprescindibles 8/8; total 11/17; marcadas 13 → 9.
 
+### Paso 7+8 · parte 2 hecha (reglas nuevas)
+- 0 Batería: `apuntes/` con los tres textos pegados (`biologia-celula.md`, `historia-segunda-republica.md`, `ley-39-2015.md`, por `plainTextToPage`) y sus esperadas (12, 11 y 12, con regla y prioridad). La esperada del referéndum (Constitución) admite `basic`; en «Explícalo» y «¿Qué pasaría si…?» la batería compara solo la pregunta (las ideas clave son texto libre).
+- 1 Frases clave sin formato (`keyScore`, `plainRules` en `suggest.js`): puntos de la tabla del estudio; de 2 o más, un hueco en lo que dice la frase. Reglas: plazo («¿Cuál es el plazo máximo para resolver y notificar?», «Cuando las normas… no fijen el plazo máximo, ¿cuál es?», «interponerlo» con el sujeto de la frase de antes), órgano («¿Ante qué órgano se interpone…?»), enumeración con número («¿En qué tres etapas se divide la Segunda República?», ordenar; el «¿Cuántas…?» va plegado debajo cuando la pregunta ya dice el número), persona y hecho («¿Quién defendió…?», «¿Qué impulsó el gobierno de Manuel Azaña durante…?», «¿En qué año se ejerció…?»). Y para cualquier apunte (`anyRules`, también con negritas): «¿Según qué…?», citas «(Autores, año)», el sujeto de la frase de antes, «no es lo mismo que», el sujeto en negrita y lo que hace, «¿Qué regula el artículo N?», emparejar «en AÑO, el art. N».
+- 2 Opción múltiple (`withChoices`): 2 o 3 incorrectas del mismo tipo (fecha, año, plazo, cifra, artículo, ley, persona) de otras sugerencias; sin 2, nada. Plegada con su pregunta, nunca la visible.
+- 3 Verdadero o falso: otra respuesta del mismo tipo en su sitio, la excepción negada («salvo», «solo», «no cabrá ningún otro…, salvo») o una palabra cambiada por su pareja del apunte («procariotas» ↔ «eucariotas»); la explicación dice la buena. Plegado con su pregunta.
+- 4 Para entender (nunca marcadas): «Por eso» / «porque» → «Explícalo: ¿por qué…?»; «a diferencia de» / «en vez de» → «¿En qué se diferencian…?»; «si…» → «¿Qué pasaría si…?» con efectos «Lo que recuerdas en unos pocos días: baja».
+- 5 es-compromise (MIT, 0.3.1): probado y descartado. Marca como verbos «repaso» y «Valores» y no ve «aplana» ni «Espaciar» (las reglas propias ya aciertan en los casos de la batería), pesa 317 KB minimizado y solo cargarlo tarda 1,1 s en Node: ya supera los 300 ms pedidos para abrir la hoja. No se ha copiado a `js/vendor/`.
+- La hoja con la Constitución abre en unos 230 ms la primera vez (con la carga del género) y en unos 60 ms después (Chromium de las pruebas).
+
+| | Antes (informe-antes) | Después (informe-despues) |
+|---|---|---|
+| Constitución · imprescindibles | 17/18 | 18/18 (16/18 visibles) |
+| Constitución · total esperadas | 21/35 (60 %) | 27/35 (77 %) |
+| Olvido · imprescindibles | 8/8 | 8/8 (8/8 visibles) |
+| Olvido · total esperadas | 11/17 (65 %) | 13/17 (76 %) |
+| Célula (pegado) · esperadas | 2/12 (2 sugerencias, 1 mal escrita) | 10/12 |
+| Segunda República (pegado) · esperadas | 1/11 (1 sugerencia, mal escrita) | 10/11 |
+| Ley 39/2015 (pegado) · esperadas | 0/12 (0 sugerencias) | 11/12 |
+| Repetidas visibles (Constitución) | 9 (el mismo dato hasta 4 veces) | 0 (en los 5 apuntes) |
+| Mal escritas | 5 | 0 |
+| Huecos de más de 25 palabras | 5 | 0 |
+| Marcadas de entrada (Constitución) | 40 de 51 | 15 |
+| Opción múltiple o V/F (Constitución, con plegadas) | 0 | 16 |
+
 ## Batería más rápida (hecha)
 - Traza solo con `TRACE=1` (antes se grababa en todas: un 24 % del tiempo).
 - «Escritorio» solo ejecuta las 81 pruebas con `@ambos` (lista y porqué, abajo).

@@ -1,0 +1,243 @@
+
+== biologia-celula: imprescindibles 5/5 (100 %) · total 10/12 (83 %) · sugerencias 12 (18 con las plegadas) · ruido 0 · sin pareja 4
+   solo visibles: imprescindibles 4/5 (80 %) · total 8/12 (67 %) · repetidas visibles 0 · mal escritas 0 · huecos de más de 25 palabras 0
+   marcadas de entrada 1 (ruido 0, sin pareja 1) · tipos (con las plegadas): basic 2, number 1, cloze 7, truefalse 5, explain 2, steps 1 · 130 ms
+  faltan · frase_clave
+    D ¿Dónde está el material genético de las células procariotas? → Disperso en el citoplasma
+  faltan · enumeracion_en_frase
+    D ¿Qué seres vivos están formados por células eucariotas? → Animales, plantas y hongos
+  casan:
+    ¿Qué es la célula?
+      ← [basic] ¿Qué es la célula? → La unidad básica de la vida
+    Las células procariotas tienen núcleo definido.
+      ← [truefalse] (plegada) Las células eucariotas no tienen núcleo definido. → Falso
+    Las bacterias son {{procariotas}}.
+      ← [cloze] Las bacterias son […]. → Las bacterias son procariotas.
+    Las células eucariotas tienen {{un núcleo rodeado por una membrana}}.
+      ← [cloze] Las células eucariotas tienen […]. → Las células eucariotas tienen un núcleo rodeado por una membrana.
+    La mitocondria produce {{la energía de la célula}} mediante la respiración celular.
+      ← [cloze] La mitocondria produce […] mediante la respiración celular. → La mitocondria produce la energía de la célula mediante la respiración celular.
+    Explícalo: ¿por qué las células musculares tienen muchas mitocondrias?
+      ← [explain] Explícalo: ¿por qué las células musculares tienen muchas mitocondrias? → Porque la mitocondria produce la energía de la célula mediante la respiración celular
+    Los cloroplastos solo están en las células vegetales y realizan {{la fotosíntesis}}.
+      ← [cloze] Los cloroplastos solo están en las células vegetales y realizan […]. → Los cloroplastos solo están en las células vegetales y realizan la fotosíntesis.
+    ¿En qué se diferencian las células vegetales de las animales?
+      ← [explain] ¿En qué se diferencian las células vegetales de las animales? → Las células vegetales tienen pared celular de celulosa
+    ¿Cuántas fases tiene la mitosis?
+      ← [number] (plegada) ¿Cuántas fases tiene la mitosis? → 4
+    Ordena las fases de la mitosis
+      ← [steps] Ordena las fases de la mitosis → Profase → Metafase → Anafase → Telofase
+  sin pareja:
+    * [basic/enum] ¿Qué cuatro fases tiene la mitosis? → Profase, metafase, anafase y telofase
+      [cloze/key] Las células procariotas no tienen […]. → Las células procariotas no tienen núcleo definido.
+      [cloze/key] El material genético de las células procariotas está disperso en […]. → El material genético de las células procariotas está disperso en el citoplasma.
+      [truefalse/tf] Los cloroplastos están en todas las células y realizan la fotosíntesis. → Falso
+
+== constitucion-titulo-preliminar: imprescindibles 18/18 (100 %) · total 27/35 (77 %) · sugerencias 57 (82 con las plegadas) · ruido 0 · sin pareja 33
+   solo visibles: imprescindibles 16/18 (89 %) · total 25/35 (71 %) · repetidas visibles 0 · mal escritas 0 · huecos de más de 25 palabras 0
+   marcadas de entrada 15 (ruido 0, sin pareja 6) · tipos (con las plegadas): basic 35, choice 16, number 3, match 1, cloze 27 · 100 ms
+  faltan · distractores_del_apunte
+    D Fechas de la Constitución: ¿cuál es la del referéndum? → 6 de diciembre de 1978
+    D ¿Cuál de estos NO es un valor superior del art. 1.1? → La solidaridad
+    E ¿Qué tipo de norma regula las bases de la organización militar? → Una ley orgánica
+    D El art. 9.3 garantiza la irretroactividad de todas las normas. → Falso (solo de las disposiciones sancionadoras no favorables o restrictivas de derechos individuales)
+  faltan · negrita
+    D Respecto al castellano, ¿qué deber y qué derecho tienen los españoles? → El deber de conocerlo y el derecho a usarlo
+    D ¿Qué deben ser la estructura interna y el funcionamiento de partidos, sindicatos y asociaciones empresariales? → Democráticos
+  faltan · cifra
+    D La franja amarilla de la bandera tiene el triple de anchura que cada una de las rojas. → Falso (es de doble anchura)
+  faltan · articulo
+    E ¿Qué artículo los regula? → Art. 6: partidos políticos · Art. 7: sindicatos de trabajadores, asociaciones empresariales
+  casan:
+    La Constitución fue ratificada en referéndum el {{6 de diciembre de 1978}}.
+      ← [basic] ¿Cuándo ratificó el pueblo español la Constitución Española? → 6 de diciembre de 1978
+    ¿Cuándo aprobaron las Cortes la Constitución?
+      ← [basic] ¿Cuándo aprobaron las Cortes la Constitución Española? → 31 de octubre de 1978
+    ¿Cuándo sancionó el Rey la Constitución?
+      ← [basic] ¿Cuándo sancionó el Rey la Constitución Española? → 27 de diciembre de 1978
+    ¿Cuándo se publicó y entró en vigor la Constitución?
+      ← [basic] ¿Cuándo se publicó y entró en vigor la Constitución Española? → 29 de diciembre de 1978
+    ¿Cuántos artículos tiene la Constitución?
+      ← [number] ¿Cuántos artículos tiene la Constitución Española? → 169
+    ¿Cuántas reformas ha tenido la Constitución?
+      ← [number] ¿Cuántas reformas tiene la Constitución Española? → 3
+    Une cada reforma con su año
+      ← [match] Une cada reforma con su año → el art. 13.2 = 1992 | el art. 135 = 2011 | el art. 49 = 2024
+    España se constituye en un {{Estado social y democrático de Derecho}}.
+      ← [cloze] España se constituye en un […]. → España se constituye en un Estado social y democrático de Derecho.
+    ¿Cuáles son los valores superiores del ordenamiento jurídico (art. 1.1)?
+      ← [cloze] España propugna como valores superiores de su ordenamiento jurídico […]. → España propugna como valores superiores de su ordenamiento jurídico la libertad, la justicia, la igualdad y el pluralismo político.
+    La soberanía nacional reside en {{el pueblo español}}.
+      ← [cloze] La soberanía nacional reside en el […]. → La soberanía nacional reside en el pueblo español.
+    La forma política del Estado español es la {{Monarquía parlamentaria}}.
+      ← [cloze] La forma política del Estado español es la […]. → La forma política del Estado español es la Monarquía parlamentaria.
+    ¿Qué artículo establece que la forma política del Estado es la Monarquía parlamentaria?
+      ← [basic] ¿Qué artículo establece que la forma política del Estado español es la Monarquía parlamentaria? → Art. 1.3
+    ¿Qué regula el artículo 2?
+      ← [basic] ¿Qué regula el artículo 2? → Unidad y autonomía: indisoluble unidad de la Nación española, derecho a la autonomía y solidaridad
+    El {{castellano}} es la lengua española oficial del Estado.
+      ← [cloze] El […] es la lengua española oficial del Estado. → El castellano es la lengua española oficial del Estado.
+    ¿Según qué norma son oficiales las demás lenguas españolas en cada Comunidad Autónoma?
+      ← [basic] ¿Según qué serán también oficiales en las respectivas Comunidades Autónomas las demás lenguas españolas? → Según sus Estatutos
+    ¿Cómo es la bandera de España según el art. 4.1?
+      ← [basic] ¿Cómo está formada la bandera de España (art. 4.1)? → Tres franjas horizontales, roja, amarilla y roja, siendo la amarilla de doble anchura que cada una de las rojas
+    La capital del Estado es la {{villa de Madrid}}.
+      ← [cloze] La capital del Estado es la […]. → La capital del Estado es la villa de Madrid.
+    ¿Qué expresan los partidos políticos según el art. 6?
+      ← [basic] ¿Qué expresan los partidos políticos (art. 6)? → El pluralismo político
+    Los partidos políticos son {{instrumento fundamental para la participación política}}.
+      ← [cloze] Los partidos políticos son […]. → Los partidos políticos son instrumento fundamental para la participación política.
+    ¿Quiénes constituyen las Fuerzas Armadas?
+      ← [basic] ¿Quiénes constituyen las Fuerzas Armadas (art. 8.1)? → El Ejército de Tierra, la Armada y el Ejército del Aire
+    ¿Cuál es la misión de las Fuerzas Armadas?
+      ← [basic] ¿Cuál es la misión de las Fuerzas Armadas (art. 8.1)? → Garantizar la soberanía e independencia de España, defender su integridad territorial y el ordenamiento constitucional
+    Una {{ley orgánica}} regulará las bases de la organización militar.
+      ← [cloze] Una […] regulará las bases de la organización militar. → Una ley orgánica regulará las bases de la organización militar.
+    ¿A qué están sujetos los ciudadanos y los poderes públicos (art. 9.1)?
+      ← [basic] ¿A qué están sujetos los ciudadanos y los poderes públicos (art. 9.1)? → A la Constitución y al resto del ordenamiento jurídico
+    ¿A quién corresponde promover que la libertad y la igualdad sean reales y efectivas?
+      ← [basic] ¿A quién corresponde promover las condiciones para que la libertad y la igualdad del individuo y de los grupos en que se integra sean reales y efectivas (art. 9.2)? → A los poderes públicos
+    ¿Qué principios garantiza la Constitución en el art. 9.3?
+      ← [basic] (plegada) ¿Qué garantiza la Constitución (art. 9.3)? → - el principio de legalidad | - la jerarquía normativa | - la publicidad de las normas | - la irretroactividad de las disposiciones sancionadoras no favorables o restrictivas de derechos individuales | - la seguridad jurídica | - la responsabilidad | - la interdicción de la arbitrariedad de los poderes públicos.
+    ¿Dónde reside la soberanía nacional?
+      ← [basic] (plegada) ¿Dónde reside la soberanía nacional? → En el pueblo español (art. 1.2)
+    ¿Qué regula las bases de la organización militar?
+      ← [basic] (plegada) ¿Qué regula las bases de la organización militar? → Una ley orgánica (art. 8.2)
+  sin pareja:
+    * [basic/def] ¿Cuál es la estructura de la Constitución Española? → Un preámbulo, 169 artículos (un Título Preliminar y diez títulos más), 4 disposiciones adicionales, 9 transitorias, 1 derogatoria y 1 final.
+    * [basic/def] ¿Cuáles son las reformas de la Constitución Española? → Tres. En 1992, el art. 13.2, para el voto de los ciudadanos de la UE en las elecciones municipales; en 2011, el art. 135, sobre la estabilidad presupuestaria; y en 2024, el art. 49, que sustituye «disminuidos» por «personas con discapacidad».
+      [basic/art] ¿Qué artículo establece que la soberanía nacional reside en el pueblo español, del que emanan los poderes del Estado? → Art. 1.2
+    * [cloze/bold] La Constitución se fundamenta en la […]. → La Constitución se fundamenta en la indisoluble unidad de la Nación española.
+    * [cloze/bold] La Constitución reconoce y garantiza el […] de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas. → La Constitución reconoce y garantiza el derecho a la autonomía de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas.
+      [basic/art] ¿Qué artículo establece que el castellano es la lengua española oficial del Estado? → Art. 3.1
+    * [cloze/bold] Todos los españoles tienen el […] y el derecho a usarla. → Todos los españoles tienen el deber de conocerla y el derecho a usarla.
+      [basic/art] ¿Qué regula el artículo 3? → Las lenguas: castellano, deber de conocerla, derecho a usarla, Estatutos y patrimonio cultural
+      [basic/art] ¿Qué artículo establece que las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus Estatutos? → Art. 3.2
+      [cloze/bold] Las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus […]. → Las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus Estatutos.
+      [basic/art] ¿Qué artículo establece que la riqueza de las distintas modalidades lingüísticas de España es un patrimonio cultural que será objeto de especial respeto y protección? → Art. 3.3
+      [cloze/bold] La riqueza de las distintas modalidades lingüísticas de España es un […] que será objeto de especial respeto y protección. → La riqueza de las distintas modalidades lingüísticas de España es un patrimonio cultural que será objeto de especial respeto y protección.
+      [cloze/bold] La bandera de España está formada por […]. → La bandera de España está formada por tres franjas horizontales, roja, amarilla y roja.
+      [basic/art] ¿Qué regula el artículo 4? → La bandera: tres franjas horizontales, roja, amarilla y roja y doble anchura
+      [basic/art] ¿Qué artículo establece que los Estatutos podrán reconocer banderas y enseñas propias de las Comunidades Autónomas? → Art. 4.2
+      [basic/art] ¿Qué artículo establece que la capital del Estado es la villa de Madrid? → Art. 5
+      [cloze/bold] Los […] expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular. → Los partidos políticos expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular.
+      [basic/art] ¿Qué regula el artículo 6? → Los partidos políticos: partidos políticos, instrumento fundamental para la participación política y democráticos
+      [cloze/bold] Los sindicatos de trabajadores y las […] contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios. → Los sindicatos de trabajadores y las asociaciones empresariales contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios.
+      [basic/art] ¿Qué regula el artículo 7? → Sindicatos y asociaciones empresariales: sindicatos de trabajadores, asociaciones empresariales y democráticos
+      [basic/art] ¿Qué regula el artículo 8? → Las Fuerzas Armadas: Fuerzas Armadas, Ejército de Tierra, Armada, Ejército del Aire y ley orgánica
+      [basic/art] ¿Qué artículo establece que una ley orgánica regulará las bases de la organización militar conforme a los principios de la presente Constitución? → Art. 8.2
+      [basic/term] ¿Según qué orgánica regulará las bases de la organización militar una ley? → Según los principios de la presente Constitución
+      [basic/art] ¿Qué artículo establece que los ciudadanos y los poderes públicos están sujetos a la Constitución y al resto del ordenamiento jurídico? → Art. 9.1
+      [number/num] ¿Cuántos principios garantiza la Constitución (art. 9.3)? → 7
+      [cloze/listitem] La Constitución garantiza (art. 9.3): […], la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, […], la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, […], la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad de las normas, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, […], la seguridad jurídica, la responsabilidad y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad de las disposiciones sancionadoras no favorables o restrictivas de derechos individuales, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, […], la responsabilidad y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, […] y la interdicción… → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción…
+      [cloze/listitem] La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y […]. → La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, la publicidad…, la irretroactividad…, la seguridad jurídica, la responsabilidad y la interdicción de la arbitrariedad de los poderes públicos.
+    * [basic/table] ¿Qué lengua es oficial en todo el Estado? → El castellano (art. 3.1)
+
+== historia-segunda-republica: imprescindibles 6/6 (100 %) · total 10/11 (91 %) · sugerencias 9 (14 con las plegadas) · ruido 0 · sin pareja 1
+   solo visibles: imprescindibles 6/6 (100 %) · total 8/11 (73 %) · repetidas visibles 0 · mal escritas 0 · huecos de más de 25 palabras 0
+   marcadas de entrada 5 (ruido 0, sin pareja 0) · tipos (con las plegadas): basic 7, truefalse 3, number 2, choice 1, steps 1 · 15 ms
+  faltan · distractores_del_apunte
+    D ¿Cuándo se proclamó la Segunda República? → 14 de abril de 1931
+  casan:
+    ¿Cuándo se proclamó la Segunda República?
+      ← [basic] ¿Cuándo se proclamó la Segunda República? → 14 de abril de 1931
+    ¿Tras qué elecciones se proclamó la Segunda República?
+      ← [basic] ¿Tras qué elecciones se proclamó la Segunda República? → Las elecciones municipales del 12 de abril
+    ¿Qué reconoció la Constitución de 1931?
+      ← [basic] ¿Qué reconoció la Constitución de 1931? → El voto femenino
+    ¿En qué año se ejerció por primera vez el voto femenino?
+      ← [number] ¿En qué año se ejerció por primera vez el voto femenino? → 1933
+    El voto femenino se ejerció por primera vez en las elecciones de 1931.
+      ← [truefalse] (plegada) El voto femenino se ejerció por primera vez en las elecciones de 1931. → Falso
+    ¿Quién defendió el sufragio femenino en las Cortes?
+      ← [basic] ¿Quién defendió el sufragio femenino en las Cortes? → Clara Campoamor
+    ¿En qué tres etapas se divide la Segunda República?
+      ← [basic] ¿En qué tres etapas se divide la Segunda República? → El bienio reformista (1931-1933), el bienio radical-cedista (1933-1936) y el Frente Popular (1936)
+    ¿En cuántas etapas se divide el periodo?
+      ← [number] (plegada) ¿En cuántas etapas se divide la Segunda República? → 3
+    ¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista?
+      ← [basic] ¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista? → La reforma agraria, la reforma militar y la separación de la Iglesia y el Estado
+    ¿Cuándo fue el golpe de Estado que provocó el inicio de la Guerra Civil?
+      ← [basic] ¿Cuándo fue el golpe de Estado que provocó el inicio de la Guerra Civil? → 18 de julio de 1936
+  sin pareja:
+      [steps/steps] Ordena las etapas de la Segunda República → El bienio reformista → El bienio radical-cedista → El Frente Popular
+
+== ley-39-2015: imprescindibles 6/6 (100 %) · total 11/12 (92 %) · sugerencias 8 (16 con las plegadas) · ruido 0 · sin pareja 1
+   solo visibles: imprescindibles 5/6 (83 %) · total 7/12 (58 %) · repetidas visibles 0 · mal escritas 0 · huecos de más de 25 palabras 0
+   marcadas de entrada 6 (ruido 0, sin pareja 1) · tipos (con las plegadas): basic 8, cloze 3, choice 3, truefalse 2 · 11 ms
+  faltan · ley
+    E ¿Qué regula la Ley 39/2015? → El Procedimiento Administrativo Común
+  casan:
+    El plazo máximo para resolver y notificar no podrá exceder de {{seis meses}}.
+      ← [cloze] (plegada) El plazo máximo para resolver y notificar no podrá exceder de […]. → El plazo máximo para resolver y notificar no podrá exceder de seis meses.
+    El plazo máximo para resolver y notificar nunca puede exceder de seis meses.
+      ← [truefalse] (plegada) El plazo máximo para resolver y notificar nunca podrá exceder de seis meses. → Falso
+    Cuando las normas reguladoras no fijen el plazo máximo, ¿cuál es?
+      ← [basic] Cuando las normas reguladoras no fijen el plazo máximo, ¿cuál es? → Tres meses
+    ¿Ante quién podrá interponerse el recurso de alzada?
+      ← [basic] ¿Ante qué órgano podrá interponerse el recurso de alzada? → Ante el órgano que dictó el acto o ante el competente para resolverlo
+    ¿Cuál es el plazo para interponer el recurso de alzada si el acto fuera expreso?
+      ← [basic] ¿Cuál es el plazo para interponer el recurso de alzada si el acto fuera expreso? → Un mes
+    ¿Cuál es el plazo para interponer el recurso de alzada si el acto fuera expreso?
+      ← [choice] (plegada) ¿Cuál es el plazo para interponer el recurso de alzada si el acto fuera expreso? → Un mes
+    ¿Ante qué órgano se interpone el recurso potestativo de reposición?
+      ← [basic] ¿Ante qué órgano se interpone el recurso potestativo de reposición? → Ante el mismo órgano que dictó el acto
+    Contra la resolución de un recurso de alzada cabe el recurso potestativo de reposición.
+      ← [truefalse] (plegada) Contra la resolución de un recurso de alzada cabe el recurso potestativo de reposición. → Falso
+    ¿Qué recurso cabe contra la resolución de un recurso de alzada?
+      ← [basic] ¿Qué recurso cabe contra la resolución de un recurso de alzada? → El recurso extraordinario de revisión
+    ¿Cómo podrán actuar los interesados?
+      ← [basic] ¿Cómo podrán actuar los interesados? → Por medio de representante
+    ¿Quiénes tienen capacidad de obrar?
+      ← [basic] ¿Quiénes tienen capacidad de obrar? → Las personas físicas o jurídicas que la ostenten con arreglo a las normas civiles
+  sin pareja:
+    * [basic/plazo] ¿Cuál es el plazo máximo para resolver y notificar? → Seis meses
+
+== por-que-se-te-olvidan-las-cosas: imprescindibles 8/8 (100 %) · total 13/17 (76 %) · sugerencias 16 (16 con las plegadas) · ruido 0 · sin pareja 3
+   solo visibles: imprescindibles 8/8 (100 %) · total 13/17 (76 %) · repetidas visibles 0 · mal escritas 0 · huecos de más de 25 palabras 0
+   marcadas de entrada 9 (ruido 0, sin pareja 1) · tipos (con las plegadas): number 1, basic 10, cloze 2, whatif 1, explain 1, steps 1 · 65 ms
+  faltan · contraste
+    D ¿Qué pasaría si estudias tres horas la víspera del examen en vez de repartirlas en varios días? → Te serviría para el examen de mañana, pero lo olvidarías enseguida; repartido, dura meses
+  faltan · causal
+    D Explica por qué no conviene repasar ni antes ni después de estar a punto de olvidar. → Antes es perder el tiempo; después hay que volver a aprenderlo
+  faltan · autor_obra
+    D ¿Quiénes hicieron en 2006 el experimento de releer frente a intentar recordar? → Roediger y Karpicke
+  faltan · negrita
+    D ¿Qué hace el cerebro con lo aprendido mientras duermes? → Lo consolida: lo reorganiza y lo afianza
+  casan:
+    ¿Quién publicó en 1885 el primer estudio científico sobre la memoria?
+      ← [basic] ¿Quién publicó en 1885 el primer estudio científico sobre la memoria? → Hermann Ebbinghaus
+    ¿En qué año publicó Ebbinghaus su estudio sobre la memoria?
+      ← [number] ¿Cuándo publicó Hermann Ebbinghaus el primer estudio científico sobre la memoria? → 1885
+    ¿Qué memorizaba Ebbinghaus en sus experimentos?
+      ← [basic] ¿Qué memorizaba Hermann Ebbinghaus? → Listas de sílabas sin sentido
+    ¿Qué describe la curva del olvido?
+      ← [basic] ¿Qué es la curva del olvido? → Olvidamos muy deprisa al principio y cada vez más despacio después. Gran parte de lo que aprendes hoy se habrá ido en unos pocos días si no vuelves a ello.
+    Cada repaso {{aplana la curva}} del olvido.
+      ← [cloze] Cada repaso […]. → Cada repaso aplana la curva.
+    ¿Qué es el efecto de espaciado?
+      ← [basic] ¿Qué es el efecto de espaciado? → Se recuerda mejor lo que se repasa repartido en el tiempo que lo que se estudia todo de golpe.
+    ¿Cuál es el mejor momento para repasar algo?
+      ← [basic] ¿Cuál es el mejor momento para repasar algo? → Justo cuando estás a punto de olvidarlo
+    ¿Qué es la práctica de recuperación?
+      ← [basic] ¿Qué es la práctica de recuperación? → Intentar sacar algo de tu memoria, sin mirar, lo fija mucho más que volver a leerlo.
+    ¿Qué es la ilusión de fluidez?
+      ← [basic] ¿Qué es la ilusión de fluidez? → Releer da una sensación engañosa de saber: el texto te suena y crees que lo dominas
+    Explica con tus palabras por qué reconocer no es lo mismo que recordar.
+      ← [explain] Explica con tus palabras por qué reconocer no es lo mismo que recordar. → Releer da una sensación engañosa de saber, la ilusión de fluidez: el texto te suena y crees que lo dominas
+    ¿Qué son las dificultades deseables y de quién es la idea?
+      ← [basic] ¿Qué son las dificultades deseables? → Idea del psicólogo Robert Bjork. Lo que cuesta un poco al practicar (recordar sin pistas, mezclar temas, dejar pasar tiempo entre repasos) hace que el aprendizaje dure más, aunque en el momento parezca que vas peor.
+    Algunas dificultades deseables
+      ← [basic] ¿Cuáles son algunas dificultades deseables? → - Espaciar los repasos en vez de amontonarlos. | - Intercalar temas distintos en vez de practicar uno solo seguido. | - Recordar en vez de releer. | - Explicarlo con tus palabras en vez de repetir la definición.
+    Ordena cómo usa Flaski lo que sabemos de la memoria
+      ← [steps] Ordena: cómo lo usa Flaski → Cada pregunta te obliga a recordar, no a releer. → Cuando respondes, eliges cómo te ha ido: Otra vez, Difícil, Bien o Fácil. → Con eso, Flaski calcula cuándo estarás a punto de olvidarla y te la vuelve a preguntar justo entonces. → Cada vez que la aciertas, el siguiente repaso llega más tarde: días, luego semanas, luego meses.
+  sin pareja:
+    * [cloze/bold] Se usó a sí mismo como sujeto: memorizaba listas de […] («DAX», «BOK»…) y medía cuánto recordaba con el paso del tiempo. → Se usó a sí mismo como sujeto: memorizaba listas de sílabas sin sentido («DAX», «BOK»…) y medía cuánto recordaba con el paso del tiempo.
+      [whatif/whatif] ¿Qué pasaría si no vuelves a lo que aprendes hoy?
+¿Qué pasa con lo que recuerdas? → Lo que recuerdas en unos pocos días: baja | Gran parte de lo que aprendes hoy se habrá ido en unos pocos días si no vuelves a ello.
+      [basic/term] ¿Quiénes hicieron en 2006 el experimento conocido en el que unos estudiantes releyeron un texto varias veces y otros lo leyeron una vez y luego intentaron recordarlo? → Roediger y Karpicke
