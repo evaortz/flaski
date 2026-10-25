@@ -62,3 +62,76 @@ test('Plan en oscuro: el tramo de los repasos de «Hoy toca» va en el fondo sua
   });
   expect(lum).toBeLessThan(0.25);
 });
+
+// Contraste WCAG de un texto con el fondo que tiene detrás (el primero no transparente subiendo por sus padres)
+const contrast = el => {
+  const rgba = c => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillStyle = c; x.fillRect(0, 0, 1, 1); return [...x.getImageData(0, 0, 1, 1).data]; };
+  let p = el, bg = null;
+  while (p && !bg) { const c = rgba(getComputedStyle(p).backgroundColor); if (c[3] > 200) bg = c; p = p.parentElement; }
+  bg ||= rgba(getComputedStyle(document.body).backgroundColor);
+  const fg = rgba(getComputedStyle(el).color), a = (fg[3] / 255) * Number(getComputedStyle(el).opacity), mix = [0, 1, 2].map(i => fg[i] * a + bg[i] * (1 - a));
+  const lum = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const [l1, l2] = [lum(mix), lum(bg)].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+};
+const theme = (page, t) => page.evaluate(async t => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.theme = t; applyLook(S.prefs.look); }, t);
+
+test('accesibilidad: nombres con rol (gráfico de Hoy, barra de carpeta, barra de la tanda) y el mapa de calor con el teclado', async ({ page, seed }) => {
+  await seed({ folders: ['Opo'], decks: [{ name: 'Tema 1', folder: 'Opo', cards: [['a', '1'], ['b', '2'], ['c', '3']], studied: { due: 1, interval: 30 } }], builtin: ['Alemán · A2'] });
+  await openApp(page);
+  await expect(page.locator('.pg-hit')).toHaveAttribute('role', 'img');
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-folder]').filter({ hasText: 'Opo' }).first().click();
+  await expect(page.locator('.lbar')).toHaveAttribute('role', 'img');
+  await nav(page, 'Hoy');
+  await page.locator('#main .hero-go').click();
+  const go = page.locator('#sheetBody [data-act="tanda-go"]');
+  if (await go.isVisible().catch(() => false)) await go.click();
+  await expect(page.locator('.bar').first()).toHaveAttribute('role', 'progressbar');
+  await expect(page.locator('.bar').first()).toHaveAttribute('aria-label', 'Progreso de la tanda');
+  // La etiqueta del reverso, 4,5:1 en claro y en oscuro
+  await page.locator('[data-act="reveal"]').click();
+  const label = page.locator('.fld-l:visible').first();
+  await expect(label).toBeVisible();
+  for (const t of ['light', 'dark']) { await theme(page, t); expect(await label.evaluate(contrast), `reverso (${t})`).toBeGreaterThanOrEqual(4.5); }
+  await theme(page, 'light');
+  await page.locator('[data-grade="3"]').click();   // una respuesta: Estadísticas ya tiene días estudiados
+  await page.locator('.studybar [data-act="exit"]').click();
+  await nav(page, 'Perfil');
+  await page.locator('#main .pr-stats').click();
+  await expect(page.locator('.hm-scroll').first()).toHaveAttribute('tabindex', '0');
+  await page.locator('.hm-scroll').first().focus();
+  await expect(page.locator('.hm-scroll').first()).toBeFocused();
+});
+
+test('contraste: los números pequeños del mapa y el título rojo de «Con cuidado» en oscuro', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Const' }], pages: [{ md: '# Constitución\n\nEl 6 de diciembre de 1978.\n\nSe publicó el 29 de diciembre.', deck: 'Const' }] });
+  await openApp(page);
+  // Dos preguntas en cada párrafo: casillas con el número pequeño de preguntas
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
+    const p = [...S.pages.values()][0], d = [...S.decks.values()][0];
+    for (const b of p.blocks.filter(x => x.type === 'p')) for (const c of await api.createCards(['a', 'b'].map(q => ({ deck_id: d.id, owner: S.uid, front: q + b.id, back: 'r', type_id: 'basic', template: 't1', fields: { q: q + b.id, a: 'r' }, page_id: p.id, block_id: b.id })))) S.cards.set(c.id, c);
+  });
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-page]').filter({ hasText: 'Constitución' }).click();
+  await page.locator('#main .mp-seg .seg-b', { hasText: 'Mapa' }).click();
+  const small = page.locator('.mp-cell small').first();
+  await expect(small).toBeVisible();
+  for (const t of ['light', 'dark']) { await theme(page, t); expect(await small.evaluate(contrast), `mapa (${t})`).toBeGreaterThanOrEqual(4.5); }
+  await theme(page, 'dark');
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="settings"]').first().click();
+  expect(await page.locator('.set-care h3').evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
+});
+
+test('contraste: «hoy» del planificador en rojo, 4,5:1 @ambos', async ({ page, seed }, info) => {
+  test.skip(info.project.name !== 'escritorio', 'el planificador es del ordenador');
+  await seed({ decks: [{ name: 'A', cards: [['a', 'b']] }] });
+  await openApp(page);
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  const hoy = page.locator('.tp-hoy').first();
+  await expect(hoy).toBeVisible();
+  for (const t of ['light', 'dark']) { await theme(page, t); expect(await hoy.evaluate(contrast), `hoy (${t})`).toBeGreaterThanOrEqual(4.5); }
+});

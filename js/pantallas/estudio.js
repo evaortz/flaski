@@ -466,8 +466,9 @@ export function todayQueue(scope = 'all') {
 // La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
 function segBar(ses) {
   const seen = ses.answered ?? ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
-  if (total > 60 || total < 2) return `<div class="bar"><span style="width:${pct}%"></span></div>`;
-  return `<div class="bar bar-seg" style="--n:${total}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}">${Array.from({ length: total }, (_, i) => `<i${i < seen ? ' class="on"' : ''}></i>`).join('')}</div>`;
+  const aria = `role="progressbar" aria-label="Progreso de la tanda" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"`;
+  if (total > 60 || total < 2) return `<div class="bar" ${aria}><span style="width:${pct}%"></span></div>`;
+  return `<div class="bar bar-seg" style="--n:${total}" ${aria}>${Array.from({ length: total }, (_, i) => `<i${i < seen ? ' class="on"' : ''}></i>`).join('')}</div>`;
 }
 // minutes: tanda corta de esa duración (las preguntas que caben a tu ritmo)
 // firstRun: la primera tanda (tras la primera vez): explica los botones y al final pregunta la duración y el aviso

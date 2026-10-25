@@ -42,7 +42,7 @@ function examText(id, long = false) {
   if (days < 0) return '';
   return ` · examen el ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')}${long ? ` · ${days === 0 ? 'es hoy' : `faltan ${plural(days, 'día', 'días')}`}` : ''}`;
 }
-const bar = (c, young) => `<span class="lbar" aria-label="${pct(c.mature, c.total)} % consolidadas"><i style="width:${pct(c.mature, c.total)}%"></i><i style="width:${pct(young, c.total)}%"></i></span>`;
+const bar = (c, young) => `<span class="lbar" role="img" aria-label="${pct(c.mature, c.total)} % consolidadas"><i style="width:${pct(c.mature, c.total)}%"></i><i style="width:${pct(young, c.total)}%"></i></span>`;
 // Color de la carpeta: el que eligió la persona (Editar carpeta) o, si no eligió ninguno, el cobalto del tema
 const foldColor = f => `--fold:${folderColor(f.color) || 'var(--accent)'}`;
 // Lo que asoma por la esquina: el dibujo o la imagen de la carpeta, su emoji o, si no tiene, el icono de carpeta

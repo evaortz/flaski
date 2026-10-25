@@ -91,7 +91,7 @@ export function heatmap(log, weeks = 53, frozen = new Set()) {
   return {
     total, active,
     html: `<div class="hm-wrap" style="--hm-w:${W};--hm-t:${W + 26}"><svg class="hm-days" width="26" height="${H}" viewBox="0 0 26 ${H}" aria-hidden="true">${days}</svg>
-      <div class="hm-scroll" data-scroll-end><svg class="hm-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img"
+      <div class="hm-scroll" data-scroll-end tabindex="0" role="region" aria-label="Días estudiados (desliza para ver más)"><svg class="hm-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img"
         aria-label="Calendario de actividad: ${plural(total, 'repaso', 'repasos')} en ${plural(active, 'día', 'días')} del último año">${months}${cells}</svg></div></div>
       <div class="hm-legend"><span>Menos</span>${legend}<span>Más</span></div>`,
   };
@@ -142,7 +142,7 @@ export function heatmapView(host, log, periodId, width, frozen = new Set(), { go
   let svg = host.querySelector('.hm-svg');
   if (!svg) {
     host.innerHTML = `<div class="hm-wrap"><svg class="hm-days" aria-hidden="true"></svg>
-      <div class="hm-scroll" data-scroll-end><svg class="hm-svg" role="img">${days.map(x => `<rect class="hm${x.t === today ? ' hm-today' : ''}" data-k="${x.w * 7 + x.d}"
+      <div class="hm-scroll" data-scroll-end tabindex="0" role="region" aria-label="Días estudiados (desliza para ver más)"><svg class="hm-svg" role="img">${days.map(x => `<rect class="hm${x.t === today ? ' hm-today' : ''}" data-k="${x.w * 7 + x.d}"
         data-tip-v="${plural(x.n, 'repaso', 'repasos')}" data-tip-l="${fmtDate(x.t)}"></rect>`).join('')}<g class="hm-dots"></g><g class="hm-months"></g></svg></div></div>
       <div class="hm-legend"><span>Menos</span>${[0, 1, 2, 3, 4].map(l => `<span class="hm-key l${l}"></span>`).join('')}<span>Más</span><span class="hm-key hm-key-fz"></span><span>comodín</span></div>`;
     svg = host.querySelector('.hm-svg');
@@ -380,7 +380,7 @@ export function progressView(host, { series: s, width = 600, title = 'Tu progres
   const svg = `<svg class="pg-svg" width="${width}" height="${H}" viewBox="0 0 ${width} ${H}" role="img" aria-label="${title}: te sabes ${nf.format(known(last))} de ${plural(last.total, 'pregunta', 'preguntas')}">
     ${g}${notes}${axis}${labels}${dot}
     <line class="pg-cur" x1="0" x2="0" y1="${T}" y2="${B}"></line><circle class="pg-dot pg-cd" r="3.5"></circle>
-    <rect class="pg-hit" x="${L}" y="0" width="${W}" height="${B + 4}" tabindex="0" aria-label="Recorre los días con las flechas"></rect></svg>`;
+    <rect class="pg-hit" x="${L}" y="0" width="${W}" height="${B + 4}" tabindex="0" role="img" aria-label="Recorre los días con las flechas"></rect></svg>`;
   host.innerHTML = `<div class="lv-h"><h2 class="lv-k">${title}<span class="lv-day"> · hoy</span></h2>${tabs}</div>
     <div class="lv-big"><b class="lv-n">${nf.format(known(last))}</b><span class="lv-of">${pgOf(last)}</span></div>
     <p class="lv-sub">${pgSub(s)}</p>${svg}${next ? `<p class="pg-next">${next}</p>` : ''}`;
