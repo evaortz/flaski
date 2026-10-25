@@ -164,3 +164,15 @@ test('«Usar esta» en una fila de abajo: la lista no vuelve arriba y la fila si
   expect(await page.locator('#sugMain').evaluate(el => el.scrollTop)).toBeGreaterThan(200);
 });
 
+test('el texto de origen: de una tabla, solo la fila de la pregunta; de un párrafo, desde la frase de la pregunta', async ({ page, seed }) => {
+  await openConstitucion(page, seed);
+  const lengua = page.locator('.sug').filter({ hasText: '¿Qué lengua es oficial en todo el Estado?' });
+  await expect(lengua.locator('.sug-src q')).toHaveText('¿Qué lengua es oficial en todo el Estado? · El castellano (art. 3.1)');
+  const autonomia = page.locator('.sug').filter({ hasText: 'La Constitución reconoce y garantiza el […]' });
+  await expect(autonomia.locator('.sug-src q')).toHaveText(/^…y reconoce y garantiza el derecho a la autonomía/);
+  const deber = page.locator('.sug').filter({ hasText: 'Todos los españoles tienen el […]' });
+  await expect(deber.locator('.sug-src q')).toHaveText(/^…Todos los españoles tienen el deber de conocerla/);
+  // Nunca el Markdown de la tabla
+  await expect(page.locator('.sug-src q').filter({ hasText: '|---|' })).toHaveCount(0);
+});
+

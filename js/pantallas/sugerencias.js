@@ -109,10 +109,24 @@ function keepInView(i) {
 // Lo que hay que saber de una sugerencia, para la línea de debajo: en un hueco, solo lo que falta
 const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
 // El texto del apunte de donde sale una sugerencia (para ver qué forma de escribir la ha dado)
+// (de una tabla, la fila de la pregunta; de un párrafo, desde el trozo de la frase donde está la respuesta, con «…» delante)
 function sugSource(p, x) {
   const b = p.blocks.find(y => y.id === x.blockId);
-  const t = b ? toPlain(stripImages(b.text)).replace(/\s+/g, ' ').trim() : '';
-  return t.length > 90 ? t.slice(0, 88).trimEnd() + '…' : t;
+  if (!b) return '';
+  const cut = t => (t.length > 90 ? t.slice(0, 88).trimEnd() + '…' : t);
+  const fold = s => plainText(s).toLocaleLowerCase();
+  if (b.type === 'table') {
+    const rows = String(b.text).split('\n').filter(l => /\|/.test(l) && !/^\s*\|?[\s:|-]+\|?\s*$/.test(l)).map(l => l.replace(/^\s*\||\|\s*$/g, '').split('|').map(c => plainText(c).trim()));
+    const q = fold(x.front), a = fold(sugAnswer(x));
+    const row = rows.find(r => r.some(c => c && fold(c) === q)) || rows.find(r => r.some(c => c && (q.includes(fold(c)) || a.includes(fold(c)))));
+    return cut((row || rows[0] || []).filter(Boolean).join(' · '));
+  }
+  const t = toPlain(stripImages(b.text)).replace(/\s+/g, ' ').trim();
+  const ans = plainText(sugAnswer(x)).split(' · ')[0].replace(/^(?:el|la|los|las|un|una|en|a|al)\s+/i, '').replace(/[.]$/, '');
+  const at = ans.length >= 3 ? t.toLocaleLowerCase().indexOf(ans.toLocaleLowerCase()) : -1;
+  if (at <= 0) return cut(t);
+  const before = t.slice(0, at), start = Math.max(...[/[.!?;]\s+/g, /,\s+(?=(?:y|e|que)\s)/g].map(re => { let k = 0; for (const m of before.matchAll(re)) k = m.index + m[0].length; return k; }));
+  return start > 0 ? cut('…' + t.slice(start)) : cut(t);
 }
 // Cómo salen las sugerencias: lo que se escribe y la tarjeta que da
 export const SUG_HOW = [
