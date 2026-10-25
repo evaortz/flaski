@@ -238,3 +238,6 @@ el código de antes y pasa con el arreglo.
     `cambio-hora.test.js` (con `TZ=Europe/Madrid`).
 12. **Retención**: confirmado (nunca bajaba del 90 %). Ahora es la más alta que pide un examen, entre el 70 y el 99 %
     (90 % sin exámenes). Con el 85 % hay menos repasos que con el 90 %, y con el 95 %, más.
+13. **Fechas fijadas**: confirmado. Se repartían entre todos los días con minutos hasta la fecha, también los de la
+    última semana y los de la pausa del examen (`hold`), en los que ese examen no da nuevas, y el tema llegaba tarde.
+    Ahora solo cuentan los días en que el examen puede dar nuevas (y, como mucho, hasta su último día de temario).

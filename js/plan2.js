@@ -205,10 +205,15 @@ function prepare(state) {
   if (!ex.some(x => x.date != null && x.date >= 0)) H = Math.max(H, 120);
   H = Math.min(H_MAX, H);
   // Días: clave, minutos y etapa
-  const keys = [], mins = new Float64Array(H + 1), studyCum = new Int32Array(H + 2);
+  const keys = [], mins = new Float64Array(H + 1);
   for (let i = 0, k = t; i <= H; i++, k = addDays(k, 1)) {
     keys.push(k); mins[i] = minutesOn(plan, k, state.fallbackMin ?? 10);
-    studyCum[i + 1] = studyCum[i] + (mins[i] > 0 ? 1 : 0);
+  }
+  // Por examen, los días en que puede recibir nuevas (con minutos, antes de su última semana, sin su pausa `hold`):
+  // las fechas fijadas se reparten solo entre esos
+  for (const x of ex) {
+    x.canCum = new Int32Array(H + 2);
+    for (let i = 0; i <= H; i++) x.canCum[i + 1] = x.canCum[i] + (mins[i] > 0 && i <= x.newEnd && i >= x.hold && (x.date == null || i < x.date) ? 1 : 0);
   }
   // Cada lista: si es de un examen, si queda fuera de todos («lo que no tiene examen») y cuándo dejan de contar sus repasos
   const inExam = new Map();
@@ -222,7 +227,7 @@ function prepare(state) {
     if (stop && xs.length && xs.every(x => x.date != null && ['pause', 'archive'].includes(x.e.after))) stop = Math.max(...xs.map(x => x.date)) + 1;
     deckInfo.set(d.id, { free, stop, xs, noExam: !(inExam.get(d.id) || []).length });
   }
-  return { plan, ctx, ex, r, st, pace, H, keys, mins, studyCum, deckInfo };
+  return { plan, ctx, ex, r, st, pace, H, keys, mins, deckInfo };
 }
 
 /* ===================== 3 y 4 · cuánto cabe y el reparto ===================== */
@@ -247,7 +252,7 @@ function withinExam(x, budget, i, rem, P, only) {
   let b = budget;
   for (const [id, f] of x.fixed) {
     if (b <= 0 || !topics.includes(id) || room(id) <= 0) continue;
-    const days = f >= i ? Math.max(1, P.studyCum[Math.min(f, P.H) + 1] - P.studyCum[i]) : 1;
+    const days = f >= i ? Math.max(1, x.canCum[Math.min(f, x.newEnd, P.H) + 1] - x.canCum[i]) : 1;
     const k = Math.min(b, room(id), Math.ceil(room(id) / days));
     add(out, id, k); b -= k;
   }

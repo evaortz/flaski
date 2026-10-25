@@ -504,3 +504,15 @@ test('12 · la retención que pide el examen, también por debajo del 90 %', () 
   const load = fc => fc.days.reduce((a, d) => a + d.reviewsDue, 0);
   assert.ok(load(r85) < load(r90) && load(r90) < load(r95));
 });
+
+test('13 · una fecha fijada se reparte solo entre los días en que el examen da nuevas (sin la última semana ni su pausa)', () => {
+  // Examen a 20 días con última semana: las nuevas, hasta el día 12. «b antes del día 18» = antes del 12: 100 en 13 días
+  const a = forecast(three([100, 100, 0], { date: addDays(TODAY, 20), lastWeek: true, fixed: { b: addDays(TODAY, 18) } }));
+  assert.deepEqual(a.days[0].newBy, { b: 8, a: 12 });
+  assert.ok(a.exams[0].topics.find(t => t.id === 'b').finish <= addDays(TODAY, 12));
+  // Con el examen en pausa hasta el día 5 y «b antes del día 9»: 100 en 5 días
+  const h = forecast(three([100, 100, 0], { hold: addDays(TODAY, 5), fixed: { b: addDays(TODAY, 9) } }));
+  assert.equal(h.days[4].new, 0);
+  assert.deepEqual(h.days[5].newBy, { b: 20 });
+  assert.equal(h.exams[0].topics.find(t => t.id === 'b').finish, addDays(TODAY, 9));
+});
