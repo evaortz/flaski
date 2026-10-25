@@ -110,10 +110,13 @@ export function chime(kind) {
 // Devuelve { up, down }: si se puede deslizar hacia arriba y hacia abajo (para las pistas).
 // Solo con el dedo o el lápiz: con el ratón ya están el teclado y los botones.
 const SKIP = 'button, a, input, textarea, select, canvas, label, [contenteditable], .say, .hw-box';
-export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
+// vertical: el gesto vertical es siempre de la tarjeta (en una hoja a pantalla completa, aunque la página de debajo sea larga)
+export function swipeable(el, { dirs, onSwipe, onCross, onDrag, vertical }) {
   if (!el) return;
   // Si la página no necesita scroll, también se puede deslizar hacia arriba y hacia abajo; si no, el gesto vertical es para hacer scroll
-  const fits = document.documentElement.scrollHeight <= innerHeight + 4;
+  const fits = vertical ?? document.documentElement.scrollHeight <= innerHeight + 4;
+  // Con «reducir movimiento», la tarjeta se desplaza sin girar
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const allowUp = !!dirs.up && fits, allowDown = !!dirs.down && fits;
   el.style.touchAction = allowUp || allowDown ? 'none' : 'pan-y';
   el.classList.add('swipeable');
@@ -150,7 +153,7 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
     dir = axis === 'x' ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
     if (!dirs[dir]) { el.style.transform = `translate(${axis === 'x' ? d * 0.15 : 0}px, ${axis === 'y' ? d * 0.15 : 0}px)`; return; }
     const p = Math.min(1, Math.abs(d) / limit());
-    el.style.transform = axis === 'x' ? `translateX(${dx}px) rotate(${dx / 22}deg)` : `translateY(${dy}px)`;
+    el.style.transform = axis === 'x' ? `translateX(${dx}px)${calm ? '' : ` rotate(${dx / 22}deg)`}` : `translateY(${dy}px)`;
     el.style.setProperty('--swipe', p.toFixed(2));
     el.dataset.swipe = dir; el.dataset.swipeLabel = dirs[dir];
     if (p >= 1 && !armed) { armed = true; onCross?.(); }
@@ -162,10 +165,11 @@ export function swipeable(el, { dirs, onSwipe, onCross, onDrag }) {
     if (armed && dir && dirs[dir]) {
       const out = { left: 'translateX(-130vw) rotate(-18deg)', right: 'translateX(130vw) rotate(18deg)', up: 'translateY(-130vh)', down: 'translateY(130vh)' }[dir];
       const d = dir;
-      el.style.transition = 'transform .2s ease-in';
-      el.style.transform = out;
       start = null;
       onDrag?.(false);
+      if (calm) return onSwipe(d);
+      el.style.transition = 'transform .2s ease-in';
+      el.style.transform = out;
       setTimeout(() => onSwipe(d), 170);
     } else reset();
   };
