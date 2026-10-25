@@ -443,3 +443,8 @@ test('persona y hecho: «Clara Campoamor defendió…» → ¿Quién defendió�
   for (const [q, a] of [['¿Quién defendió el sufragio femenino en las Cortes?', 'Clara Campoamor'], ['¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista?', 'La reforma agraria y la reforma militar'],
     ['¿Qué reconoció la Constitución de 1931?', 'El voto femenino'], ['¿En qué año se ejerció por primera vez el voto femenino?', '1933']]) assert.ok(qa.some(x => x[0] === q && x[1] === a), `${q}\n${qa.join('\n')}`);
 });
+
+test('el hueco de una frase clave no repite una cantidad que ya pregunta «¿Cuántos…?»', () => {
+  const r = paste('Roma\n\nEl ejército tiene seis legiones.');
+  assert.deepEqual(r.map(s => s.front), ['¿Cuántas legiones tiene el ejército?']);
+});
