@@ -49,8 +49,7 @@ test('zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el
   // El tema de ejemplo: un apunte con preguntas unidas a sus partes y preguntas sugeridas
   await nav(page, 'Explorar');
   await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click();
-  await page.locator('[data-ex="add-tema"]').first().click();
-  await page.locator('.ex-row [data-ex="open-tema"]').first().click();
+  await page.locator('[data-ex="add-tema"]').first().click();   // se abre el apunte
   await expect(page.locator('#pgBlocks .nb-cards').first()).toBeVisible();
   const big = async (loc, what) => { await loc.scrollIntoViewIfNeeded(); const [w, h] = await hitArea(loc); expect.soft(w, `${what}: ancho`).toBeGreaterThanOrEqual(44); expect.soft(h, `${what}: alto`).toBeGreaterThanOrEqual(44); };
   await big(page.locator('#pgBlocks .nb-cards').first(), 'N preguntas de esta parte');

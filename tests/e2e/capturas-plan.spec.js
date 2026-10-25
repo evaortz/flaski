@@ -47,7 +47,7 @@ test('simulacro', async ({ page }, info) => {
   await nav(page, 'Explorar');
   await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click();
   await page.locator('[data-ex="add-tema"]').first().click();
-  await expect(page.locator('.ex-row [data-ex="open-tema"]')).toBeVisible();
+  await expect(page.locator('#pgTitle')).toBeVisible();   // al añadirlo se abre el apunte
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const deck = [...S.decks.values()][0], now = Date.now();

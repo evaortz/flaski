@@ -9,6 +9,7 @@ import { TEMAS, temaCards, temaSource } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
 import { makeSuggested, blockFor } from './sugerencias.js';
 import { closeSheet } from './editor.js';
+import { pageRow } from './apuntes.js';
 
 const DAY = 864e5;
 
@@ -74,7 +75,9 @@ export async function addTema(t) {
   if (!p.deck_id || !S.decks.has(p.deck_id)) {
     const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null });
     S.decks.set(deck.id, { tags: [], ...deck });
-    p = await api.savePage({ ...p, deck_id: deck.id }); S.pages.set(p.id, p);
+    // Con cuenta, savePage va por la cola de envíos y no devuelve el apunte: se cambia el que ya tenemos
+    p.deck_id = deck.id; S.pages.set(p.id, p);
+    await api.savePage(pageRow(p));
   }
   const picks = temaCards(await (await fetch(t.cards, { cache: 'no-cache' })).json())
     .map(x => ({ ...x, blockId: blockFor(p, x.answer) }));

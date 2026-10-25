@@ -126,12 +126,19 @@ export async function exploreClick(b) {
         const r = await addTema(t);
         const p = r?.page || ownTema(t)?.page;
         closeSheet();
+        // «Añadir y empezar»: la tanda de 5 min; «Añadir»: se abre el apunte
         if (ds.ex === 'start-tema' && p?.deck_id) return startSession(p.deck_id, { minutes: 5 });
+        if (p && S.pages.has(p.id)) { toast(`«${t.title}» añadido`); return go('page', { pageId: p.id }); }
         toast(`«${t.title}» añadido`); renderExplore();
       } catch (e) { b.disabled = false; fail(e); }
       return;
     }
-    case 'open-tema': { const o = ownTema(TEMAS[Number(ds.i)]); closeSheet(); if (o?.page) return go('page', { pageId: o.page.id }); return o?.deck && go('deck', { deckId: o.deck.id, cardQuery: '' }); }
+    case 'open-tema': {
+      const o = ownTema(TEMAS[Number(ds.i)]); closeSheet();
+      if (o?.page && S.pages.has(o.page.id)) return go('page', { pageId: o.page.id });
+      if (o?.deck && S.decks.has(o.deck.id)) return go('deck', { deckId: o.deck.id, cardQuery: '' });
+      return toast('No encuentro ese tema en tu Biblioteca');
+    }
     case 'see-tema': return temaPreview(Number(ds.i));
   }
 }

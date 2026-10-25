@@ -90,7 +90,8 @@ export async function mockCloud(page) {
     }
     srv.writes.push([method, path, req.postData() ? req.postDataJSON() : null]);
     // Carpetas: si se pide la fila de vuelta (insert/update + select), se guarda en la tabla y se devuelve
-    if (path === 'folders' && (req.headers().prefer || '').includes('return=representation') && ['POST', 'PATCH'].includes(method)) {
+    if ((req.headers().prefer || '').includes('return=representation') && ['POST', 'PATCH'].includes(method)) {
+      srv.tables[path] ||= [];
       const body = req.postDataJSON(), single = (req.headers().accept || '').includes('vnd.pgrst.object');
       let rows;
       if (method === 'POST') {

@@ -8,6 +8,8 @@ test('Explorar: un tema de ejemplo añadido lleva su origen y sale «La tienes»
   await openApp(page);
   await opos(page);
   await page.locator('[data-ex="add-tema"]').first().click();
+  await expect(page.locator('#pgTitle')).toBeVisible();   // al añadirlo se abre el apunte
+  await opos(page);
   await expect(page.locator('.ex-row [data-ex="open-tema"]')).toHaveText('La tienes');
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => [...S.decks.values()][0].source))).toBe('tema:constitucion-titulo-preliminar');
   // Aunque cambies el nombre del apunte y de la lista, se reconoce por el origen
