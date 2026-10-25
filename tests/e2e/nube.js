@@ -87,10 +87,12 @@ export async function mockCloud(page) {
     if (method === 'GET') {
       const single = (req.headers().accept || '').includes('vnd.pgrst.object');
       if (path === 'profiles') return json(single ? { id: UID, display_name: 'Prueba' } : [{ id: UID, display_name: 'Prueba' }]);
-      if (path === 'settings') return single ? json({ new_per_day: 15, prefs: {} }) : json([{ new_per_day: 15, prefs: {} }]);
+      // Los ajustes: los últimos guardados (srv.settings; al principio, los de siempre)
+      if (path === 'settings') { const row = srv.settings || { new_per_day: 15, prefs: {} }; return single ? json(row) : json([row]); }
       return json(srv.tables[path] || []);
     }
     srv.writes.push([method, path, req.postData() ? req.postDataJSON() : null]);
+    if (path === 'settings' && method === 'POST') { const b = req.postDataJSON(); srv.settings = { ...(srv.settings || {}), ...(Array.isArray(b) ? b[0] : b) }; }
     // Carpetas: si se pide la fila de vuelta (insert/update + select), se guarda en la tabla y se devuelve
     if ((req.headers().prefer || '').includes('return=representation') && ['POST', 'PATCH'].includes(method)) {
       srv.tables[path] ||= [];

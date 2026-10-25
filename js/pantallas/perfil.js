@@ -21,7 +21,8 @@ import { plural, download } from './mazos.js';
 import { AI_GUIDE_BTNS, loadAiGuide } from './explorar.js';
 import { pageRow } from './apuntes.js';
 import { openSheet, closeSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
-import { examList, forecast } from './plan.js';
+import { forecastNow } from '../plan2-app.js';
+import { dayKey } from '../plan.js';
 import { NEWS_VERSION } from '../news.js';
 import { friendsBadge, loadFriends } from './amigos.js';
 import { trashSummary } from './papelera.js';
@@ -33,8 +34,11 @@ const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 
 const newsMonth = () => { const [y, m] = NEWS_VERSION.split('-').map(Number); return `${MONTHS[m - 1]} de ${y}`; };
 // «vas bien» / «no llegas» del plan (solo si hay algún examen por delante)
 function planBadge() {
-  if (!examList().length) return '';
-  try { return forecast().exams.some(e => e.late) ? '<span class="pr-tag late">no llegas</span>' : '<span class="pr-tag ok">vas bien</span>'; } catch { return ''; }
+  try {
+    const exams = forecastNow().exams.filter(e => e.date && e.date >= dayKey());
+    if (!exams.length) return '';
+    return exams.some(e => e.verdict === 'no') ? '<span class="pr-tag late">no llegas</span>' : '<span class="pr-tag ok">vas bien</span>';
+  } catch { return ''; }
 }
 function friendsLine() {
   const names = (S.friends?.list || []).map(p => p.name || 'Sin nombre');

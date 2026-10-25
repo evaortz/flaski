@@ -49,19 +49,6 @@ test('Estadísticas: el botón atrás y el título en la misma fila, como en Aju
   expect(Math.abs(back.mid - h1.mid)).toBeLessThanOrEqual(6);
 });
 
-test('Plan en oscuro: el tramo de los repasos de «Hoy toca» va en el fondo suave oscuro, no casi blanco', async ({ page, seed }) => {
-  await page.emulateMedia({ colorScheme: 'dark' });
-  await seed({ decks: [{ name: 'A', cards: Array.from({ length: 30 }, (_, i) => [`p${i}`, 'r']) }, { name: 'B', cards: [['x', 'y']], studied: { due: 0 } }] });
-  await openApp(page);
-  await nav(page, 'Perfil');
-  await page.locator('#main [data-nav="plan"]').click();
-  // Luminosidad del color (canvas: cualquier formato de color → rgb)
-  const lum = await page.locator('.ht-bar .ht-r').evaluate(el => {
-    const g = document.createElement('canvas').getContext('2d'); g.fillStyle = getComputedStyle(el).backgroundColor; g.fillRect(0, 0, 1, 1);
-    const [r, gr, b] = g.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * gr + 0.0722 * b) / 255;
-  });
-  expect(lum).toBeLessThan(0.25);
-});
 
 // Contraste WCAG de un texto con el fondo que tiene detrás (el primero no transparente subiendo por sus padres)
 const contrast = el => {
@@ -84,7 +71,7 @@ test('accesibilidad: nombres con rol (gráfico de Hoy, barra de carpeta, barra d
   await page.locator('#main [data-folder]').filter({ hasText: 'Opo' }).first().click();
   await expect(page.locator('.lbar')).toHaveAttribute('role', 'img');
   await nav(page, 'Hoy');
-  await page.locator('#main .hero-go').click();
+  await page.locator('#main :is(.hero-go, .p2-go)').click();
   const go = page.locator('#sheetBody [data-act="tanda-go"]');
   if (await go.isVisible().catch(() => false)) await go.click();
   await expect(page.locator('.bar').first()).toHaveAttribute('role', 'progressbar');
@@ -125,13 +112,3 @@ test('contraste: los números pequeños del mapa y el título rojo de «Con cuid
   expect(await page.locator('.set-care h3').evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
 });
 
-test('contraste: «hoy» del planificador en rojo, 4,5:1 @ambos', async ({ page, seed }, info) => {
-  test.skip(info.project.name !== 'escritorio', 'el planificador es del ordenador');
-  await seed({ decks: [{ name: 'A', cards: [['a', 'b']] }] });
-  await openApp(page);
-  await nav(page, 'Perfil');
-  await page.locator('#main [data-nav="plan"]').click();
-  const hoy = page.locator('.tp-hoy').first();
-  await expect(hoy).toBeVisible();
-  for (const t of ['light', 'dark']) { await theme(page, t); expect(await hoy.evaluate(contrast), `hoy (${t})`).toBeGreaterThanOrEqual(4.5); }
-});

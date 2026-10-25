@@ -1,5 +1,5 @@
 // Amigos (modo con cuentas): invitar, aceptar, ver cómo van, animar y la clasificación de la semana
-import { test, expect, nav } from './fixtures.js';
+import { test, expect, nav, hoyCount } from './fixtures.js';
 import { mockCloud, openCloud, sent } from './nube.js';
 
 const ANA = { id: 'a0000000-0000-4000-8000-000000000001', name: 'Ana', since: '2026-09-01T10:00:00Z', shared: true, streak: 5, today: 12, week: [20, 15, 0, 12, 0, 0, 0], langs: ['de', 'ja'] };
@@ -128,7 +128,7 @@ test('sin las funciones de amigos en Supabase, lo explica (y la app sigue funcio
   const srv = await mockCloud(page);
   srv.social.missing = true;
   await openCloud(page);
-  await expect(page.locator('.hero-num')).toHaveText('3');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(3);
   await expect(page.locator('#homeFriends .hoy-t')).toHaveCount(0);
   await nav(page, 'Perfil');
   await page.locator('[data-nav="friends"]').first().click();

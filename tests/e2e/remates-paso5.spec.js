@@ -70,7 +70,7 @@ test('pegado en un apunte vacío: la primera línea es el título y «Etiqueta:�
 test('Hoy: «te las sabes» cuenta solo las consolidadas, y el número de hoy va sin «!»', async ({ page, seed }) => {
   await seed({ decks: [{ name: 'Turco', cards: [['ev', 'casa'], ['su', 'agua'], ['kapı', 'puerta'], ['el', 'mano']] }] });
   await openApp(page);
-  await expect(page.locator('.hero-word')).toHaveText('preguntas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('4 nuevas de Turco');
   await startTanda(page);
   for (let i = 0; i < 3; i++) await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();

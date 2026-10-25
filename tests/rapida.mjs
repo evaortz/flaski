@@ -4,7 +4,7 @@
 //   npm run e2e:rapida -- --last-failed     → repite solo lo que falló la última vez
 // Lo demás que pongas (--repeat-each=3, -g texto…) pasa tal cual a Playwright. Al final del paso, la batería completa.
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 // Qué pruebas (tests/e2e/<nombre>.spec.js) mira cada pantalla
 const PANTALLAS = {
@@ -12,12 +12,12 @@ const PANTALLAS = {
   tanda: ['antes-del-push', 'estudio', 'tanda-corta', 'tanda-tipos', 'remates-tanda', 'remates-repaso', 'deslizar', 'entender', 'remates-correccion', 'aleman'],
   tipos: ['tipos', 'tipos-nuevos', 'kanji', 'remates-kanji', 'furigana', 'voz'],
   editor: ['remates-editor', 'remates-preguntas', 'guardar-y-otra', 'tipos'],
-  hoy: ['hoy', 'inicio', 'hecho-por-hoy', 'minutos-de-verdad', 'dia-libre', 'progreso'],
-  plan: ['plan', 'remates-plan', 'hecho-por-hoy', 'dia-libre', 'minutos-de-verdad'],
+  hoy: ['hoy', 'inicio', 'progreso', 'plan2-hoy', 'tanda-corta'],
+  plan: ['plan-c', 'plan-d', 'plan-atrasos', 'plan-domingo', 'plan-dispositivos', 'plan2-hoy', 'simulacro'],
   simulacro: ['simulacro'],
   mapa: ['mapa'],
   biblioteca: ['lista', 'remates-biblioteca', 'buscar-borrar', 'papelera', 'iconos'],
-  explorar: ['explorar', 'explorar-tema', 'safari-tema', 'tema-memoria'],
+  explorar: ['explorar', 'explorar-tema', 'safari-tema', 'tema-memoria', 'remates-plan'],
   bienvenida: ['bienvenida', 'novedades'],
   perfil: ['perfil-ajustes', 'datos', 'pantallas', 'recordatorio'],
   amigos: ['amigos'],
@@ -32,7 +32,7 @@ const ARCHIVOS = [
   [/^js\/(cardtypes|handwriting|tts)\.js/, ['tipos', 'tanda']],
   [/^js\/pantallas\/editor/, ['editor', 'biblioteca']],
   [/^js\/pantallas\/inicio|^js\/(atrasos|charts|stats)\.js/, ['hoy']],
-  [/^js\/pantallas\/plan|^js\/plan\.js/, ['plan']],
+  [/^js\/pantallas\/plan|^js\/plan2?(-app|-migrar)?\.js/, ['plan', 'hoy']],
   [/^js\/pantallas\/simulacro/, ['simulacro']],
   [/^js\/pantallas\/mapa|^js\/mapa\.js/, ['mapa']],
   [/^js\/pantallas\/(biblioteca|mazos)|^js\/org\.js/, ['biblioteca']],
@@ -46,6 +46,14 @@ const ARCHIVOS = [
   [/^js\/(comun|app)\.js/, ['hoy', 'tanda', 'biblioteca']],
   [/^sw\.js/, ['nube']],
 ];
+
+// Antes de nada: que todos los módulos de la app se puedan cargar (un error de sintaxis en uno deja la app en blanco)
+const bad = [];
+for (const dir of ['../js', '../js/pantallas']) for (const f of readdirSync(dir).filter(f => f.endsWith('.js'))) {
+  const r = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: readFileSync(`${dir}/${f}`), encoding: 'utf8' });
+  if (r.status !== 0) bad.push(`${dir.slice(3)}/${f}\n${r.stderr.trim()}`);
+}
+if (bad.length) { console.error(`Hay módulos que no cargan:\n\n${bad.join('\n\n')}`); process.exit(1); }
 
 const args = process.argv.slice(2);
 const pass = args.filter(a => a.startsWith('-'));

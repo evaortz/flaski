@@ -1,6 +1,7 @@
 // Preferencias del usuario: valores por defecto, mezcla con lo guardado y aplicación de la apariencia.
 // Se guardan en settings.prefs (Supabase) o en el navegador (modo local) como un objeto JSON.
 import { DEFAULT_ALGO, ALGO_PRESETS } from './srs.js';
+import { emptyPlan2, absorbV1, withMirror } from './plan2-migrar.js';
 
 export const DEFAULT_PREFS = {
   study: {
@@ -35,9 +36,11 @@ export const DEFAULT_PREFS = {
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
-  // plan de estudio (ver plan.js): estado, foco y examen de cada lista y carpeta; tu semana (minutos de cada día,
-  // null = sin semana), días especiales y etapas; objetivo de nota y últimos ajustes del simulacro de cada examen
-  plan: { nodes: {}, week: null, special: [], stages: [], simGoal: {}, sim: {}, startDone: false, lateOk: '' },
+  // plan de estudio (v: 2, ver plan2.js y plan2-migrar.js): tu tiempo, los exámenes, el reparto, lo que no tiene
+  // examen, los topes, las etapas a mano y el historial; objetivo de nota y ajustes del simulacro de cada examen.
+  // El de antes (nodos, semana, días especiales y etapas) se migra al entrar
+  plan: emptyPlan2(),
+  plan2: undefined,         // el plan nuevo de quien lo probó con el interruptor «plan2» (se pasa a plan al entrar)
   sims: [],                 // simulacros hechos (ver SYNCED y trimSims)
   remind: { on: true, time: '20:00', cheers: true },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
@@ -86,12 +89,8 @@ export const loadPrefs = saved => {
   const p = mergePrefs(DEFAULT_PREFS, saved || {});
   if (saved && Object.keys(saved).length && !saved.algo?.preset) p.algo.preset = 'standard';
   p.look.accent = accentId(p.look.accent);
-  // Las claves del plan son ids de mazos y carpetas: mergePrefs solo conserva las que ya existen
-  for (const k of ['nodes', 'simGoal', 'sim']) {
-    const v = saved?.plan?.[k];
-    p.plan[k] = isObj(v) ? { ...v } : {};
-  }
-  if (!isObj(p.plan.week)) p.plan.week = null;
+  // El plan, tal cual se guardó (sus claves son ids de exámenes, listas y carpetas, que mergePrefs no conoce)
+  p.plan = normalizePlan(saved?.plan);
   for (const path of SYNCED) { const [a, b] = path; const v = b ? p[a][b] : p[a]; if (!Array.isArray(v)) { if (b) p[a][b] = []; else p[a] = []; } }
   return p;
 };
@@ -99,7 +98,48 @@ export const loadPrefs = saved => {
 // Listas que se juntan por id al sincronizar (en vez de que la copia nueva machaque a la vieja): lo creado
 // en otro dispositivo no se pierde. Cada elemento lleva «at» (cuándo cambió); con el mismo id gana el más
 // reciente, y lo borrado queda como { id, deleted: true, at }.
-export const SYNCED = [['sims'], ['plan', 'special'], ['plan', 'stages']];
+export const SYNCED = [['sims']];
+const clone = o => JSON.parse(JSON.stringify(o));
+// El plan con todas sus partes: el nuevo (v: 2) con lo que le falte, o el de antes como estaba (para migrarlo)
+export function normalizePlan(saved) {
+  if (!isObj(saved)) return emptyPlan2();
+  const p = clone(saved);
+  if (p.v === 2) {
+    const e = emptyPlan2();
+    for (const k of Object.keys(e)) if (p[k] === undefined || (isObj(e[k]) && !isObj(p[k])) || (Array.isArray(e[k]) && !Array.isArray(p[k]))) p[k] = e[k];
+    p.time = { ...e.time, ...p.time };
+    if (!Array.isArray(p.time.special)) p.time.special = [];
+    if (!isObj(p.time.week)) p.time.week = null;
+    for (const k of ['simGoal', 'sim']) if (!isObj(p[k])) p[k] = {};
+    return p;
+  }
+  for (const k of ['nodes', 'simGoal', 'sim']) if (!isObj(p[k])) p[k] = {};
+  if (!isObj(p.week)) p.week = null;
+  for (const k of ['special', 'stages']) if (!Array.isArray(p[k])) p[k] = [];
+  return p;
+}
+// Juntar el plan de dos dispositivos: cada examen, tu tiempo y el reparto, el más reciente (su updated_at); los
+// días especiales y las etapas, por id (como los simulacros); lo demás, el de este dispositivo
+const newest = (a, b) => ((b?.updated_at || 0) >= (a?.updated_at || 0) ? b : a);
+export function mergePlan(older, newer) {
+  if (!isObj(older)) return newer;
+  if (!isObj(newer)) return older;
+  // Dos planes de antes (dos dispositivos que aún no han migrado): días especiales y etapas, por id
+  if (older.v !== 2 && newer.v !== 2) return { ...newer, special: unionById(older.special, newer.special), stages: unionById(older.stages, newer.stages) };
+  // Uno ya migrado y el otro de una versión vieja: el migrado, con lo que la vieja cambió desde su copia (sim.__v2)
+  if (older.v !== 2 || newer.v !== 2) {
+    const [v2, v1] = newer.v === 2 ? [newer, older] : [older, newer];
+    return v1.sim?.__v2?.v === 2 ? absorbV1(v2, v1, v1.sim.__v2) : v2;
+  }
+  const out = { ...newer };
+  const ex = new Map();
+  for (const e of [...(older.exams || []), ...(newer.exams || [])]) if (e?.id) ex.set(e.id, ex.has(e.id) ? newest(ex.get(e.id), e) : e);
+  out.exams = [...ex.values()];
+  out.time = { ...newest(older.time, newer.time), special: unionById(older.time?.special, newer.time?.special) };
+  out.split = newest(older.split, newer.split);
+  out.stages = unionById(older.stages, newer.stages);
+  return out;
+}
 export function unionById(a = [], b = []) {
   const m = new Map();
   for (const x of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
@@ -114,7 +154,8 @@ export function unionById(a = [], b = []) {
 export function mergeSynced(older, newer) {
   if (!isObj(older)) return newer;
   if (!isObj(newer)) return older;
-  const out = { ...newer, plan: { ...(newer.plan || {}) } };
+  // Lo que va a la nube lleva el plan con su espejo para las versiones viejas (ver withMirror)
+  const out = { ...newer, plan: withMirror(mergePlan(older.plan, newer.plan)) };
   for (const [a, b] of SYNCED) {
     if (b) out[a][b] = unionById(older[a]?.[b], newer[a]?.[b]);
     else out[a] = unionById(older[a], newer[a]);

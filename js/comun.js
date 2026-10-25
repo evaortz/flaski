@@ -283,7 +283,7 @@ function newSeenToday(deckId = null) {
 // navegador para que sobreviva a recargar. Se suma a la vez al límite global y al de cada mazo: los dos se
 // aplican juntos y el global acota el total, así que el efecto real es +10, no +20; sumarlo también al del
 // mazo evita que un mazo con su propio límite agotado ignore el botón.
-function extraNew() { const x = S.extra; return x && x.day === dateKey(Date.now()) && x.uid === S.uid ? x.n : 0; }
+export function extraNew() { const x = S.extra; return x && x.day === dateKey(Date.now()) && x.uid === S.uid ? x.n : 0; }
 export function addExtraNew(n) {
   S.extra = { uid: S.uid, day: dateKey(Date.now()), n: extraNew() + n };
   try { localStorage.setItem('flaski-extra', JSON.stringify(S.extra)); } catch {}
@@ -308,7 +308,7 @@ let backlogMemo = (() => { try { return JSON.parse(localStorage.getItem('flaski-
 function saveBacklog() { try { localStorage.setItem('flaski-atrasos', JSON.stringify(backlogMemo)); } catch {} }
 // El reparto de lo atrasado si está en marcha ({ cap, until, … }); null si no
 export function backlog() {
-  if (S.loading || !S.uid) return null;
+  if (S.loading || !S.uid || hooks.plan2) return null;   // con el plan nuevo, lo que no cabe pasa solo a mañana
   if (!(backlogMemo?.uid === S.uid && backlogMemo.day === dateKey())) {
     const t0 = startOfDay(), now = Date.now(), live = scopeTest('all');
     // Cada lista con el examen más cercano que tenga (de hoy a una semana): lo suyo, hecho antes del examen
@@ -353,7 +353,7 @@ export const reviewsLeft = () => {
   return cap === Infinity ? Infinity : Math.max(0, cap - reviewsToday());
 };
 // Las listas de los exámenes cercanos: van primero en la tanda
-export const nearDecks = () => nearExamDecks(dayNodes(), S.decks, S.folders);
+export const nearDecks = () => (hooks.plan2 ? hooks.plan2.near() : nearExamDecks(dayNodes(), S.decks, S.folders));
 // Las que ya has visto hoy y vuelven (las que fallaste) no gastan del tope de repasos
 export const seenToday = p => p.last >= startOfDay();
 export const algo = deckId => algoFor(S.prefs, S.decks.get(deckId));
@@ -384,13 +384,15 @@ export function counts(scope = 'all') {
 // Estado (activo, solo repasos, en pausa), foco y examen de cada mazo y carpeta: ver plan.js
 // planNodes: los que guardas (para editarlos); dayNodes: los que mandan hoy (con la etapa vigente y las
 // reglas de los exámenes encima, ver nodesOn en plan.js)
-export const planNodes = () => S.prefs.plan.nodes;
+// El plan de estudio (plan2-app.js): lo que aquí se le pregunta
+export const hooks = { plan2: null };
+export const planNodes = () => S.prefs.plan.nodes || {};
 export const dayNodes = (k = dayKey()) => nodesOn(S.prefs.plan, k);
-export const stateOf = d => (d ? deckState(d, S.folders, dayNodes()) : 'active');
+export const stateOf = d => (!d ? 'active' : hooks.plan2 ? hooks.plan2.state(d) : deckState(d, S.folders, dayNodes()));
 // Las listas que hoy no dan nuevas por el orden de temas de la etapa vigente
 export const topicBlocked = (fresh = freshByDeck()) => topicOrder(stageOn(S.prefs.plan.stages, dayKey()), S.decks, S.folders, fresh).blocked;
 // Minutos de la tanda de hoy: los de tu semana (o el día especial); sin semana o si hoy es libre, los de Ajustes
-export const todayMinutes = () => minutesOn(S.prefs.plan, dayKey());
+export const todayMinutes = () => (hooks.plan2 ? hooks.plan2.minutes() : minutesOn(S.prefs.plan, dayKey()));
 export const tandaMinutes = () => todayMinutes() || S.prefs.study.tandaMin;
 const STATE_META = { reviews: ' · solo repasos', paused: ' · en pausa' };
 export const planMeta = d => STATE_META[stateOf(d)] || '';
@@ -404,6 +406,7 @@ export function freshByDeck(test = () => true) {
 // (steady: para enseñar «≈ 6 nuevas al día» en el plan). Solo de los mazos activos, según el foco, y
 // primero el ritmo que piden los exámenes.
 export function newPlan(scope = 'all', { steady = false } = {}) {
+  if (hooks.plan2) return hooks.plan2.quota(steady);   // el plan nuevo (plan2-app.js): las de cada lista según el motor
   const inScope = scopeTest(scope), fresh = freshByDeck(inScope), avail = new Map(), remaining = new Map();
   const nodes = dayNodes(), blocked = topicBlocked();
   for (const [id, n] of fresh) {

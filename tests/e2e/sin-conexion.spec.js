@@ -1,10 +1,10 @@
-import { test, expect, answer, nav, startTanda } from './fixtures.js';
+import { test, expect, answer, nav, startTanda, hoyCount } from './fixtures.js';
 import { mockCloud, openCloud, sent, UID } from './nube.js';
 
 test('estudiar sin conexión: los cambios esperan y se envían al volver la red', async ({ page, context }) => {
   const srv = await mockCloud(page);
   await openCloud(page);
-  await expect(page.locator('.hero-num')).toHaveText('3');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(3);
   await expect(page.locator('#net')).toBeHidden();
 
   await context.setOffline(true);
@@ -27,23 +27,23 @@ test('estudiar sin conexión: los cambios esperan y se envían al volver la red'
 test('abrir la app sin conexión usa la copia guardada y envía lo pendiente al reconectar', async ({ page }) => {
   const srv = await mockCloud(page);
   await openCloud(page);                       // primera vez con red: se guarda la copia
-  await expect(page.locator('.hero-num')).toHaveText('3');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(3);
 
   srv.reachable = false;
   await page.reload();
-  await expect(page.locator('.hero-num')).toHaveText('3');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(3);
   await expect(page.locator('#net')).toContainText('Sin conexión');
 
   await startTanda(page);
   await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();
-  await expect(page.locator('.hero-num')).toHaveText('2');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(2);
   await expect(page.locator('#net')).toContainText('4 cambios por enviar');   // respuesta, progreso, contador del día y la duración de la tanda (la primera vez)
 
   // Lo estudiado sin red sigue ahí aunque se vuelva a cerrar y abrir sin conexión
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.reload();
-  await expect(page.locator('.hero-num')).toHaveText('2');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(2);
 
   srv.reachable = true;
   await page.evaluate(() => dispatchEvent(new Event('online')));
@@ -69,7 +69,7 @@ test('al abrir, los datos no esperan a que se envíe lo pendiente, y lo pendient
     return route.fallback();
   });
   await openCloud(page);
-  await expect(page.locator('.hero-num')).toHaveText('2');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(2);
   expect(sent(srv, 'progress')).toHaveLength(0);
   release();
   await expect.poll(() => sent(srv, 'progress').length).toBe(1);

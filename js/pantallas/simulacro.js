@@ -9,7 +9,7 @@ import { DAY, startOfDay } from '../srs.js';
 import { checkTyped, checkNumber, choiceOptions } from '../cardtypes.js';
 import { trimSims } from '../prefs.js';
 import { decksUnder, childrenOf, folderKey, dayKey } from '../plan.js';
-import { $, main, S, esc, fmt, plain, toast, cardList } from '../comun.js';
+import { $, main, S, esc, fmt, plain, toast, cardList, hooks } from '../comun.js';
 import { plural } from './mazos.js';
 import { cardModel, faceHTML, clozeChoices, startSession } from './estudio.js';
 import { openSheet, closeSheet } from './editor.js';
@@ -29,13 +29,15 @@ const kindOf = mode => (['choice', 'clozechoice'].includes(mode) ? 'choice' : mo
 export const simsOf = exam => (S.prefs.sims || []).filter(s => s && !s.deleted && s.exam === exam).sort((a, b) => a.done - b.done);
 const goalOf = exam => Number(S.prefs.plan.simGoal?.[exam]) || 7;
 // Lo que entra: preguntas ya empezadas de un ámbito (el examen o una de sus partes) y de los tipos que se pueden corregir
-function eligible(scopeKey, testOnly) {
-  const ids = new Set(keyDecks(scopeKey).map(d => d.id));
-  return cardList().filter(c => ids.has(c.deck_id) && S.progress.get(c.id)).filter(c => {
+function eligible(scopeKey, testOnly, fresh = false, decks = null) {
+  const ids = new Set(decks || keyDecks(scopeKey).map(d => d.id));
+  return cardList().filter(c => ids.has(c.deck_id) && (fresh || S.progress.get(c.id))).filter(c => {
     const m = cardModel(c).tpl.mode;
     return TEST.includes(m) || (!testOnly && FLIP.includes(m));
   });
 }
+// Cuántas preguntas vistas de esas listas se pueden corregir (el Simulacro de la semana)
+export const seenCount = (decks, testOnly = true) => eligible('', testOnly, false, decks).length;
 // Las partes de un examen que se pueden elegir: sus subcarpetas y sus listas
 function scopesOf(exam) {
   if (!exam.startsWith('f:')) return [];
@@ -103,9 +105,18 @@ function drawPrep() {
   $('#smTest').addEventListener('change', e => { p.testOnly = e.target.checked; drawPrep(); });
 }
 function start() {
-  const p = S.simPrep, pool = eligible(p.scope || p.exam, p.testOnly);
+  const p = S.simPrep;
+  S.prefs.plan.sim = { ...(S.prefs.plan.sim || {}), [p.exam]: { scope: p.scope, n: p.n, time: p.time, pen: p.pen, testOnly: p.testOnly } };
+  savePrefsSoon();
+  launch({ exam: p.exam, scope: p.scope, n: p.n, time: p.time, pen: p.pen, testOnly: p.testOnly });
+}
+// La pieza de las preguntas al azar sin corregir hasta entregar. Opciones: exam y scope (qué temas), n (cuántas),
+// time (reloj en minutos; 0, sin reloj), pen (los fallos restan), testOnly, fresh (también las nuevas) y mode: 'sim'
+// (simulacro: la nota se guarda y los fallos pasan a mañana) o 'check' («Comprobar» un tema de «Ya me lo sé»)
+export function launch({ exam, scope = '', decks = null, n = 40, time = 0, pen = 0, testOnly = true, fresh = false, mode = 'sim', name = '', deckId = '', examId = '' }) {
+  const pool = eligible(scope || exam, testOnly, fresh, decks);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  const qs = pool.slice(0, p.n).map(c => {
+  const qs = pool.slice(0, n).map(c => {
     const m = cardModel(c), kind = kindOf(m.tpl.mode), q = { id: c.id, kind, ans: null, flag: false };
     if (m.tpl.mode === 'clozechoice') { const ch = clozeChoices(c, m); q.opts = ch.opts; q.correct = ch.correct; }
     else if (m.tpl.mode === 'choice') {
@@ -115,9 +126,8 @@ function start() {
     }
     return q;
   });
-  S.prefs.plan.sim = { ...(S.prefs.plan.sim || {}), [p.exam]: { scope: p.scope, n: p.n, time: p.time, pen: p.pen, testOnly: p.testOnly } };
-  savePrefsSoon();
-  S.sim = { id: api.newId(), exam: p.exam, scope: p.scope, name: p.scope ? keyName(p.scope) : keyName(p.exam), settings: { n: qs.length, time: p.time, pen: p.pen, testOnly: p.testOnly }, qs, cur: 0, seen: [0], phase: 'q', elapsed: 0, since: Date.now(), limit: p.time * 60e3 };
+  if (!qs.length) return toast('No hay preguntas que se puedan corregir aquí');
+  S.sim = { id: api.newId(), exam, scope, mode, deckId, examId, label: mode === 'check' ? 'Comprobar' : 'Simulacro', name: name || (scope ? keyName(scope) : keyName(exam)), settings: { n: qs.length, time, pen, testOnly }, qs, cur: 0, seen: [0], phase: 'q', elapsed: 0, since: Date.now(), limit: time * 60e3 };
   save(); closeSheet(); go('sim');
 }
 
@@ -125,10 +135,10 @@ function start() {
 export function renderSim() {
   const sim = S.sim;
   // La pregunta, «¿Entregas ya?» y la nota van en el azul de la tanda; «Las respuestas», como las demás pantallas
-  document.body.classList.toggle('in-study', S.simShow?.mode !== 'answers');
+  document.body.classList.toggle('in-study', !['answers', 'check'].includes(S.simShow?.mode));
   $('#nav').hidden = S.simShow ? S.simShow.mode !== 'answers' : !!sim;
   document.body.classList.toggle('no-nav', $('#nav').hidden);
-  if (S.simShow) { const html = S.simShow.mode === 'answers' ? answersHTML() : resultHTML(); if (html) main.innerHTML = html; return; }
+  if (S.simShow) { const html = S.simShow.mode === 'check' ? hooks.check.html(S.simShow.check) : S.simShow.mode === 'answers' ? answersHTML() : resultHTML(); if (html) main.innerHTML = html; return; }
   if (!sim) { S.view = 'plan'; return go('plan'); }
   resume();
   if (sim.phase === 'review') main.innerHTML = reviewHTML();
@@ -141,9 +151,10 @@ export function renderSim() {
 }
 const headHTML = (sub, back = 'exit') => {
   const sim = S.sim, left = leftMs(sim);
-  return `<div class="sm-head"><button class="sm-x" data-sim="${back}" aria-label="${back === 'exit' ? 'Salir del simulacro' : 'Volver a la pregunta'}">${icon(back === 'exit' ? 'x' : 'chevron-left', { size: 22 })}</button>
-    <div class="sm-ht"><b>Simulacro · ${esc(sim.name)}</b><small>${sub}</small></div>
-    <button class="sm-clock${left != null && left <= 5 * 60e3 ? ' warn' : ''}" data-sim="review" aria-label="Tiempo · ¿Entregas ya?">${icon('timer', { size: 16 })}<span data-clock>${clock(left ?? elapsed(sim))}</span></button></div>`;
+  const check = sim.mode === 'check';
+  return `<div class="sm-head"><button class="sm-x" data-sim="${back}" aria-label="${back === 'exit' ? (check ? 'Dejarlo sin acabar' : 'Salir del simulacro') : 'Volver a la pregunta'}">${icon(back === 'exit' ? 'x' : 'chevron-left', { size: 22 })}</button>
+    <div class="sm-ht"><b>${sim.label || 'Simulacro'} · ${esc(sim.name)}</b><small>${sub}</small></div>
+    ${check ? `<button class="sm-clock" data-sim="review" aria-label="¿Entregas ya?">${icon('check', { size: 16 })}</button>` : `<button class="sm-clock${left != null && left <= 5 * 60e3 ? ' warn' : ''}" data-sim="review" aria-label="Tiempo · ¿Entregas ya?">${icon('timer', { size: 16 })}<span data-clock>${clock(left ?? elapsed(sim))}</span></button>`}</div>`;
 };
 const qState = (q, i) => (i === S.sim.cur && S.sim.phase === 'q' ? 'cur' : q.flag ? 'flag' : answered(q) ? 'done' : S.sim.seen.includes(i) ? 'blank' : 'unseen');
 const answered = q => q.ans != null && String(q.ans).trim() !== '';
@@ -191,17 +202,17 @@ function reviewHTML() {
     ${gridHTML('sm-grid-8')}
     <div class="sm-legend"><span><i class="st-done"></i>respondida</span><span><i class="st-flag"></i>para revisar</span><span><i class="st-blank"></i>en blanco</span><span><i class="st-unseen"></i>sin ver</span></div>
     <p class="sm-note">${icon('alert-triangle', { size: 16 })} Toca un número para volver a esa pregunta.${left != null ? ` ${cap(leftText(left))}.` : ''}</p>
-    <button class="sm-go" data-sim="submit">Entregar y ver la nota</button>
+    <button class="sm-go" data-sim="submit">${sim.mode === 'check' ? 'Entregar y ver cómo te ha ido' : 'Entregar y ver la nota'}</button>
     ${flag ? `<button class="sm-go2" data-sim="goto-flag">Seguir · ir a ${flag === 1 ? 'la 1' : `las ${flag}`} para revisar</button>` : ''}</div>`;
 }
 // Las de dar la vuelta: tras entregar, «¿La sabías?» de cada una
 function selfHTML() {
   const sim = S.sim, flips = sim.qs.map((q, i) => [q, i]).filter(([q]) => q.kind === 'flip');
-  return `<div class="sm-page sm-rev"><div class="sm-head"><span></span><div class="sm-ht"><b>Simulacro · ${esc(sim.name)}</b><small>las de dar la vuelta</small></div><span></span></div>
+  return `<div class="sm-page sm-rev"><div class="sm-head"><span></span><div class="sm-ht"><b>${sim.label || 'Simulacro'} · ${esc(sim.name)}</b><small>las de dar la vuelta</small></div><span></span></div>
     <h1 class="sm-h">¿La sabías?</h1><p class="sm-sub">Estas las corriges tú. Sin marcar, cuentan en blanco.</p>
     <ul class="sm-self">${flips.map(([q, i]) => { const c = S.cards.get(q.id); return `<li><span class="sm-num">${i + 1}</span><div><p>${esc(plain(c?.front || ''))}</p><p class="sm-right">${esc(plain(c?.back || ''))}</p>
       <div class="sm-yn"><button data-sim="self" data-i="${i}" data-v="yes" aria-pressed="${q.self === 'yes'}">Sí</button><button data-sim="self" data-i="${i}" data-v="no" aria-pressed="${q.self === 'no'}">No</button></div></div></li>`; }).join('')}</ul>
-    <button class="sm-go" data-sim="finish">Ver la nota</button></div>`;
+    <button class="sm-go" data-sim="finish">${sim.mode === 'check' ? 'Ver cómo te ha ido' : 'Ver la nota'}</button></div>`;
 }
 
 /* ---------------- corregir y guardar ---------------- */
@@ -226,6 +237,12 @@ function submit() {
 }
 function finish() {
   const sim = S.sim, res = sim.qs.map(verdict), n = sim.qs.length;
+  if (sim.mode === 'check') {
+    S.simShow = { mode: 'check', check: { deckId: sim.deckId, examId: sim.examId, name: sim.name, qs: sim.qs.map((q, i) => [q.id, res[i]]) } };
+    S.sim = null; save();
+    renderSim(); scrollTo(0, 0);
+    return;
+  }
   const ok = res.filter(r => r === 'o').length, bad = res.filter(r => r === 'x').length, blank = n - ok - bad, pen = sim.settings.pen;
   const score = Math.max(0, Math.round(((ok - (pen ? bad / pen : 0)) / Math.max(1, n)) * 1000) / 100);
   const topics = topicsFor(sim.exam, sim.qs.map(q => q.id)), byTopic = new Map();
@@ -271,6 +288,7 @@ function resultHTML() {
     <ul class="sm-topics">${r.topics.map(t => { const n = t.o + t.x + t.b; return `<li><div><span>${esc(t.name)}</span><span>${t.o} de ${n}</span></div><div class="sm-tb"><i class="o" style="width:${(100 * t.o) / n}%"></i><i class="x" style="width:${(100 * t.x) / n}%"></i><i class="b" style="width:${(100 * t.b) / n}%"></i></div></li>`; }).join('')}</ul>
     <div class="sm-legend"><span><i class="o"></i>acierto</span><span><i class="x"></i>fallo</span><span><i class="b"></i>en blanco</span></div>
     <h2 class="sm-h2">Tus simulacros</h2>${chartSVG(r.exam, true)}
+    ${hooks.simWeak?.(r) || ''}
     ${r.bad ? `<p class="sm-note">${icon('refresh-cw', { size: 16 })} ${r.bad === 1 ? 'El fallo ya está' : `Los ${r.bad} fallos ya están`} en tu tanda de mañana.</p>` : ''}
     ${fails.length ? `<button class="sm-go" data-sim="fails" data-id="${esc(r.id)}">Repasar ${fails.length === 1 ? 'el fallo' : `los ${fails.length} fallos`} ahora</button>` : ''}
     ${r.qs ? `<button class="sm-go2" data-sim="answers" data-id="${esc(r.id)}">${r.n === 1 ? 'Ver la respuesta' : `Ver las ${r.n} respuestas`}</button>` : ''}</div>`;
@@ -364,9 +382,13 @@ export function simClick(b) {
     case 'submit': return submit();
     case 'self': sim.qs[Number(ds.i)].self = ds.v; save(); return renderSim();
     case 'finish': return finish();
-    case 'exit': return openSheet(`<h2>¿Salir del simulacro?</h2><p class="muted">Si sales, se pierde este simulacro.</p>
+    case 'exit': if (sim?.mode === 'check') return openSheet(`<h2>¿Lo dejas sin acabar?</h2><p class="muted">No cambia nada del plan.</p>
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Seguir</button><button class="danger solid primary" data-sim="quit">Dejarlo</button></div>`);
+      return openSheet(`<h2>¿Salir del simulacro?</h2><p class="muted">Si sales, se pierde este simulacro.</p>
       <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Seguir</button><button class="danger solid primary" data-sim="quit">Salir</button></div>`);
-    case 'quit': { const exam = sim?.exam; S.sim = null; save(); closeSheet(); return exam ? go('exam', { examKey: exam }) : go('plan'); }
+    case 'quit': { const exam = sim?.exam, check = sim?.mode === 'check' ? sim.examId : ''; S.sim = null; save(); closeSheet(); return check ? go('exam', { examId: check, examKey: null }) : exam ? go('exam', { examKey: exam }) : go('plan'); }
+    case 'check-ok': return hooks.check.apply(S.simShow.check);
+    case 'check-close': { const id = S.simShow?.check?.examId; S.simShow = null; return id ? go('exam', { examId: id, examKey: null }) : go('plan'); }
     case 'close': { const r = recOf(S.simShow?.id); S.simShow = null; return r ? go('exam', { examKey: r.exam }) : go('plan'); }
     case 'result': S.simShow = { id: S.simShow?.id || ds.id, mode: 'result' }; if (S.view !== 'sim') return go('sim'); renderSim(); return scrollTo(0, 0);
     case 'answers': S.simShow = { id: ds.id || S.simShow?.id, mode: 'answers', filter: 'all' }; if (S.view !== 'sim') return go('sim'); renderSim(); return scrollTo(0, 0);

@@ -1,6 +1,6 @@
 // Remates del repaso: hermanas, lo de hoy igual en Hoy y en Biblioteca, estudiar todo lo nuevo de un apunte,
 // el apunte y su lista en una ficha, Intro en el título, la caja «respuesta» al escribir y «Varias de golpe»
-import { test, expect, openApp, nav } from './fixtures.js';
+import { test, expect, openApp, nav, hoyCount } from './fixtures.js';
 
 const DAY = 864e5;
 function seed(page, { newPerDay = 10 } = {}) {
@@ -45,7 +45,8 @@ test('hermanas: una sola por tanda (también si una es repaso y otra nueva); Bib
   expect(ids).toContain('w1');
   expect(ids).not.toContain('w2');
   expect(ids.filter(id => id === 'b1' || id === 'b2')).toHaveLength(1);
-  const n = Number(await page.locator('.hero-num').textContent());
+  await expect(page.locator('#main .p2-legend')).toBeVisible();
+  const n = (await hoyCount(page)).total;
   expect(n).toBe(ids.length);
   // Biblioteca: el apunte y su lista en una sola ficha, y las fichas suman lo de Hoy
   await nav(page, 'Biblioteca');

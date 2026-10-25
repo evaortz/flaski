@@ -191,6 +191,7 @@ function menuHTML(kind, d, sheet) {
   return `<div class="dk-mh">${sheet ? `<h2>${esc(d.name)}</h2><p>${[plural(total, 'pregunta', 'preguntas'), lang && esc(langLabel(lang))].filter(Boolean).join(' · ')}</p>` : `<h2>Más opciones</h2><p>${esc(d.name)}</p>`}</div><div class="dk-menu" role="menu">
     ${mItem('data-act="edit-deck"', 'pencil', 'Editar lista', 'Nombre, descripción, idioma y etiquetas')}
     ${mItem(`data-stats="${d.id}"`, 'chart-line', 'Estadísticas de esta lista')}
+    ${mItem(`data-p2="entuplan" data-key="${d.id}"`, 'target', 'En tu plan', 'Examen, fechas y cuánto entra')}
     ${mItem('data-act="share"', 'upload', 'Compartir', 'Con un enlace; quien la añada tendrá su copia')}
     ${mItem('data-act="move-deck"', 'folder-input', 'Mover a otra carpeta')}
     ${mItem('data-act="export-csv"', 'download', 'Exportar', 'En CSV, para Excel u otra app')}

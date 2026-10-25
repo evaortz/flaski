@@ -33,7 +33,8 @@ test('Perfil: con un examen por delante, el plan dice «vas bien» o «no llegas
   await expect(page.locator('#main [data-builtin="aleman-a2.json"] .go')).toHaveText('La tienes');
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
-    S.prefs.plan.nodes[[...S.decks.values()][0].id] = { exam: addDays(dayKey(), 3) };
+    const { editPlan2 } = await import('/js/plan2-app.js'), d = [...S.decks.values()][0];
+    editPlan2().exams.push({ id: 'ex-' + d.id, name: d.name, scope: { folders: [], decks: [d.id], pages: [] }, date: addDays(dayKey(), 3), lastWeek: false, after: null });
   });
   await nav(page, 'Perfil');
   await expect(page.locator('.pr-row', { hasText: 'Plan de estudio' }).locator('.pr-tag')).toHaveText('no llegas');

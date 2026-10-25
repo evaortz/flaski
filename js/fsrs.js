@@ -86,6 +86,8 @@ export function fsrsSchedule(prev, g, now, A, startOfDay) {
   iv = Math.min(Math.max(1, iv), A.maxDays || 36500);
   s.reps = (s.reps || 0) + 1;
   s.interval = iv;
-  s.due = startOfDay(now) + iv * DAY;
+  // N días de calendario (no N × 24 h): el día del cambio de hora dura 23 o 25 h y quedaría a las 23:00 de la víspera
+  const dueDay = new Date(startOfDay(now)); dueDay.setDate(dueDay.getDate() + iv);
+  s.due = dueDay.getTime();
   return s;
 }

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, openApp, openDeck, openPage, nav, answer, deckMenu } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, nav, answer, deckMenu, hoyCount } from './fixtures.js';
 
 const CSV = '﻿pregunta;respuesta;nota\nçiçek;flor;"con ""comillas"""\nkapı;puerta;\nsolo;;\n';
 
@@ -62,7 +62,7 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await wipeLocal(page);
   await Promise.all([page.waitForEvent('load'), restore(page, backup)]);   // restaurar recarga la página
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
-  await expect(page.locator('.hero-num')).toHaveText('1');          // 1 nueva pendiente, la otra ya estudiada
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(1);          // 1 nueva pendiente, la otra ya estudiada
   await nav(page, 'Perfil');
   await expect(page.locator('.pf-num').nth(0)).toHaveText('2preguntas');
   await expect(page.locator('.pf-num').nth(1)).toHaveText('1lista');

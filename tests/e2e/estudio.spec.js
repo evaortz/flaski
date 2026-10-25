@@ -1,4 +1,4 @@
-import { test, expect, openApp, openDeck, nav, createDeck, addBasicCards, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, createDeck, addBasicCards, newCard, hoyCount } from './fixtures.js';
 
 test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a recargar', async ({ page }) => {
   await openApp(page);
@@ -19,7 +19,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await page.reload();
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('.hero-done')).toHaveText(/^Hola.*, estás al día$/);
-  await expect(page.locator('.hero-num')).toHaveCount(0);
+  await expect(page.locator('#main .p2-legend')).toHaveCount(0);
   await expect(page.locator('.hero-band')).toHaveCount(0);
 });
 
@@ -47,7 +47,7 @@ test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía co
   await seed({ builtin: ['Turco · Armonía vocálica'] });   // 20 tarjetas, límite de 15 nuevas al día
   await openApp(page);
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-num')).toHaveText('15');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(15);
 
   // Desde la lista salen todas sus nuevas, sin el límite del día
   await page.locator('#nav').getByRole('button', { name: 'Biblioteca' }).click();
@@ -70,7 +70,7 @@ test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía co
   // Lo pedido sigue valiendo hoy aunque se recargue
   await page.reload();
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
-  await expect(page.locator('.hero-num')).toHaveText('5');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(5);
 });
 
 test('tarjeta de escribir la respuesta: corrige y sugiere la nota @ambos', async ({ page, seed }) => {

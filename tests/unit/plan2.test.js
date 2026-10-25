@@ -1,0 +1,602 @@
+// Motor del plan nuevo (plan2.js): ritmo, repasos previstos, cuánto cabe, reparto, simulación y arreglos.
+// Escenarios fijos (con fecha y datos fijos) y propiedades con datos al azar.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { medirRitmo, newKernel, forecast, today, whatIf, fixes, sharesToday, toPercent, minutesOn, plan2On } from '../../js/plan2.js';
+import { addDays, daysBetween } from '../../js/plan.js';
+import { startOfDay } from '../../js/srs.js';
+import { state945, TODAY, deckByName, examByName, invent, rng, randomState } from './plan2-datos.js';
+
+const DAY = 864e5;
+const T1 = 'f1a4a82c-3197-48d2-a180-b00b1dccd8cc', T2 = '0902a08c-7fbe-4181-b75c-86ba22f2e128';
+const reaches = v => v === 'llegas' || v === 'justo';
+const exam = (fc, name) => fc.exams.find(e => e.name.startsWith(name));
+
+/* ---------------- 1 · el ritmo ---------------- */
+test('el ritmo: mediana por nueva (sumando sus vueltas del mismo día) y por repaso; sin pausas; con pocas, 40 s y 12 s', () => {
+  assert.deepEqual(medirRitmo([]), { secNew: 40, secReview: 12, measured: false, n: 0 });
+  const ev = [];
+  for (let i = 0; i < 40; i++) {
+    ev.push({ card_id: 'n' + i, ts: `2026-10-0${1 + (i % 9)}T10:00:${String(i).padStart(2, '0')}Z`, state: 'new', ms: 20000 });
+    ev.push({ card_id: 'n' + i, ts: `2026-10-0${1 + (i % 9)}T10:05:${String(i).padStart(2, '0')}Z`, state: 'learning', ms: 10000 });
+  }
+  for (let i = 0; i < 30; i++) ev.push({ card_id: 'r' + i, ts: `2026-10-10T10:00:${String(i).padStart(2, '0')}Z`, state: 'review', ms: 8000 });
+  ev.push({ card_id: 'r0', ts: '2026-10-10T11:00:00Z', state: 'review', ms: 10 * 60e3 });   // una pausa: no cuenta
+  assert.deepEqual(medirRitmo(ev), { secNew: 30, secReview: 8, measured: true, n: 110 });
+  // Con menos de 50 respuestas, lo de siempre
+  assert.equal(medirRitmo(ev.slice(0, 49)).secNew, 40);
+});
+
+test('cada nueva trae sus repasos en los días siguientes (de media), y con el 95 % más que con el 90 %', () => {
+  const sum = K => K.reduce((a, [, w]) => a + w, 0);
+  const k90 = newKernel(0.9), k95 = newKernel(0.95);
+  assert.equal(k90[0][0], 1);                       // las que se fallan, al día siguiente
+  assert.ok(k90.find(([d]) => d === 3)[1] > 0.9);   // la mayoría, a los 3 días
+  assert.ok(sum(k95) > sum(k90) + 2);
+});
+
+test('los minutos de un día: pausa, «hoy solo tengo…», día especial y semana', () => {
+  const plan = { time: { week: { mon: 45, tue: 45, wed: 45, thu: 45, fri: 30, sat: 90, sun: 0 }, special: [{ id: 'n', from: '2026-12-24', to: '2026-12-26', minutes: 0 }], today: { day: '2026-10-27', minutes: 10 }, pause: { from: '2026-11-03', to: '2026-11-06' } } };
+  assert.equal(minutesOn(plan, '2026-10-26'), 45);
+  assert.equal(minutesOn(plan, '2026-10-27'), 10);
+  assert.equal(minutesOn(plan, '2026-10-31'), 90);
+  assert.equal(minutesOn(plan, '2026-11-01'), 0);
+  assert.equal(minutesOn(plan, '2026-11-04'), 0);
+  assert.equal(minutesOn(plan, '2026-12-25'), 0);
+  assert.equal(minutesOn({ time: { week: null } }, '2026-10-26', 15), 15);
+});
+
+/* ---------------- escenarios fijos ---------------- */
+// Los dos exámenes del diseño: 945 preguntas, T1 y T2 ya sabidos; tope: las 20 nuevas al día de Ajustes
+const design = change => state945(p => { p.exams[0].known = [T1, T2]; change?.(p); });
+
+test('los dos exámenes: el 80 % al más cercano; Auxiliar acaba el 23 nov (7 semanas de repaso) y después Inglés', () => {
+  const S = design(), fc = forecast(S);
+  const sh = sharesToday(S, 1);
+  assert.deepEqual([...sh.values()], [80, 20]);
+  assert.equal(fc.days[1].new, 20);
+  assert.deepEqual(Object.fromEntries(Object.entries(fc.days[1].newBy).map(([id, n]) => [S.decks.get(id).name.slice(0, 2), n])), { T3: 16, Gr: 4 });   // Inglés, un tema tras otro: Gramática va antes por nombre
+  const a = exam(fc, 'Auxiliar'), b = exam(fc, 'Inglés');
+  assert.equal(a.start, 400);
+  assert.equal(a.finish, '2026-11-23');
+  assert.equal(a.verdict, 'llegas');
+  assert.deepEqual(a.phases, { temario: ['2026-10-25', '2026-11-23'], repaso: ['2026-11-24', '2027-01-08'], lastWeek: ['2027-01-09', '2027-01-15'] });
+  assert.equal(Math.round(a.review / 7), 7);
+  assert.equal(b.finish, '2026-12-04');   // el diseño decía 2 dic: con 20 al día no caben 190 en 8 días
+  assert.equal(b.verdict, 'llegas');
+  // El camino: T3 primero, después T4…
+  const t3 = a.topics.find(t => t.id === deckByName(S, 'T3')), t4 = a.topics.find(t => t.id === deckByName(S, 'T4'));
+  assert.equal(t3.from, '2026-10-26');
+  assert.ok(t3.finish <= t4.from);
+  assert.equal(a.topics.find(t => t.id === T1).state, 'known');
+});
+
+test('Hoy y el Plan dicen lo mismo el domingo libre: 48 repasos, sin nuevas', () => {
+  const S = state945(), t = today(S), fc = forecast(S);
+  const end = startOfDay(new Date(TODAY + 'T12:00:00').getTime()) + DAY;
+  const due = [...S.progress.values()].filter(p => p.due < end).length;
+  assert.equal(due, 48);
+  assert.equal(t.reviews, 48);
+  assert.equal(t.new, 0);
+  assert.equal(t.total, 48);
+  assert.equal(t.rest, true);
+  assert.equal(fc.days[0].reviewsDue, t.reviews);
+  // Lo de hoy no está hecho mientras queden repasos; hechos, sí
+  assert.equal(t.done, false);
+  const S2 = { ...S, progress: new Map([...S.progress].map(([id, p]) => [id, p.due < end ? { ...p, due: end + 2 * DAY, last: end - 3600e3 } : p])), done: { reviews: 48, new: 0 } };
+  assert.equal(today(S2).done, true);
+});
+
+test('examen a 26 días: no llegas, y las tres opciones propuestas sí llegan', () => {
+  const S = state945(p => { p.exams[0].date = addDays(TODAY, 26); });
+  const id = examByName(S, 'Auxiliar').id;
+  const base = exam(forecast(S), 'Auxiliar');
+  assert.equal(base.verdict, 'no');
+  assert.equal(base.left, 169);                    // de 425 (el diseño, a ojo, decía 131)
+  const fx = fixes(S, id);
+  assert.equal(fx.options.length, 3);
+  assert.equal(fx.drop, null);
+  for (const o of fx.options) {
+    assert.ok(reaches(o.exam.verdict));
+    assert.ok(reaches(exam(forecast({ ...S, plan: o.plan }), 'Auxiliar').verdict));
+  }
+  // Las que cambian menos primero, y cada una distinta
+  assert.ok(fx.options[0].cost <= fx.options[1].cost && fx.options[1].cost <= fx.options[2].cost);
+  assert.equal(new Set(fx.options.map(o => o.kinds)).size, 3);
+  // La primera: subir el tope de Ajustes de 20 al mínimo que llega
+  assert.deepEqual(fx.options[0].levers, [{ kind: 'cap', from: 20, newPerDay: 36 }]);
+  assert.equal(fx.options[0].plan.caps.newPerDay, 36);
+  assert.equal(exam(forecast({ ...S, plan: fx.options[0].plan }), 'Auxiliar').verdict, 'justo');
+  assert.equal(exam(whatIf(S, { caps: { newPerDay: 35 } }), 'Auxiliar').verdict, 'no');
+});
+
+test('el tope de nuevas: las de Ajustes (nunca más de 20 en un día); sin valor, mandan los minutos', () => {
+  const S = state945(), fc = forecast(S);
+  assert.equal(S.newPerDay, 20);
+  assert.ok(fc.days.every(d => d.new <= 20));
+  assert.equal(fc.days[1].new, 20);                                   // el lunes cabrían 36
+  const free = forecast({ ...S, newPerDay: null });
+  assert.equal(free.days[1].new, 36);
+  assert.ok(exam(free, 'Auxiliar').finish < exam(fc, 'Auxiliar').finish);
+  // El tope de Ajustes del plan manda sobre el de Ajustes
+  assert.ok(whatIf(S, { caps: { newPerDay: 10 } }).days.every(d => d.new <= 10));
+});
+
+test('la palanca del tope solo sale si el examen no llega (y si hay tope)', () => {
+  const ok = state945();
+  assert.equal(exam(forecast(ok), 'Auxiliar').verdict, 'llegas');
+  assert.deepEqual(fixes(ok, examByName(ok, 'Auxiliar').id).options, []);
+  const late = state945(p => { p.exams[0].date = addDays(TODAY, 26); });
+  assert.ok(fixes(late, examByName(late, 'Auxiliar').id).options.some(o => o.kinds === 'cap'));
+  // Sin tope (cuenta nueva), no hay tope que subir
+  const S = { ...state945(p => { p.exams[0].date = addDays(TODAY, 12); }), newPerDay: null };
+  const fx = fixes(S, examByName(S, 'Auxiliar').id);
+  assert.equal(fx.base.verdict, 'no');
+  assert.ok(fx.options.every(o => !o.kinds.includes('cap')));
+});
+
+test('ningún arreglo llega: propone qué temas dejar para el final', () => {
+  // 2.000 nuevas en 6 temas y 30 días, con 20 al día: ni subiendo el tope ni con más minutos
+  const S = invent({ seed: 3, n: 2000, nExams: 1, nTopics: 6, seen: 0, days: [30] });
+  S.plan.caps.newPerDay = 20;
+  const fx = fixes(S, 'ex0');
+  assert.equal(fx.base.verdict, 'no');
+  assert.deepEqual(fx.options, []);
+  assert.deepEqual(fx.drop.topics, ['d0-1', 'd0-2', 'd0-3', 'd0-4', 'd0-5']);   // los últimos del camino, nunca el primero
+  assert.equal(fx.drop.exam.verdict, 'justo');
+});
+
+// Un examen con tres temas a mano (sin progreso), tope de 20 al día y todos los días con tiempo de sobra
+function three(fresh, extra) {
+  const decks = [], cards = [];
+  fresh.forEach((n, k) => { decks.push({ id: 'abc'[k], folder_id: 'f', name: `T${k + 1}` }); for (let i = 0; i < n; i++) cards.push({ id: `${k}-${i}`, deck_id: 'abc'[k] }); });
+  const plan = {
+    v: 2, time: { week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 120])), special: [] },
+    exams: [{ id: 'e', name: 'Examen', scope: { folders: ['f'] }, date: addDays(TODAY, 90), mode: 'seq', order: [], shares: {}, fixed: {}, lastWeek: false, ...extra }],
+    split: { mode: 'auto' }, free: {}, caps: { newPerDay: 20 }, stages: [],
+  };
+  return { plan, today: TODAY, decks, folders: [{ id: 'f', name: 'Examen' }], cards, progress: new Map(), pace: { secNew: 40, secReview: 12 } };
+}
+
+test('varios temas a la vez al 50, 30 y 20 %: cuando uno se acaba, su parte pasa a los que quedan', () => {
+  const fc = forecast(three([100, 30, 200], { mode: 'parallel', shares: { a: 50, b: 30, c: 20 } }));
+  assert.deepEqual(fc.days[0].newBy, { a: 10, b: 6, c: 4 });
+  const e = fc.exams[0], b = e.topics.find(t => t.id === 'b');
+  assert.equal(b.finish, addDays(TODAY, 4));                          // 30 a 6 al día: 5 días
+  assert.deepEqual(fc.days[5].newBy, { a: 14, c: 6 });               // 50 : 20 de 20
+  assert.equal(fc.days.reduce((s, d) => s + d.new, 0), 330);
+});
+
+test('un tema tras otro, y una fecha fijada sube la parte de ese tema justo lo necesario', () => {
+  const seq = forecast(three([100, 100, 0]));
+  assert.deepEqual(seq.days[0].newBy, { a: 20 });
+  assert.equal(seq.exams[0].topics.find(t => t.id === 'b').finish, addDays(TODAY, 9));
+  const fixed = forecast(three([100, 100, 0], { fixed: { b: addDays(TODAY, 4) } }));
+  assert.deepEqual(fixed.days[0].newBy, { b: 20 });                   // 100 en 5 días: 20 al día
+  const S = three([100, 100, 0], { fixed: { b: addDays(TODAY, 9) } }), f2 = forecast(S);
+  assert.deepEqual(f2.days[0].newBy, { b: 10, a: 10 });               // 100 en 10 días: 10 al día
+  assert.equal(f2.exams[0].topics.find(t => t.id === 'b').finish, addDays(TODAY, 9));
+  // Lo que ya sabes no da nuevas; lo que «no cae» sale del examen
+  const k = forecast(three([100, 100, 50], { known: ['a'], exclude: ['c'] }));
+  assert.deepEqual(k.days[0].newBy, { b: 20 });
+  assert.equal(k.exams[0].start, 100);
+});
+
+test('día especial, pausa de 4 días y «hoy solo tengo 10 min»', () => {
+  const S = invent({ seed: 5, n: 900, nExams: 1, seen: 0.4, days: [80] });
+  const base = forecast(S);
+  const P = { ...S, plan: { ...S.plan, time: { ...S.plan.time, today: { day: TODAY, minutes: 10 }, special: [{ id: 'n', label: 'Navidad', from: '2026-12-24', to: '2026-12-26', minutes: 0 }], pause: { from: '2026-11-03', to: '2026-11-06' } } } };
+  const fc = forecast(P), day = k => fc.days.find(d => d.day === k);
+  // Hoy (domingo, que suele ser libre) tienes 10 min: caben repasos, no más
+  assert.equal(fc.days[0].minutes, 10);
+  assert.ok(fc.days[0].secs <= 600);
+  for (const k of ['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-12-24', '2026-12-25', '2026-12-26']) {
+    assert.equal(day(k).minutes, 0); assert.equal(day(k).new, 0); assert.equal(day(k).reviews, 0);
+  }
+  // Lo de la pausa se hace después (no se pierde) y el examen acaba más tarde
+  assert.ok(day('2026-11-07').reviewsDue > base.days.find(d => d.day === '2026-11-07').reviewsDue);
+  assert.ok(fc.exams[0].finish > base.exams[0].finish);
+  // today() con los 10 min
+  const t = today(P);
+  assert.equal(t.minutes, 10);
+  assert.ok(t.secs <= 600 || !t.fits);
+});
+
+test('más repasos de los que caben: ese día no hay nuevas y se avisa', () => {
+  const S = invent({ seed: 9, n: 800, nExams: 1, seen: 1, days: [60], week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 30])) });
+  const t0 = new Date(TODAY + 'T09:00:00').getTime();
+  let i = 0;
+  for (const [id, p] of S.progress) if (i++ < 300) S.progress.set(id, { ...p, due: t0 });
+  for (let k = 0; k < 100; k++) { S.cards.push({ id: 'x' + k, deck_id: 'd0-0' }); }
+  const fc = forecast(S), d0 = fc.days[0];
+  assert.ok(d0.reviewsDue >= 300);
+  assert.equal(d0.reviews, 150);                    // 30 min a 12 s
+  assert.equal(d0.short, true);
+  assert.equal(d0.new, 0);
+  assert.ok(fc.short.includes(TODAY));
+  const t = today(S);
+  assert.equal(t.short, true);
+  assert.equal(t.fits, false);
+  assert.equal(t.new, 0);
+});
+
+test('después del examen: en pausa sus repasos dejan de contar; los temas que dejaste para después entran entonces', () => {
+  const S = three([60, 60, 0], { date: addDays(TODAY, 10), later: ['b'], after: 'pause' });
+  const fc = forecast({ ...S, plan: { ...S.plan, exams: [...S.plan.exams, { id: 'z', name: 'Otro', scope: { decks: ['zz'] }, date: addDays(TODAY, 40) }] }, decks: [...S.decks, { id: 'zz', name: 'Z' }] });
+  const e = fc.exams[0];
+  assert.equal(e.start, 60);
+  assert.equal(e.verdict, 'llegas');
+  const b = e.topics.find(t => t.id === 'b');
+  assert.equal(b.state, 'later');
+  assert.ok(b.from >= addDays(TODAY, 10));
+  assert.ok(fc.days[30].reviewsDue === 0);           // a y b en pausa tras el examen
+});
+
+test('las etapas a mano mandan durante su rango', () => {
+  const S = invent({ seed: 2, n: 600, nExams: 2, seen: 0, days: [60, 120] });
+  S.plan.caps.newPerDay = 20;
+  S.plan.stages = [{ id: 's', name: 'Inglés primero', from: TODAY, to: addDays(TODAY, 6), levels: { 'f:f0': 'reviews', 'f:f1': 'high' }, order: {} }];
+  const fc = forecast(S);
+  assert.ok(Object.keys(fc.days[1].newBy).every(id => id.startsWith('d1-')));
+  assert.ok(Object.keys(fc.days[8].newBy).some(id => id.startsWith('d0-')));
+});
+
+test('whatIf: el mismo forecast con un cambio, sin tocar el plan', () => {
+  const S = design(), before = JSON.stringify(S.plan);
+  const w = whatIf(S, { time: { week: { mon: 90, tue: 90, wed: 90, thu: 90, fri: 90, sat: 90, sun: 90 } }, caps: { newPerDay: null } });
+  assert.equal(JSON.stringify(S.plan), before);
+  assert.ok(exam(w, 'Auxiliar').finish < exam(forecast(S), 'Auxiliar').finish);
+  const w2 = whatIf(S, p => { p.exams[1].hold = '2026-11-23'; });
+  assert.equal(w2.days[1].new, 20);
+  assert.ok(Object.keys(w2.days[1].newBy).every(id => S.decks.get(id).folder_id === S.plan.exams[0].scope.folders[0]));
+});
+
+test('el interruptor de pruebas «plan2»', () => {
+  assert.equal(plan2On({ search: '?local&plan2' }, null), true);
+  assert.equal(plan2On({ search: '' }, { getItem: () => '1' }), true);
+  assert.equal(plan2On({ search: '?local' }, { getItem: () => null }), false);
+});
+
+/* ---------------- propiedades ---------------- */
+// Cada propiedad, para un estado al azar (r: los números al azar de la pasada; k: el número del caso)
+const RANKV = { no: 0, justo: 1, llegas: 2 };
+const props = {
+  // Los porcentajes del reparto siempre suman 100
+  shares(S, r) {
+    const sh = sharesToday(S, Math.floor(r() * 5));
+    if (sh.size) assert.equal([...sh.values()].reduce((a, b) => a + b, 0), 100);
+    const w = new Map(Array.from({ length: 1 + Math.floor(r() * 6) }, (_, i) => [i, r() * 10]));
+    assert.equal([...toPercent(w).values()].reduce((a, b) => a + b, 0), 100);
+  },
+  // Más minutos (todos los días que estudias, o un día suelto) nunca retrasan la fecha del primer examen ni la de
+  // un plan con un solo examen. Los demás, como mucho 2 días: más nuevas de un examen traen más repasos después,
+  // que quitan sitio al siguiente (ver ESTADO-PLAN.md)
+  moreMinutes(S, r, k) {
+    const more = 5 + 5 * Math.floor(r() * 6), day = addDays(TODAY, Math.floor(r() * 40)), m0 = minutesOn(S.plan, day, 10);
+    const a = forecast(S, { light: true }), first = [...a.exams].sort((x, y) => x.date.localeCompare(y.date))[0].id;
+    const changes = [
+      p => { for (const d of Object.keys(p.time.week)) if (p.time.week[d] > 0) p.time.week[d] += more; },
+      p => { p.time.special = [...(p.time.special || []), { id: 'mas', from: day, to: day, minutes: m0 + more, at: 9 }]; },
+    ];
+    for (const ch of changes) {
+      const b = whatIf(S, ch, { light: true });
+      a.exams.forEach((e, i) => {
+        const f = b.exams[i], strict = e.id === first || a.exams.length === 1;
+        if (!e.finish) return;
+        assert.ok(f.finish, `caso ${k}: ${e.id} acababa el ${e.finish} y ya no acaba`);
+        assert.ok(daysBetween(e.finish, f.finish) <= (strict ? 0 : 2), `caso ${k}: ${e.id} ${e.finish} → ${f.finish}`);
+        if (strict) assert.ok(f.left <= e.left && RANKV[f.verdict] >= RANKV[e.verdict], `caso ${k}: ${e.id} ${e.verdict} → ${f.verdict}`);
+      });
+    }
+  },
+  // Nunca más nuevas de las que hay (también con temas en dos exámenes) ni más minutos de los del día
+  noOver(S, r, k) {
+    const fc = forecast(S), fresh = new Map(), got = new Map();
+    for (const c of S.cards) if (!S.progress.has(c.id)) fresh.set(c.deck_id, (fresh.get(c.deck_id) || 0) + 1);
+    for (const d of fc.days) {
+      assert.ok(d.secs <= d.minutes * 60, `caso ${k}: ${d.day} ${d.secs} s en ${d.minutes} min`);
+      for (const [id, n] of Object.entries(d.newBy)) { assert.ok(n > 0); got.set(id, (got.get(id) || 0) + n); }
+      if (S.plan.caps.newPerDay) assert.ok(d.new <= S.plan.caps.newPerDay);
+    }
+    for (const [id, n] of got) assert.ok(n <= (fresh.get(id) || 0), `caso ${k}: ${id} ${n} de ${fresh.get(id)}`);
+  },
+  // Un arreglo que llega, aplicado, llega; y ninguno empeora otro examen. Devuelve si había algo que arreglar
+  fixReaches(S, r, k) {
+    const fc = forecast(S, { light: true }), late = fc.exams.find(e => e.verdict === 'no');
+    if (!late) return false;
+    for (const o of fixes(S, late.id).options) {
+      const after = forecast({ ...S, plan: o.plan }, { light: true }).exams, e = after.find(x => x.id === late.id);
+      assert.equal(e.verdict, o.exam.verdict);
+      assert.ok(reaches(e.verdict), `caso ${k}`);
+      for (const x of after) if (x.id !== late.id) assert.ok(RANKV[x.verdict] >= RANKV[fc.exams.find(y => y.id === x.id).verdict], `caso ${k}: ${x.id} empeora`);
+    }
+    return true;
+  },
+};
+
+test('propiedad: los porcentajes del reparto siempre suman 100', () => {
+  const r = rng(11);
+  for (let k = 0; k < 200; k++) props.shares(randomState(r, k + 1), r, k);
+});
+
+test('propiedad: más minutos nunca retrasan el primer examen ni un plan con un examen; los demás, como mucho 2 días', () => {
+  const r = rng(12);
+  for (let k = 0; k < 200; k++) props.moreMinutes(randomState(r, k + 300), r, k);
+});
+
+test('propiedad: nunca más nuevas de las que hay ni más minutos de los del día', () => {
+  const r = rng(13);
+  for (let k = 0; k < 200; k++) props.noOver(randomState(r, k + 600), r, k);
+});
+
+test('propiedad: un arreglo que llega, aplicado, llega (y no empeora otro examen)', () => {
+  const r = rng(14);
+  let checked = 0;
+  for (let k = 0; k < 200 && checked < 40; k++) if (props.fixReaches(randomState(r, k + 900), r, k)) checked++;
+  assert.ok(checked >= 10, `solo ${checked} casos sin llegar`);
+});
+
+/* ---------------- rendimiento ---------------- */
+// Solo una comprobación holgada, para pillar algo roto de verdad: la medida de verdad (forecast < 50 ms y fixes
+// < 500 ms) está en rendimiento.perf.js (npm run rendimiento, con el ordenador libre)
+test('rendimiento holgado: 5.000 preguntas, 3 exámenes y un año, fixes en menos de 2 s', () => {
+  const S = invent({ seed: 21, n: 5000, nExams: 3, nTopics: 8, seen: 0.4, days: [45, 200, 365] });
+  S.plan.caps.newPerDay = 25;
+  forecast(S);
+  const t = performance.now();
+  fixes(S, 'ex0');
+  const ms = performance.now() - t;
+  assert.ok(ms < 2000, `fixes ${Math.round(ms)} ms`);
+});
+
+test('today(): «Hecho por hoy» al cumplir los minutos (o sin nada pendiente); un día libre, nunca', () => {
+  const S = three([100, 0, 0], { lastWeek: false });
+  S.plan.time.week = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 10]));
+  assert.equal(today(S).dayDone, null);
+  assert.equal(today({ ...S, done: { new: 5, reviews: 0, n: 9, ms: 4 * 60e3 } }).dayDone, null);
+  // 15 nuevas a 40 s = 10 min: hecho
+  assert.deepEqual(today({ ...S, done: { new: 15, reviews: 0, n: 30, ms: 7 * 60e3 } }).dayDone, { n: 30, minutes: 7 });
+  // O 10 min de verdad respondiendo
+  assert.ok(today({ ...S, done: { new: 3, reviews: 0, n: 12, ms: 10 * 60e3 } }).dayDone);
+  const free = { ...S, plan: { ...S.plan, time: { ...S.plan.time, week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 0])) } } };
+  assert.equal(today({ ...free, done: { new: 15, reviews: 0, n: 30, ms: 20 * 60e3 } }).dayDone, null);
+});
+
+test('today(): las «N nuevas más» que pides se suman a las del plan', () => {
+  const S = three([100, 30, 0]);
+  assert.equal(today(S).new, 20);
+  const t = today({ ...S, extraNew: 10 });
+  assert.equal(t.new, 30);
+  assert.equal(Object.values(t.newBy).reduce((a, b) => a + b, 0), 30);
+  // Ya hechas las 20 del plan, quedan las 10 de más
+  assert.equal(today({ ...S, extraNew: 10, done: { new: 20, reviews: 0, n: 20, ms: 0 } }).new, 10);
+});
+
+/* ---------------- revisión del paso A ---------------- */
+// Un tema en el alcance de dos exámenes (un examen en una carpeta y otro en una de sus listas)
+function shared(n = 47) {
+  const S = invent({ seed: 4, n: 0, nExams: 2, nTopics: 2, seen: 0, days: [40, 90] });
+  for (let i = 0; i < n; i++) S.cards.push({ id: 's' + i, deck_id: 'd0-0' });
+  S.plan.exams[1].scope = { folders: ['f1'], decks: ['d0-0'], pages: [] };
+  S.plan.time.week = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 120]));
+  return S;
+}
+test('1 · un tema de dos exámenes no se reparte dos veces', () => {
+  const fc = forecast(shared());
+  assert.equal(fc.days[0].newBy['d0-0'], 47);                       // 47, no 60
+  assert.equal(fc.days.reduce((s, d) => s + (d.newBy['d0-0'] || 0), 0), 47);
+});
+
+// Ningún número del forecast (ni de sus exámenes y días) sale NaN
+function noNaN(o, path = 'forecast') {
+  if (typeof o === 'number') assert.ok(!Number.isNaN(o), `${path} es NaN`);
+  else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) noNaN(v, `${path}.${k}`);
+}
+test('2 · un ritmo de menos de medio segundo cuenta como 1 s: nada sale NaN', () => {
+  const ev = Array.from({ length: 60 }, (_, i) => ({ card_id: 'c' + i, ts: `2026-10-20T10:${String(i).padStart(2, '0')}:00Z`, state: 'review', ms: 400 }));
+  const pace = medirRitmo(ev);
+  assert.equal(pace.secReview, 1);
+  const S = { ...state945(), pace: undefined, events: ev };
+  const fc = forecast(S);
+  noNaN(fc);
+  assert.equal(fc.days[0].minutes, 0);                  // el domingo libre: 0 / 0 daba NaN
+  assert.deepEqual(fc.exams.map(e => e.verdict), ['llegas', 'llegas']);
+  noNaN(today(S), 'today');
+});
+
+test('3 · el tope de repasos al día no cuenta como «no caben»: el tiempo que sobra va a las nuevas', () => {
+  const S = state945(p => { p.caps.reviewsPerDay = 5; });
+  const fc = forecast({ ...S, newPerDay: null }), mon = fc.days[1];
+  assert.equal(mon.reviews, 5);
+  assert.equal(mon.short, false);
+  assert.equal(mon.new, Math.floor((45 * 60 - 5 * 12) / 40));        // 66
+  assert.deepEqual(fc.short, []);
+  assert.deepEqual(fc.exams.map(e => e.verdict), ['llegas', 'llegas']);
+  // Sin el tope, de verdad no caben: 300 repasos en 30 min
+  const big = invent({ seed: 9, n: 400, nExams: 1, seen: 1, days: [60], week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 30])) });
+  const t0 = new Date(TODAY + 'T09:00:00').getTime();
+  for (const [id, p] of big.progress) big.progress.set(id, { ...p, due: t0 });
+  assert.equal(forecast(big).days[0].short, true);
+});
+
+// Dos exámenes: ex0 el 9 dic (300 nuevas, llegas) y ex1 el 16 ene (1.600, no llegas). Antes se proponía pausar
+// ex0 hasta el 16 ene para arreglar ex1, y ex0 se quedaba en «no»
+function twoLate() {
+  const S = invent({ seed: 7, n: 0, nExams: 2, nTopics: 4, seen: 0, days: [45, 83] });
+  for (let i = 0; i < 300; i++) S.cards.push({ id: 'a' + i, deck_id: 'd0-' + (i % 4) });
+  for (let i = 0; i < 1600; i++) S.cards.push({ id: 'b' + i, deck_id: 'd1-' + (i % 4) });
+  S.plan.caps.newPerDay = 25;
+  return S;
+}
+test('4 · «pausar otro examen» solo pausa uno que va después, y ningún arreglo empeora otro examen', () => {
+  const S = twoLate(), fc = forecast(S, { light: true });
+  assert.deepEqual(fc.exams.map(e => [e.date, e.verdict]), [['2026-12-09', 'llegas'], ['2027-01-16', 'no']]);
+  const late = fc.exams[1], fx = fixes(S, late.id);
+  assert.equal(fx.options.length, 3);
+  assert.ok(fx.options.every(o => !o.levers.some(l => l.kind === 'pauseOther' && l.exam === 'ex0')));
+  for (const o of [...fx.options, ...(fx.drop ? [fx.drop] : [])]) {
+    for (const l of o.levers || []) if (l.kind === 'pauseOther') assert.ok(S.plan.exams.find(e => e.id === l.exam).date > S.plan.exams.find(e => e.id === late.id).date);
+    const after = forecast({ ...S, plan: o.plan }, { light: true }).exams;
+    for (const e of after) if (e.id !== late.id) {
+      const b = fc.exams.find(x => x.id === e.id);
+      assert.ok({ no: 0, justo: 1, llegas: 2 }[e.verdict] >= { no: 0, justo: 1, llegas: 2 }[b.verdict], `${e.id}: ${b.verdict} → ${e.verdict}`);
+    }
+  }
+});
+
+test('5 · mover la fecha solo con fecha aproximada, y como último recurso', () => {
+  const make = (n, d, approx) => { const S = invent({ seed: 3, n, nExams: 1, nTopics: 3, seen: 0, days: [d] }); S.plan.caps.newPerDay = 20; S.plan.exams[0].approx = approx; return S; };
+  // 500 nuevas a 10 días: nada más llega; con fecha aproximada, se propone moverla (lo menos posible)
+  const a = fixes(make(500, 10, true), 'ex0');
+  assert.deepEqual(a.options.map(o => o.kinds), ['date']);
+  assert.equal(a.options[0].levers[0].weeks, 4);                       // con 2 semanas más no llega
+  const S2 = make(500, 10, true);
+  assert.equal(whatIf(S2, p => { p.exams[0].date = addDays(p.exams[0].date, 14); }, { light: true }).exams[0].verdict, 'no');
+  // Con fecha exacta, nunca
+  const b = fixes(make(500, 10, false), 'ex0');
+  assert.ok(b.options.every(o => !o.kinds.includes('date')));
+  // Si otra cosa llega, la fecha no compite aunque sea aproximada
+  const c = fixes(make(300, 21, true), 'ex0');
+  assert.ok(c.options.length > 0 && c.options.every(o => !o.kinds.includes('date')));
+});
+
+test('6 · «dejar para el final» nunca quita todo el temario; si ni así llega, lo dice', () => {
+  // Un tema, 900 preguntas, 20 días: no hay nada que dejar
+  const one = invent({ seed: 6, n: 900, nExams: 1, nTopics: 1, seen: 0, days: [20] });
+  one.plan.caps.newPerDay = 20;
+  const a = fixes(one, 'ex0');
+  assert.deepEqual(a.options, []);
+  assert.deepEqual(a.drop.topics, []);
+  assert.equal(a.drop.exam.verdict, 'no');
+  assert.ok(a.drop.exam.left > 0);
+  // Tres temas que ni dejando dos llegan: deja dos (nunca los tres) y sigue en «no»
+  const three_ = invent({ seed: 6, n: 3000, nExams: 1, nTopics: 3, seen: 0, days: [12] });
+  three_.plan.caps.newPerDay = 20;
+  const b = fixes(three_, 'ex0');
+  assert.ok(b.drop.topics.length <= 2);
+  assert.equal(b.drop.exam.verdict, 'no');
+});
+
+test('7 · tras hacer todos los repasos, Hoy sigue ofreciendo las nuevas que caben (aunque el progreso cambie en el sitio)', () => {
+  const S = invent({ seed: 9, n: 300, nExams: 1, nTopics: 2, seen: 0, days: [60], week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 45])) });
+  const t0 = new Date(TODAY + 'T09:00:00').getTime();
+  for (let i = 0; i < 196; i++) { S.cards.push({ id: 'r' + i, deck_id: 'd0-0' }); S.progress.set('r' + i, { reps: 3, interval: 10, ease: 2.5, lapses: 0, due: t0, last: t0 - 10 * DAY, firstSeen: t0 - 40 * DAY }); }
+  S.newPerDay = 20;
+  // 45 min: 196 repasos a 12 s (39,2 min) y caben 8 nuevas
+  const before = today(S);
+  assert.deepEqual([before.reviews, before.new], [196, 8]);
+  // Hechos los 196 (la app cambia el mismo Map): siguen cabiendo las 8
+  for (let i = 0; i < 196; i++) S.progress.set('r' + i, { ...S.progress.get('r' + i), due: t0 + 12 * DAY, last: t0 + 3600e3 });
+  const done = { reviews: 196, new: 0, n: 196, ms: 196 * 12000 };
+  const after = today({ ...S, done });
+  assert.deepEqual([after.reviews, after.new, after.dayDone], [0, 8, null]);
+  // Lo mismo que con una copia del progreso (lo que vería otra pantalla)
+  assert.deepEqual(today({ ...S, progress: new Map(S.progress), done }), after);
+  // Y hechas también las 8: hecho por hoy
+  assert.ok(today({ ...S, done: { reviews: 196, new: 8, n: 204, ms: 196 * 12000 + 8 * 40000 } }).dayDone);
+});
+
+test('12 · la retención que pide el examen, también por debajo del 90 %', () => {
+  const at = ret => forecast(state945(p => { for (const e of p.exams) e.retention = ret; }));
+  const r85 = at(0.85), r90 = at(0.9), r95 = at(0.95);
+  assert.deepEqual([r85.retention, r90.retention, r95.retention], [0.85, 0.9, 0.95]);
+  const load = fc => fc.days.reduce((a, d) => a + d.reviewsDue, 0);
+  assert.ok(load(r85) < load(r90) && load(r90) < load(r95));
+});
+
+test('13 · una fecha fijada se reparte solo entre los días en que el examen da nuevas (sin la última semana ni su pausa)', () => {
+  // Examen a 20 días con última semana: las nuevas, hasta el día 12. «b antes del día 18» = antes del 12: 100 en 13 días
+  const a = forecast(three([100, 100, 0], { date: addDays(TODAY, 20), lastWeek: true, fixed: { b: addDays(TODAY, 18) } }));
+  assert.deepEqual(a.days[0].newBy, { b: 8, a: 12 });
+  assert.ok(a.exams[0].topics.find(t => t.id === 'b').finish <= addDays(TODAY, 12));
+  // Con el examen en pausa hasta el día 5 y «b antes del día 9»: 100 en 5 días
+  const h = forecast(three([100, 100, 0], { hold: addDays(TODAY, 5), fixed: { b: addDays(TODAY, 9) } }));
+  assert.equal(h.days[4].new, 0);
+  assert.deepEqual(h.days[5].newBy, { b: 20 });
+  assert.equal(h.exams[0].topics.find(t => t.id === 'b').finish, addDays(TODAY, 9));
+});
+
+test('14 · después del examen: con otra convocatoria siguen las nuevas; sin decidir, solo repasos; en pausa, nada', () => {
+  const past = after => {
+    const S = three([60, 0, 0], { date: addDays(TODAY, -1), after });
+    // Unos repasos del tema, para ver si siguen
+    const t0 = new Date(TODAY + 'T09:00:00').getTime();
+    for (let i = 0; i < 10; i++) { S.cards.push({ id: 'v' + i, deck_id: 'a' }); S.progress.set('v' + i, { reps: 3, interval: 5, ease: 2.5, lapses: 0, due: t0 + i * DAY, last: t0 - 5 * DAY, firstSeen: t0 - 30 * DAY }); }
+    return forecast(S);
+  };
+  const next = past('next'), keep = past('keep'), none = past(null), pause = past('pause');
+  assert.equal(next.days[0].new, 20);
+  assert.equal(next.days.reduce((s, d) => s + d.new, 0), 60);
+  for (const fc of [keep, none, pause]) assert.equal(fc.days.reduce((s, d) => s + d.new, 0), 0);
+  assert.ok(keep.days.reduce((s, d) => s + d.reviewsDue, 0) > 0);
+  assert.ok(none.days.reduce((s, d) => s + d.reviewsDue, 0) > 0);
+  assert.equal(pause.days.reduce((s, d) => s + d.reviewsDue, 0), 0);
+});
+
+/* ---------------- la pasada larga ---------------- */
+// Al final, todas las propiedades con 500 estados al azar y semilla fija (siempre los mismos casos). «Un arreglo
+// que llega, llega» se mira en los 60 primeros que no llegan (cada uno busca arreglos, lo más lento)
+test('propiedades: 500 casos al azar con semilla fija', () => {
+  const r = rng(2026);
+  let late = 0;
+  for (let k = 0; k < 500; k++) {
+    const S = randomState(r, 10000 + k);
+    props.shares(S, r, k);
+    props.moreMinutes(S, r, k);
+    props.noOver(S, r, k);
+    if (late < 60 && props.fixReaches(S, r, k)) late++;
+  }
+  assert.ok(late >= 20, `solo ${late} casos sin llegar`);
+});
+
+test('Ajustes del plan: sin goteo, el examen más cercano se lleva el 100 %; «sin tope» deja que manden los minutos', () => {
+  const S = state945(p => { p.split.drip = false; });
+  assert.deepEqual([...sharesToday(S, 1).values()], [100, 0]);
+  const noCap = state945(p => { p.caps.noCap = true; });
+  assert.equal(forecast(noCap).days[1].new, 36);
+  assert.equal(forecast(state945()).days[1].new, 20);
+});
+
+test('today(): lo hecho hoy gasta del tope y del tiempo una sola vez; las «N nuevas más» van por encima', () => {
+  // 2 nuevas, aprendida una: queda la otra (antes salía 0)
+  const two = three([2, 0, 0]);
+  two.cards = two.cards.slice(1);                 // la aprendida ya no es nueva
+  assert.equal(today({ ...two, done: { new: 1, reviews: 0, n: 1, ms: 30000 } }).new, 1);
+  // Tope de 20: hechas 20, no quedan; con 10 más, 10; hechas 25 de ellas, quedan 5
+  const S = three([100, 0, 0]);
+  assert.equal(today({ ...S, done: { new: 20, reviews: 0, n: 20, ms: 0 } }).new, 0);
+  assert.equal(today({ ...S, done: { new: 20, reviews: 0, n: 20, ms: 0 }, extraNew: 10 }).new, 10);
+  assert.equal(today({ ...S, done: { new: 25, reviews: 0, n: 25, ms: 0 }, extraNew: 10 }).new, 5);
+  // «Hecho por hoy» no es «no queda nada»: 2 de 2 en 10 min es «estás al día», no hecho
+  const t = today({ ...two, cards: [], done: { new: 2, reviews: 0, n: 2, ms: 60000 } });
+  assert.equal(t.done, true);
+  assert.equal(t.dayDone, null);
+});
+
+test('D2 · un examen ya pasado no cuenta para la retención', () => {
+  const S = three([10, 0, 0], { retention: 0.95, date: addDays(TODAY, -2) });
+  assert.equal(forecast(S).retention, 0.9);
+  assert.equal(forecast({ ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], date: addDays(TODAY, 20) }] } }).retention, 0.95);
+});
+
+test('D3 · la última semana con el 95 % trae más repasos esos días (y no antes)', () => {
+  const S = invent({ seed: 8, n: 600, nExams: 1, nTopics: 3, seen: 0.6, days: [40] });
+  S.plan.exams[0].lastWeek = true;
+  const at = rl => { const s = { ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], retention: 0.9, retentionLast: rl }] } }; return forecast(s).days; };
+  const a = at(0.9), b = at(0.95), win = d => d.slice(33, 40).reduce((s, x) => s + x.reviewsDue, 0), before = d => d.slice(0, 33).reduce((s, x) => s + x.reviewsDue, 0);
+  assert.ok(win(b) > win(a) + 50, `${win(a)} → ${win(b)}`);
+  assert.equal(before(b), before(a));
+});
+
+test('D5 · Refuerza este tema: más repasos de lo que te cuesta durante 7 días, y después como antes', () => {
+  const S = invent({ seed: 12, n: 300, nExams: 1, nTopics: 2, seen: 0.8, days: [60] });
+  for (const [id, p] of S.progress) if (S.cards.find(c => c.id === id).deck_id === 'd0-0') S.progress.set(id, { ...p, interval: 3, lapses: 1, due: p.due + 30 * DAY });
+  const weak = [...S.progress].filter(([id]) => S.cards.find(c => c.id === id).deck_id === 'd0-0').length;
+  const plain = forecast(S).days, boosted = forecast({ ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], boost: { 'd0-0': addDays(TODAY, 6) } }] } }).days;
+  // Hoy, justo la mitad de lo que te cuesta; en la semana, unas 7 veces eso (menos lo que cambian las nuevas)
+  assert.equal(boosted[0].reviewsDue - plain[0].reviewsDue, Math.ceil(weak / 2));
+  const sum = (d, a, b) => d.slice(a, b).reduce((s, x) => s + x.reviewsDue, 0);
+  assert.ok(sum(boosted, 0, 7) - sum(plain, 0, 7) >= 5 * Math.ceil(weak / 2), `${sum(plain, 0, 7)} → ${sum(boosted, 0, 7)}`);
+  // Y pasada la semana, el refuerzo ya no suma
+  assert.ok(boosted.slice(7).every((d, i) => d.reviewsDue <= plain[i + 7].reviewsDue + Math.ceil(weak / 2) / 2));
+});

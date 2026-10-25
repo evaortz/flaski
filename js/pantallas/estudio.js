@@ -10,7 +10,7 @@ import { ideasOf, ideaHit, parseEffects, suggestGrade, verdictText } from '../en
 import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes, todayMinutes } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes, todayMinutes, hooks } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
@@ -412,6 +412,8 @@ function buildSession(scope, size = 0) {
     const q = allocate(cap, sh, byDeck, floors), used = new Map();
     dueCards = dueCards.filter(c => { if (seenToday(S.progress.get(c.id))) return true; const u = used.get(c.deck_id) || 0; if (u >= (q.get(c.deck_id) || 0)) return false; used.set(c.deck_id, u + 1); return true; });
   }
+  // «Refuerza este tema» (plan): las que te cuestan de ese tema, aunque hoy no tocaran
+  if (hooks.plan2 && scope === 'all') { const have = new Set(dueCards.map(c => c.id)); for (const id of hooks.plan2.boost()) if (!have.has(id) && S.cards.has(id)) dueCards.push(S.cards.get(id)); }
   // Hermanas (ida y vuelta de una nota): una sola por tanda. Si una ya sale (o la viste hoy), la otra espera:
   // un repaso de la misma nota, a otra tanda; una nueva, a otro día
   const notes = new Set();
@@ -488,12 +490,13 @@ export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
-export const shortSize = (minutes = tandaMinutes()) => tandaSize(minutes, pace(S.events));
+export const shortSize = (minutes = tandaMinutes()) => (hooks.plan2 ? hooks.plan2.size(minutes) : tandaSize(minutes, pace(S.events)));
 export function shortInfo() { const minutes = tandaMinutes(), secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
 // El día se cumple con tus minutos, no con dejar la cola a cero: hecho por hoy si ya has respondido lo que cabía
 // en la tanda de hoy (a tu ritmo de antes de hoy) o has estado los minutos del día respondiendo, empezaras donde
 // empezaras (Hoy, el Plan, una lista o un apunte). Lo que queda pasa a mañana. null si no, o si hoy es libre.
 export function dayDone(now = Date.now()) {
+  if (hooks.plan2) return hooks.plan2.dayDone();   // el plan nuevo: lo dice el motor (plan2.js)
   const m = todayMinutes();
   if (m === 0) return null;
   const minutes = m || S.prefs.study.tandaMin, t0 = startOfDay(now);
@@ -507,7 +510,8 @@ export function dayDone(now = Date.now()) {
 export function restLink(q) {
   if (!q.ids.length) return '';
   const what = q.fresh ? plural(q.ids.length, 'pregunta', 'preguntas') : plural(q.ids.length, 'repaso', 'repasos');
-  const { mins } = tandaFit(q.ids.length);
+  // Los minutos, a tu ritmo con lo que queda (los mismos en Hoy, en el Plan y al acabar la tanda)
+  const mins = hooks.plan2 ? hooks.plan2.minsFor(q.due, q.fresh) : tandaFit(q.ids.length).mins;
   return `<button class="link day-rest" data-act="tanda-rest" data-min="${mins}">Quedan ${what} · otra tanda de ${mins} min</button>`;
 }
 // La tanda de hoy con lo que hay de verdad: si tocan menos preguntas de las que caben, los minutos que llevan (m preguntas, mins)
@@ -672,9 +676,15 @@ export function renderStudy() {
         <div class="done-go"><button class="primary big" data-act="first-done">Listo, ir a Hoy</button></div>${again}</div>`;
       return;
     }
-    // Tanda corta: lo que queda para hoy y otra tanda igual
+    // Tanda corta: lo que queda para hoy y otra tanda igual. Con los minutos del día ya hechos (lo dice el plan, como
+    // Hoy): «Volver a Hoy» y lo que queda, como enlace
     if (ses.minutes) {
-      const left = todayQueue('all').ids.length, done = doneToday(), tandas = tandasToday();
+      const q = todayQueue('all'), left = q.ids.length, done = doneToday(), tandas = tandasToday(), dd = left && dayDone();
+      if (dd) {
+        main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>Hecho por hoy</h2>${sub}${tally}${entDoneHTML(ses)}
+          <div class="done-go"><button class="primary big" data-act="exit">Volver a Hoy</button></div><p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>${again}</div>`;
+        return;
+      }
       main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}${entDoneHTML(ses)}
         ${left ? `<div class="done-left"><small>Para hoy</small><b>${left === 1 ? 'te queda 1' : `te quedan ${left}`}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
@@ -683,9 +693,11 @@ export function renderStudy() {
           : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
       return;
     }
-    const more = ses.picked ? 0 : Math.min(10, freshLeft(ses.scope));
+    // Con atrasos, no se ofrecen nuevas de más: «¿Adelantas 10 atrasadas?»
+    const late = ses.picked || !hooks.plan2 ? null : hooks.plan2.late();
+    const more = ses.picked || late ? 0 : Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}
-      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : ''}</div>${again}</div>`;
+      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : late ? `<button class="ghost big" data-p2="late-10">¿Adelantas ${Math.min(10, late.n)} atrasadas?</button>` : ''}</div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];
@@ -765,6 +777,24 @@ export function renderStudy() {
     // La primera vez, solas un momento para que sepas que se puede deslizar
     if (!st.hinted && !S.prefs.study.swipeShown && swipeHintsDue()) { st.hinted = true; S.prefs.study.swipeShown = true; savePrefsSoon(); showSwipeHints(sw || {}); }
   }
+  if (hooks.plan2) holdWhy(main.querySelector('article.card'), c);
+}
+// Plan nuevo: al mantener pulsada la pregunta, una línea dice por qué sale («Toca repasarla hoy», «Es nueva de T3»)
+function holdWhy(el, c) {
+  if (!el) return;
+  let timer = null, x0 = 0, y0 = 0;
+  const stop = () => clearTimeout(timer);
+  el.addEventListener('pointerdown', e => {
+    x0 = e.clientX; y0 = e.clientY; stop();
+    timer = setTimeout(() => {
+      let line = main.querySelector('.p2-why');
+      if (!line) { line = document.createElement('p'); line.className = 'p2-why'; line.setAttribute('role', 'status'); el.after(line); }
+      line.textContent = hooks.plan2.why(c);
+    }, 500);
+  });
+  el.addEventListener('pointermove', e => { if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) > 10) stop(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, stop);
+  el.addEventListener('contextmenu', e => e.preventDefault());
 }
 // Pistas de deslizar (la chuleta de las cuatro direcciones): en cada borde la dirección y su botón, tenues.
 // La primera vez salen solas un momento al ver la respuesta; después, solo mientras arrastras (no tapan nada).
