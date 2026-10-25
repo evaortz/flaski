@@ -117,6 +117,7 @@ export async function onSignedIn(session) {
   S.uid = session.user.id;
   S.email = session.user.email || '';
   S.loading = true;
+  window.__bootStep = 'empezando';
   setImageRemote(api.imageStore ? api.imageStore(S.uid) : null);
   render();
   // Lo pendiente se envía mientras se cargan los datos, sin esperarlo: lo que había en la cola al
@@ -134,6 +135,7 @@ export async function onSignedIn(session) {
     // en vez de esperar a los reintentos
     const snapP = api.offline ? loadSnapshot(S.uid).catch(() => null) : Promise.resolve(null);
     let d;
+    window.__bootStep = 'pidiendo tus datos a Supabase';
     try {
       if (session.offline) throw new TypeError('Failed to fetch');
       try { d = await api.loadAll(S.uid, { retry: false }); }
@@ -144,7 +146,9 @@ export async function onSignedIn(session) {
       if (!snap || !isOffline(e)) throw e;
       d = snap; S.fromCache = true;
     }
+    window.__bootStep = 'preparando tus datos';
     applyData(withPending(d, queued));
+    window.__bootStep = 'pintando Hoy';
     S.loading = false;
     netState();
     migrateDeckLangs();

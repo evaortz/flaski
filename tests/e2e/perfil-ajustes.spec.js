@@ -56,8 +56,8 @@ test('Ajustes: 7 secciones, «Con cuidado» en Datos y el texto de Biblioteca �
   await expect(page.locator('#main')).not.toContainText('Ver las últimas novedades');
   await expect(page.locator('#main')).not.toContainText('Abrir el plan');
   await expect(page.locator('#s-data')).toContainText('Biblioteca › Importar › Pegar');
-  await expect(page.locator('.set-care')).toContainText('Reiniciar el progreso');
-  await expect(page.locator('.set-care')).toContainText('Ajustes por defecto');
+  await expect(page.locator('.set-care:not(.set-bye)')).toContainText('Reiniciar el progreso');
+  await expect(page.locator('.set-care:not(.set-bye)')).toContainText('Ajustes por defecto');
   // Botón de volver a Perfil (en el móvil)
   if (page.viewportSize().width < 960) {
     await page.locator('.set-head .back-round').click();

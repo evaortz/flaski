@@ -138,8 +138,19 @@
       || /does not provide an export named/.test(e.message || '')
       || (/Failed to fetch dynamically imported module/.test(e.message || '') && (e.message || '').indexOf(location.origin + '/js/') >= 0)) recover();
   }, true);
-  // Si la app arranca bien, se puede volver a intentar en otra ocasión
-  addEventListener('load', function () { setTimeout(function () { try { if (document.querySelector('#main > *')) sessionStorage.removeItem(KEY); } catch (e) {} }, 3000); });
+  // Si la app arranca bien (ya no está el esqueleto de carga), se puede volver a intentar en otra ocasión
+  addEventListener('load', function () { setTimeout(function () { try { if (document.querySelector('#main > *') && !document.querySelector('#main > .skel')) sessionStorage.removeItem(KEY); } catch (e) {} }, 3000); });
+  // Vigilante: los errores de antes de arrancar se guardan; si a los 15 s sigue el esqueleto, se dice qué ha pasado
+  window.__bootErrors = [];
+  addEventListener('error', function (e) { window.__bootErrors.push((e.message || 'Error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : '')); });
+  addEventListener('unhandledrejection', function (e) { var r = e.reason; window.__bootErrors.push((r && (r.message || r)) + (r && r.stack ? ' · ' + String(r.stack).split('\n')[1] : '')); });
+  setTimeout(function () {
+    var m = document.getElementById('main');
+    if (!m || !m.querySelector('.skel')) return;
+    var errs = (window.__bootStep ? 'Paso: ' + window.__bootStep + '. ' : 'La app no ha llegado a arrancar. ') + (window.__bootErrors.slice(-3).join(' | ') || 'Sin errores: algo tarda demasiado en responder (la conexión o el servidor).');
+    m.innerHTML = '<div class="panel boot-err"><h2>La app no termina de abrir</h2><p class="muted small"></p><button class="primary" onclick="location.reload()">Reintentar</button></div>';
+    m.querySelector('p').textContent = errs;
+  }, 15000);
 })();
 </script>
 <script type="module" src="js/app.js"></script>
