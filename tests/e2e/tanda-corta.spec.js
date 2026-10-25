@@ -94,8 +94,8 @@ test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver
 test('el ritmo sale de tus respuestas (la mediana) y la duración se cambia en Ajustes', async ({ page }) => {
   // 10 s por pregunta, con algún rato de dejar el móvil (120 s) que la mediana no tiene en cuenta
   await seed(page, { study: { tandaAsked: true }, events: [...Array(30).fill(10), ...Array(8).fill(120)] });
-  // 10 min caben 60, pero hoy solo hay 50: la tanda es de 50, unos 8 min
-  await expect(page.locator('.hero-go')).toContainText('8 min · 50 preguntas');
+  // 10 min caben 60, pero hoy solo hay 50: la tanda es de 50, unos 9 min (redondeando hacia arriba)
+  await expect(page.locator('.hero-go')).toContainText('9 min · 50 preguntas');
   await expect(page.locator('.hero-all')).toHaveCount(0);
   await nav(page, 'Perfil');
   await page.locator('[data-nav="settings"]').first().click();
