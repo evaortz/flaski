@@ -11,7 +11,7 @@ import { plural, download } from './mazos.js';
 import { backupData } from './perfil.js';
 import { render } from '../app.js';
 
-const MARK = '<svg class="bye-mark" viewBox="8 8 84 84" fill="currentColor" aria-hidden="true"><circle cx="18" cy="18" r="8.20"/><circle cx="34" cy="18" r="7.30" opacity=".92"/><circle cx="50" cy="18" r="6.40" opacity=".84"/><circle cx="66" cy="18" r="5.50" opacity=".76"/><circle cx="82" cy="18" r="4.60" opacity=".68"/><circle cx="18" cy="34" r="7.30" opacity=".92"/><circle cx="18" cy="50" r="6.40" opacity=".84"/><circle cx="34" cy="50" r="5.50" opacity=".76"/><circle cx="50" cy="50" r="4.60" opacity=".68"/><circle cx="66" cy="50" r="3.70" opacity=".6"/><circle cx="18" cy="66" r="5.50" opacity=".76"/><circle cx="18" cy="82" r="4.60" opacity=".68"/></svg>';
+const MARK = '<svg class="bye-mark" viewBox="8 8 84 84" fill="currentColor" aria-hidden="true"><circle cx="18" cy="18" r="5.04" opacity="0.6"/><circle cx="34" cy="18" r="5.81" opacity="0.7"/><circle cx="50" cy="18" r="6.58" opacity="0.8"/><circle cx="66" cy="18" r="7.35" opacity="0.9"/><circle cx="82" cy="18" r="8.12" opacity="1.0"/><circle cx="18" cy="34" r="5.04" opacity="0.6"/><circle cx="18" cy="50" r="5.04" opacity="0.6"/><circle cx="34" cy="50" r="5.81" opacity="0.7"/><circle cx="50" cy="50" r="6.58" opacity="0.8"/><circle cx="66" cy="50" r="7.35" opacity="0.9"/><circle cx="18" cy="66" r="5.04" opacity="0.6"/><circle cx="18" cy="82" r="5.04" opacity="0.6"/></svg>';
 const B = () => S.bye || (S.bye = { file: '', error: '', busy: false });
 // Lo que hay (también lo que está en la papelera)
 function counts() {
