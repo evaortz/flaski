@@ -30,6 +30,7 @@ export function renderPlanSettings() {
   const parTxt = par.map(e => `dentro de ${shortName(e.name)}, ${plural(Object.keys(e.shares || {}).length, 'tema', 'temas')} a la vez`).join(' · ');
   const free = topItems().filter(it => !inExam(it.key));
   const stages = sortStages(p.stages), cap = newCap(stateNow());
+  const ex = liveExams(p), ret = ex.length && ex.every(e => Number(e.retention) >= 0.95) ? 0.95 : 0.9, retLast = !ex.length || ex.some(e => (Number(e.retentionLast) || 0) > (Number(e.retention) || 0.9));
   main.innerHTML = `<div class="p2-set">
     <div class="crumbs-row"><button class="back-round" data-nav="plan" aria-label="Volver al plan">${icon('chevron-left', { size: 22 })}</button><span class="crumb-t">Plan</span></div>
     <h1 class="p2-h1">Ajustes del plan</h1>
@@ -45,6 +46,15 @@ export function renderPlanSettings() {
     <section class="p2-sec" aria-labelledby="h-mas"><h2 class="p2-h2" id="h-mas">Más</h2>
       <div class="set-row"><div class="set-l"><b id="p2drip">Un goteo al examen siguiente</b><small>Unas pocas nuevas al día al segundo examen mientras acabas el primero.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2drip" data-p2="set-drip" ${p.split?.drip === false ? '' : 'checked'}><span class="slider" aria-hidden="true"></span></label></div></div>
       <div class="set-row"><div class="set-l"><b>Nuevas al día, como mucho</b><small>${p.caps?.noCap ? 'Sin tope' : p.caps?.newPerDay > 0 ? `${p.caps.newPerDay}` : Number.isFinite(cap) ? `${cap}, las de Ajustes` : 'Sin tope'} · <button class="link" data-p2="set-cap">cambiar</button></small><small>El plan calcula las nuevas con tu tiempo. Esto solo pone un techo.</small></div></div>
+      <div class="set-row"><div class="set-l"><b>Repasos al día, como mucho</b><small id="p2revcap">${p.caps?.reviewsPerDay > 0 ? `${p.caps.reviewsPerDay}` : 'Sin tope'} · <button class="link" data-p2="set-revcap">cambiar</button></small><small>Para ir más despacio aunque se junten: lo que pase del tope espera a otro día.</small></div></div>
+    </section>
+    <section class="p2-sec" aria-labelledby="h-ret"><h2 class="p2-h2" id="h-ret">Lo que quieres recordar</h2>
+      <div class="set-row"><div class="set-l"><b id="p2retl">El día del examen</b><small>Con más, más repasos: lo eliges tú.</small></div><div class="set-c"><div class="seg" role="group" aria-labelledby="p2retl">${[[0.9, '90 %'], [0.95, '95 %']].map(([v, l]) => `<button type="button" class="seg-b" data-p2="set-ret" data-v="${v}" aria-pressed="${ret === v}">${l}</button>`).join('')}</div></div></div>
+      <div class="set-row"><div class="set-l"><b id="p2retlast">La última semana, al 95 %</b><small>Un repaso más de lo que ya sabes justo antes del examen.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2retlast" data-p2="set-retlast" ${retLast ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
+    </section>
+    <section class="p2-sec" aria-labelledby="h-avisos"><h2 class="p2-h2" id="h-avisos">Avisos</h2>
+      <div class="set-row"><div class="set-l"><b id="p2weekly">Repaso de la semana</b><small>El domingo, cómo vas y un ajuste de un toque.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2weekly" data-p2="set-weekly" ${p.weekly?.on === false ? '' : 'checked'}><span class="slider" aria-hidden="true"></span></label></div></div>
+      <div class="set-row"><div class="set-l"><b id="p2remind">Recordatorio diario</b><small>Un aviso en este dispositivo si te toca repasar. La hora, en Ajustes › Avisos.</small><small id="remindMsg"></small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="p2remind" id="remindOn" ${S.prefs.remind?.on ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
       <button class="p2-row" data-p2="time"><span><b>Tu tiempo</b><small>minutos de cada día, días especiales y pausa</small></span>${icon('chevron-right', { size: 18 })}</button></section></div>`;
 }
 
@@ -63,6 +73,20 @@ function setCap(kind) {
   commitPlan(kind === 'none' ? 'Sin tope de nuevas' : kind === 'default' ? 'Tope: las de Ajustes' : `Como mucho ${n} nuevas al día`, p => {
     p.caps = { ...(p.caps || {}), noCap: kind === 'none', newPerDay: kind === 'save' ? Math.min(500, Math.round(n)) : null };
   });
+}
+
+function revCapSheet() {
+  const cur = plan2().caps?.reviewsPerDay > 0 ? plan2().caps.reviewsPerDay : '';
+  openSheet(`<h2 class="sheet-hand">Repasos al día, como mucho</h2>
+    <p class="muted">Lo que pase del tope espera a otro día. Sin tope, los que caben en tus minutos.</p>
+    <label for="p2revc">Como mucho</label><input type="number" id="p2revc" min="1" max="2000" step="1" value="${cur}" placeholder="Sin tope">
+    <div class="btnrow"><button class="ghost" data-p2="revcap-none">Sin tope</button><span class="spacer"></span><button class="primary" data-p2="revcap-save">Guardar</button></div>`);
+}
+function setRevCap(none) {
+  const n = Number(document.getElementById('p2revc')?.value);
+  if (!none && !(n >= 1)) return toast('Pon un número');
+  closeSheet();
+  commitPlan(none ? 'Sin tope de repasos' : `Como mucho ${n} repasos al día`, p => { p.caps = { ...(p.caps || {}), reviewsPerDay: none ? null : Math.min(2000, Math.round(n)) }; });
 }
 
 /* ---------------- etapas a mano ---------------- */
@@ -110,6 +134,12 @@ export function settingsClick(b) {
     case 'cap-none': return setCap('none');
     case 'cap-default': return setCap('default');
     case 'cap-save': return setCap('save');
+    case 'set-revcap': return revCapSheet();
+    case 'revcap-none': return setRevCap(true);
+    case 'revcap-save': return setRevCap(false);
+    case 'set-ret': { const v = Number(ds.v); return commitPlan(`Recordar el ${Math.round(v * 100)} % el día del examen`, p => { for (const e of p.exams) if (!e.deleted) { const last = (Number(e.retentionLast) || 0) > (Number(e.retention) || 0.9); e.retention = v; e.retentionLast = last ? Math.max(0.95, v) : v; } }); }
+    case 'set-retlast': return commitPlan(b.checked ? 'La última semana, al 95 %' : 'La última semana, como las demás', p => { for (const e of p.exams) if (!e.deleted) e.retentionLast = b.checked ? Math.max(0.95, Number(e.retention) || 0.9) : (Number(e.retention) || 0.9); });
+    case 'set-weekly': return commitPlan(b.checked ? 'Repaso de la semana, encendido' : 'Repaso de la semana, apagado', p => { p.weekly = { ...(p.weekly || {}), on: !!b.checked }; });
     case 'stage': return stageSheet(ds.id);
     case 'stage-lv': { readStage(); S.p2Stage.levels = { ...(S.p2Stage.levels || {}), [ds.key]: ds.v }; if (ds.v === 'normal') delete S.p2Stage.levels[ds.key]; return drawStage(); }
     case 'stage-save': return saveStage();

@@ -27,14 +27,14 @@ export function planAction(el, kind = 'click') {
     if (a.startsWith('new-')) return newExamInput(el);
     if (a === 'fd-change') return fixDateInput();
     if (a === 'rep-add') return repartoAdd(el);
-    if (a === 'set-drip') return settingsClick(el);
+    if (a === 'set-drip' || a === 'set-retlast' || a === 'set-weekly') return settingsClick(el);
     return;
   }
   if (TIEMPO.has(a)) return p2Click(el);
   if (a.startsWith('new-')) return newExamClick(el);
   if (a.startsWith('rep-')) return repartoClick(el);
   if (a.startsWith('sheet-') || a.startsWith('topic-') || a === 'free-set') return sheetClick(el);
-  if (a.startsWith('set-') || a.startsWith('cap-') || a.startsWith('stage')) return settingsClick(el);
+  if (a.startsWith('set-') || a.startsWith('cap-') || a.startsWith('revcap-') || a.startsWith('stage')) return settingsClick(el);
   switch (a) {
     case 'exam-new': return newExamSheet();
     case 'exam-edit': return newExamSheet({ id: ds.id });

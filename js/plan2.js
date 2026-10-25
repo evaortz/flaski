@@ -369,10 +369,29 @@ export function forecast(state, opts = {}) {
   const done0 = { new: Math.max(0, state.done?.new || 0), reviews: Math.max(0, state.done?.reviews || 0) }, spent0 = done0.reviews * sR + done0.new * sN;
   const extra0 = Math.max(0, state.extraNew || 0);
   const live = [...deckInfo].filter(([id]) => st.base.has(id));
+  // Las últimas semanas con más retención que el resto (share: qué parte de lo visto necesita ese repaso de más)
+  const lastWeekX = P.ex.filter(x => x.date != null && x.e.lastWeek && x.date - LAST_WEEK >= 0 && (Number(x.e.retentionLast) || 0) > P.r)
+    .map(x => ({ from: x.date - LAST_WEEK, to: Math.min(H, x.date - 1), ids: x.study.concat(x.e.known || []).filter(id => deckInfo.has(id)), share: Math.min(1, ((Number(x.e.retentionLast) || 0) - P.r) / (1 - P.r)) }));
   for (let i = 0; i <= H; i++) {
     let due = backlog;
     for (const [id, d] of live) if (i < d.stop) due += st.base.get(id)[i];
     for (const [id, a] of extra) if (i < deckInfo.get(id).stop) due += a[i];
+    // La última semana, con más retención (retentionLast, 95 %): un repaso más de cada pregunta ya vista del examen
+    // que no tenga ya uno esa semana, repartidos entre sus días (al empezarla se cuentan)
+    for (const x of lastWeekX) if (i === x.from) {
+      const days = Math.max(1, x.to - x.from + 1);
+      for (const id of x.ids) {
+        const seen = (st.seen.get(id) || 0) + ((st.fresh.get(id) || 0) - (rem.get(id) || 0));
+        let inWin = 0;
+        for (let j = x.from; j <= x.to; j++) inWin += (st.base.get(id)?.[j] || 0) + (extra.get(id)?.[j] || 0);
+        const more = Math.max(0, seen - inWin) * x.share;
+        if (!(more > 0)) continue;
+        let a = extra.get(id);
+        if (!a) extra.set(id, a = new Float64Array(H + 1));
+        for (let j = x.from; j <= x.to; j++) a[j] += more / days;
+        if (i < deckInfo.get(id).stop) due += more / days;
+      }
+    }
     // Hoy cuenta lo ya hecho (state.done): el tiempo gastado y las nuevas ya vistas, que gastan del tope
     const m = mins[i], spent = i === 0 ? spent0 : 0, fitRev = Math.max(0, Math.floor((m * 60 - spent) / sR));
     const reviews = Math.min(Math.round(due), fitRev, capRev);

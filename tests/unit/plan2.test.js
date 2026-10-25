@@ -578,3 +578,12 @@ test('D2 · un examen ya pasado no cuenta para la retención', () => {
   assert.equal(forecast(S).retention, 0.9);
   assert.equal(forecast({ ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], date: addDays(TODAY, 20) }] } }).retention, 0.95);
 });
+
+test('D3 · la última semana con el 95 % trae más repasos esos días (y no antes)', () => {
+  const S = invent({ seed: 8, n: 600, nExams: 1, nTopics: 3, seen: 0.6, days: [40] });
+  S.plan.exams[0].lastWeek = true;
+  const at = rl => { const s = { ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], retention: 0.9, retentionLast: rl }] } }; return forecast(s).days; };
+  const a = at(0.9), b = at(0.95), win = d => d.slice(33, 40).reduce((s, x) => s + x.reviewsDue, 0), before = d => d.slice(0, 33).reduce((s, x) => s + x.reviewsDue, 0);
+  assert.ok(win(b) > win(a) + 50, `${win(a)} → ${win(b)}`);
+  assert.equal(before(b), before(a));
+});

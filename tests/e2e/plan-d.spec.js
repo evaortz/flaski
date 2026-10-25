@@ -87,3 +87,33 @@ test('después del examen: una pregunta (pausar, archivar, mantener u otra convo
   await page.keyboard.press('Escape');
   await expect(page.locator('#main .p2-legend span').first()).toHaveText(/nuevas? de T1/);
 });
+
+test('Ajustes del plan: tope de repasos, lo que quieres recordar (90 o 95 %, y la última semana) y el Repaso de la semana', async ({ page }) => {
+  await open945(page);
+  await toPlan(page);
+  await page.locator('#main [data-nav="planSettings"]').last().click();
+  await expect(page.getByRole('heading', { name: 'Ajustes del plan' })).toBeVisible();
+  const plan = () => page.evaluate(() => import('/js/plan2-app.js').then(m => m.plan2()));
+  // Tope de repasos
+  await page.locator('#main [data-p2="set-revcap"]').click();
+  await page.locator('#p2revc').fill('60');
+  await page.locator('#sheetBody [data-p2="revcap-save"]').click();
+  await expect(page.locator('#p2revcap')).toContainText('60');
+  expect((await plan()).caps.reviewsPerDay).toBe(60);
+  // Hoy: como mucho 60 repasos, aunque toquen más (100 el lunes)
+  const fit = await page.evaluate(() => import('/js/plan2-app.js').then(m => m.forecastNow().days[0].reviews));
+  expect(fit).toBe(60);
+  // El 95 % el día del examen; la última semana ya iba al 95 %
+  await expect(page.locator('#main [data-p2="set-retlast"]')).toBeChecked();
+  await page.locator('#main [data-p2="set-ret"][data-v="0.95"]').click();
+  expect((await plan()).exams.map(e => e.retention)).toEqual([0.95, 0.95]);
+  expect(await page.evaluate(() => import('/js/plan2-app.js').then(m => m.forecastNow().retention))).toBe(0.95);
+  // La última semana como las demás
+  await page.locator('#main [data-p2="set-ret"][data-v="0.9"]').click();
+  await page.locator('#main [data-p2="set-retlast"]').uncheck();
+  expect((await plan()).exams.map(e => e.retentionLast)).toEqual([0.9, 0.9]);
+  // Avisos: el Repaso de la semana se apaga
+  await page.locator('#main [data-p2="set-weekly"]').uncheck();
+  expect((await plan()).weekly.on).toBe(false);
+  await expect(page.locator('#main #remindOn')).toBeVisible();
+});

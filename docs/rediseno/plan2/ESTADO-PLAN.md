@@ -460,3 +460,15 @@ convocatoria» (`next`: lo que quede sigue entrando, y se abre la hoja para pone
 contesta, solo repasos (el motor ya lo hacía). Cada respuesta se guarda en el historial y se puede deshacer. Un
 examen ya pasado deja de contar para la retención del plan. Pruebas: unitaria de la retención y e2e en
 `plan-d.spec.js` (la pregunta en Hoy y en el Plan, solo repasos, pausar, deshacer y otra convocatoria).
+
+### 3 · Ajustes del plan
+
+Además de lo del paso C (lo que no tiene examen, etapas a mano, goteo, tope de nuevas y Tu tiempo): **repasos al día,
+como mucho** (`caps.reviewsPerDay`, «Sin tope» por defecto), **lo que quieres recordar** (90 o 95 % el día del
+examen, para todos los exámenes, y «La última semana, al 95 %»: `retentionLast`) y **avisos** («Repaso de la semana»,
+`weekly.on`, y el recordatorio diario, el mismo interruptor que en Ajustes › Avisos). En el motor, `retentionLast`
+ya cuenta: al empezar la última semana, un repaso más de la parte de lo ya visto que lo necesita (de 90 a 95 %, la
+mitad), repartido entre sus días, sin cambiar los de antes. Pruebas: unitaria (más repasos la última semana, los
+mismos antes) y e2e en `plan-d.spec.js`.
+
+**Paso D · parte 1 hecha** (puntos 0 a 3).
