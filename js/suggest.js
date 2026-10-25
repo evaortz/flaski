@@ -565,10 +565,37 @@ export function keyScore(sp, freq = new Map()) {
 const lowFirst = s => (/^\p{Lu}\p{Ll}/u.test(s) && !/^\p{Lu}[\p{L}'-]+\s+\p{Lu}/u.test(s) ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
 // «interponerlo» con el sujeto de la frase de antes → «interponer el recurso de alzada»
 const unClitic = (s, subj) => (subj ? s.replace(/(?<![\p{L}])(\p{L}+(?:ar|er|ir))(?:lo|la|los|las)(?![\p{L}])/u, (m, v) => `${v} ${lowerSubject(subj)}`) : s);
+// Reglas que valen también en las frases con negritas → [{ kind, typeId, fields, score, extra }]
+export function anyRules(sp, env = {}) {
+  const out = [], body = sp.replace(/[.;:]+$/, '').trim();
+  const push = (kind, typeId, fields, score, extra = {}) => out.push({ kind, typeId, fields, score, extra });
+  let m;
+  // «Las demás lenguas serán también oficiales en las Comunidades Autónomas de acuerdo con sus Estatutos» → ¿Según qué serán…?
+  if ((m = /^(.+?)\s+(?:de\s+acuerdo\s+con|conforme\s+a|según)\s+([^,]{3,60})$/iu.exec(body))) {
+    const subj = subjectOfClause(m[1]), rest = subj ? m[1].slice(m[1].indexOf(subj) + subj.length).trim() : '';
+    if (subj && ARTICLE.test(subj) && rest && SUBJ_END.test(rest.split(/\s+/)[0])) push('term', 'basic', { q: `¿Según qué ${rest} ${lowerSubject(subj)}?`, a: `Según ${m[2]}`, n: '' }, 0.7);
+  }
+  // Una cita: «En un experimento conocido (Roediger y Karpicke, 2006), unos estudiantes…» → ¿Quiénes hicieron en 2006 el experimento…?
+  if ((m = /^En\s+(?:un|una)\s+(\p{L}+(?:\s+\p{L}+)?)\s+\(([^,()]{3,60}),\s*((?:1|2)\d{3})\),\s+(.{8,})$/u.exec(body))) {
+    const many = /\s(?:y|e)\s|,/.test(m[2]);
+    push('term', 'basic', { q: `¿${many ? 'Quiénes hicieron' : 'Quién hizo'} en ${m[3]} el ${m[1]} en el que ${m[4]}?`, a: m[2].trim(), n: '' }, 0.74, { atype: 'persona' });
+  }
+  // Sin sujeto, el de la frase de antes: «Hermann Ebbinghaus fue… Se usó a sí mismo como sujeto: memorizaba listas de sílabas
+  // sin sentido (…) y medía…» → ¿Qué memorizaba Hermann Ebbinghaus?
+  const name = /^(\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+){1,3})\s/u.exec(env.prev || '')?.[1];
+  if (name && (m = /^(?:[^:]{3,60}:\s+)?(\p{Ll}\p{L}+(?:aba|ían|ía))\s+(.+?)(?=\s*\(|\s+y\s+\p{L}+(?:aba|ía)\s|,|$)/u.exec(body)) && words(m[2]).length <= 8) {
+    push('term', 'basic', { q: `¿Qué ${m[1]} ${name}?`, a: capFirst(m[2]), n: '' }, 0.7);
+  }
+  // «…, pero reconocer no es lo mismo que recordar» → Explica con tus palabras por qué reconocer no es lo mismo que recordar
+  if ((m = /^(?:(.+?),\s+pero\s+)?(\p{L}[^,]{2,40}?)\s+no\s+es\s+lo\s+mismo\s+que\s+([^,]{3,40})$/iu.exec(body))) {
+    push('diff', 'explain', { q: `Explica con tus palabras por qué ${lowFirst(m[2])} no es lo mismo que ${m[3]}.`, k: capFirst(m[1] || body), n: '' }, 0.6);
+  }
+  return out;
+}
 // Las reglas de una frase sin negritas → [{ kind, typeId, fields, score, extra }]
 // env: { ctx (de qué va el apunte), prev (la frase de antes), prevSubj (su sujeto), score (sus puntos) }
 export function plainRules(sp, env = {}) {
-  const out = [], body = sp.replace(/[.;:]+$/, '').trim(), ctx = env.ctx || '';
+  const out = anyRules(sp, env), body = sp.replace(/[.;:]+$/, '').trim(), ctx = env.ctx || '';
   const push = (kind, typeId, fields, score, extra = {}) => out.push({ kind, typeId, fields, score, extra });
   const basic = (kind, q, a, score, extra) => push(kind, 'basic', { q, a: capFirst(a.trim()), n: '' }, score, extra);
   let m;
@@ -676,7 +703,7 @@ export function plainRules(sp, env = {}) {
   }
   // Una frase clave cualquiera: hueco en lo que se dice del sujeto («Las células eucariotas tienen {{un núcleo rodeado por
   // una membrana}}», «La mitocondria produce {{la energía de la célula}} mediante…») o en la enumeración que es el sujeto
-  if (env.score >= 2 && !out.some(r => r.kind !== 'tf') && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
+  if (env.score >= 2 && !out.some(r => r.kind !== 'tf' && r.kind !== 'diff') && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
     let clauseSubj = '';
     for (const clause of body.split(/;\s+/)) {
       let c = clause.trim();
@@ -784,7 +811,7 @@ function shortenCloze(x, from = x.lastIndexOf('}}') + 2) {
 // Un hueco en una frase corta: el trozo que tiene el hueco (cortando por «;», «, y» o «, que»), con el sujeto delante
 // si se ha quedado sin él, y como mucho 25 palabras (si no cabe, null). «La Constitución se fundamenta en…, y reconoce y
 // garantiza el {{derecho a la autonomía}} de…» → «La Constitución reconoce y garantiza el {{derecho a la autonomía}} de…»
-const CLAUSE_CUT = /;\s+|,\s+(?=(?:y|e|que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme|salvo|excepto)\s)|\s+(?=conforme\s+a\s)/giu;
+const CLAUSE_CUT = /;\s+|,\s+(?=(?:y|e|que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme|salvo|excepto)\s)|\s+(?=conforme\s+a\s)|\s+y\s+(?=(?:es|son|será|serán|está|están)\s)/giu;
 const SUBJ_END = /^(?:se|es|son|está|están|ha|han|fue|fueron|será|serán|\p{Ll}\p{L}+(?:a|e|an|en|ó|aron|ieron|ía|ían|aba|aban|á|án))$/u;
 const DET = /^(?:el|la|los|las|un|una|unos|unas|lo|al|del|de|a|en|con|por|para|su|sus|este|esta|cada|toda|todo|todas|todos|y|e|o)$/i;
 const MAX_CLOZE = 25;
@@ -1187,6 +1214,9 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       // «Reformas: tres.» → ¿Cuántas reformas tiene…?
       const nm = new RegExp(`^${NUM}\\.?(?:\\s|$)`, 'iu').exec(defP);
       if (nm && /s$/i.test(termP) && words(termP).length <= 3 && ctx) add('num', b.id, 'number', { q: `${howMany(termP)} tiene ${lowerSubject(ctx)}?`, a: toNumber(nm[1]), t: '', u: '', n: defP.length > nm[0].length + 2 ? capFirst(defP) : '' }, 0.72);
+      // «En 1992, el art. 13.2…; en 2011, el art. 135…; y en 2024, el art. 49…» → Une cada reforma con su año
+      const pairs = [...defP.matchAll(/(?<![\p{L}])en\s+((?:1|2)\d{3}),\s+(el\s+art(?:ículo|\.)\s*\d+(?:\.\d+)?)/giu)];
+      if (pairs.length >= 3) add('match', b.id, 'match', { t: `Une cada ${/s$/i.test(termP) && words(termP).length === 1 ? singular(termP) : 'artículo'} con su año`, p: pairs.map(x => `${x[2]} = ${x[1]}`).join('\n'), n: '' }, 0.55);
     }
     if (def) {
       const termP = plainText(def.term), defP = plainText(def.def);
@@ -1262,6 +1292,10 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       // Trozos de una frase («el principio de **legalidad**,») y sujetos que no se entienden solos («Su estructura…»)
       const fragment = /,$/.test(sp) || /^(y|e|o|su|sus)\s/i.test(sp) || subKids.has(b.id);
       const bolds = [...src.matchAll(/\*\*([^*]{1,60})\*\*/g)].map(m => m[1].trim()).filter(x => x && !LABELS.test(x));
+      if (bolds.length && pageEs) for (const r of anyRules(sp, { prev: lastSentHere })) add(r.kind, b.id, r.typeId, r.fields, r.score, r.extra);
+      // El sujeto en negrita y lo que hace: «Los **partidos políticos** expresan el pluralismo político, …» → ¿Qué expresan los partidos políticos?
+      const bs = /^((?:El|La|Los|Las|Un|Una)\s+\*\*[^*]{2,50}\*\*)\s+(\p{Ll}\p{L}+(?:a|e|an|en|á|án))\s+((?:el|la|los|las)\s[^,;*]{3,60}?)(?=,|;|\.?$|\s+y\s)/u.exec(s.replace(/[.]+$/, ''));
+      if (bs && pageEs && !/^(?:es|son|está|están|era|eran|fue|fueron|tiene|tienen)$/i.test(bs[2])) add('term', b.id, 'basic', { q: withArt(`¿Qué ${bs[2]} ${lowerSubject(plainText(bs[1]))}?`), a: capFirst(bs[3]), n: '' }, 0.7);
       if (bolds.length && bolds.length <= 4) {
         for (const bt of bolds) {
           if (fragment || done.has(norm(bt)) || (isDate(bt) && (done.has('date') || nDates > 1)) || (listed.has(b.id) && src.trim().startsWith(`**${bt}`))) continue;
@@ -1298,6 +1332,18 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         if (ctx.test(sp)) add('date', b.id, 'number', { q: sp.replace(new RegExp(`(?<![\\d.,])${y}(?![\\d.,]\\d)`), '____'), a: y, t: '', u: '', n: '' }, 0.6);
       }
     }
+  }
+
+  /* 4b) «¿Qué regula el artículo N?»: en un apunte por artículos, con lo que el apartado destaca */
+  for (let i = 0; i < blocks.length; i++) {
+    const h = blocks[i], m = /^art(?:ículo|\.)\s*(\d+)\s*[·:.–—-]\s*(.+)$/i.exec(plainText(h.text));
+    if (!/^h[1-3]$/.test(h.type) || !m) continue;
+    const bolds = [];
+    for (let j = i + 1; j < blocks.length && !/^h[1-3]$/.test(blocks[j].type); j++) for (const x of emphasize(blocks[j].text || '').matchAll(/\*\*([^*]{2,80})\*\*/g)) bolds.push(plainText(x[1]));
+    const first = blocks.slice(i + 1).find(b => !/^h[1-3]$/.test(b.type))?.id;
+    if (!first || bolds.length < 2 || bolds.length > 5) continue;
+    const list = bolds.length > 1 ? `${bolds.slice(0, -1).join(', ')} y ${bolds.at(-1)}` : bolds[0];
+    add('art', first, 'basic', { q: `¿Qué regula el artículo ${m[1]}?`, a: `${capFirst(m[2])}: ${list}`, n: '' }, 0.6);
   }
 
   /* 5) Apartados: el título y la primera frase de su primer párrafo (su idea principal) */

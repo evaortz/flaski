@@ -494,3 +494,19 @@ test('la pregunta de la lista ya dice cuántos («¿Qué cuatro fases tiene la m
   assert.deepEqual(r[0].alts.map(a => a.front), ['¿Cuántas fases tiene la mitosis?']);
 });
 
+test('más reglas: «de acuerdo con», una cita «(Autores, año)», el sujeto de la frase de antes, «no es lo mismo que», «¿Qué regula el artículo N?», «en AÑO, el art. N» y el sujeto en negrita', () => {
+  const all = md => run(md).flatMap(s => [s, ...(s.alts || [])]);
+  const has = (list, q, a) => assert.ok(list.some(s => s.front === q && (a === undefined || s.back === a)), `${q}\n${list.map(s => s.front + ' → ' + s.back).join('\n')}`);
+  has(all('Las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus **Estatutos**.'),
+    '¿Según qué serán también oficiales en las respectivas Comunidades Autónomas las demás lenguas españolas?', 'Según sus Estatutos');
+  has(all('En un experimento conocido (**Roediger y Karpicke, 2006**), unos estudiantes releyeron un texto.'), '¿Quiénes hicieron en 2006 el experimento conocido en el que unos estudiantes releyeron un texto?', 'Roediger y Karpicke');
+  has(all('**Hermann Ebbinghaus** fue un psicólogo alemán. Se usó a sí mismo como sujeto: memorizaba listas de **sílabas sin sentido** («DAX») y medía cuánto recordaba.'), '¿Qué memorizaba Hermann Ebbinghaus?', 'Listas de sílabas sin sentido');
+  has(all('Releer da una sensación engañosa de saber, pero reconocer no es lo mismo que recordar.').map(s => ({ front: s.fields.q || s.front, back: s.back })), 'Explica con tus palabras por qué reconocer no es lo mismo que recordar.');
+  has(all('## Artículo 2 · Unidad y autonomía\n\nLa Constitución se fundamenta en la **unidad de la Nación española** y garantiza el **derecho a la autonomía**.'), '¿Qué regula el artículo 2?', 'Unidad y autonomía: unidad de la Nación española y derecho a la autonomía');
+  const m = all('- **Reformas:** tres. En 1992, el art. 13.2, por el voto; en 2011, el art. 135, por la estabilidad; y en 2024, el art. 49, por las palabras.').find(s => s.typeId === 'match');
+  assert.equal(m?.fields.t, 'Une cada reforma con su año');
+  assert.equal(m.fields.p, 'el art. 13.2 = 1992\nel art. 135 = 2011\nel art. 49 = 2024');
+  const p = all('Los **partidos políticos** expresan el pluralismo político, concurren a la formación de la voluntad popular y son **instrumento fundamental para la participación política**.');
+  has(p, '¿Qué expresan los partidos políticos?', 'El pluralismo político');
+  assert.ok(p.some(s => s.fields.x === 'Los partidos políticos son {{instrumento fundamental para la participación política}}.'), p.map(s => s.fields.x || s.front).join('\n'));
+});

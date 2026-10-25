@@ -50,6 +50,8 @@ export function score(x, s) {
     if (fold(e.a).replace(/\D/g, '') !== fold(g.a).replace(/\D/g, '')) return 0;
   } else if (x.tipo === 'truefalse') {
     if (e.a !== g.a) return 0;
+  } else if (['explain', 'whatif'].includes(x.tipo)) {
+    // (en «Explícalo» y «¿Qué pasaría si…?» las ideas clave son texto libre: cuenta la pregunta)
   } else if (cover(ea, ga) < 0.6 || cover(ga, ea) < 0.4) return 0;
   // En un hueco la pregunta es la frase entera: lo que cuenta es la frase sin la respuesta
   if (s.typeId === 'cloze' || s.typeId === 'clozechoice') for (const w of ga) gq.delete(w);

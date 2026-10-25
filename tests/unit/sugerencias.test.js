@@ -5,11 +5,11 @@ import assert from 'node:assert/strict';
 import { medir } from '../sugerencias.mjs';
 
 const MIN = {
-  'biologia-celula': { imp: 2, all: 2, noise: 0 },
-  'constitucion-titulo-preliminar': { imp: 17, all: 21, noise: 0 },
-  'historia-segunda-republica': { imp: 1, all: 1, noise: 0 },
-  'ley-39-2015': { imp: 0, all: 0, noise: 0 },
-  'por-que-se-te-olvidan-las-cosas': { imp: 8, all: 11, noise: 0 },
+  'biologia-celula': { imp: 5, all: 10, noise: 0 },
+  'constitucion-titulo-preliminar': { imp: 18, all: 27, noise: 0 },
+  'historia-segunda-republica': { imp: 6, all: 10, noise: 0 },
+  'ley-39-2015': { imp: 6, all: 11, noise: 0 },
+  'por-que-se-te-olvidan-las-cosas': { imp: 8, all: 13, noise: 0 },
 };
 test('batería de sugerencias: imprescindibles, total y ruido', () => {
   for (const r of medir()) {

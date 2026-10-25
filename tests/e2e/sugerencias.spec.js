@@ -10,7 +10,7 @@ async function withPage(page, seed, md) {
 }
 
 test('actualizar las sugerencias tras cambiar el apunte, conservando lo retocado; descartar', async ({ page, seed }) => {
-  await withPage(page, seed, '# Célula\n\nCélula: unidad básica de la vida.\n\nLa **membrana** protege la célula.');
+  await withPage(page, seed, '# Célula\n\nCélula: unidad básica de la vida.\n\nLa **membrana** protege a la célula.');
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug')).toHaveCount(2);
   // Retocar una

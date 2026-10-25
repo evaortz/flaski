@@ -391,7 +391,8 @@ export function plainTextToPage(text) {
 export const boldLabels = blocks => blocks.map(b => {
   if (!['p', 'li', 'ol'].includes(b.type) || /^\*\*/.test(b.text)) return b;
   const m = /^(\p{Lu}[^:.*\n]{0,40}?):\s+(\S[\s\S]*)$/u.exec(b.text);
-  return m && m[1].split(/\s+/).length <= 5 ? { ...b, text: `**${m[1]}:** ${m[2]}` } : b;
+  // (una frase con su verbo, «La mitosis tiene cuatro fases: …», no es una etiqueta)
+  return m && m[1].split(/\s+/).length <= 5 && !/(?<![\p{L}])(?:es|son|está|están|tiene|tienen|hay|fue|fueron|se\s+divide|consta|incluye|comprende)(?![\p{L}])/iu.test(m[1]) ? { ...b, text: `**${m[1]}:** ${m[2]}` } : b;
 });
 // «Mitosis 2b3c…f1.md» (Notion) o «mitosis.md» → «Mitosis»
 export const titleFromFile = name => String(name || '').split('/').pop().replace(/\.[^.]+$/, '').replace(/\s+[0-9a-f]{32}$/i, '').replace(/[-_]+/g, ' ').trim();
