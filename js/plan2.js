@@ -496,7 +496,8 @@ function levers(state, fc, examId) {
       apply: p => setWeek(p, Object.fromEntries(WEEK.map(d => [d, (Number(week[d]) || 0) + (on.includes(d) ? m : 0)]))) });
   }
   for (const d of off) out.push({ kind: 'freeDay', day: d, minutes: avg || 30, cost: 0.5 + (avg || 30) / 60, apply: p => setWeek(p, { ...week, [d]: avg || 30 }) });
-  for (const o of liveExams(plan)) if (o.id !== examId && (!isDay(o.date) || !isDay(exam.date) || o.date > exam.date || true)) {
+  // Pausar otro examen: solo uno que va después (o sin fecha); el que va antes se quedaría sin su temario
+  for (const o of liveExams(plan)) if (o.id !== examId && isDay(exam.date) && (!isDay(o.date) || o.date > exam.date)) {
     const oo = fc.exams.find(e => e.id === o.id);
     if (!oo || oo.start === 0 || !isDay(exam.date)) continue;
     out.push({ kind: 'pauseOther', exam: o.id, until: exam.date, cost: 1.5, apply: p => { const e = p.exams.find(x => x.id === o.id); e.hold = exam.date; } });
@@ -511,6 +512,9 @@ function levers(state, fc, examId) {
   return out;
 }
 const reaches = v => v === 'llegas' || v === 'justo';
+const RANK = { no: 0, justo: 1, llegas: 2 };
+// Un arreglo que empeora el veredicto de otro examen no vale (de «llegas» a «justo» o a «no»)
+const worsens = (before, after, examId) => after.some(e => { const b = before.find(x => x.id === e.id); return e.id !== examId && b?.verdict && e.verdict && RANK[e.verdict] < RANK[b.verdict]; });
 const strip = l => { const { apply, cost, ...rest } = l; return rest; };
 // fixes(state, examId): hasta 3 arreglos que llegan, de uno en uno y en parejas, los que cambian menos.
 // Si ninguno llega, `drop`: qué temas dejar para el final (los últimos del camino) y cómo quedaría.
@@ -521,8 +525,8 @@ export function fixes(state, examId) {
   const L = levers(state, fc, examId), tried = [];
   const run = ls => {
     const plan = applyChange(state.plan, p => { for (const l of ls) l.apply(p); });
-    const r = forecast({ ...state, plan }, { light: true }).exams.find(e => e.id === examId);
-    return { levers: ls.map(strip), kinds: ls.map(l => l.kind).sort().join('+'), cost: ls.reduce((a, l) => a + l.cost, 0), plan, exam: r };
+    const all = forecast({ ...state, plan }, { light: true }).exams, r = all.find(e => e.id === examId);
+    return { levers: ls.map(strip), kinds: ls.map(l => l.kind).sort().join('+'), cost: ls.reduce((a, l) => a + l.cost, 0), plan, exam: r, others: all.filter(e => e.id !== examId), worse: worsens(fc.exams, all, examId) };
   };
   // Si no llegas con el tope de nuevas de Ajustes: «Subir a N nuevas al día», con el N mínimo que llega
   const cap = newCap(state);
@@ -548,7 +552,7 @@ export function fixes(state, examId) {
   }
   const P2 = [...per.values()].flat();
   for (let a = 0; a < P2.length; a++) for (let b = a + 1; b < P2.length; b++) if (P2[a].kind !== P2[b].kind) tried.push(run([P2[a], P2[b]]));
-  const good = tried.filter(t => reaches(t.exam.verdict)).sort((a, b) => a.cost - b.cost || (a.exam.verdict === 'llegas' ? -1 : 1) - (b.exam.verdict === 'llegas' ? -1 : 1) || (b.exam.margin ?? 0) - (a.exam.margin ?? 0));
+  const good = tried.filter(t => reaches(t.exam.verdict) && !t.worse).sort((a, b) => a.cost - b.cost || (a.exam.verdict === 'llegas' ? -1 : 1) - (b.exam.verdict === 'llegas' ? -1 : 1) || (b.exam.margin ?? 0) - (a.exam.margin ?? 0));
   const options = [], seen = new Set();
   for (const g of good) { if (seen.has(g.kinds)) continue; seen.add(g.kinds); options.push(g); if (options.length === 3) break; }
   let drop = null;

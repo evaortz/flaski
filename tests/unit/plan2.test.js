@@ -414,3 +414,28 @@ test('3 · el tope de repasos al día no cuenta como «no caben»: el tiempo que
   for (const [id, p] of big.progress) big.progress.set(id, { ...p, due: t0 });
   assert.equal(forecast(big).days[0].short, true);
 });
+
+// Dos exámenes: ex0 el 9 dic (300 nuevas, llegas) y ex1 el 16 ene (1.600, no llegas). Antes se proponía pausar
+// ex0 hasta el 16 ene para arreglar ex1, y ex0 se quedaba en «no»
+function twoLate() {
+  const S = invent({ seed: 7, n: 0, nExams: 2, nTopics: 4, seen: 0, days: [45, 83] });
+  for (let i = 0; i < 300; i++) S.cards.push({ id: 'a' + i, deck_id: 'd0-' + (i % 4) });
+  for (let i = 0; i < 1600; i++) S.cards.push({ id: 'b' + i, deck_id: 'd1-' + (i % 4) });
+  S.plan.caps.newPerDay = 25;
+  return S;
+}
+test('4 · «pausar otro examen» solo pausa uno que va después, y ningún arreglo empeora otro examen', () => {
+  const S = twoLate(), fc = forecast(S, { light: true });
+  assert.deepEqual(fc.exams.map(e => [e.date, e.verdict]), [['2026-12-09', 'llegas'], ['2027-01-16', 'no']]);
+  const late = fc.exams[1], fx = fixes(S, late.id);
+  assert.equal(fx.options.length, 3);
+  assert.ok(fx.options.every(o => !o.levers.some(l => l.kind === 'pauseOther' && l.exam === 'ex0')));
+  for (const o of [...fx.options, ...(fx.drop ? [fx.drop] : [])]) {
+    for (const l of o.levers || []) if (l.kind === 'pauseOther') assert.ok(S.plan.exams.find(e => e.id === l.exam).date > S.plan.exams.find(e => e.id === late.id).date);
+    const after = forecast({ ...S, plan: o.plan }, { light: true }).exams;
+    for (const e of after) if (e.id !== late.id) {
+      const b = fc.exams.find(x => x.id === e.id);
+      assert.ok({ no: 0, justo: 1, llegas: 2 }[e.verdict] >= { no: 0, justo: 1, llegas: 2 }[b.verdict], `${e.id}: ${b.verdict} → ${e.verdict}`);
+    }
+  }
+});
