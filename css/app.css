@@ -4179,3 +4179,5 @@ body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidde
 .ent-idea input[type=checkbox]:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px}
 /* «Lo que entiendes» del fin de tanda: la pregunta entera en dos líneas como mucho, sin cortar palabras */
 .ent-done .ent-done-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;min-width:0}
+/* «Rellena los campos…» de la vista previa del editor: 4,5:1 también en oscuro (el --faint de la tanda no llega) */
+.pv-empty{color:color-mix(in srgb,#FFFFFF 86%,var(--session))}
