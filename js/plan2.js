@@ -349,7 +349,8 @@ export function forecast(state, opts = {}) {
     const m = mins[i], fitRev = Math.floor((m * 60) / sR);
     const reviews = Math.min(Math.round(due), fitRev, capRev);
     backlog = Math.max(0, due - reviews);
-    const short = m > 0 && Math.round(due) > reviews;
+    // «No caben los repasos» es solo cuando no caben en tus minutos; el tope de repasos de Ajustes deja tiempo a las nuevas
+    const short = m > 0 && Math.min(Math.round(due), capRev) > fitRev;
     let cap = Math.max(0, Math.floor((m * 60 - reviews * sR) / sN));
     if (short) cap = 0;
     cap = Math.min(cap, capNew);

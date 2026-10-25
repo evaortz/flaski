@@ -399,3 +399,18 @@ test('2 · un ritmo de menos de medio segundo cuenta como 1 s: nada sale NaN', (
   assert.deepEqual(fc.exams.map(e => e.verdict), ['llegas', 'llegas']);
   noNaN(today(S), 'today');
 });
+
+test('3 · el tope de repasos al día no cuenta como «no caben»: el tiempo que sobra va a las nuevas', () => {
+  const S = state945(p => { p.caps.reviewsPerDay = 5; });
+  const fc = forecast({ ...S, newPerDay: null }), mon = fc.days[1];
+  assert.equal(mon.reviews, 5);
+  assert.equal(mon.short, false);
+  assert.equal(mon.new, Math.floor((45 * 60 - 5 * 12) / 40));        // 66
+  assert.deepEqual(fc.short, []);
+  assert.deepEqual(fc.exams.map(e => e.verdict), ['llegas', 'llegas']);
+  // Sin el tope, de verdad no caben: 300 repasos en 30 min
+  const big = invent({ seed: 9, n: 400, nExams: 1, seen: 1, days: [60], week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 30])) });
+  const t0 = new Date(TODAY + 'T09:00:00').getTime();
+  for (const [id, p] of big.progress) big.progress.set(id, { ...p, due: t0 });
+  assert.equal(forecast(big).days[0].short, true);
+});
