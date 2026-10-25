@@ -286,7 +286,10 @@ function maybeNews() {
   showNews();
 }
 export function showNews() {
-  openNews({ dark: isDark, onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } } });
+  openNews({
+    onClose: () => { try { if (localStorage.getItem(NEWS_KEY) !== 'never') localStorage.setItem(NEWS_KEY, NEWS_VERSION); } catch { /* sin almacenamiento */ } },
+    onTry: () => go('plan'),   // «Probar el simulacro»: el simulacro sale en el Plan, en la ficha de cada examen
+  });
 }
 export async function showIntro() {
   if (document.querySelector('.ob')) return;

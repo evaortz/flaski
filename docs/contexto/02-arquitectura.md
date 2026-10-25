@@ -16,7 +16,8 @@ js/                   Módulos de la app (abajo)
 js/vendor/            supabase.js (empaquetado), hanzi-writer.min.js, fzstd.js (Zstandard), pdfjs/ (carga diferida)
 data/emoji.json       Datos del selector de emojis (emojibase, en español)
 decks/                Mazos incluidos + index.json
-img/onboarding/, img/novedades/   Capturas reales (claro/oscuro) generadas por tests/capturas.spec.js
+img/onboarding/   Capturas reales (claro/oscuro) generadas por tests/capturas.spec.js
+media/            Vídeo de Novedades y su portada (caché aparte del SW, «flaski-media-v1», con respuestas por trozos)
 FORMATO-IA.md         Formato «por notas» para que una IA genere mazos (las pruebas validan sus ejemplos)
 supabase/schema.sql   Esquema completo, idempotente
 tests/                Pruebas (unit con node:test, e2e con Playwright) y servidor estático serve.mjs

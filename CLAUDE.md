@@ -35,7 +35,7 @@ npm install                                    # solo la primera vez (y npx play
 node --test "unit/*.test.js"                   # = npm run test:unit  (lógica pura, Node)
 npx playwright test                            # = npm run test:e2e   (proyectos «movil» y «escritorio», puerto 8123)
 npx playwright test --project=escritorio e2e/apuntes.spec.js   # una sola prueba/proyecto
-npx playwright test --config capturas.config.js                # = npm run capturas (regenera img/onboarding e img/novedades)
+npx playwright test --config capturas.config.js                # = npm run capturas (regenera img/onboarding)
 ```
 
 - Las e2e usan `tests/e2e/fixtures.js` (`test`, `openApp`, `nav`, `answer`…): fuerzan modo local, bloquean jsDelivr y fallan si hay errores de JS en la página.

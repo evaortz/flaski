@@ -117,8 +117,9 @@ progreso, ajustes por defecto), instrucciones para IA. Enlace «Ver las últimas
 
 - **Presentación de bienvenida** (`js/onboarding.js`): primera vez sin mazos ni apuntes; capturas reales en
   `img/onboarding/` (claro y oscuro); última pantalla para arrancar según lo que quieras estudiar.
-- **Novedades** (`js/news.js`): pantallas con lo nuevo; se muestran una vez por `NEWS_VERSION` (actual `2026-10`);
-  capturas en `img/novedades/`. `NEWS_ALWAYS = true` las enseña siempre (para revisarlas).
+- **Novedades** (`js/news.js`): una hoja con el vídeo «Lo nuevo» (`media/`, sin sonido; con «reducir movimiento», portada
+  y «Ver el vídeo»), la lista en texto, «Probar el simulacro» (abre el Plan) y «Cerrar». Sale una vez por `NEWS_VERSION`
+  (actual `2026-10-2`). `NEWS_ALWAYS = true` la enseña siempre (para revisarla).
 
 ## Sin conexión
 
