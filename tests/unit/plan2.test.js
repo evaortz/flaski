@@ -496,3 +496,11 @@ test('7 · tras hacer todos los repasos, Hoy sigue ofreciendo las nuevas que cab
   // Y hechas también las 8: hecho por hoy
   assert.ok(today({ ...S, done: { reviews: 196, new: 8, n: 204, ms: 196 * 12000 + 8 * 40000 } }).dayDone);
 });
+
+test('12 · la retención que pide el examen, también por debajo del 90 %', () => {
+  const at = ret => forecast(state945(p => { for (const e of p.exams) e.retention = ret; }));
+  const r85 = at(0.85), r90 = at(0.9), r95 = at(0.95);
+  assert.deepEqual([r85.retention, r90.retention, r95.retention], [0.85, 0.9, 0.95]);
+  const load = fc => fc.days.reduce((a, d) => a + d.reviewsDue, 0);
+  assert.ok(load(r85) < load(r90) && load(r90) < load(r95));
+});

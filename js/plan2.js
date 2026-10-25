@@ -188,7 +188,8 @@ function prepare(state) {
   const plan = state.plan || {}, decks = asMap(state.decks), folders = asMap(state.folders), pages = asMap(state.pages);
   const ctx = { decks, folders, pages };
   const exams = liveExams(plan);
-  const r = Math.max(0.7, Math.min(0.99, Math.max(0.9, ...exams.map(e => Number(e.retention) || 0.9))));
+  // La retención: la más alta que pide un examen (90 % si no lo dice), entre el 70 y el 99 %
+  const r = Math.max(0.7, Math.min(0.99, exams.length ? Math.max(...exams.map(e => Number(e.retention) || 0.9)) : 0.9));
   const st = stock(state, r), pace = state.pace || medirRitmo(state.events);
   const t = state.today;
   const ex = exams.map(e => {

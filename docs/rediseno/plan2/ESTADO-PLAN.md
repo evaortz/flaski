@@ -236,3 +236,5 @@ el código de antes y pasa con el arreglo.
 11. **Orden del filtro**: confirmado. Ahora primero las últimas 300 respuestas y después, de ellas, fuera las de más de
     5 min (si quedan menos de 50, 40 s y 12 s). Los dos en un commit, porque son la misma función. Pruebas en
     `cambio-hora.test.js` (con `TZ=Europe/Madrid`).
+12. **Retención**: confirmado (nunca bajaba del 90 %). Ahora es la más alta que pide un examen, entre el 70 y el 99 %
+    (90 % sin exámenes). Con el 85 % hay menos repasos que con el 90 %, y con el 95 %, más.
