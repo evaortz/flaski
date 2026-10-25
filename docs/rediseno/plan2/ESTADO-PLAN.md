@@ -263,3 +263,23 @@ el código de antes y pasa con el arreglo.
   (`../../js/…`): pasan desde `../kartlar-plan2/tests`.
 - Al final de `plan2.test.js`, una pasada de todas las propiedades con **500 casos al azar** y semilla fija (2026):
   los mismos casos cada vez (unos 5 s). Los estados al azar están en `plan2-datos.js` (`randomState`).
+
+### Del paso B
+
+15. **«Cuánto te cunde» y Hoy daban cifras distintas** (48 repasos del martes frente a los 100 del lunes en Hoy). Ahora
+    las dos salen del mismo día del motor: hoy, si tiene minutos (lo que da el día entero), o el próximo día con
+    tiempo. e2e con las 945 preguntas el lunes 26 oct: Hoy «16 nuevas de Auxiliar · 4 de Inglés · 100 repasos» y Tu
+    tiempo «Un día de 45 min da para unos 100 repasos y 20 nuevas».
+16. **Comprobado en el navegador** (Chromium de Playwright, e2e `plan2-hoy.spec.js`) con las 945 preguntas: hechos los
+    100 repasos (con `recordAnswer`, como en la tanda), Hoy no dice «Hecho por hoy» y ofrece «16 nuevas de Auxiliar ·
+    4 de Inglés»; el Plan dice lo mismo: «20 preguntas» y «Hoy 20 nuevas: tienes 45 min y 0 repasos».
+
+### Resultados
+
+- Unitarias: 277 (276 en verde; la de rendimiento falla solo mientras otra batería de Playwright ocupa el ordenador,
+  ver abajo).
+- Batería completa, `PORT=8124 --workers=2`: **383 pasan, 2 fallan** (las de siempre, `lista.spec.js:65`, de la otra
+  conversación), 15 saltadas, 13,4 min.
+- La tabla de comparación (`node fixtures/comparar.mjs`) sale igual que antes: los arreglos no cambian estos dos
+  estados. El lunes 26 oct sale con 105 repasos en la tabla y 100 en la e2e: la tabla calcula desde el domingo y
+  cuenta de media las que se fallarán (0,1 por repaso), la e2e mira el lunes por la mañana.
