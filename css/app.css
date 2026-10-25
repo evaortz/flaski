@@ -3978,6 +3978,13 @@ body.in-study .studybar .sb-info .left{color:rgba(255,255,255,.85)}
 .toast-act .ta-ic{flex:none;color:#8EE3B5}
 .toast-act .ta-msg{flex:1;min-width:0}
 .toast-act .ta-btn{flex:none;border:0;border-radius:99px;background:#FFFFFF;color:#1B1D3A;font-weight:600;font-size:14px;min-height:40px;padding:0 16px;cursor:pointer}
+.toast-err{gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.toast-err .ta-msg{flex:1 1 100%}
+.toast-err .ta-link{background:transparent;color:#fff;text-decoration:underline;text-underline-offset:3px;padding:0 8px}
+.err-dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;margin:8px 0 14px;font-size:14.5px}
+.err-dl dt{color:var(--muted)}
+.err-dl dd{margin:0;overflow-wrap:anywhere}
+.err-dl code{font-size:13px}
 .toast-act .ta-bar{position:absolute;left:18px;right:18px;bottom:4px;height:3px;border-radius:2px;background:rgba(255,255,255,.7);transform-origin:left;animation:ta-bar linear forwards}
 @keyframes ta-bar{to{transform:scaleX(0)}}
 

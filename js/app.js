@@ -17,7 +17,7 @@ import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, errorSheetHTML, errorText, lastError, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
@@ -399,6 +399,12 @@ document.addEventListener('click', async e => {
     case 'test-voice': return testVoices();
     case 'test-sound': return chime('good');
     case 'algo-reset': { S.prefs.algo.custom = { ...DEFAULT_ALGO }; prefChanged('algo.custom'); const y = scrollY; renderSettings(); scrollTo(0, y); return; }
+    case 'err-details': { $('#toast').hidden = true; const h = errorSheetHTML(); return h && openSheet(h); }
+    case 'err-copy': {
+      const text = lastError ? errorText(lastError) : '';
+      try { await navigator.clipboard.writeText(text); toast('Copiado'); } catch { toast('No se ha podido copiar: selecciónalo a mano'); }
+      return;
+    }
     case 'backup': {
       const day = dateKey();
       download(JSON.stringify(await backupData(), null, 1), `flaski-copia-${day}.json`, 'application/json');

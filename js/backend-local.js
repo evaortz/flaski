@@ -29,8 +29,9 @@ let db = read();
 function persist() {
   try {
     localStorage.setItem(KEY, JSON.stringify(db));
-  } catch {
-    throw new Error('No se pudo guardar en este navegador (¿modo privado o sin espacio?)');
+  } catch (e) {
+    // Con su nombre (QuotaExceededError…), para que el aviso diga qué ha pasado
+    throw Object.assign(new Error('No se pudo guardar en este navegador (¿modo privado o sin espacio?)', { cause: e }), { name: e?.name || 'Error' });
   }
 }
 

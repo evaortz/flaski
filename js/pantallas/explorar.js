@@ -130,7 +130,7 @@ export async function exploreClick(b) {
         if (ds.ex === 'start-tema' && p?.deck_id) return startSession(p.deck_id, { minutes: 5 });
         if (p && S.pages.has(p.id)) { toast(`«${t.title}» añadido`); return go('page', { pageId: p.id }); }
         toast(`«${t.title}» añadido`); renderExplore();
-      } catch (e) { b.disabled = false; fail(e); }
+      } catch (e) { b.disabled = false; fail(e, `Añadir tema «${t.title}»`); }
       return;
     }
     case 'open-tema': {

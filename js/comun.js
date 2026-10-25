@@ -70,7 +70,7 @@ export const cardList = () => [...S.cards.values()];
 let toastTimer;
 export function toast(msg) {
   const t = $('#toast');
-  t.textContent = msg; t.hidden = false; t.classList.remove('toast-act'); toastAct = null;
+  t.textContent = msg; t.hidden = false; t.classList.remove('toast-act', 'toast-err'); toastAct = null;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 // Aviso oscuro con un botón («Deshacer», «Ver») y una barrita que se acaba (6 s)
@@ -78,7 +78,7 @@ let toastAct = null;
 export function toastAction(msg, label, fn, { ms = 6000, icon: ic = '' } = {}) {
   const t = $('#toast');
   t.innerHTML = `${ic ? icon(ic, { size: 16, cls: 'ta-ic' }) : ''}<span class="ta-msg">${esc(msg)}</span><button type="button" class="ta-btn">${esc(label)}</button><i class="ta-bar" style="animation-duration:${ms}ms"></i>`;
-  t.classList.add('toast-act'); t.hidden = false;
+  t.classList.add('toast-act'); t.classList.remove('toast-err'); t.hidden = false;
   toastAct = fn;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; toastAct = null; }, ms);
 }
@@ -96,7 +96,54 @@ export function errMsg(e) {
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión. Revisa tu internet.';
   return m || 'Algo ha fallado. Inténtalo de nuevo.';
 }
-export const fail = e => toast(errMsg(e));
+// Errores: el aviso dice qué ha pasado y lleva «Detalles» (qué hacías, el error técnico, la hora, la versión y el
+// modo) para poder mandarlo. doing: qué se estaba haciendo; si no se dice, el último botón que se tocó.
+const VERSION = 'flaski-v' + (/[?&]v=(\d+)/.exec(import.meta.url)?.[1] || '?');
+let lastTap = null;
+document.addEventListener('click', e => {
+  const b = e.target.closest?.('button, a, [role="button"]');
+  if (!b || b.closest('#toast')) return;
+  const label = (b.getAttribute('aria-label') || b.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  // En una hoja, con su título delante: «Nueva carpeta › Guardar»
+  const h = b.closest('#sheet')?.querySelector('h2')?.textContent.trim();
+  if (label) lastTap = { label: h && h !== label ? `${h} › ${label}` : label, at: Date.now() };
+}, true);
+export const isQuota = e => /QuotaExceeded|NS_ERROR_DOM_QUOTA_REACHED/i.test(`${e?.name} ${e?.cause?.name}`) || e?.code === 22 || /quota/i.test(e?.message || '');
+// Nada de claves, tokens ni datos de otras personas: fuera JWT, claves de Supabase, correos e ids que no son tuyos
+function clean(v) {
+  return String(v ?? '').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[clave]').replace(/\bsb_(?:publishable|secret)_[\w-]+/g, '[clave]')
+    .replace(/(apikey|authorization|bearer|token|password)(["'=:\s]+)[^\s"'&,;]+/gi, '$1$2[oculto]')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[correo]')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, id => (id === S.uid ? id : '[id]')).slice(0, 600);
+}
+export let lastError = null;
+export function errorInfo(e, doing = '') {
+  const tap = lastTap && Date.now() - lastTap.at < 60e3 ? lastTap.label : '';
+  const tech = [];
+  const name = e?.cause?.name && e.cause.name !== 'Error' ? e.cause.name : e?.name && e.name !== 'Error' ? e.name : '';
+  if (name) tech.push(['Error', name]);
+  for (const k of ['code', 'status', 'message', 'details', 'hint']) if (e?.[k] != null && e[k] !== '') tech.push([k === 'status' ? 'estado' : k, clean(e[k])]);
+  if (e?.cause?.message && e.cause.message !== e.message) tech.push(['causa', clean(e.cause.message)]);
+  if (!tech.length) tech.push(['Error', clean(typeof e === 'string' ? e : JSON.stringify(e) || 'sin datos')]);
+  return { doing: clean(doing || tap || 'Sin saber'), tech, when: new Date().toLocaleString('es-ES'), version: VERSION, mode: S.uid === 'local' ? 'Modo local (en este navegador)' : S.uid ? 'Con cuenta' : 'Sin sesión' };
+}
+export const errorText = i => [`Qué hacías: ${i.doing}`, ...i.tech.map(([k, v]) => `${k}: ${v}`), `Hora: ${i.when}`, `Versión: ${i.version}`, `Modo: ${i.mode}`].join('\n');
+export function fail(e, doing = '') {
+  console.warn(e);
+  lastError = errorInfo(e, doing);
+  const quota = isQuota(e);
+  const t = $('#toast');
+  t.innerHTML = `<span class="ta-msg">${esc(quota ? 'No queda espacio en este navegador. Descarga una copia de tus datos para no perder nada.' : errMsg(e))}</span>
+    ${quota ? '<button type="button" class="ta-btn" data-act="backup">Descargar una copia</button>' : ''}<button type="button" class="ta-btn ta-link" data-act="err-details">Detalles</button>`;
+  t.classList.add('toast-act', 'toast-err'); t.hidden = false; toastAct = null;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; t.classList.remove('toast-err'); }, quota ? 15000 : 9000);
+}
+// La hoja «Qué ha pasado» (la abre app.js con openSheet)
+export const errorSheetHTML = (i = lastError) => i && `<h2>Qué ha pasado</h2>
+  <dl class="err-dl"><dt>Qué hacías</dt><dd>${esc(i.doing)}</dd>${i.tech.map(([k, v]) => `<dt>${esc(k)}</dt><dd><code>${esc(v)}</code></dd>`).join('')}
+    <dt>Hora</dt><dd>${esc(i.when)}</dd><dt>Versión</dt><dd>${esc(i.version)}</dd><dt>Modo</dt><dd>${esc(i.mode)}</dd></dl>
+  <p class="muted small">No lleva claves ni datos de otras personas. Cópialo y mándalo si quieres que lo miremos.</p>
+  <div class="btnrow"><span class="spacer"></span><button type="button" class="ghost" data-act="close-sheet">Cerrar</button><button type="button" class="primary" data-act="err-copy">Copiar</button></div>`;
 function deckColor(id) {
   const d = S.decks.get(id);
   if (d?.color) return colorVar(d.color);

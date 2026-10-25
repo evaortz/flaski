@@ -82,6 +82,8 @@ export async function mockCloud(page) {
       return json(SOCIAL[fn] ? SOCIAL[fn]() : null);
     }
     const method = req.method();
+    // srv.failWrite = { path, status, body }: esa escritura falla con ese error de Supabase
+    if (srv.failWrite && method !== 'GET' && path === srv.failWrite.path) return json(srv.failWrite.body, srv.failWrite.status || 400);
     if (method === 'GET') {
       const single = (req.headers().accept || '').includes('vnd.pgrst.object');
       if (path === 'profiles') return json(single ? { id: UID, display_name: 'Prueba' } : [{ id: UID, display_name: 'Prueba' }]);
