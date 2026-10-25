@@ -48,8 +48,8 @@ test('estimaciones con un mínimo de 10 s por pregunta: Hoy y «salen unas X al 
   await nav(page, 'Explorar');
   await page.locator('[data-ex="add-builtin"][data-file="aleman-a2.json"]').click();
   await expect(page.locator('#main [data-builtin="aleman-a2.json"] .go')).toHaveText('La tienes');
-  // 40 respuestas de 2 s
-  await page.evaluate(() => import('/js/comun.js').then(({ S }) => { const now = Date.now(); S.events = Array.from({ length: 40 }, (_, i) => ({ ms: 2000, t: now - i * 1000, grade: 3 })); }));
+  // 40 respuestas de 2 s (de ayer: las de hoy ya cumplirían el día)
+  await page.evaluate(() => import('/js/comun.js').then(({ S }) => { const now = Date.now() - 864e5; S.events = Array.from({ length: 40 }, (_, i) => ({ ms: 2000, t: now - i * 1000, grade: 3 })); }));
   expect(await page.evaluate(() => import('/js/pantallas/estudio.js').then(m => m.shortInfo().secs))).toBe(10);
   await nav(page, 'Hoy');
   const t = await page.locator('#main .hero-go small').textContent();

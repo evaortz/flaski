@@ -71,11 +71,14 @@ test('la primera tanda pregunta la duración; los atrasados primero, una nueva d
   await page.getByRole('button', { name: 'Otra tanda · 5 min' }).click();
   await expect(left(page)).toHaveText('pregunta 1 de 15 · repaso');
 
-  // Ya no se vuelve a preguntar la duración
+  // Con la tanda de hoy hecha (5 min), Hoy dice «Hecho por hoy» y lo que queda es un enlace; no vuelve a
+  // preguntar la duración
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-min')).toContainText('Tanda de 5 min');
-  await page.locator('.hero-go').click();
-  await expect(left(page)).toContainText('pregunta 1 de 15');
+  await expect(page.locator('#main .hero h1')).toHaveText('Hecho por hoy');
+  await expect(page.locator('.hero-go')).toHaveCount(0);
+  expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.prefs.study.tandaMin))).toBe(5);
+  await page.locator('#main .day-rest').click();
+  await expect(left(page)).toContainText('pregunta 1 de');
 });
 
 test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver»', async ({ page }) => {

@@ -10,7 +10,7 @@ import { ideasOf, ideaHit, parseEffects, suggestGrade, verdictText } from '../en
 import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes, todayMinutes } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
@@ -481,6 +481,26 @@ export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
 export const shortSize = (minutes = tandaMinutes()) => tandaSize(minutes, pace(S.events));
 export function shortInfo() { const minutes = tandaMinutes(), secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
+// El día se cumple con tus minutos, no con dejar la cola a cero: hecho por hoy si ya has respondido lo que cabía
+// en la tanda de hoy (a tu ritmo de antes de hoy) o has estado los minutos del día respondiendo, empezaras donde
+// empezaras (Hoy, el Plan, una lista o un apunte). Lo que queda pasa a mañana. null si no, o si hoy es libre.
+export function dayDone(now = Date.now()) {
+  const m = todayMinutes();
+  if (m === 0) return null;
+  const minutes = m || S.prefs.study.tandaMin, t0 = startOfDay(now);
+  const before = S.events.filter(e => e.t < t0), today = S.events.filter(e => e.t >= t0);
+  if (!today.length) return null;
+  const ms = today.reduce((s, e) => s + Math.min(120e3, Number(e.ms) || 0), 0);
+  if (today.length < tandaSize(minutes, pace(before)) && ms < minutes * 60e3) return null;
+  return { n: today.length, minutes: Math.max(1, Math.round(ms / 60e3)) };
+}
+// Lo que queda, como enlace secundario: «Quedan 13 repasos · otra tanda de 5 min»
+export function restLink(q) {
+  if (!q.ids.length) return '';
+  const what = q.fresh ? plural(q.ids.length, 'pregunta', 'preguntas') : plural(q.ids.length, 'repaso', 'repasos');
+  const { mins } = tandaFit(q.ids.length);
+  return `<button class="link day-rest" data-act="tanda-rest" data-min="${mins}">Quedan ${what} · otra tanda de ${mins} min</button>`;
+}
 // La tanda de hoy con lo que hay de verdad: si tocan menos preguntas de las que caben, los minutos que llevan (m preguntas, mins)
 export function tandaFit(avail) {
   const { minutes, n, secs } = shortInfo(), m = Math.min(n, avail);

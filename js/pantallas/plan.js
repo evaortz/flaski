@@ -10,7 +10,7 @@ import {
 } from '../plan.js';
 import { main, S, esc, toast, folderIcon, deckIcon, freshByDeck, planNodes, newPlan, todayMinutes, tandaMinutes } from '../comun.js';
 import { plural } from './mazos.js';
-import { shortInfo, tandaFit, todayQueue } from './estudio.js';
+import { shortInfo, tandaFit, todayQueue, dayDone, restLink } from './estudio.js';
 import { openSheet, closeSheet, confirmSheet } from './editor.js';
 import { savePrefsSoon } from './perfil.js';
 import { mapModel, failNote, resistIds, practiceResist, setMapView } from './mapa.js';
@@ -273,7 +273,12 @@ function saveSpecial(id) {
 
 /* ---------------- hoy toca ---------------- */
 function todayHTML() {
-  const t = today(), m = todayMinutes(), q = todayQueue('all'), { m: size, mins } = tandaFit(q.ids.length);
+  const t = today(), m = todayMinutes(), q = todayQueue('all'), { m: size, mins } = tandaFit(q.ids.length), done = dayDone();
+  if (done) {
+    return `<div class="section-h"><h2 id="h-today">Hoy toca</h2><span class="sec-note">${WEEK_NAMES[weekdayOf(t)]} · hecho</span></div>
+    <p class="day-done"><b>Hecho por hoy:</b> ${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min.</p>
+    ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
+  }
   const byRoot = new Map();
   for (const id of q.ids) {
     if (S.progress.get(id)) continue;
@@ -294,7 +299,7 @@ function todayHTML() {
     : `<button class="primary big" data-act="tanda-short">Empezar la tanda · ${mins} min</button>`;
   // El porqué de las nuevas de hoy: con tu semana, más minutos dan más nuevas (como mucho el doble) y menos, menos
   const nNew = m ? newOn(P(), t, S.newPerDay, S.prefs.study.tandaMin) : 0, avg = Math.round(weekAverage(P().week, S.prefs.study.tandaMin));
-  const why = m && P().week ? `<p class="ht-why">Hoy ${plural(nNew, 'nueva', 'nuevas')}: tienes ${m} min${m > avg ? `, más que un día normal (${avg} min)` : m < avg ? `, menos que un día normal (${avg} min)` : ''}${nNew >= 2 * S.newPerDay && m > avg ? '. Como mucho, el doble' : ''}.</p>` : '';
+  const why = m && P().week && q.fresh ? `<p class="ht-why">Hoy ${q.fresh < nNew ? `te quedan ${plural(q.fresh, 'nueva', 'nuevas')} de ${nNew}` : plural(nNew, 'nueva', 'nuevas')}: tienes ${m} min${m > avg ? `, más que un día normal (${avg} min)` : m < avg ? `, menos que un día normal (${avg} min)` : ''}${nNew >= 2 * S.newPerDay && m > avg ? '. Como mucho, el doble' : ''}.</p>` : '';
   return `<div class="section-h"><h2 id="h-today">Hoy toca</h2><span class="sec-note">${head}</span></div>
     ${why}${q.ids.length ? `<div class="ht-bar">${bar}</div><div class="ht-legend">${legend}</div>` : ''}
     ${topics ? `<p class="ht-topics">${topics}</p>` : ''}${btn}`;

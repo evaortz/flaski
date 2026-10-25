@@ -11,7 +11,7 @@ import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortInfo, tandaFit, todayQueue, freshLeft } from './estudio.js';
+import { shortInfo, tandaFit, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES, tandaSize } from '../tanda.js';
 
@@ -34,10 +34,12 @@ export function renderHome() {
   const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
   const lateHTML = late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : '';
   const fresh = avail ? 0 : Math.min(10, freshLeft('all'));
+  const done = dayDone();
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      ${avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
+      ${done ? doneHTML(done, q)
+      : avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
@@ -68,6 +70,10 @@ export function renderHome() {
   drawProgress();
 }
 
+// «Hecho por hoy»: lo que has hecho y, si queda algo, la otra tanda como enlace (lo que quede pasa a mañana)
+const doneHTML = (done, q) => `<h1 class="hero-hi hero-done">Hecho por hoy</h1>
+      <p class="day-done">${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min</p>
+      ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
 // La línea de las nuevas: cuántas y de dónde (el examen cercano o cuántas carpetas); sin nuevas mientras se reparte lo atrasado
 function newLine(q, folders, b) {
   const n = q.fresh;
