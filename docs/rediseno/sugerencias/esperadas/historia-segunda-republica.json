@@ -1,0 +1,117 @@
+[
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Cuándo se proclamó la Segunda República?",
+  "respuesta": "14 de abril de 1931",
+  "regla": "fecha_completa",
+  "prioridad": "imprescindible",
+  "existe_hoy": true
+ },
+ {
+  "tipo": "choice",
+  "pregunta": "¿Cuándo se proclamó la Segunda República?",
+  "respuesta": "14 de abril de 1931",
+  "incorrectas": [
+   "12 de abril de 1931",
+   "18 de julio de 1936"
+  ],
+  "regla": "distractores_del_apunte",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Tras qué elecciones se proclamó la Segunda República?",
+  "respuesta": "Las elecciones municipales del 12 de abril",
+  "regla": "frase_clave",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Qué reconoció la Constitución de 1931?",
+  "respuesta": "El voto femenino",
+  "regla": "frase_clave",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "number",
+  "tipo_alt": [
+   "basic",
+   "cloze"
+  ],
+  "pregunta": "¿En qué año se ejerció por primera vez el voto femenino?",
+  "respuesta": "1933",
+  "regla": "fecha",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "truefalse",
+  "pregunta": "El voto femenino se ejerció por primera vez en las elecciones de 1931.",
+  "respuesta": "Falso (en las de 1933)",
+  "regla": "verdadero_falso",
+  "prioridad": "extra",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "pregunta": "¿Quién defendió el sufragio femenino en las Cortes?",
+  "respuesta": "Clara Campoamor",
+  "regla": "persona_hecho",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿En qué tres etapas se divide la Segunda República?",
+  "respuesta": "El bienio reformista, el bienio radical-cedista y el Frente Popular",
+  "regla": "enumeracion_en_frase",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "number",
+  "pregunta": "¿En cuántas etapas se divide el periodo?",
+  "respuesta": "3",
+  "regla": "cifra",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista?",
+  "respuesta": "La reforma agraria, la reforma militar y la separación de la Iglesia y el Estado",
+  "regla": "persona_hecho",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze",
+   "choice"
+  ],
+  "pregunta": "¿Cuándo fue el golpe de Estado que provocó el inicio de la Guerra Civil?",
+  "respuesta": "18 de julio de 1936",
+  "regla": "fecha_completa",
+  "prioridad": "imprescindible",
+  "existe_hoy": true
+ }
+]

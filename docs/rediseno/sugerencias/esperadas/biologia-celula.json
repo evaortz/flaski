@@ -1,0 +1,121 @@
+[
+ {
+  "tipo": "basic",
+  "pregunta": "¿Qué es la célula?",
+  "respuesta": "La unidad básica de la vida",
+  "regla": "definicion",
+  "prioridad": "imprescindible",
+  "existe_hoy": true
+ },
+ {
+  "tipo": "truefalse",
+  "pregunta": "Las células procariotas tienen núcleo definido.",
+  "respuesta": "Falso (no tienen núcleo definido; su material genético está disperso en el citoplasma)",
+  "regla": "verdadero_falso",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Dónde está el material genético de las células procariotas?",
+  "respuesta": "Disperso en el citoplasma",
+  "regla": "frase_clave",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "cloze",
+  "tipo_alt": [
+   "basic",
+   "choice"
+  ],
+  "pregunta": "Las bacterias son {{procariotas}}.",
+  "respuesta": "procariotas",
+  "regla": "definicion",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "cloze",
+  "tipo_alt": [
+   "basic"
+  ],
+  "pregunta": "Las células eucariotas tienen {{un núcleo rodeado por una membrana}}.",
+  "respuesta": "un núcleo rodeado por una membrana",
+  "regla": "frase_clave",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "basic",
+  "tipo_alt": [
+   "cloze"
+  ],
+  "pregunta": "¿Qué seres vivos están formados por células eucariotas?",
+  "respuesta": "Animales, plantas y hongos",
+  "regla": "enumeracion_en_frase",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "cloze",
+  "tipo_alt": [
+   "basic"
+  ],
+  "pregunta": "La mitocondria produce {{la energía de la célula}} mediante la respiración celular.",
+  "respuesta": "la energía de la célula",
+  "regla": "quien_hace_que",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "explain",
+  "pregunta": "Explícalo: ¿por qué las células musculares tienen muchas mitocondrias?",
+  "respuesta": "Porque necesitan mucha energía, y la mitocondria la produce",
+  "regla": "causal",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "cloze",
+  "tipo_alt": [
+   "basic"
+  ],
+  "pregunta": "Los cloroplastos solo están en las células vegetales y realizan {{la fotosíntesis}}.",
+  "respuesta": "la fotosíntesis",
+  "regla": "frase_clave",
+  "prioridad": "imprescindible",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "explain",
+  "pregunta": "¿En qué se diferencian las células vegetales de las animales?",
+  "respuesta": "Las vegetales tienen pared celular de celulosa",
+  "regla": "contraste",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ },
+ {
+  "tipo": "number",
+  "pregunta": "¿Cuántas fases tiene la mitosis?",
+  "respuesta": "4",
+  "regla": "cifra",
+  "prioridad": "imprescindible",
+  "existe_hoy": true
+ },
+ {
+  "tipo": "steps",
+  "tipo_alt": [
+   "cloze",
+   "basic"
+  ],
+  "pregunta": "Ordena las fases de la mitosis",
+  "respuesta": "Profase · Metafase · Anafase · Telofase",
+  "regla": "enumeracion_en_frase",
+  "prioridad": "deseable",
+  "existe_hoy": false
+ }
+]
