@@ -442,3 +442,11 @@ sin volver a entrar; e2e `plan-dispositivos.spec.js` con la nube simulada (`nube
 Pruebas: `plan-atrasos.spec.js` (de vuelta tras 19 días con las 945 preguntas: la fila, la hoja, las dos opciones,
 Hoy y el Plan con el mismo texto; con atrasos, «¿Adelantas 10 atrasadas?» en vez de nuevas; y el final de la tanda
 que completa los 5 min), y `tanda-corta.spec.js` y `hoy.spec.js` ajustadas.
+
+### 1 · No llegas
+
+«Para llegar» ya estaba del paso C (las opciones de `fixes()` con su resultado, «Aplicar la primera / segunda /
+tercera» con «Deshacer», «Lo dejo así» y, si ninguna llega, qué temas dejar para después). Nuevas e2e en
+`plan-d.spec.js` con el caso del diseño: las 945 preguntas con Auxiliar a 26 días (tres opciones, la primera «Subir a
+35 nuevas al día», cada una con «Llegas…: acabas el…»; aplicar la segunda, que el veredicto diga su fecha, y
+deshacer) y un examen a 7 días donde ninguna llega (dejar temas para después).
