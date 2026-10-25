@@ -3889,3 +3889,23 @@ mark.set-hl{background:var(--tag-yellow-bg);color:inherit;border-radius:3px;padd
   .set-sec:first-child,.set-found + .set-sec{margin-top:0}
   .set-sec{scroll-margin-top:24px}
 }
+
+/* La marca solo en la pantalla de entrar (en la app, el logo queda en el icono) */
+body:not(.signed-out) .top .brand{display:none}
+body:not(.signed-out) .top{min-height:0}
+body:not(.signed-out) .top:has(> .net[hidden]){display:none}
+@media (min-width:960px){body.signed-out .top{display:flex}}
+/* Cabecera de la tanda: el texto pequeño en blanco al 85 %, que pasa 4,5:1 con los 9 acentos */
+body.in-study .studybar .sb-info .left{color:rgba(255,255,255,.85)}
+
+/* Zonas táctiles de 44 × 44 px en pantallas táctiles: el dibujo sigue igual, la zona crece con un ::after invisible */
+@media (pointer:coarse){
+  .tag-x::after,.nb-grip::after,.nb-fold::after,.nb-cards::after,.nb-sugdot::after{content:"";position:absolute}
+  .tag-x::after{inset:-12px}
+  .nb-grip::after,.nb-fold::after{top:-9px;bottom:-9px;left:-24px;right:0}
+  /* En el móvil, el margen del apunte deja sitio a esa zona sin salirse de la pantalla ni tapar el texto */
+  @media (max-width:699px){.pg-blocks{padding-left:36px}}
+  .nb-cards::after{top:-11px;bottom:-11px;left:50%;width:100%;min-width:44px;transform:translateX(-50%)}
+  .nb-sugdot::after{inset:-11px}
+  .nb-cards{overflow:visible}
+}

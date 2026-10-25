@@ -69,6 +69,8 @@ export function render() {
   if (S.view === 'decks') S.noteFolder = S.folderId;
   $('#nav').hidden = !authed || S.view === 'study' || (S.view === 'sim' && (S.simShow ? S.simShow.mode !== 'answers' : !!S.sim));
   document.body.classList.toggle('no-nav', $('#nav').hidden);
+  // La marca (logo y nombre) solo en la pantalla de entrar: con la sesión iniciada, el contenido sube
+  document.body.classList.toggle('signed-out', !authed);
   document.body.classList.toggle('in-study', authed && (S.view === 'study' || (S.view === 'sim' && !S.simShow?.mode?.startsWith('answers'))) && !document.body.classList.contains('study-sheet'));
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();

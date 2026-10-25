@@ -1,5 +1,5 @@
 // En el móvil, lo que se toca mide al menos 44 px de alto (la medida mínima cómoda para un dedo)
-import { test, expect, openApp, nav, createDeck, addBasicCards } from './fixtures.js';
+import { test, expect, openApp, nav, createDeck, addBasicCards, newCard } from './fixtures.js';
 
 test.skip(({ isMobile }) => !isMobile, 'solo en el móvil');
 
@@ -33,4 +33,46 @@ test('zonas táctiles de al menos 44 px: apunte, Ajustes, Estadísticas y la met
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="stats"]').first().click();
   expect.soft(await small(page, '.st-filters button, .st-filters select, .st-filters label')).toEqual([]);
+});
+
+// Zona que responde al dedo alrededor del centro de un elemento (también lo que añade su ::after invisible):
+// ancho y alto en px, buscando hacia los cuatro lados qué puntos siguen tocando el elemento
+const hitArea = loc => loc.evaluate(el => {
+  const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const hits = (x, y) => { const t = document.elementFromPoint(x, y); return !!t && (t === el || el.contains(t)); };
+  const reach = (dx, dy) => { let d = 0; while (d < 40 && hits(cx + dx * (d + 1), cy + dy * (d + 1))) d++; return d; };
+  return [Math.round(reach(-1, 0) + reach(1, 0) + 1), Math.round(reach(0, -1) + reach(0, 1) + 1)];
+});
+
+test('zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el margen, y las pastillas del apunte', async ({ page }) => {
+  await openApp(page);
+  // El tema de ejemplo: un apunte con preguntas unidas a sus partes y preguntas sugeridas
+  await nav(page, 'Explorar');
+  await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click();
+  await page.locator('[data-ex="add-tema"]').first().click();
+  await page.locator('.ex-row [data-ex="open-tema"]').first().click();
+  await expect(page.locator('#pgBlocks .nb-cards').first()).toBeVisible();
+  const big = async (loc, what) => { await loc.scrollIntoViewIfNeeded(); const [w, h] = await hitArea(loc); expect.soft(w, `${what}: ancho`).toBeGreaterThanOrEqual(44); expect.soft(h, `${what}: alto`).toBeGreaterThanOrEqual(44); };
+  await big(page.locator('#pgBlocks .nb-cards').first(), 'N preguntas de esta parte');
+  const dot = page.locator('#pgBlocks .nb:not(:has(> .nb-cards)) > .nb-sugdot').first();
+  await expect(dot).toBeVisible({ timeout: 5000 });
+  await big(dot, 'preguntas sugeridas');
+  const fold = page.locator('#pgBlocks .nb-fold').first();
+  await fold.scrollIntoViewIfNeeded();
+  await big(fold, 'Plegar el apartado');
+  // «Mover o más opciones» sale al escribir en un bloque
+  const nb = page.locator('#pgBlocks .nb:not(.nb-h1):not(.nb-h2):not(.nb-h3)').nth(1);
+  await nb.locator('.nb-text').click();
+  await page.locator('#pgBlocks [data-block-input]').press('End');
+  const grip = page.locator('#pgBlocks .nb:has([data-block-input]) > .nb-grip');
+  await expect(grip).toBeVisible();
+  await big(grip, 'Mover o más opciones');
+  await page.keyboard.press('Escape');
+  // La ✕ de las pegatinas del editor de una pregunta
+  await createDeck(page, 'Historia');
+  await newCard(page);
+  await page.locator('#tagPick [data-act="tagpick-open"]').click();
+  await page.locator('#f-newtag').fill('verbos');
+  await page.locator('#f-newtag').press('Enter');
+  await big(page.locator('#tagPick [data-act="untag"]').first(), '✕ de la pegatina');
 });
