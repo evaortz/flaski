@@ -37,8 +37,31 @@ export function examBarHTML(e, { labels = true, t = dayKey() } = {}) {
   const temario = e.start > 0 ? Math.min(endT, lwFrom) : 0;
   const segs = `<i class="pb-t${e.verdict === 'no' ? ' late' : ''}" style="width:${temario}%"></i><i class="pb-r" style="width:${Math.max(0, lwFrom - temario)}%"></i>${lw ? `<i class="pb-l" style="width:${100 - lwFrom}%"></i>` : ''}`;
   const mark = fin && e.start > 0 ? `<b class="pb-mark" style="left:${endT}%"></b>` : '';
-  const label = !labels ? '' : `<div class="pb-lab"><span>hoy</span>${fin && e.start > 0 ? `<span class="pb-fin" style="left:${endT}%">acabas el ${shortDay(fin)}</span>` : ''}<span>${shortDay(e.date)}</span></div>`;
-  return `<div class="pb" role="img" aria-label="${esc(barText(e))}"><div class="pb-bar">${segs}${mark}</div>${label}</div>`;
+  // (todo en <span>: la barra va a menudo dentro de un botón, y en Safari un <div> en columna no se estira)
+  const label = !labels ? '' : `<span class="pb-lab"><span class="pb-hoy">hoy</span>${fin && e.start > 0 ? `<span class="pb-fin" style="left:${endT}%">acabas el ${shortDay(fin)}</span>` : ''}<span class="pb-date">${shortDay(e.date)}</span></span>`;
+  return `<span class="pb" role="img" aria-label="${esc(barText(e))}"><span class="pb-bar">${segs}${mark}</span>${label}</span>`;
+}
+// Las etiquetas de la barra nunca se montan: si «acabas el …» toca «hoy» o la fecha del examen, va en su propia línea
+// (sin salirse por los lados). Se mira al pintarse cada barra
+export function fitBarLabels(root = document) {
+  for (const lab of root.querySelectorAll('.pb-lab')) {
+    const fin = lab.querySelector('.pb-fin');
+    if (!fin) continue;
+    lab.classList.remove('pb-apart'); fin.style.removeProperty('--pb-x');
+    const L = lab.getBoundingClientRect();
+    if (!L.width) continue;
+    const f = fin.getBoundingClientRect(), h = lab.querySelector('.pb-hoy').getBoundingClientRect(), d = lab.querySelector('.pb-date').getBoundingClientRect();
+    if (f.left >= h.right + 6 && f.right <= d.left - 6) continue;
+    const x = Math.max(0, Math.min(L.width - f.width, f.left - L.left));
+    lab.classList.add('pb-apart');
+    fin.style.setProperty('--pb-x', `${Math.round(x)}px`);
+  }
+}
+if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+  let raf = 0;
+  new MutationObserver(() => { if (!raf && document.querySelector('.pb-lab .pb-fin')) raf = requestAnimationFrame(() => { raf = 0; fitBarLabels(); }); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener('resize', () => fitBarLabels());
 }
 export function barText(e) {
   if (e.verdict === 'no') return `No llegas: al ${shortDay(e.date)} te quedarían ${e.left} sin ver`;
