@@ -31,14 +31,23 @@ inicias sesión. Las pruebas, en cambio, sustituyen `config.js` y usan siempre e
 
 ```powershell
 cd tests
-npm install                                    # solo la primera vez (y npx playwright install chromium)
+npm install                                    # solo la primera vez (y npx playwright install chromium webkit)
 node --test "unit/*.test.js"                   # = npm run test:unit  (lógica pura, Node)
-npx playwright test                            # = npm run test:e2e   (proyectos «movil» y «escritorio», puerto 8123)
-npx playwright test --project=escritorio e2e/apuntes.spec.js   # una sola prueba/proyecto
+npm run e2e:rapida                             # mientras trabajas: solo «movil» y solo lo que toca lo que has cambiado
+npm run e2e:rapida -- plan apuntes             # …o las pruebas de esas pantallas (lista en tests/rapida.mjs)
+npm run e2e:rapida -- --last-failed            # …o repetir solo lo que falló
+npx playwright test                            # = npm run test:e2e: la batería completa, una vez al final del paso
+$env:TRACE = '1'; npx playwright test e2e/plan.spec.js   # con traza, para depurar un fallo
 npx playwright test --config capturas.config.js                # = npm run capturas (regenera img/onboarding e img/novedades)
 ```
 
-- Las e2e usan `tests/e2e/fixtures.js` (`test`, `openApp`, `nav`, `answer`…): fuerzan modo local, bloquean jsDelivr y fallan si hay errores de JS en la página.
+- **Dos formas de lanzar la batería:** mientras trabajas, `npm run e2e:rapida` (menos de 1 min); al final del paso, la
+  completa con `npx playwright test` (sin `--workers`: la configuración ya lo fija), en verde de una vez.
+- El proyecto «escritorio» solo ejecuta las pruebas con `@ambos` en el título: las que dependen del tamaño, el teclado o
+  el ratón. Una prueba nueva de maquetación, teclado o arrastre lleva `@ambos`; la lógica basta con verla en el móvil.
+- Para tener datos, usa el fixture `seed` (listas, preguntas, apuntes, carpetas, listas de Explorar y progreso, antes de
+  abrir la app) y `openDeck` / `openPage`; crea con la pantalla solo lo que la prueba prueba.
+- Las e2e usan `tests/e2e/fixtures.js` (`test`, `openApp`, `nav`, `answer`, `seed`…): fuerzan modo local, bloquean jsDelivr y fallan si hay errores de JS en la página.
 - `tests/e2e/nube.js` simula Supabase en memoria para probar el modo con cuenta.
 - `tests/unit/sw.test.js` comprueba que **todo módulo importado desde `js/app.js` está en la lista `SHELL` de `sw.js`**.
 - Tras implementar algo: ejecuta unitarias + e2e y di cuántas pasan/fallan.
