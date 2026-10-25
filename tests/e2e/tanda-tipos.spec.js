@@ -46,7 +46,7 @@ const CASES = [
   ['kanji', 't1', 'ja', { k: '図書館', m: 'biblioteca', on: 'トショカン', kun: '', e: '図書館[としょかん]で 本[ほん]を 読[よ]みます。' }, reveal],
 ];
 
-test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones', async ({ page }, info) => {
+test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones @ambos', async ({ page }, info) => {
   test.setTimeout(120e3);
   await page.route(/hanzi-writer-data-jp@[^/]+\/%E6%97%A5\.json$/, route => route.fulfill({ contentType: 'application/json', body: NICHI }));
   const now = new Date().toISOString();

@@ -35,7 +35,7 @@ test('«No lo sé, ver respuesta» en una de elegir deja «Otra vez» marcado', 
   await expect(page.locator('.grade.g1')).toHaveClass(/suggested/);
 });
 
-test('editar una pregunta dentro de la tanda: colores de siempre, título a la vista y los tipos caben', async ({ page }) => {
+test('editar una pregunta dentro de la tanda: colores de siempre, título a la vista y los tipos caben @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Capitales');
   await addBasicCards(page, [['Francia', 'París']]);
@@ -57,7 +57,7 @@ test('editar una pregunta dentro de la tanda: colores de siempre, título a la v
   await expect(page.locator('body')).toHaveClass(/in-study/);
 });
 
-test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho', async ({ page }) => {
+test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho @ambos', async ({ page }) => {
   await openApp(page);
   await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.prefs.study.buttons = 2; });
   await createDeck(page, 'Capitales');

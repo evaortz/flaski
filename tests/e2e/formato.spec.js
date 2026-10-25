@@ -21,7 +21,7 @@ const pasteInto = (page, html, text) => page.evaluate(([h, t]) => {
   document.querySelector('[data-block-input]').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
 }, [html, text]);
 
-test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las marcas solo se ven donde está el cursor', async ({ page }) => {
+test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las marcas solo se ven donde está el cursor @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Formato');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
@@ -69,7 +69,7 @@ test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las 
   await expect(page.locator('#pgBlocks .nb').first().locator('b')).toHaveText('locativo');
 });
 
-test('formato: escribir Markdown a mano, saltos de línea y dar formato sin estar editando', async ({ page }) => {
+test('formato: escribir Markdown a mano, saltos de línea y dar formato sin estar editando @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Markdown');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
@@ -95,7 +95,7 @@ test('formato: escribir Markdown a mano, saltos de línea y dar formato sin esta
   await expect(ed).toHaveJSProperty('value', '<u>Hola</u> **mundo** y ~~nada~~\nsegunda <u>línea</u>');
 });
 
-test('pegar con formato (Google Docs, una web): varios bloques y se conserva el estilo', async ({ page }) => {
+test('pegar con formato (Google Docs, una web): varios bloques y se conserva el estilo @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Pegado');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();

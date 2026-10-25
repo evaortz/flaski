@@ -3,7 +3,7 @@ import { test, expect, openApp, nav, addBuiltinDeck, answer, pasteNotes, startTa
 
 const loaded = loc => loc.evaluate(i => i.getBoundingClientRect().width > 0);
 
-test('racha apagada y encendida, comodín y sugerencias con los iconos de la app', async ({ page }, info) => {
+test('racha apagada y encendida, comodín y sugerencias con los iconos de la app @ambos', async ({ page }, info) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
   await nav(page, 'Perfil');

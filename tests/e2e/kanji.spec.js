@@ -29,7 +29,7 @@ async function writeStrokes(page, box, medians, touch) {
   }
 }
 
-test('escribir 日 a mano: se corrige trazo a trazo y sin errores', async ({ page }, info) => {
+test('escribir 日 a mano: se corrige trazo a trazo y sin errores @ambos', async ({ page }, info) => {
   await page.route(/hanzi-writer-data-jp@[^/]+\/%E6%97%A5\.json$/, route => route.fulfill({ contentType: 'application/json', body: NICHI }));
   await openApp(page);
   await nav(page, 'Biblioteca');

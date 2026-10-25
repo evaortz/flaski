@@ -2,7 +2,7 @@
 import { test, expect } from './fixtures.js';
 import { mockCloud, openCloud } from './nube.js';
 
-test('la pregunta de la tanda no cambia de sitio mientras sincroniza', async ({ page }) => {
+test('la pregunta de la tanda no cambia de sitio mientras sincroniza @ambos', async ({ page }) => {
   const srv = await mockCloud(page);
   await openCloud(page);
   await page.locator('#main .hero-go').click();

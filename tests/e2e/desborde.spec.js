@@ -3,7 +3,7 @@ import { test, expect, openApp, addBuiltinDeck } from './fixtures.js';
 
 const fits = page => page.evaluate(() => ({ doc: document.documentElement.scrollWidth <= document.documentElement.clientWidth, body: document.body.scrollWidth <= document.body.clientWidth }));
 
-test('375 px: lista, mapa, ficha y editor de alemán sin desbordar', async ({ page }) => {
+test('375 px: lista, mapa, ficha y editor de alemán sin desbordar @ambos', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await openApp(page);
   await addBuiltinDeck(page, 'Alemán · A2');

@@ -14,7 +14,7 @@ test('favicon, apple-touch-icon y manifest con los iconos nuevos, y todos cargan
   for (const src of [...links, ...man.icons.map(i => i.src)]) expect((await request.get('/' + src)).status(), src).toBe(200);
 });
 
-test('la marca no sale dentro de la app: ni en la cabecera del móvil ni en la barra lateral, y el contenido sube', async ({ page }) => {
+test('la marca no sale dentro de la app: ni en la cabecera del móvil ni en la barra lateral, y el contenido sube @ambos', async ({ page }) => {
   await openApp(page);
   await expect(page.locator('.nav-brand')).toHaveCount(0);
   await expect(page.locator('.top .brand')).toBeHidden();

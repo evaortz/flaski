@@ -67,7 +67,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
 
 test.describe('con la bienvenida a la vista', () => {
   test.use({ intro: true });
-  test('«Cargar datos de ejemplo» cierra la bienvenida, lleva a Hoy y el aviso no tapa la tanda', async ({ page }) => {
+  test('«Cargar datos de ejemplo» cierra la bienvenida, lleva a Hoy y el aviso no tapa la tanda @ambos', async ({ page }) => {
     await page.goto('/?local');
     await expect(page.locator('.ob')).toBeVisible();
     await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();

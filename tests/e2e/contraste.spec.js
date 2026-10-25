@@ -14,7 +14,7 @@ const ratio = el => {
   return (l1 + 0.05) / (l2 + 0.05);
 };
 
-test('cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acentos, en claro y en oscuro', async ({ page }) => {
+test('cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acentos, en claro y en oscuro @ambos', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await nav(page, 'Hoy');
@@ -45,7 +45,7 @@ const ratioBg = (el, page = false) => {
   return Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100;
 };
 
-test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «↑ N» y «Borrar mi cuenta…» con 4,5:1, en claro y en oscuro', async ({ page }, info) => {
+test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «↑ N» y «Borrar mi cuenta…» con 4,5:1, en claro y en oscuro @ambos', async ({ page }, info) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await page.evaluate(async () => {

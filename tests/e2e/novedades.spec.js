@@ -3,7 +3,7 @@ import { test, expect, openApp, nav } from './fixtures.js';
 
 test.describe('al entrar', () => {
   test.use({ intro: true });
-  test('salen al abrir la app y se recorren con las flechas', async ({ page }, info) => {
+  test('salen al abrir la app y se recorren con las flechas @ambos', async ({ page }, info) => {
     await page.addInitScript(() => { try { localStorage.setItem('flaski-intro-done', '1'); } catch {} });
     await openApp(page);
     const news = page.locator('.ob.news');

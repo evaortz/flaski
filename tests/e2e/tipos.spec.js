@@ -17,7 +17,7 @@ async function newDeck(page, name, lang) {
 const picker = page => page.locator('#typePicker');
 const groupNames = page => picker(page).locator('.tp-g').allTextContents();
 
-test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los de otros idiomas', async ({ page }) => {
+test('mazo de alemán: el editor propone los tipos de alemán e idiomas, no los de otros idiomas @ambos', async ({ page }) => {
   await openApp(page);
   await newDeck(page, 'Alemán', 'de-DE');
   await expect(page.locator('.deckhead')).toContainText('Alemán');

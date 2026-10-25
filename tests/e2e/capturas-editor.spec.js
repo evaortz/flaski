@@ -3,7 +3,7 @@ import { test, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
 
 const NOTES = '# Política monetaria\n\n## Por qué suben los tipos\n\nCuando la inflación sube demasiado, el BCE sube los **tipos de interés**. Pedir dinero prestado sale más caro y eso enfría la economía.\n\n## La cadena\n\n- Tipos de interés ↑ → el crédito sale más caro\n- → bajan la inversión y el consumo a crédito\n- → cae la **demanda agregada**\n\n## El gráfico\n\nAl subir los tipos, la demanda agregada pasa de DA a DA′.';
 
-test('capturas del editor', async ({ page }, info) => {
+test('capturas del editor @ambos', async ({ page }, info) => {
   test.skip(!process.env.SHOT, 'solo para revisar el diseño');
   const shot = name => page.screenshot({ path: `${process.env.SHOT}/${name}-${info.project.name}.png` });
   await openApp(page);

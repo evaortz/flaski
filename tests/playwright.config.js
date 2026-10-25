@@ -22,7 +22,9 @@ export default defineConfig({
   },
   projects: [
     { name: 'movil', use: { ...devices['Pixel 7'], browserName: 'chromium' } },
-    { name: 'escritorio', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
+    // En escritorio, solo las que dependen del tamaño, el teclado o el ratón (las marcadas @ambos; la lista y el
+    // porqué, en docs/rediseno/ESTADO.md). El resto es la misma lógica y basta con verla en el móvil
+    { name: 'escritorio', grep: /@ambos/, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
   ],
   webServer: {
     command: `node serve.mjs`,

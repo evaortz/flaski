@@ -12,7 +12,7 @@ async function practiceKanji(page, k) {
   if (await page.locator('#mpPop').count()) await page.locator('#mpPop [data-act="map-ficha"]').click();
 }
 
-test('kanji suelto muy grande, lecturas kun y luego on, en minúscula y al tamaño del texto', async ({ page }, info) => {
+test('kanji suelto muy grande, lecturas kun y luego on, en minúscula y al tamaño del texto @ambos', async ({ page }, info) => {
   await practiceKanji(page, '水');
   // Ficha: el kanji grande con su significado y la de escribir como «agua · みず · スイ»
   await expect(page.locator('.mp-ft.is-cjk')).toContainText('agua');
@@ -37,7 +37,7 @@ test('hoja «Orden de trazos»: título a mano y créditos en una línea', async
   await expect(page.locator('#sheetBody .hw-credits')).toHaveText('Trazos: Hanzi Writer · animCJK · Make Me A Hanzi');
 });
 
-test('escribir a mano: cada fallo hace parpadear el cuadro y al segundo sale la pista', async ({ page }) => {
+test('escribir a mano: cada fallo hace parpadear el cuadro y al segundo sale la pista @ambos', async ({ page }) => {
   await page.route(/hanzi-writer-data-jp@[^/]+\/%E6%97%A5\.json$/, route => route.fulfill({ contentType: 'application/json', body: NICHI }));
   await openApp(page);
   await nav(page, 'Biblioteca');

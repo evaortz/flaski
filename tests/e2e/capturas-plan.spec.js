@@ -5,7 +5,7 @@ import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
 test.skip(!process.env.SHOT, 'solo con SHOT=1');
 
 const JA = 'Japonés · Demo de Flaski', TR = 'Turco · Armonía vocálica', DE = 'Alemán · A2';
-test('plan, etapa, examen y primera vez', async ({ page }, info) => {
+test('plan, etapa, examen y primera vez @ambos', async ({ page }, info) => {
   const dir = `test-results/plan/${info.project.name}-`;
   await openApp(page);
   for (const n of [JA, TR, DE]) await addBuiltinDeck(page, n);
@@ -34,14 +34,14 @@ test('plan, etapa, examen y primera vez', async ({ page }, info) => {
   await page.screenshot({ path: dir + '6-nuevo-examen.png', fullPage: true });
 });
 
-test('explorar', async ({ page }, info) => {
+test('explorar @ambos', async ({ page }, info) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Alemán · A2');
   await nav(page, 'Explorar');
   await page.screenshot({ path: `test-results/plan/${info.project.name}-7-explorar.png`, fullPage: true });
 });
 
-test('simulacro', async ({ page }, info) => {
+test('simulacro @ambos', async ({ page }, info) => {
   const dir = `test-results/plan/${info.project.name}-sim-`;
   await openApp(page);
   await nav(page, 'Explorar');

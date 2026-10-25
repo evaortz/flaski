@@ -17,7 +17,7 @@ async function write(page, lines) {
   for (const [i, l] of lines.entries()) { if (i) await page.keyboard.press('Enter'); await type(page, l); }
 }
 
-test('deshacer y rehacer en todo el apunte: lo escrito, partir bloques y borrar', async ({ page }) => {
+test('deshacer y rehacer en todo el apunte: lo escrito, partir bloques y borrar @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Deshacer');
   await write(page, ['Uno', 'Dos']);
@@ -37,7 +37,7 @@ test('deshacer y rehacer en todo el apunte: lo escrito, partir bloques y borrar'
   expect(await texts(page)).toEqual(['Uno', 'Dos']);
 });
 
-test('mover bloques con Alt+flechas y arrastrando el asa; duplicar con Ctrl+D', async ({ page }) => {
+test('mover bloques con Alt+flechas y arrastrando el asa; duplicar con Ctrl+D @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Mover');
   await write(page, ['A', 'B', 'C']);
@@ -66,7 +66,7 @@ test('mover bloques con Alt+flechas y arrastrando el asa; duplicar con Ctrl+D', 
   expect(await kinds(page)).toEqual(['h2', 'p', 'p']);
 });
 
-test('seleccionar varios bloques: Mayús+clic, convertir y borrar a la vez; copiar y pegar bloques', async ({ page }) => {
+test('seleccionar varios bloques: Mayús+clic, convertir y borrar a la vez; copiar y pegar bloques @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Seleccionar');
   await write(page, ['Uno', 'Dos', 'Tres', 'Cuatro']);
@@ -83,7 +83,7 @@ test('seleccionar varios bloques: Mayús+clic, convertir y borrar a la vez; copi
   expect(await texts(page)).toEqual(['Uno', 'Dos', 'Tres', 'Cuatro']);
 });
 
-test('sangría con Tab en listas (numeración por niveles) y plegar un apartado', async ({ page }) => {
+test('sangría con Tab en listas (numeración por niveles) y plegar un apartado @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Sangría');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
@@ -131,7 +131,7 @@ test('paréntesis y comillas se cierran solos; con texto seleccionado, * lo envu
   await expect(ed(page)).toHaveJSProperty('value', 'Ver (pág) y "*hola*"');
 });
 
-test('buscar y reemplazar en el apunte (sin mayúsculas ni tildes); se deshace', async ({ page }) => {
+test('buscar y reemplazar en el apunte (sin mayúsculas ni tildes); se deshace @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Buscar');
   await write(page, ['La célula es la unidad', 'Cada **celula** tiene membrana', 'Fin']);
@@ -152,7 +152,7 @@ test('buscar y reemplazar en el apunte (sin mayúsculas ni tildes); se deshace',
   expect(await texts(page)).toEqual(['La célula es la unidad', 'Cada celula tiene membrana', 'Fin']);
 });
 
-test('índice del apunte y enlaces entre apuntes con [[ ]]', async ({ page }) => {
+test('índice del apunte y enlaces entre apuntes con [[ ]] @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Mitosis');
   await write(page, ['División celular.']);

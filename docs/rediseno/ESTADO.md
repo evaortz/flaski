@@ -310,3 +310,484 @@
 - Carrera arreglada (salió en la batería): si cierras la hoja de una carpeta mientras se guarda la imagen que acabas de elegir, la imagen ya no se queda guardada sin que nada la use (`apuntes.spec.js`, prueba nueva; la de «icono de carpeta con tu imagen» esperaba al cambio equivocado y pulsaba «Cancelar» antes de tiempo).
 - `sw.js` → `flaski-v187`.
 - Pruebas al terminar: unitarias 213 de 213. Batería e2e completa: 533 pasan, 27 omitidas y 2 fallan (15,8 min, con otros procesos leyendo a la vez: el tiempo no vale como medida). Repetidas solas: la de kanji a mano era de carga (6 de 6) y la del icono de carpeta, la carrera de arriba (24 de 24 tras el arreglo).
+
+## Batería más rápida · qué pruebas corren también en escritorio
+
+De 280 pruebas, 81 llevan `@ambos` en el título (corren en «movil» y «escritorio»: el proyecto «escritorio» tiene `grep: /@ambos/`) y 199 solo en «movil». Las nuevas, igual: si dependen del tamaño, el teclado o el ratón, `@ambos`. Criterio: maquetación, anchos, posiciones, barra lateral o lo que solo hay a partir de 900 px, teclado como función que se prueba, arrastre o «hover» con ratón, ramas por proyecto y capturas por proyecto; ante la duda, `@ambos`. Las que se saltan en escritorio («solo móvil») no lo llevan.
+
+<details><summary>Lista completa: archivo:línea · título · dónde · motivo</summary>
+
+
+**actualizar-safari.spec.js**
+
+- 7 · Safari: un módulo de otra versión (le falta lo que otro importa): se recarga una vez y arranca · móvil · solo móvil (se salta fuera de movil)
+
+**actualizar.spec.js**
+
+- 25 · un módulo de otra versión (le falta lo que otro importa): se recarga una vez y arranca · móvil · recarga de módulos, igual en ambos tamaños
+- 33 · un archivo que ya no existe en el servidor: arranca (a lo sumo, recargando una vez) · móvil · arranque con archivo ausente, lógica
+- 40 · si sigue fallando no se queda recargando sin parar · móvil · evita recargas infinitas, lógica
+
+**aleman.spec.js**
+
+- 3 · sustantivo alemán: elegir el artículo y escribir la palabra con mayúscula · móvil · Flujo de respuesta, igual en ambos tamaños
+- 28 · alemán: «strasse» por «Straße» es casi, y se sugiere Difícil · móvil · Corrección de la respuesta; Enter solo para enviar
+
+**amigos.spec.js**
+
+- 10 · amigos: esta semana, te han animado, invitar con tu código, aceptar, animar, añadir con un código y quitar · **@ambos** · Enter envía el código de amistad (teclado)
+- 77 · Hoy: «Tus amigos» con el último ánimo recibido y la clasificación de la semana · móvil · clasificación y ánimos en Hoy, igual en ambos
+- 116 · un enlace de invitación ofrece añadir a quien lo manda · móvil · enlace de invitación, flujo
+- 127 · sin las funciones de amigos en Supabase, lo explica (y la app sigue funcionando) · móvil · aviso sin funciones de amigos, flujo
+
+**anki.spec.js**
+
+- 6 · importar de Anki (${modern ? 'formato nuevo' : 'formato antiguo'}): mazos, imágenes y progreso · móvil · importación de datos
+
+**apunte-ancho.spec.js**
+
+- 6 · apunte a 375 px con tabla e imagen: nada se sale de lado (y mover y plegar siguen con 44 px) · móvil · solo móvil (test.skip si no isMobile)
+
+**apunte-repasar.spec.js**
+
+- 13 · Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con lo que falla · **@ambos** · valorar en panel distinto por tamaño (:visible), Esc
+- 51 · Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escribir · **@ambos** · atajos de teclado; se salta en movil
+- 64 · atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea las dos; Esc lo deja como texto · **@ambos** · atajo «>>» con Enter y Esc
+- 98 · móvil: el botón «pregunta» de la barra sobre el teclado escribe « >> » · móvil · botón de barra, flujo igual en ambos
+- 108 · Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no lleva los «:» del final · móvil · lógica de huecos con «:»
+- 124 · salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco» · **@ambos** · valorar en panel distinto por tamaño (:visible)
+- 142 · Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar · **@ambos** · toBeInViewport de barra fija; panel lateral en escritorio
+
+**apuntes.spec.js**
+
+- 19 · escribir apuntes por bloques: títulos, listas, Enter y Retroceso · **@ambos** · teclado: Enter, Retroceso, Inicio y Esc en bloques
+- 61 · tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de una hoja de cálculo) y se guardan · **@ambos** · teclado: Tab, Mayús+Tab y Enter en tablas
+- 120 · tablas como texto: sigue pudiendo escribirse en Markdown · **@ambos** · teclado: Enter crea fila en tabla Markdown
+- 139 · crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes · móvil · flujo crear tarjeta desde selección
+- 178 · cómo llevas cada parte y estudiar un apartado · móvil · flujo de estado y estudiar apartado
+- 206 · la guía de formato y atajos de los apuntes · móvil · contenido de la guía, igual en ambos
+- 230 · carpetas: una sola por tema, con apuntes y listas dentro; crear y mover apuntes · móvil · flujo de carpetas
+- 274 · borrar una carpeta la manda entera a la papelera, con sus apuntes; al recuperarla vuelve con ellos · móvil · papelera de carpeta, datos
+- 299 · color de la carpeta: cobalto si no se elige ninguno; si no, el elegido · móvil · color guardado como atributo, no depende del tamaño
+- 314 · dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin dibujo, su emoji · **@ambos** · migas cortadas si no caben y ancho visible del dibujo
+- 348 · icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la carpeta y sigue ahí al recargar · **@ambos** · boundingBox del recorte del icono
+- 413 · etiquetas, buscar y ordenar en la Biblioteca · móvil · etiquetas, buscar y ordenar: flujo
+- 436 · icono, descargar en Markdown y acceso a los apuntes desde el mazo · móvil · icono y descarga: flujo
+- 460 · pegar unos apuntes enteros · móvil · pegar apuntes: datos
+- 476 · imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al recargar · móvil · imágenes guardadas; Esc solo para salir
+- 514 · más tipos de bloque: atajos, menú /, casillas, destacado, código y separador; y vuelta a Markdown · **@ambos** · atajos de teclado y menú / con Enter
+- 563 · importar un PDF desde el menú de un apunte: títulos, párrafos, listas, tablas y páginas escaneadas como imagen · móvil · importar PDF: datos
+- 599 · sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean enlazadas a su parte del apunte · móvil · flujo de sugerencias; Esc solo para salir
+- 651 · sugerencias: la lista se desplaza con la rueda del ratón · **@ambos** · rueda del ratón y boundingBox
+- 670 · un título largo pasa a varias líneas sin cortarse, e Intro no añade un salto · **@ambos** · medidas del título, Enter y rama por ancho
+- 690 · Biblioteca: «vacío» solo para apuntes sin texto; con texto y sin preguntas, «sin preguntas» · móvil · etiquetas de la Biblioteca, datos
+
+**bienvenida.spec.js**
+
+- 8 · oposición con tema de ejemplo: carpeta con examen, primera tanda y su final · móvil · Flujo de primera vez, igual en ambos
+- 72 · un idioma: crea la lista o abre una ya hecha · móvil · Flujo de primera vez, igual en ambos
+- 83 · pegar el texto y ver las preguntas antes de empezar · móvil · Flujo de primera vez, igual en ambos
+- 97 · subir un archivo de Markdown y «cambiar de archivo» · móvil · Flujo de primera vez, igual en ambos
+- 113 · «ir a Hoy» la cierra y la presentación se puede ver desde Perfil · móvil · Flujo de cerrar y abrir presentación
+
+**bloques.spec.js**
+
+- 20 · deshacer y rehacer en todo el apunte: lo escrito, partir bloques y borrar · **@ambos** · Ctrl+Z, Ctrl+Y, Supr: atajos
+- 40 · mover bloques con Alt+flechas y arrastrando el asa; duplicar con Ctrl+D · **@ambos** · Alt+flechas, Ctrl+D y arrastre con ratón
+- 69 · seleccionar varios bloques: Mayús+clic, convertir y borrar a la vez; copiar y pegar bloques · **@ambos** · Mayús+clic, Retroceso y Ctrl+Z
+- 86 · sangría con Tab en listas (numeración por niveles) y plegar un apartado · **@ambos** · Tab y Mayús+Tab para sangría
+- 121 · paréntesis y comillas se cierran solos; con texto seleccionado, * lo envuelve · móvil · autocierre al escribir, igual en ambos
+- 134 · buscar y reemplazar en el apunte (sin mayúsculas ni tildes); se deshace · **@ambos** · Ctrl+F y Enter en buscar
+- 155 · índice del apunte y enlaces entre apuntes con [[ ]] · **@ambos** · índice a la derecha en pantallas grandes (rama isVisible)
+
+**buscar-borrar.spec.js**
+
+- 5 · buscar ignora tildes, diéresis y mayúsculas (no la ñ) · móvil · búsqueda sin tildes, lógica
+- 42 · buscar en el apunte sin tildes · móvil · búsqueda en apunte, lógica
+- 51 · borrar un apunte con preguntas: las preguntas siguen en su lista · móvil · borrar apunte, datos
+- 71 · borrar una lista: sus preguntas se van también de Hoy · móvil · borrar lista, datos
+- 87 · borrar una carpeta: va a la papelera con sus listas y sus preguntas salen de Hoy · móvil · borrar carpeta, datos
+
+**capturas-editor.spec.js**
+
+- 6 · capturas del editor · **@ambos** · Capturas de pantalla por proyecto
+
+**capturas-plan.spec.js**
+
+- 8 · plan, etapa, examen y primera vez · **@ambos** · capturas de pantalla por proyecto
+- 37 · explorar · **@ambos** · capturas de pantalla por proyecto
+- 44 · simulacro · **@ambos** · capturas de pantalla por proyecto
+
+**contraste.spec.js**
+
+- 17 · cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acentos, en claro y en oscuro · **@ambos** · contraste; pie de atajos solo en escritorio
+- 48 · Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «↑ N» y «Borrar mi cuenta…» con 4,5:1, en claro y en oscuro · **@ambos** · contraste de colores en pantallas con maquetación distinta
+
+**datos.spec.js**
+
+- 6 · importar un CSV, revisar la vista previa y volver a exportarlo igual · móvil · Importar y exportar CSV, datos
+- 23 · buscar dentro de un mazo · móvil · Búsqueda y recuento
+- 49 · copia de seguridad local: borrar todo y restaurar deja mazos y progreso como estaban · móvil · Copia de seguridad, datos
+- 72 · restaurar una copia de cuenta: añade lo que falta y no duplica al repetir · móvil · Restaurar copia, datos
+- 96 · la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas · móvil · Copia de seguridad con apuntes, datos
+
+**desborde.spec.js**
+
+- 6 · 375 px: lista, mapa, ficha y editor de alemán sin desbordar · **@ambos** · desbordes y boundingBox a 375 px
+
+**deslizar.spec.js**
+
+- 30 · al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta · **@ambos** · rama por proyecto y boundingBox de pistas
+- 72 · tras 10 deslizamientos ya no salen · móvil · solo móvil
+- 82 · vuelven si llevas 30 días sin deslizar · móvil · solo móvil
+- 91 · con «deslizar» desactivado no hay pistas · móvil · solo móvil
+
+**editor-apunte.spec.js**
+
+- 21 · barra de lo seleccionado: cobalto; pulsarla no quita la selección y se puede deshacer · **@ambos** · Ramas por proyecto, color de barra y Ctrl+Z
+- 59 · crear pregunta: panel a la derecha en el ordenador, hoja desde abajo en el móvil; el apunte sigue a la vista · **@ambos** · Panel lateral en escritorio; boundingBox por proyecto
+- 94 · margen: cada bloque lleva el estado de las preguntas de su apartado · móvil · Estado del margen, igual en ambos
+- 108 · móvil: si el navegador no dice dónde está el teclado, la barra se queda abajo a la vista · móvil · solo móvil
+- 121 · entre 700 y 960 px, «Nueva pregunta» sale como hoja desde abajo · **@ambos** · Solo escritorio: hoja a 820 px, boundingBox
+
+**entender.spec.js**
+
+- 17 · Explícalo: escribes, se marcan las ideas que salen (sin tildes, plural…) y se propone el botón · móvil · lógica de Explícalo
+- 39 · ¿Qué pasaría si…?: ↑ = ↓ en cada efecto, «Comprobar» marca bien y mal · móvil · lógica de ¿Qué pasaría si…?
+- 54 · las básicas del tema de ejemplo pasan a «Explícalo» sin perder el progreso; las editadas no, y repetirlo no cambia nada · móvil · migración de datos
+- 76 · Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color de la tanda sobre blanco · móvil · colores del botón, no dependen del tamaño
+
+**estudio.spec.js**
+
+- 3 · crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a recargar · móvil · crear, estudiar y recargar: flujo
+- 26 · «Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» la recupera · móvil · Otra vez y Deshacer: flujo
+- 45 · el límite de nuevas por día se respeta y «N nuevas más» lo amplía con las que quedan · móvil · límite de nuevas: lógica
+- 75 · tarjeta de escribir la respuesta: corrige y sugiere la nota · **@ambos** · Enter para corregir la respuesta escrita (dudosa)
+
+**explorar-tema.spec.js**
+
+- 8 · con cuenta: «Añadir» abre el apunte y «La tienes» lo vuelve a abrir · móvil · Flujo con cuenta, igual en ambos
+- 20 · con cuenta: «Añadir y empezar» del tema destacado abre la tanda de 5 min, y luego «Abrir el tema» abre el apunte · móvil · Flujo con cuenta, igual en ambos
+
+**explorar.spec.js**
+
+- 5 · las listas que ya tienes dicen «La tienes» y «N preguntas · tú tienes M»; su hoja no dice «Se copiará…» · móvil · flujo de Explorar
+- 25 · vista previa de notas con varias plantillas: una fila por nota · móvil · vista previa, datos
+- 37 · «Tus listas compartidas» vacía y búsqueda sin resultados con un solo mensaje · móvil · mensajes vacíos
+- 47 · filtros por objetivo: Idiomas solo enseña las listas de idiomas; «+» añade sin abrir nada · móvil · filtros y añadir
+- 61 · tema destacado: «Añadir y empezar» crea el apunte con sus preguntas y empieza una tanda de 5 min · móvil · flujo del tema destacado
+
+**exportar.spec.js**
+
+- 30 · exportar a Word y volver a importarlo: mismos títulos, listas con sangría y formato · móvil · exportar e importar Word: datos (teclado solo para rellenar)
+- 47 · exportar en Markdown y en HTML · móvil · exportar Markdown y HTML: datos
+- 61 · importar varios archivos a la vez (Markdown, CSV, HTML) y dentro de un apunte · móvil · importar varios archivos: datos
+- 80 · exportar todos los apuntes en un .zip · móvil · exportar zip: datos
+
+**formato.spec.js**
+
+- 24 · formato: negrita, color y fondo con la barra; se guarda en Markdown y las marcas solo se ven donde está el cursor · **@ambos** · Atajos Ctrl+I, Ctrl+Z y Escape
+- 72 · formato: escribir Markdown a mano, saltos de línea y dar formato sin estar editando · **@ambos** · Mayús+Enter y Escape como función
+- 98 · pegar con formato (Google Docs, una web): varios bloques y se conserva el estilo · **@ambos** · Usa Escape y Fin del teclado al pegar
+
+**furigana.spec.js**
+
+- 3 · furigana en el editor: añadir, ver la vista previa y cambiarla · **@ambos** · recuadro flotante y Enter confirma la lectura
+- 52 · furigana oculta al estudiar: se destapa tocando el kanji · móvil · destapar furigana tocando, igual en ambos
+
+**hoy.spec.js**
+
+- 31 · Hoy: cada bloque con sus datos reales · **@ambos** · captura de pantalla por proyecto
+- 75 · Hoy: «cambiar» la meta lleva a Ajustes · móvil · enlace a Ajustes: flujo
+- 82 · Lo que flojea: también las listas con preguntas sueltas que te cuestan · móvil · lo que flojea: datos
+- 107 · Atrasos: al volver tras unos días, lo atrasado se reparte en la semana y no entran nuevas · móvil · atrasos: lógica de reparto
+- 143 · Examen cerca: Hoy lo dice y sus preguntas van primero · móvil · examen cerca: lógica
+
+**ia.spec.js**
+
+- 24 · cada bloque JSON de FORMATO-IA.md dice cuántas tarjetas crea · móvil · Comprueba el documento, sin página
+- 30 · los ejemplos de FORMATO-IA.md se importan enteros, tal como los daría una IA · móvil · Importar ejemplos, datos
+- 45 · las etiquetas se crean y el mazo queda con su idioma al importar · móvil · Importar con etiquetas e idioma
+- 57 · pegar con errores: dice qué notas se saltan y por qué, e importa el resto · móvil · Importar con errores
+- 79 · si ninguna nota vale, no se importa nada y se puede volver a pegar lo mismo · móvil · Importar sin notas válidas
+- 88 · JSON roto: el error dice la línea y no se cierra la hoja · móvil · Error de JSON roto
+- 95 · pegar columnas de una hoja de cálculo (CSV) · móvil · Pegar columnas, datos
+- 101 · un archivo flaski-deck se sigue importando igual · móvil · Importar archivo, datos
+- 108 · las instrucciones para IA se descargan desde la app · móvil · Descarga de instrucciones
+
+**iconos.spec.js**
+
+- 6 · racha apagada y encendida, comodín y sugerencias con los iconos de la app · **@ambos** · rama escritorio: icono en la barra lateral
+
+**inicio.spec.js**
+
+- 4 · tu actividad: los últimos 6 meses con los colores del diseño y la meta diaria · móvil · colores del mapa de actividad, no dependen del tamaño
+- 50 · «Cómo va lo que sabes» va antes de «Tu actividad» y ninguna etiqueta del gráfico se sale · móvil · solo móvil
+
+**kanji.spec.js**
+
+- 32 · escribir 日 a mano: se corrige trazo a trazo y sin errores · **@ambos** · Arrastre con ratón frente a táctil según proyecto
+
+**lista.spec.js**
+
+- 4 · cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas» · móvil · cabecera y filtros, datos
+- 35 · «+» ofrece las cuatro formas de añadir y «…» archiva y borra la lista · **@ambos** · menú en hoja o popover (#dkPop) y Esc lo cierra
+- 60 · «Desde un apunte» abre sus sugerencias para esta lista; vincular un apunte y abrirlo desde la lista · **@ambos** · menú «+» en hoja o popover según tamaño
+- 85 · por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman aunque no se vean todas · móvil · orden de la lista, datos
+- 100 · en el ordenador el título largo baja de tamaño en vez de partirse · **@ambos** · solo escritorio: tamaño del título
+
+**logo.spec.js**
+
+- 5 · favicon, apple-touch-icon y manifest con los iconos nuevos, y todos cargan · móvil · iconos y manifest cargan
+- 17 · la marca no sale dentro de la app: ni en la cabecera del móvil ni en la barra lateral, y el contenido sube · **@ambos** · barra lateral y hueco de cabecera medidos
+- 27 · en la pantalla de entrar sí sale la marca, con el color de acento · móvil · color de la marca al entrar, igual en ambos
+- 47 · logo B: en la marca de entrar y en flaski-icono.svg, la fila de arriba sube de opacidad de izquierda a derecha · móvil · opacidades del SVG, lógica
+
+**mapa.spec.js**
+
+- 18 · lista: casillas por artículo, «art. 14» no es «art. 140» y «Sin artículo» · móvil · Casillas y recuentos, igual en ambos
+- 31 · practicar una casilla desde su ficha: se resiste si fallas 3 de las 5 últimas · móvil · Flujo de practicar y estados
+- 58 · elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo con esas · **@ambos** · Ctrl+clic en escritorio, mantener pulsado en móvil
+- 79 · apunte con apartados: «Apunte | Mapa» con una casilla por apartado · **@ambos** · Rama por popover de escritorio (#mpPop)
+- 110 · notas con varias plantillas: la casilla es la palabra (no der/die/das) y van por secciones · móvil · Etiquetas y secciones, datos
+- 120 · japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por separado · **@ambos** · Rama por popover; tamaño de letra de la ficha
+- 137 · artículo del título del apartado, «Sin artículo» solo con lo demás y cabecera con los artículos · **@ambos** · Rama por popover; altura del botón
+- 168 · una casilla por pregunta: la cabecera dice solo «N preguntas» · móvil · Recuento de la cabecera
+- 176 · «Practicar lo que se resiste» cuenta las preguntas que salen y al salir vuelve al mapa · móvil · Flujo de practicar y volver
+- 194 · «Se te resisten»: la casilla a la izquierda y el significado a la derecha, sin repetir · **@ambos** · Rama por popover de escritorio
+- 211 · escritorio: el mapa ocupa todo el ancho de la columna · **@ambos** · Solo escritorio: ancho del mapa
+- 219 · móvil: la barra de lo elegido cabe en una línea («· N min» fuera) · móvil · solo móvil
+- 231 · artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque · **@ambos** · Desplazamiento y boundingBox en viewport; rama por popover
+
+**minutos-de-verdad.spec.js**
+
+- 5 · hoy tocan 14 preguntas y el día tiene 60 min: «Empezar la tanda · N min» con lo que tardas y «Te sobra tiempo» · móvil · cálculo de minutos, flujo
+
+**modo-pruebas.spec.js**
+
+- 6 · con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar la cuenta real · móvil · modo ?local y datos de ejemplo: flujo
+- 70 · «Cargar datos de ejemplo» cierra la bienvenida, lleva a Hoy y el aviso no tapa la tanda · **@ambos** · boundingBox: el aviso no tapa la tanda
+
+**novedades.spec.js**
+
+- 6 · salen al abrir la app y se recorren con las flechas · **@ambos** · Flechas y Escape; capturas por proyecto
+- 29 · desde Perfil → Novedades · móvil · Flujo desde Perfil, igual en ambos
+
+**pantallas.spec.js**
+
+- 3 · todas las pantallas cargan sin errores con la app vacía · móvil · carga de pantallas
+- 14 · estadísticas con datos: los filtros de periodo funcionan · móvil · filtros de estadísticas
+- 31 · un ajuste de Hoy se guarda, se aplica y sobrevive a recargar · móvil · ajuste que persiste
+- 51 · el mazo de demostración de japonés se añade y se puede abrir una sesión · móvil · mazo demo y sesión
+- 59 · en móvil ninguna pantalla tiene scroll horizontal · móvil · solo móvil
+
+**papelera.spec.js**
+
+- 24 · borrar una lista: hoja de la papelera, «Deshacer» la deja como estaba · móvil · borrar lista y deshacer: flujo
+- 42 · la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «(recuperada)» si el nombre ya está) y sigue tras recargar · **@ambos** · cambia viewport y comprueba desbordes
+- 73 · una carpeta va entera a la papelera y vuelve con lo que tenía, eligiendo dónde · móvil · carpeta a la papelera y vuelta: datos
+- 101 · «Borrar ya», «Vaciar» con confirmación, y al abrir se borra del todo lo que lleva más de 30 días · móvil · borrar ya y vaciar: lógica
+- 135 · una pregunta borrada en el editor no va a la papelera: «Deshacer» la devuelve · móvil · deshacer pregunta borrada: flujo
+- 153 · Ajustes › Datos: el buscador encuentra «papelera» y «borrar cuenta» · móvil · buscador de Ajustes: lógica
+- 165 · borrar la cuenta (modo local): copia, lo que se borra, escribir «borrar» y la pantalla final · móvil · borrar cuenta local: flujo
+- 190 · borrar la cuenta (con cuenta): si falla, lo dice y la sesión sigue; si va bien, borra imágenes y cuenta · móvil · borrar cuenta con nube: flujo
+- 214 · con cuenta: lo borrado del todo se lleva sus imágenes del almacén, salvo las que aún usa otra pregunta o apunte · móvil · imágenes del almacén: datos
+- 243 · con cuenta: la limpieza de 30 días también se lleva las imágenes · móvil · limpieza de 30 días: datos
+
+**perfil-ajustes.spec.js**
+
+- 5 · Perfil: filas en su orden, nombre con el lápiz, créditos en una hoja y «Ver tus estadísticas» · móvil · Filas y flujo de Perfil
+- 29 · Perfil: con un examen por delante, el plan dice «vas bien» o «no llegas» · móvil · Etiqueta del plan, datos
+- 42 · Ajustes: 7 secciones, «Con cuidado» en Datos y el texto de Biblioteca › Importar › Pegar · **@ambos** · Rama según ancho de viewport (<960)
+- 68 · Ajustes: el buscador enseña los ajustes usables con su pestaña, lo que se ha ido y nada si no hay · **@ambos** · Escape borra el buscador como función
+
+**plan.spec.js**
+
+- 28 · pausa: sale de lo de hoy y de las tandas de «Todo», y se recuerda · móvil · lógica de pausa
+- 47 · «Repasar»: esa lista ya no da nuevas; Mucho y Poco reparten 4 a 1 · móvil · reparto de nuevas
+- 63 · tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial manda y se puede borrar · móvil · semana y días especiales, datos
+- 99 · nuevo examen en 2 días: «Así no llegas» con tres arreglos; aplicar, deshacer y quitar el examen · móvil · examen y arreglos, flujo
+- 128 · etapa vigente: cambiar el foco en el Plan cambia la etapa, no el de siempre, y lo dice · móvil · etapa y foco, datos
+- 149 · orden de temas: las nuevas salen solo de la primera lista sin terminar de la carpeta · móvil · lógica de orden de temas
+- 166 · primera vez: con exámenes y sin etapas, «Hagamos tu plan» propone etapas y «Me vale» las guarda · móvil · primera vez del plan, flujo
+- 190 · ordenador: tocar una barra abre su panel con el nivel · **@ambos** · planificador solo de escritorio
+
+**progreso.spec.js**
+
+- 5 · cómo va lo que sabes: lo que te sabes, notas y la cabecera al recorrer los días · **@ambos** · teclado Inicio/Fin y capturas por proyecto
+- 34 · estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera cuenta lo que señalas · **@ambos** · capturas por proyecto
+
+**recordatorio.spec.js**
+
+- 32 · sin cuenta (modo local) no pide nada y Ajustes explica que hace falta una · móvil · Avisos sin cuenta, igual en ambos
+- 41 · con cuenta: Inicio pide activarlos, luego se cambian en Ajustes y sin ninguno se da de baja · móvil · Suscripción y sincronización
+- 63 · «Ahora no» no vuelve a preguntar en este dispositivo; Ajustes deja permitirlo después · móvil · Flujo de permiso
+- 78 · si ya estaban permitidas, se suscribe solo al entrar · móvil · Suscripción automática
+- 84 · si no se permite, la tarjeta se va y lo explica · móvil · Permiso denegado
+
+**remates-archivos.spec.js**
+
+- 6 · tras restaurar una copia, al recargar dice cuánto ha entrado (o que ya lo tenías todo) · móvil · restaurar copia, datos
+- 27 · Markdown: el título con «#» y los apartados con «##»; la página web con los colores y letras de Flaski · móvil · exportación, lógica pura
+- 42 · menú de bloques: «Destacado» con el icono de la app, sin emoji · móvil · menú de bloques sin emoji
+
+**remates-biblioteca.spec.js**
+
+- 4 · «Mover a otra carpeta» › «+ Carpeta nueva»: la lista se mueve a la carpeta que se crea; vacía no ofrece estudiar · móvil · mover a carpeta nueva: flujo
+- 32 · pegar una lista nueva: título a mano, «desde una tabla», su nombre antes de añadir y «añadida» · móvil · pegar lista nueva: flujo
+- 49 · buscar en Biblioteca también dentro de las preguntas; abre la pregunta · móvil · búsqueda en preguntas: lógica
+- 62 · lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Sacar del archivo»; y «Borrar» con un apunte · móvil · lista archivada: flujo
+- 84 · «Nombre (A-Z)» mezcla apuntes y listas; el filtro de etiqueta incluye las listas con preguntas que la llevan · móvil · orden y filtro de etiquetas: lógica
+
+**remates-correccion.spec.js**
+
+- 15 · escribir la respuesta: tildes y artículo valen «casi» (Difícil), no mal · móvil · Corrección de la respuesta; Enter solo para enviar
+- 26 · escribir la respuesta: sin el artículo, «casi · Te falta el artículo» · móvil · Corrección de la respuesta; Enter solo para enviar
+- 36 · títulos largos de lista y de apunte: letra más pequeña y no más de 3 líneas en el móvil · **@ambos** · Maquetación: líneas del título a 375 px
+
+**remates-editor.spec.js**
+
+- 16 · móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ Más» · **@ambos** · boundingBox y rama por proyecto
+- 41 · etiquetas: «#verbos» crea «verbos» y como mucho 24 letras · **@ambos** · Enter crea la etiqueta (teclado)
+- 60 · «Pista · opcional» va encima de su campo y el ejemplo se lee entero · **@ambos** · posiciones y anchos de etiqueta y campo
+- 69 · apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no lleva a ellos · móvil · limpieza de datos al arrancar
+- 89 · dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás · **@ambos** · ramas :visible y popover según tamaño
+
+**remates-kanji.spec.js**
+
+- 15 · kanji suelto muy grande, lecturas kun y luego on, en minúscula y al tamaño del texto · **@ambos** · tamaño de letra distinto según proyecto
+- 32 · hoja «Orden de trazos»: título a mano y créditos en una línea · móvil · textos de la hoja de trazos
+- 40 · escribir a mano: cada fallo hace parpadear el cuadro y al segundo sale la pista · **@ambos** · dibuja trazos arrastrando el ratón
+
+**remates-pasada.spec.js**
+
+- 12 · mover una lista lleva también su apunte a la carpeta · móvil · Mover lista y apunte, datos
+- 30 · «Reiniciar progreso» pide confirmación · móvil · Confirmación de reinicio, igual en ambos
+- 43 · Explorar: si ya tienes la lista, «Ya la tienes · Abrir» · móvil · Flujo de Explorar
+- 54 · un apunte nuevo que se deja vacío y sin título se descarta al salir; etiquetas «filtrar en Biblioteca» · móvil · Descartar apunte vacío; Escape incidental
+- 70 · «Hueco» desde una selección: solo la frase y el hueco resaltado · móvil · Texto del hueco, datos
+
+**remates-paso5.spec.js**
+
+- 20 · texto pegado en «Trae tus apuntes»: título de la primera línea, fechas, cifras y huecos (al menos 6 preguntas) · móvil · primera vez: pegar texto, lógica
+- 38 · «Hacer mi primera tanda»: con 1 min dice «1 min», no «unos 1 min» · móvil · texto «1 min», flujo
+- 46 · pegado en un apunte vacío: la primera línea es el título y «Etiqueta:» va en negrita · móvil · pegar en apunte, lógica
+- 60 · Hoy: «te las sabes» cuenta solo las consolidadas, y el número de hoy va sin «!» · móvil · recuento en Hoy
+- 74 · al abrir, mientras carga, un esqueleto de Hoy y no un círculo girando · móvil · esqueleto al cargar, flujo
+- 88 · textos: «correo» al entrar y en la presentación, «preguntas con repaso espaciado» · móvil · textos de la interfaz
+
+**remates-plan.spec.js**
+
+- 7 · Explorar: un tema de ejemplo añadido lleva su origen y sale «La tienes» · móvil · Explorar: origen del tema, datos
+- 22 · Explorar: las listas de antes (sin origen) se reconocen por el nombre sin acentos ni palabras de en medio · móvil · reconocer por nombre: lógica
+- 35 · Explorar: la vista previa pinta los huecos como en la tanda y la respuesta aparte · móvil · vista previa de huecos: contenido
+- 46 · estimaciones con un mínimo de 10 s por pregunta: Hoy y «salen unas X al día» del Plan · móvil · estimaciones: cálculo
+- 81 · examen nuevo: «solo repasos» la última semana solo a más de 21 días; dentro de esa semana no se activa; la hoja cuenta los días libres · móvil · última semana del examen: lógica; Esc solo para salir
+- 114 · «Cómo arreglarlo»: con la última semana activada a mano ofrece que sigan entrando nuevas, y nunca un arreglo que no mejora · móvil · arreglos del plan: lógica
+- 138 · «Hagamos tu plan»: recta final del 25 % (entre 2 y 7 días), los minutos cambian las nuevas y nunca propone no llegar · móvil · Hagamos tu plan: cálculo
+- 163 · móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se puede tocar · móvil · solo móvil
+- 180 · Plan › Hoy toca: dice el porqué de las nuevas de hoy («Hoy 20 nuevas: tienes 90 min») y nunca pasa del doble · móvil · porqué de las nuevas: texto calculado
+
+**remates-preguntas.spec.js**
+
+- 21 · tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la fila no se mueve al cambiar · **@ambos** · Cajas: segmentos caben sin pisarse, boundingBox
+- 33 · «Más tipos» sustituye el contenido de la hoja, con «‹» para volver · móvil · Flujo del selector de tipos
+- 45 · campos: en Básica la respuesta no es opcional; en Opción múltiple «opcional» sale una vez · móvil · Textos de los campos
+- 56 · crear desde una selección: la pregunta es la frase con el hueco · móvil · Crear desde selección, datos
+- 69 · móvil: en la barra de lo seleccionado cabe «Hecho» · móvil · solo móvil
+- 80 · apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en palabra entera · **@ambos** · Maquetación a 800 px: icono y ruta cortada
+- 98 · etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera · **@ambos** · Escape cierra el buscador como función
+
+**remates-repaso.spec.js**
+
+- 40 · hermanas: una sola por tanda (también si una es repaso y otra nueva); Biblioteca suma lo mismo que Hoy · móvil · cola de la tanda, datos
+- 58 · desde un apunte se estudia todo lo nuevo, y el resumen cuenta preguntas · móvil · estudiar apunte, flujo
+- 70 · Intro en el título baja al primer bloque; en el móvil, escribiendo, sin la barra de abajo · **@ambos** · Enter en el título y rama por proyecto
+- 91 · escribir la respuesta: tras comprobar, la caja «respuesta» solo lleva los demás campos · **@ambos** · Enter comprueba la respuesta escrita
+- 107 · «Varias de golpe»: detecta la coma, el ejemplo sigue al tipo y el botón cuenta notas y preguntas · **@ambos** · menú «+» en hoja o popover según tamaño
+
+**remates-tanda.spec.js**
+
+- 7 · tras «Otra vez» el contador avanza y la que vuelve se suma al total; al salir se vuelve a la lista · móvil · contador tras Otra vez: lógica
+- 23 · «No lo sé, ver respuesta» en una de elegir deja «Otra vez» marcado · móvil · nota marcada en elegir: lógica
+- 38 · editar una pregunta dentro de la tanda: colores de siempre, título a la vista y los tipos caben · **@ambos** · boundingBox del título y tipos caben en ancho
+- 60 · con «2 botones», «Otra vez» y «Bien» se reparten el ancho · **@ambos** · anchos de los botones de nota
+- 72 · Biblioteca cuenta las nuevas como «Estudiar» (una por nota) · móvil · recuento de Estudiar: datos
+- 85 · huecos: la puntuación de detrás va pegada al hueco · móvil · texto del hueco con puntuación
+
+**simulacro.spec.js**
+
+- 27 · preparar, responder, «¿Entregas ya?», nota y respuestas; los fallos pasan a mañana sin tocar el intervalo · móvil · Flujo del simulacro y nota
+- 89 · simulacro a medias: al volver, «te quedan N min · Seguir / Descartar», y el reloj sigue desde donde estaba · móvil · Simulacro a medias, reloj
+- 113 · ordenador: teclado 1-4, R, B, flechas y Esc · **@ambos** · Solo escritorio: atajos de teclado
+- 136 · Hoy: con un examen a menos de un mes, «Simulacro de la semana» abre «Preparar» · móvil · Botón en Hoy, igual en ambos
+- 158 · remates: penalización solo con fallos y en blanco, netas negativas y vuelta a la nota tras repasar los fallos · móvil · Textos de la penalización
+- 175 · remates: la gráfica con notas de 0 deja todos los puntos y el objetivo dentro, separados de las fechas · **@ambos** · Posiciones de puntos en la gráfica
+- 188 · remates: la opción elegida se rellena de blanco y «te queda menos de 1 min» · móvil · Color de la opción, no depende del tamaño
+
+**sin-conexion.spec.js**
+
+- 4 · estudiar sin conexión: los cambios esperan y se envían al volver la red · móvil · sincronización sin conexión
+- 27 · abrir la app sin conexión usa la copia guardada y envía lo pendiente al reconectar · móvil · copia sin conexión, sincronizar
+- 56 · al abrir, los datos no esperan a que se envíe lo pendiente, y lo pendiente se ve encima · móvil · cola pendiente, datos
+- 79 · cerrar sesión borra la copia sin conexión de este dispositivo · móvil · cerrar sesión borra copia
+- 88 · una imagen añadida sin conexión se sube al volver la red y se descarga en otro dispositivo · móvil · subida de imagen, sincronizar
+- 117 · con cuenta, cambiar la imagen de una carpeta borra la anterior también de la nube · móvil · imagen de carpeta, nube
+- 142 · si la red falla al borrar la imagen anterior de una carpeta, el borrado espera en la cola y se envía al volver · móvil · cola de borrado, sincronizar
+
+**sincronizar.spec.js**
+
+- 5 · la pregunta de la tanda no cambia de sitio mientras sincroniza · **@ambos** · posiciones con boundingBox al sincronizar
+
+**sugerencias.spec.js**
+
+- 9 · actualizar las sugerencias tras cambiar el apunte, conservando lo retocado; descartar · móvil · Flujo de sugerencias; teclas solo para escribir
+- 39 · la ✨ marca en el apunte lo que da tarjetas (también al escribir) y abre las de esa parte · móvil · Marca de sugerencia; teclas solo para escribir
+- 54 · sin sugerencias: consejos según cómo está escrito el apunte y cómo se eligen · móvil · Consejos, textos
+
+**tactil.spec.js**
+
+- 12 · zonas táctiles de al menos 44 px: apunte, Ajustes, Estadísticas y la meta de Hoy · móvil · solo móvil
+- 47 · zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el margen, y las pastillas del apunte · móvil · solo móvil
+
+**tanda-corta.spec.js**
+
+- 30 · la primera tanda pregunta la duración; los atrasados primero, una nueva de cada cuatro y «Otra vez» vuelve antes de acabar · móvil · orden de la tanda: lógica
+- 81 · si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver» · móvil · fin de tanda: flujo
+- 94 · el ritmo sale de tus respuestas (la mediana) y la duración se cambia en Hoy · móvil · ritmo y duración: cálculo; Esc solo para cerrar
+
+**tanda-tipos.spec.js**
+
+- 49 · la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones · **@ambos** · Rama por proyecto, desbordes y capturas
+
+**tema-memoria.spec.js**
+
+- 12 · al añadirlo: 17 preguntas, una nota de cada tipo, todas unidas a su apartado, y la imagen de la curva guardada · móvil · datos del tema de ejemplo
+- 34 · quien ya lo tenía: se quitan las de antes, se añaden las nuevas y las que coinciden conservan su progreso · móvil · migración de datos
+
+**tipos-nuevos.spec.js**
+
+- 23 · verdadero o falso: se escribe V o F y se responde con dos botones · **@ambos** · atajo de teclado 2 para responder
+- 42 · emparejar: se une cada elemento con su pareja; los fallos bajan la nota sugerida · móvil · emparejar con clics: lógica
+- 60 · tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta · **@ambos** · arrastrar con el ratón y tecla Espacio
+- 96 · conjugación: se escriben todas las formas y se corrige cada una (en alemán, con mayúsculas y ß) · móvil · conjugación: corrección
+- 121 · «Escribir a mano» solo sale en mazos de idiomas con otro alfabeto · móvil · cuándo sale escribir a mano: lógica
+- 130 · clasificar: cada elemento a su grupo; los mal colocados se marcan · móvil · clasificar con clics: lógica
+- 148 · hueco con opciones: se elige la palabra que falta · móvil · hueco con opciones: lógica
+- 164 · ordenar los pasos: una línea por paso · móvil · ordenar pasos: lógica
+- 177 · respuesta numérica: con margen, «casi» y la coma decimal · **@ambos** · Enter para corregir el número (dudosa)
+
+**tipos.spec.js**
+
+- 20 · mazo de alemán: el editor propone los tipos de alemán e idiomas, no los de otros idiomas · **@ambos** · Enter en el buscador elige el tipo
+- 49 · mazo que no es de idiomas: solo tipos generales y sin audio · móvil · Tipos de un mazo general
+- 64 · el último tipo que usaste en la lista sale marcado; «Varias de golpe» usa los mismos segmentos y «Más tipos» · móvil · Último tipo usado; Escape incidental
+- 87 · cambiar de mazo en el editor cambia el idioma de los campos · móvil · Idioma de los campos
+- 102 · un tipo oculto deja de salir en el editor · móvil · Ocultar tipo, datos
+- 118 · migración: los mazos antiguos reciben su idioma y desaparecen las copias por idioma · móvil · Migración de datos
+
+**voz.spec.js**
+
+- 16 · sin voz en japonés: el altavoz lo dice; «Probar» dice qué idiomas de tus listas tienen voz · móvil · aviso de voz, flujo
+
+</details>

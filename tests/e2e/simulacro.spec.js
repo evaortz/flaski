@@ -110,7 +110,7 @@ test('simulacro a medias: al volver, «te quedan N min · Seguir / Descartar», 
   expect(await page.evaluate(() => localStorage.getItem(Object.keys(localStorage).find(k => k.startsWith('flaski-simulacro:'))))).toBeNull();
 });
 
-test('ordenador: teclado 1-4, R, B, flechas y Esc', async ({ page }, info) => {
+test('ordenador: teclado 1-4, R, B, flechas y Esc @ambos', async ({ page }, info) => {
   test.skip(info.project.name !== 'escritorio', 'el teclado es del ordenador');
   await setup(page);
   await openExam(page);
@@ -172,7 +172,7 @@ test('remates: penalización solo con fallos y en blanco, netas negativas y vuel
   await expect(page.locator('.sm-score b')).toHaveText('0');
 });
 
-test('remates: la gráfica con notas de 0 deja todos los puntos y el objetivo dentro, separados de las fechas', async ({ page }) => {
+test('remates: la gráfica con notas de 0 deja todos los puntos y el objetivo dentro, separados de las fechas @ambos', async ({ page }) => {
   const deck = await setup(page);
   await showRec(page, deck, { pen: 3, ok: 0, bad: 9, blank: 3, score: 0 });
   await showRec(page, deck, { pen: 3, ok: 0, bad: 9, blank: 3, score: 0 });

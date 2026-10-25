@@ -55,7 +55,7 @@ test('practicar una casilla desde su ficha: se resiste si fallas 3 de las 5 últ
   await expect(page.locator('.mp-ficha .mp-q')).toHaveCount(2);
 });
 
-test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo con esas', async ({ page }, info) => {
+test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo con esas @ambos', async ({ page }, info) => {
   await deckWithArticles(page);
   if (info.project.name === 'movil') {
     // Mantener pulsado
@@ -76,7 +76,7 @@ test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo c
   await expect(page.locator('.studybar .left')).toContainText('de 3');
 });
 
-test('apunte con apartados: «Apunte | Mapa» con una casilla por apartado', async ({ page }) => {
+test('apunte con apartados: «Apunte | Mapa» con una casilla por apartado @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Finanzas');
   await nav(page, 'Biblioteca');
@@ -117,7 +117,7 @@ test('notas con varias plantillas: la casilla es la palabra (no der/die/das) y v
   await expect(page.locator('.mp-sh h3').first()).toHaveText('Palabras');
 });
 
-test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por separado', async ({ page }) => {
+test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por separado @ambos', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Japonés · Demo');
   await page.locator('[data-map-view="map"]').click();
@@ -134,7 +134,7 @@ test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por
   await expect(page.locator('.mp-qt b').filter({ hasText: /\S \S/ }).filter({ hasNotText: '·' })).toHaveCount(0);
 });
 
-test('artículo del título del apartado, «Sin artículo» solo con lo demás y cabecera con los artículos', async ({ page }) => {
+test('artículo del título del apartado, «Sin artículo» solo con lo demás y cabecera con los artículos @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Constitución');
   await nav(page, 'Biblioteca');
@@ -191,7 +191,7 @@ test('«Practicar lo que se resiste» cuenta las preguntas que salen y al salir 
   await expect(page.locator('[data-map-view="map"]')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('«Se te resisten»: la casilla a la izquierda y el significado a la derecha, sin repetir', async ({ page }) => {
+test('«Se te resisten»: la casilla a la izquierda y el significado a la derecha, sin repetir @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Kanji sueltos');
   await addBasicCards(page, [['水[みず]', 'agua'], ['火', 'fuego']]);
@@ -208,7 +208,7 @@ test('«Se te resisten»: la casilla a la izquierda y el significado a la derech
   await expect(page.locator('.mp-rrow .mp-rt b')).toHaveText(['agua']);
 });
 
-test('escritorio: el mapa ocupa todo el ancho de la columna', async ({ page }, info) => {
+test('escritorio: el mapa ocupa todo el ancho de la columna @ambos', async ({ page }, info) => {
   test.skip(info.project.name !== 'escritorio', 'solo en el ordenador');
   await page.setViewportSize({ width: 1310, height: 900 });
   await deckWithArticles(page);
@@ -228,7 +228,7 @@ test('móvil: la barra de lo elegido cabe en una línea («· N min» fuera)', a
   expect(h).toBeLessThan(24);
 });
 
-test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque', async ({ page }) => {
+test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Constitución');
   await nav(page, 'Biblioteca');

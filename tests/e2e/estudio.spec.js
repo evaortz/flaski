@@ -72,7 +72,7 @@ test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía co
   await expect(page.locator('.hero-num')).toHaveText('5');
 });
 
-test('tarjeta de escribir la respuesta: corrige y sugiere la nota', async ({ page }) => {
+test('tarjeta de escribir la respuesta: corrige y sugiere la nota @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Escribir');
   await newCard(page);

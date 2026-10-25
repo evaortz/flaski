@@ -2,7 +2,7 @@
 import { test, expect, openApp } from './fixtures.js';
 import { seedHistory } from './historial.js';
 
-test('cómo va lo que sabes: lo que te sabes, notas y la cabecera al recorrer los días', async ({ page }, info) => {
+test('cómo va lo que sabes: lo que te sabes, notas y la cabecera al recorrer los días @ambos', async ({ page }, info) => {
   const db = await seedHistory(page);
   await openApp(page);
   const card = page.locator('#pgHost');
@@ -31,7 +31,7 @@ test('cómo va lo que sabes: lo que te sabes, notas y la cabecera al recorrer lo
   if (process.env.SHOT) await page.locator('section[aria-labelledby="h-act"]').screenshot({ path: `${process.env.SHOT}/actividad-${info.project.name}.png` });
 });
 
-test('estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera cuenta lo que señalas', async ({ page }, info) => {
+test('estadísticas: cada tarjeta con su cifra, en tonos del tema, y la cabecera cuenta lo que señalas @ambos', async ({ page }, info) => {
   await seedHistory(page);
   await openApp(page);
   await page.goto('/#stats');

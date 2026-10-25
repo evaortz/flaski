@@ -39,7 +39,7 @@ test('Perfil: con un examen por delante, el plan dice «vas bien» o «no llegas
   await expect(page.locator('.pr-row', { hasText: 'Plan de estudio' }).locator('.pr-tag')).toHaveText('no llegas');
 });
 
-test('Ajustes: 7 secciones, «Con cuidado» en Datos y el texto de Biblioteca › Importar › Pegar', async ({ page }) => {
+test('Ajustes: 7 secciones, «Con cuidado» en Datos y el texto de Biblioteca › Importar › Pegar @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Perfil');
   await page.locator('.pr-row', { hasText: 'Ajustes' }).click();
@@ -65,7 +65,7 @@ test('Ajustes: 7 secciones, «Con cuidado» en Datos y el texto de Biblioteca �
   }
 });
 
-test('Ajustes: el buscador enseña los ajustes usables con su pestaña, lo que se ha ido y nada si no hay', async ({ page }) => {
+test('Ajustes: el buscador enseña los ajustes usables con su pestaña, lo que se ha ido y nada si no hay @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Perfil');
   await page.locator('.pr-row', { hasText: 'Ajustes' }).click();

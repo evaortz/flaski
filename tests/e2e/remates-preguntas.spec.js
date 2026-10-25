@@ -18,7 +18,7 @@ async function fits(page, sel) {
   });
 }
 
-test('tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la fila no se mueve al cambiar', async ({ page }) => {
+test('tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la fila no se mueve al cambiar @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCard(page);
@@ -77,7 +77,7 @@ test('móvil: en la barra de lo seleccionado cabe «Hecho»', async ({ page }, i
   expect(await fits(page, '#selBar')).toEqual({ inside: true, overlap: false, scroll: false });
 });
 
-test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en palabra entera', async ({ page }) => {
+test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en palabra entera @ambos', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 900 });
   await openApp(page);
   await nav(page, 'Biblioteca');
@@ -95,7 +95,7 @@ test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en
   if (text.endsWith('…')) await expect(cur).toHaveAttribute('title', 'Por qué se te olvidan las cosas (y cómo evitarlo)');
 });
 
-test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera', async ({ page }) => {
+test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCard(page);

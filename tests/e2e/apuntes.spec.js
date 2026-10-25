@@ -16,7 +16,7 @@ async function addBlock(page, type) {
 // Escribe en el bloque que se está editando
 const type = (page, text) => page.locator('[data-block-input]').pressSequentially(text);
 
-test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async ({ page }) => {
+test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Casos del turco');
   await block(page, 0).locator('.nb-text').click();
@@ -58,7 +58,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
   await expect(block(page, 3)).toHaveClass(/(^| )nb-p( |$)/);
 });
 
-test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de una hoja de cálculo) y se guardan', async ({ page }) => {
+test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de una hoja de cálculo) y se guardan @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Tabla');
   await addBlock(page, 'table');
@@ -117,7 +117,7 @@ test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de 
   await expect(page.locator('#pgBlocks table tbody tr').nth(1).locator('td')).toHaveText(['Ablativo', '-den', 'evden']);
 });
 
-test('tablas como texto: sigue pudiendo escribirse en Markdown', async ({ page }) => {
+test('tablas como texto: sigue pudiendo escribirse en Markdown @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Tabla');
   await addBlock(page, 'table');
@@ -311,7 +311,7 @@ test('color de la carpeta: cobalto si no se elige ninguno; si no, el elegido', a
   await expect(page.locator('#main .lfold', { hasText: 'Macro' })).toHaveAttribute('style', '--fold:#1D7550');
 });
 
-test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin dibujo, su emoji', async ({ page }) => {
+test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin dibujo, su emoji @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').click();
@@ -345,7 +345,7 @@ test('dibujo de carpeta: se elige junto a los emojis y asoma en la tarjeta; sin 
   await expect(page.locator('#main .fhero span.lfold-deco')).not.toBeEmpty();
 });
 
-test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la carpeta y sigue ahí al recargar', async ({ page }) => {
+test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la carpeta y sigue ahí al recargar @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').click();
@@ -512,7 +512,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   await expect(page.locator('#pgBlocks .nb-img figcaption')).toHaveText('Mapa de Turquía');
 });
 
-test('más tipos de bloque: atajos, menú /, casillas, destacado, código y separador; y vuelta a Markdown', async ({ page }) => {
+test('más tipos de bloque: atajos, menú /, casillas, destacado, código y separador; y vuelta a Markdown @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Bloques');
   await block(page, 0).locator('.nb-text').click();
@@ -649,7 +649,7 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await expect(page.locator('.sug')).toHaveCount(1);
 });
 
-test('sugerencias: la lista se desplaza con la rueda del ratón', async ({ page }) => {
+test('sugerencias: la lista se desplaza con la rueda del ratón @ambos', async ({ page }) => {
   await openApp(page);
   await newPage(page, 'Muchas');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
@@ -668,7 +668,7 @@ test('sugerencias: la lista se desplaza con la rueda del ratón', async ({ page 
   await expect.poll(() => main.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
 });
 
-test('un título largo pasa a varias líneas sin cortarse, e Intro no añade un salto', async ({ page }) => {
+test('un título largo pasa a varias líneas sin cortarse, e Intro no añade un salto @ambos', async ({ page }) => {
   await openApp(page);
   const long = 'La Revolución francesa y sus consecuencias en Europa';
   await newPage(page, long);

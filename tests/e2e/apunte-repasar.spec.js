@@ -10,7 +10,7 @@ async function notes(page, text) {
   await page.locator('#pgDeck').selectOption({ label: 'Macro' });
 }
 
-test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con lo que falla', async ({ page }) => {
+test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con lo que falla @ambos', async ({ page }) => {
   await notes(page, '# Política monetaria\n\nEl BCE sube los **tipos de interés** y así baja la **inflación**.');
   // «tipos de interés» ya es pregunta
   await page.locator('#pgBlocks .nb', { hasText: 'BCE' }).locator('.nb-text').click();
@@ -48,7 +48,7 @@ test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con
   await expect(page.locator('#pgBlocks [data-edit-block]').first()).toBeAttached();
 });
 
-test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escribir', async ({ page }, info) => {
+test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escribir @ambos', async ({ page }, info) => {
   test.skip(info.project.name === 'movil', 'teclado en el ordenador');
   await notes(page, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
   await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
@@ -61,7 +61,7 @@ test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escr
   await expect(page.locator('.rv-gap')).toHaveCount(0);
 });
 
-test('atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea las dos; Esc lo deja como texto', async ({ page }) => {
+test('atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea las dos; Esc lo deja como texto @ambos', async ({ page }) => {
   await notes(page, '# En la ciudad\n\nSitios');
   const line = async text => {
     await page.locator('#pgBlocks .nb').last().locator('.nb-text, [data-block-input]').first().click();
@@ -121,7 +121,7 @@ test('Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no
   await expect(page.locator('#rvFoot .rv-ask')).toHaveText('¿Cómo te ha salido «Estructura»?');
 });
 
-test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco»', async ({ page }) => {
+test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco» @ambos', async ({ page }) => {
   await notes(page, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
   await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
   await page.locator('.rv-gap').first().click();
@@ -139,7 +139,7 @@ test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como 
   await expect(page.locator('#sheetBody')).toContainText('«Manzanares»');
 });
 
-test('Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar', async ({ page }) => {
+test('Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar @ambos', async ({ page }) => {
   const long = Array.from({ length: 40 }, (_, i) => `Frase ${i + 1} con **dato ${i + 1}** para repasar.`).join('\n\n');
   await notes(page, `# Largo\n\n${long}`);
   const write = page.locator('.pg-top [data-act="pg-mode"][data-mode="write"]');

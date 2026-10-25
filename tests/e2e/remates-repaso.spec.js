@@ -67,7 +67,7 @@ test('desde un apunte se estudia todo lo nuevo, y el resumen cuenta preguntas', 
   await expect(page.locator('.studybar .left')).toContainText('pregunta 1 de 4');
 });
 
-test('Intro en el título baja al primer bloque; en el móvil, escribiendo, sin la barra de abajo', async ({ page }, info) => {
+test('Intro en el título baja al primer bloque; en el móvil, escribiendo, sin la barra de abajo @ambos', async ({ page }, info) => {
   await seed(page);
   await openApp(page);
   await nav(page, 'Biblioteca');
@@ -88,7 +88,7 @@ test('Intro en el título baja al primer bloque; en el móvil, escribiendo, sin 
   }
 });
 
-test('escribir la respuesta: tras comprobar, la caja «respuesta» solo lleva los demás campos', async ({ page }) => {
+test('escribir la respuesta: tras comprobar, la caja «respuesta» solo lleva los demás campos @ambos', async ({ page }) => {
   await seed(page);
   await openApp(page);
   await page.evaluate(async () => {
@@ -104,7 +104,7 @@ test('escribir la respuesta: tras comprobar, la caja «respuesta» solo lleva lo
   await expect(page.locator('.answer .fld-l')).toHaveText(['artículo', 'plural']);
 });
 
-test('«Varias de golpe»: detecta la coma, el ejemplo sigue al tipo y el botón cuenta notas y preguntas', async ({ page }) => {
+test('«Varias de golpe»: detecta la coma, el ejemplo sigue al tipo y el botón cuenta notas y preguntas @ambos', async ({ page }) => {
   await seed(page);
   await openApp(page);
   await nav(page, 'Biblioteca');

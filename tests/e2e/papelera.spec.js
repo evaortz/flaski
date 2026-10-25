@@ -39,7 +39,7 @@ test('borrar una lista: hoja de la papelera, «Deshacer» la deja como estaba', 
   expect((await db(page)).decks[0].deleted_at).toBeNull();
 });
 
-test('la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «(recuperada)» si el nombre ya está) y sigue tras recargar', async ({ page }) => {
+test('la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «(recuperada)» si el nombre ya está) y sigue tras recargar @ambos', async ({ page }) => {
   await listWithProgress(page);
   await deleteDeck(page, 'Turco');
   await page.locator('#sheetBody [data-act="delete-deck"]').click();

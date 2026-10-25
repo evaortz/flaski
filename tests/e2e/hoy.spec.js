@@ -28,7 +28,7 @@ function seedHoy(page) {
   return page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
 }
 
-test('Hoy: cada bloque con sus datos reales', async ({ page }, info) => {
+test('Hoy: cada bloque con sus datos reales @ambos', async ({ page }, info) => {
   await seedHoy(page);
   await openApp(page);
   await expect(page.locator('.hero-hi')).toHaveText('Hola Eva, hoy tienes');

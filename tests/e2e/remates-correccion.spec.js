@@ -33,7 +33,7 @@ test('escribir la respuesta: sin el artículo, «casi · Te falta el artículo»
   await expect(page.locator('.vnear')).toHaveText('Casi · Te falta el artículo');
 });
 
-test('títulos largos de lista y de apunte: letra más pequeña y no más de 3 líneas en el móvil', async ({ page }) => {
+test('títulos largos de lista y de apunte: letra más pequeña y no más de 3 líneas en el móvil @ambos', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await openApp(page);
   const long = 'Constitución Española de 1978: Título Preliminar y derechos fundamentales';

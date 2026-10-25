@@ -27,7 +27,7 @@ const drag = (page, id, end = false) => page.locator('article.card .front').eval
   for (let k = 1; k <= 3; k++) ev('pointermove', x0 + k * 10);
 }, [id, end]);
 
-test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta', async ({ page }, info) => {
+test('al ver la respuesta salen las pistas, tenues, y se van solas; deslizar cuenta @ambos', async ({ page }, info) => {
   await seed(page);
   if (info.project.name === 'escritorio') { await expect(page.locator('.grades')).toBeVisible(); await expect(hints(page)).toHaveCount(0); return; }
   await expect(hints(page).locator(':scope > span')).toHaveText(['←Otra vez', '→Bien', '↑ Fácil', '↓ Difícil']);

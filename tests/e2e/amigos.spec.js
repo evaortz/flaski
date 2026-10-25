@@ -7,7 +7,7 @@ const CARLOS = { id: 'c0000000-0000-4000-8000-000000000003', name: 'Carlos', sin
 const BEA = { id: 'r0000000-0000-4000-8000-000000000001', other: 'b0000000-0000-4000-8000-000000000002', name: 'Bea', dir: 'in', created_at: '2026-10-01T10:00:00Z' };
 const rpcs = (srv, fn) => sent(srv, fn).map(w => w[2]);
 
-test('amigos: esta semana, te han animado, invitar con tu código, aceptar, animar, añadir con un código y quitar', async ({ page }) => {
+test('amigos: esta semana, te han animado, invitar con tu código, aceptar, animar, añadir con un código y quitar @ambos', async ({ page }) => {
   const srv = await mockCloud(page);
   const DORA = { ...ANA, id: 'd0000000-0000-4000-8000-000000000004', name: 'Dora', streak: 2, today: 0, week: [30, 0, 0, 0, 0, 0, 0], since: new Date(Date.now() - 3 * 864e5).toISOString() };
   const ago = h => new Date(Date.now() - h * 36e5).toISOString();

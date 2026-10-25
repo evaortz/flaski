@@ -13,7 +13,7 @@ async function cardWithProgress(page) {
   await expect(page.locator('.ed-save')).toBeVisible();
 }
 
-test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ Más»', async ({ page }, info) => {
+test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ Más» @ambos', async ({ page }, info) => {
   await cardWithProgress(page);
   const save = await page.locator('.ed-save').boundingBox();
   const vw = page.viewportSize().width;
@@ -38,7 +38,7 @@ test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ M
   }
 });
 
-test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras', async ({ page }) => {
+test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCard(page);
@@ -57,7 +57,7 @@ test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras', async ({ p
   expect(names[1].replace('#', '').length).toBeLessThanOrEqual(24);
 });
 
-test('«Pista · opcional» va encima de su campo y el ejemplo se lee entero', async ({ page }) => {
+test('«Pista · opcional» va encima de su campo y el ejemplo se lee entero @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCard(page);
@@ -86,7 +86,7 @@ test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no 
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.title))).toEqual(['Revolución']);
 });
 
-test('dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás', async ({ page }) => {
+test('dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Título Preliminar');
   await nav(page, 'Biblioteca');

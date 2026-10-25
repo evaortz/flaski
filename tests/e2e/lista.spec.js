@@ -32,7 +32,7 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await expect(page.locator('#cardCount')).toHaveText(/de 48 preguntas/);
 });
 
-test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lista', async ({ page }) => {
+test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lista @ambos', async ({ page }) => {
   await openApp(page);
   await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await page.locator('#main [data-act="add-menu"]').click();
@@ -57,7 +57,7 @@ test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lis
   await expect(page.locator('#main')).not.toContainText('Armonía vocálica');
 });
 
-test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apunte y abrirlo desde la lista', async ({ page }) => {
+test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apunte y abrirlo desde la lista @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await pasteNotes(page, '# Gramática turca\n\nev es casa.\n\n| Turco | Español |\n|---|---|\n| ev | casa |\n| kapı | puerta |');
@@ -97,7 +97,7 @@ test('por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman
   await expect(page.locator('#cardRows .cs-new')).not.toHaveCount(0);
 });
 
-test('en el ordenador el título largo baja de tamaño en vez de partirse', async ({ page }, info) => {
+test('en el ordenador el título largo baja de tamaño en vez de partirse @ambos', async ({ page }, info) => {
   test.skip(info.project.name !== 'escritorio', 'solo en el ordenador');
   await openApp(page);
   await createDeck(page, 'Vocabulario Esencial del turco (121-160)');

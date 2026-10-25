@@ -187,7 +187,7 @@ test('primera vez: con exámenes y sin etapas, «Hagamos tu plan» propone etapa
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.prefs.plan.week.mon))).toBe(60);
 });
 
-test('ordenador: tocar una barra abre su panel con el nivel', async ({ page }, info) => {
+test('ordenador: tocar una barra abre su panel con el nivel @ambos', async ({ page }, info) => {
   test.skip(info.project.name !== 'escritorio', 'el planificador es del ordenador');
   await twoDecks(page);
   await openPlan(page);

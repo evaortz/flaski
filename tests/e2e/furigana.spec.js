@@ -1,6 +1,6 @@
 import { test, expect, openApp, nav, addBuiltinDeck, newCard } from './fixtures.js';
 
-test('furigana en el editor: añadir, ver la vista previa y cambiarla', async ({ page }) => {
+test('furigana en el editor: añadir, ver la vista previa y cambiarla @ambos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-deck"]').click();

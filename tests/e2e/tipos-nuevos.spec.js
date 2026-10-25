@@ -20,7 +20,7 @@ async function newCardOfType(page, type) {
 const save = async page => { await page.locator('.ed-foot button[type="submit"]').click(); await expect(page.locator('#sheet')).toBeHidden(); };
 const study = page => page.locator('#main [data-start]').first().click();
 
-test('verdadero o falso: se escribe V o F y se responde con dos botones', async ({ page }) => {
+test('verdadero o falso: se escribe V o F y se responde con dos botones @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCardOfType(page, 'truefalse');
@@ -57,7 +57,7 @@ test('emparejar: se une cada elemento con su pareja; los fallos bajan la nota su
   await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
 });
 
-test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta', async ({ page }) => {
+test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Geografía');
   await newCardOfType(page, 'occlusion');
@@ -174,7 +174,7 @@ test('ordenar los pasos: una línea por paso', async ({ page }) => {
   await expect(page.locator('.verdict.ok')).toContainText('Profase → Metafase → Anafase → Telofase');
 });
 
-test('respuesta numérica: con margen, «casi» y la coma decimal', async ({ page }) => {
+test('respuesta numérica: con margen, «casi» y la coma decimal @ambos', async ({ page }) => {
   await openApp(page);
   await createDeck(page, 'Historia');
   await newCardOfType(page, 'number');
