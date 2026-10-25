@@ -937,7 +937,7 @@ export async function deleteFolder(id) {
 }
 // Guarda una nota: crea, actualiza o borra sus tarjetas según las plantillas que tengan contenido
 // source: { page_id, block_id } si la tarjeta sale de unos apuntes (las ya vinculadas lo conservan)
-async function saveNote({ type, fields, deckId, hint = '', tags = [], noteId = null, siblings = [], source = null }) {
+export async function saveNote({ type, fields, deckId, hint = '', tags = [], noteId = null, siblings = [], source = null }) {
   const active = activeTemplates(type, fields);
   if (!active.length) throw new Error(type.templates.some(t => t.mode === 'cloze') ? 'Marca al menos un hueco con {{ }}' : 'Rellena al menos el anverso y la respuesta');
   noteId = noteId || api.newId();

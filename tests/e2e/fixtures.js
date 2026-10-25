@@ -8,7 +8,87 @@ export const SUPABASE_ANON_KEY = '';
 export const APP_NAME = 'Flaski';
 `;
 
+// Datos ya hechos, sin tocar la pantalla: una receta se construye con el código de la propia app (las mismas
+// funciones que usan sus pantallas) en una página aparte, una vez por proceso, y la prueba la mete en el
+// navegador antes de abrir la app. Para las pruebas que solo necesitan tener datos; las que prueban justamente
+// crear, añadir de Explorar o pegar siguen haciéndolo con la pantalla.
+//   await seed({
+//     folders: ['Oposición'],
+//     decks: [{ name: 'Macro', folder?: 'Oposición', lang?: 'de-DE', cards?: [['pregunta', 'respuesta'], …],
+//               studied?: { due: -1, interval: 3 } }],   // progreso de todas sus preguntas (due en días desde hoy)
+//     builtin: ['Alemán · A2'],                          // como «Añadir a mis listas» en Explorar
+//     pages: [{ md: '# Título\n\nTexto…', deck?: 'Macro', folder?: 'Oposición' }],   // como pasteNotes
+//   });
+//   await openApp(page);
+async function buildSeed(recipe) {
+  const api = await import('/js/api.js');
+  const { S } = await import('/js/comun.js');
+  const { saveNote } = await import('/js/pantallas/editor.js');
+  const { getType } = await import('/js/pantallas/estudio.js');
+  const { readBuiltin, importParsed } = await import('/js/pantallas/explorar.js');
+  const { boldLabels } = await import('/js/notesio.js');
+  const { textToBlocks, newBlock } = await import('/js/pages.js');
+  const folders = new Map(), decks = new Map(), now = Date.now(), DAY = 864e5;
+  for (const name of recipe.folders || []) {
+    const f = await api.createFolder({ owner: S.uid, name, parent_id: null });
+    S.folders.set(f.id, f); folders.set(name, f.id);
+  }
+  for (const d of recipe.decks || []) {
+    const row = await api.createDeck({ owner: S.uid, name: d.name, description: '', icon: '', color: '', folder_id: folders.get(d.folder) || null, tags: [], pinned: false, is_public: false, options: { newPerDay: null, preset: '', lang: d.lang || '' } });
+    S.decks.set(row.id, { tags: [], ...row }); decks.set(d.name, row.id);
+    const made = [];
+    for (const [q, a] of d.cards || []) made.push(...await saveNote({ type: getType('basic'), fields: { q, a, n: '' }, deckId: row.id }));
+    if (d.studied) {
+      const { due = 0, interval = 1 } = d.studied;
+      for (const c of made) await api.saveProgress(S.uid, c.id, { reps: 2, interval, ease: 2.5, lapses: 0, due: now + due * DAY - (due <= 0 ? 1000 : 0), firstSeen: now - (interval + 7) * DAY, last: now - interval * DAY, stability: interval, difficulty: 5 });
+    }
+  }
+  if (recipe.builtin?.length) {
+    const index = await (await fetch('decks/index.json')).json();
+    for (const name of recipe.builtin) {
+      const file = index.find(x => x.name.includes(name))?.file;
+      if (!file) throw new Error(`No hay ninguna lista de Explorar que se llame «${name}»`);
+      const { deck } = await importParsed({ ...(await readBuiltin(file)), source: 'incluido:' + file });
+      decks.set(name, deck.id);
+    }
+  }
+  for (const p of recipe.pages || []) {
+    const m = /^# (.+)\n+/.exec(p.md);
+    const body = m ? p.md.slice(m[0].length) : p.md;
+    const blocks = body.trim() ? boldLabels(textToBlocks(body)) : [newBlock()];
+    await api.savePage({ id: api.newId(), owner: S.uid, title: m ? m[1] : '', icon: '', deck_id: decks.get(p.deck) || null, folder_id: folders.get(p.folder) || null, tags: [], blocks });
+  }
+  return localStorage.getItem('flaski-local-v1');
+}
+
 export const test = base.extend({
+  // La página que construye las recetas (una por proceso de pruebas) y lo ya construido
+  seeder: [async ({ browser }, use, workerInfo) => {
+    const ctx = await browser.newContext({ baseURL: workerInfo.project.use.baseURL, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    await page.addInitScript(() => { try { if (!sessionStorage.getItem('flaski-seed')) { localStorage.clear(); localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } } catch {} });
+    await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
+    await page.route('https://cdn.jsdelivr.net/**', route => route.abort());
+    const built = new Map();
+    await use(async recipe => {
+      const key = JSON.stringify(recipe);
+      if (!built.has(key)) {
+        await page.goto('/');
+        await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+        built.set(key, await page.evaluate(buildSeed, recipe));
+      }
+      return built.get(key);
+    });
+    await ctx.close();
+  }, { scope: 'worker' }],
+  // seed(receta): antes de openApp. Solo la primera vez que se abre la página (las recargas conservan lo que la prueba haga)
+  seed: async ({ page, seeder }, use) => {
+    await use(async recipe => {
+      const data = await seeder(recipe);
+      await page.addInitScript(d => { try { if (!sessionStorage.getItem('flaski-seed')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('flaski-seed', '1'); } } catch {} }, data);
+    });
+  },
+
   // La presentación de bienvenida sale con la app vacía: en las pruebas se da por vista,
   // salvo en las que la prueban (test.use({ intro: true })).
   intro: [false, { option: true }],
@@ -25,6 +105,18 @@ export const test = base.extend({
 });
 export { expect };
 
+// Abre una lista desde la Biblioteca (con datos sembrados: lo que antes dejaba abierto createDeck)
+export async function openDeck(page, name) {
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-open]').filter({ hasText: name }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+}
+// Abre un apunte desde la Biblioteca (con datos sembrados: lo que antes dejaba abierto pasteNotes)
+export async function openPage(page, title) {
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-page]').filter({ hasText: title }).first().click();
+  await expect(page.locator('#pgTitle')).toHaveValue(title);
+}
 // Abre la app y espera a que termine de cargar
 export async function openApp(page) {
   await page.goto('/');
