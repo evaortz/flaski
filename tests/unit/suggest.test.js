@@ -401,3 +401,45 @@ test('marcadas de entrada: solo las de 0,75 o más y como mucho 15 por apunte', 
   assert.ok(r.filter(s => s.selected).every(s => s.score >= 0.75 && s.rec));
   assert.ok(!r.find(s => s.front === '¿Qué es la célula?').selected);   // 0,70: a un toque
 });
+
+/* ---------- Paso 7+8 · parte 2: reglas nuevas para el texto sin formato ---------- */
+test('frases clave sin formato: cada frase suma puntos (plazo, «X es Y», enumeración con número, persona y hecho, «ante»…)', async () => {
+  const { keyScore, wordFreq } = await import('../../js/suggest.js');
+  assert.ok(keyScore('El plazo máximo para resolver y notificar no podrá exceder de seis meses.') >= 2);
+  assert.ok(keyScore('La mitosis tiene cuatro fases: profase, metafase, anafase y telofase.') >= 2);
+  assert.ok(keyScore('Clara Campoamor defendió el sufragio femenino en las Cortes.') >= 2);
+  assert.ok(keyScore('Esto lo veremos más adelante con calma.') < 2);
+  const f = wordFreq(textToBlocks('El recurso se interpone ante el órgano.\n\nEl órgano resuelve el recurso.'));
+  assert.ok(keyScore('El recurso se interpone ante el mismo órgano.', f) >= 2);
+});
+
+test('plazos: «no podrá exceder de seis meses», «este será de tres meses», «el plazo para interponerlo será de un mes si…»', () => {
+  const r = paste('Ley 39/2015\n\nEl plazo máximo para resolver y notificar no podrá exceder de seis meses, salvo que una norma con rango de ley establezca uno mayor.\nCuando las normas reguladoras no fijen el plazo máximo, este será de tres meses.\nEl recurso de alzada podrá interponerse ante el órgano que dictó el acto. El plazo para interponerlo será de un mes si el acto fuera expreso.');
+  const all = r.flatMap(s => [s, ...(s.alts || [])]);
+  const has = (q, a) => assert.ok(all.some(s => s.front === q && s.back === a), `${q} → ${a}\n${all.map(s => s.front + ' → ' + s.back).join('\n')}`);
+  has('¿Cuál es el plazo máximo para resolver y notificar?', 'Seis meses');
+  has('Cuando las normas reguladoras no fijen el plazo máximo, ¿cuál es?', 'Tres meses');
+  has('¿Cuál es el plazo para interponer el recurso de alzada si el acto fuera expreso?', 'Un mes');
+  assert.ok(all.some(s => s.fields.x === 'El plazo máximo para resolver y notificar no podrá exceder de {{seis meses}}.'));
+});
+
+test('órgano: «se interpone ante…» → «¿Ante qué órgano se interpone…?»', () => {
+  const r = paste('Ley 39/2015\n\nEl recurso potestativo de reposición se interpone ante el mismo órgano que dictó el acto.');
+  assert.ok(r.some(s => s.front === '¿Ante qué órgano se interpone el recurso potestativo de reposición?' && s.back === 'Ante el mismo órgano que dictó el acto'), r.map(s => s.front).join(' / '));
+});
+
+test('enumeración en frase con número: «se divide en tres etapas: …» → ¿En qué tres etapas…?, ¿En cuántas…? y ordenar', () => {
+  const r = paste('La Segunda República\n\nEl periodo se divide en tres etapas: el bienio reformista (1931-1933), el bienio radical-cedista (1933-1936) y el Frente Popular (1936).');
+  const fronts = r.flatMap(s => [s, ...(s.alts || [])]).map(s => s.front);
+  assert.ok(fronts.includes('¿En qué tres etapas se divide la Segunda República?'), fronts.join(' / '));
+  assert.ok(fronts.includes('¿En cuántas etapas se divide la Segunda República?'));
+  const steps = r.find(s => s.typeId === 'steps');
+  assert.equal(steps.fields.s, 'El bienio reformista\nEl bienio radical-cedista\nEl Frente Popular');
+});
+
+test('persona y hecho: «Clara Campoamor defendió…» → ¿Quién defendió…?; «Durante…, el gobierno de Manuel Azaña impulsó…» → ¿Qué impulsó…?', () => {
+  const r = paste('La Segunda República\n\nClara Campoamor defendió el sufragio femenino en las Cortes.\nDurante el bienio reformista, el gobierno de Manuel Azaña impulsó la reforma agraria y la reforma militar.\nLa Constitución de 1931 reconoció el voto femenino, que se ejerció por primera vez en las elecciones de 1933.');
+  const qa = r.flatMap(s => [s, ...(s.alts || [])]).map(s => [s.front, s.back]);
+  for (const [q, a] of [['¿Quién defendió el sufragio femenino en las Cortes?', 'Clara Campoamor'], ['¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista?', 'La reforma agraria y la reforma militar'],
+    ['¿Qué reconoció la Constitución de 1931?', 'El voto femenino'], ['¿En qué año se ejerció por primera vez el voto femenino?', '1933']]) assert.ok(qa.some(x => x[0] === q && x[1] === a), `${q}\n${qa.join('\n')}`);
+});

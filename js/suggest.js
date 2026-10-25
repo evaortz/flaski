@@ -534,6 +534,149 @@ const toNumber = s => (/^\d+$/.test(s) ? s : String(NUM_WORDS[s.toLowerCase()] ?
 const pluralOf = w => (/[aeiouáéó]$/i.test(w) ? w + 's' : /ión$/.test(w) ? w.replace(/ión$/, 'iones') : /z$/.test(w) ? w.slice(0, -1) + 'ces' : w + 'es');
 const howMany = unit => `¿${genderOf(unit) === 'f' ? 'Cuántas' : 'Cuántos'} ${unit.toLocaleLowerCase()}`;
 
+/* ---------------- Frases clave sin formato ---------------- */
+// Sin negritas, títulos ni listas, cada frase suma puntos por lo que la hace preguntable (fecha completa, plazo, cifra
+// con unidad, «Art. N», «Ley N/AAAA», «X es Y», una enumeración con número, un nombre propio, «ante», «salvo», «porque»…,
+// palabras que se repiten en el apunte); de las de 2 puntos o más salen preguntas
+const QTY = `(?:\\d+|${Object.keys(NUM_WORDS).join('|')}|un|medio)`;
+const TIME_UNIT = '(?:días?|meses|mes|años?|semanas?|horas?)(?:\\s+(?:hábiles|naturales))?';
+const PLAZO_RX = new RegExp(`(?<![\\p{L}])${QTY}\\s+${TIME_UNIT}(?![\\p{L}])`, 'iu');
+const stems = s => norm(s).split(' ').filter(w => w.length >= 4 && !STOPWORDS.has(w)).map(w => w.slice(0, 5));
+// Cuántas veces sale cada palabra (por su raíz) en el apunte, para saber de qué trata
+export function wordFreq(blocks) {
+  const f = new Map();
+  for (const b of blocks) for (const w of stems(b.text || '')) f.set(w, (f.get(w) || 0) + 1);
+  return f;
+}
+export function keyScore(sp, freq = new Map()) {
+  let n = 0;
+  if (dates(sp).some(d => /\sde\s/i.test(d.text)) || PLAZO_RX.test(sp) || /plazo\s+de/i.test(sp) || new RegExp(`(?<![\\p{L}\\d])(?:\\d+|${Object.keys(NUM_WORDS).join('|')})\\s+\\p{L}{4,}s(?![\\p{L}])`, 'iu').test(sp)
+    || /(?<![\p{L}])(?:art\.|artículo)\s*\d/iu.test(sp) || /Ley\s+\d+\/\d{4}/.test(sp)) n += 2;
+  if (/^(?:[\p{L}\s,]{3,60}?)\s(?:es|son|se\s+define\s+como|tiene|tienen)\s/iu.test(sp)) n += 2;
+  if (new RegExp(`(?<![\\p{L}])${NUM}\\s+\\p{L}+s\\s*:\\s*\\S`, 'iu').test(sp)) n += 2;
+  if (/^\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+){1,3}\s+\p{L}{3,}(?:ó|ió|aron|ieron)\s/u.test(sp)) n += 2;   // persona y hecho
+  if (/\s\p{Lu}\p{Ll}/u.test(sp.slice(1))) n += 1;
+  if (/(?<![\p{L}])(?:corresponde\s+a|ante|salvo|excepto|solo|por\s+eso|porque|a\s+diferencia\s+de)(?![\p{L}])/iu.test(sp)) n += 1;
+  if (/^(?:el|la|los|las)\s[^,]{2,40}?\s\p{L}{3,}(?:a|e|an|en|ó|aron)\s(?:el|la|los|las|un|una)\s/iu.test(sp)) n += 1;   // quién hace qué
+  if (new Set(stems(sp).filter(w => (freq.get(w) || 0) >= 2)).size >= 2) n += 1;
+  if (/^(?:esto|eso|también)(?![\p{L}])/iu.test(sp) || (words(sp).length > 40 && !/[;,]/.test(sp))) n -= 2;
+  return n;
+}
+const lowFirst = s => (/^\p{Lu}\p{Ll}/u.test(s) && !/^\p{Lu}[\p{L}'-]+\s+\p{Lu}/u.test(s) ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
+// «interponerlo» con el sujeto de la frase de antes → «interponer el recurso de alzada»
+const unClitic = (s, subj) => (subj ? s.replace(/(?<![\p{L}])(\p{L}+(?:ar|er|ir))(?:lo|la|los|las)(?![\p{L}])/u, (m, v) => `${v} ${lowerSubject(subj)}`) : s);
+// Las reglas de una frase sin negritas → [{ kind, typeId, fields, score, extra }]
+// env: { ctx (de qué va el apunte), prev (la frase de antes), prevSubj (su sujeto), score (sus puntos) }
+export function plainRules(sp, env = {}) {
+  const out = [], body = sp.replace(/[.;:]+$/, '').trim(), ctx = env.ctx || '';
+  const push = (kind, typeId, fields, score, extra = {}) => out.push({ kind, typeId, fields, score, extra });
+  const basic = (kind, q, a, score, extra) => push(kind, 'basic', { q, a: capFirst(a.trim()), n: '' }, score, extra);
+  let m;
+  // Plazos: «El plazo máximo para resolver no podrá exceder de seis meses, salvo…» · «El plazo para interponerlo será de un mes si…»
+  if ((m = new RegExp(`^((?:el|un)\\s+plazo[^,;]*?)\\s+(no\\s+podrá\\s+exceder\\s+de|será\\s+de|es\\s+de|no\\s+será\\s+superior\\s+a)\\s+(${QTY}\\s+${TIME_UNIT})(.*)$`, 'iu').exec(body))) {
+    const np = unClitic(m[1], env.prevSubj), tail = m[4].replace(/^,.*$/, '').trim();
+    basic('plazo', `¿Cuál es ${lowFirst(np)}${tail ? ' ' + tail : ''}?`, m[3], 0.78, { atype: 'plazo' });
+    push('plazo', 'cloze', { x: `${capFirst(np)} ${m[2]} {{${m[3]}}}${m[4]}.`, e: '' }, 0.76, { atype: 'plazo' });
+  }
+  // «Cuando las normas no fijen el plazo máximo, este será de tres meses» → Cuando las normas no fijen el plazo máximo, ¿cuál es?
+  if ((m = new RegExp(`^((?:Cuando|Si)\\s[^,]*?(el\\s+plazo[^,]*)),\\s+(?:este|ese|dicho\\s+plazo|el\\s+plazo)\\s+será\\s+de\\s+(${QTY}\\s+${TIME_UNIT})(.*)$`, 'iu').exec(body))) {
+    basic('plazo', `${m[1]}, ¿cuál es?`, m[3], 0.78, { atype: 'plazo' });
+    push('plazo', 'cloze', { x: `${m[1]}, ${m[2]} será de {{${m[3]}}}${m[4]}.`, e: '' }, 0.76, { atype: 'plazo' });
+  }
+  // Órgano: «El recurso de alzada podrá interponerse ante el órgano que dictó el acto» → ¿Ante qué órgano podrá interponerse…?
+  if ((m = /^((?:el|la|los|las)\s[^,]{2,60}?)\s+((?:podrá|podrán|deberá|deberán|puede|pueden)\s+\p{L}+se|se\s+\p{L}+|\p{L}+se)\s+ante\s+(.{4,})$/iu.exec(body))) {
+    basic('organo', `¿Ante ${/^(?:el|la)\s+(?:mismo\s+|misma\s+)?órgano/i.test(m[3]) ? 'qué órgano' : 'quién'} ${m[2]} ${lowerSubject(m[1])}?`, `ante ${m[3]}`, 0.78);
+  }
+  // Excepción: «Contra la resolución de X no cabrá ningún otro recurso, salvo el Y» → ¿Qué recurso cabe contra la resolución de X?
+  if ((m = /^(Contra\s.+?)\s+no\s+(cabrá|cabe|procederá|procede)\s+ning[uú]n(?:a)?\s+otr[oa]\s+(\p{L}+)[^,]*,\s+salvo\s+(.+)$/iu.exec(body))) {
+    basic('term', `¿Qué ${m[3]} ${m[2] === 'cabrá' ? 'cabe' : m[2]} ${lowFirst(m[1])}?`, m[4], 0.76, { except: { pre: m[1], verb: m[2], noun: m[3], ans: m[4] } });
+  }
+  // «Tienen capacidad de obrar las personas físicas…» → ¿Quiénes tienen capacidad de obrar?
+  if ((m = /^(Tienen|Tiene|Podrán|Pueden|Deberán|Deben)\s+([^,]{3,40}?)\s+((?:los|las|el|la)\s.{4,})$/u.exec(body)) && !/\s(?:de|del|a|en)$/.test(m[2])) {
+    basic('term', `¿${/n$/.test(m[1]) ? 'Quiénes' : 'Quién'} ${lowFirst(m[1])} ${m[2]}?`, m[3], 0.74);
+  }
+  // «Los interesados podrán actuar por medio de representante» → ¿Cómo podrán actuar los interesados?
+  if ((m = /^((?:el|la|los|las)\s[^,]{2,40}?)\s+(podrán|pueden|podrá|puede|deberán|deben|deberá|debe)\s+(\p{L}+(?:ar|er|ir))\s+(por\s+medio\s+de|mediante|a\s+través\s+de)\s+(.+)$/iu.exec(body))) {
+    basic('term', `¿Cómo ${m[2]} ${m[3]} ${lowerSubject(m[1])}?`, `${m[4]} ${m[5]}`, 0.74);
+  }
+  // Enumeración con número: «El periodo se divide en tres etapas: a, b y c» · «La mitosis tiene cuatro fases: profase, …»
+  if ((m = new RegExp(`^(.+?)\\s+(se\\s+divide\\s+en|se\\s+dividen\\s+en|tiene|tienen|consta\\s+de|comprende|incluye|distingue)\\s+${NUM}\\s+(\\p{L}+s)\\s*:\\s*(.+)$`, 'iu').exec(body))) {
+    const items = m[5].split(/,\s+/).map(x => x.trim()).filter(Boolean), last = items.pop() || '';
+    const k = Math.max(last.search(/\s[ye]\s(?=(?:el|la|los|las)\s)/i), /\s(?:el|la|los|las)\s/i.test(last) ? -1 : last.lastIndexOf(' y '));
+    items.push(...(k > 0 ? [last.slice(0, k), last.slice(k + 3)] : [last]).map(x => x.trim()));
+    let subj = m[1].trim();
+    if (/^(?:el|este|dicho)\s+(?:periodo|período|proceso|tema|ciclo)$/i.test(subj) && ctx) subj = ctx;
+    const n = toNumber(m[3]), unit = m[4].toLocaleLowerCase(), f = genderOf(unit) === 'f', divide = /divide/i.test(m[2]);
+    if (+n === items.length && (ARTICLE.test(subj) || /^\p{Lu}/u.test(subj))) {
+      basic('enum', divide ? `¿En qué ${m[3].toLocaleLowerCase()} ${unit} se divide ${lowerSubject(subj)}?` : `¿Qué ${m[3].toLocaleLowerCase()} ${unit} ${m[2]} ${lowerSubject(subj)}?`, m[5], 0.76);
+      if (divide) push('num', 'number', { q: `¿En ${f ? 'cuántas' : 'cuántos'} ${unit} se divide ${lowerSubject(subj)}?`, a: n, t: '', u: '', n: '' }, 0.72);
+      if (/^(?:fases|etapas|pasos)$/.test(unit)) push('steps', 'steps', { q: `Ordena ${f ? 'las' : 'los'} ${unit} de ${lowerSubject(subj)}`, s: items.map(x => capFirst(x.replace(/\s*\([^)]*\)/g, ''))).join('\n'), n: '' }, 0.7);
+    }
+  }
+  // Quién hizo qué: «Clara Campoamor defendió el sufragio femenino…» → ¿Quién defendió…? · «Durante el bienio reformista,
+  // el gobierno de Manuel Azaña impulsó…» → ¿Qué impulsó el gobierno de Manuel Azaña durante el bienio reformista?
+  if ((m = /^(?:((?:Durante|En|Tras|Desde)\s[^,]{3,50}),\s+)?((?:(?:[Ee]l|[Ll]a|[Ll]os|[Ll]as)\s[^,]{2,50}?)|(?:\p{Lu}[\p{L}'-]+(?:\s+(?:de\s+|del\s+)?\p{Lu}[\p{L}'-]+){1,3}))\s+(\p{L}{3,}(?:ó|ió|aron|ieron))\s+(.{4,})$/u.exec(body))
+    // (sin la fecha de lo que pasa: «X llegó al poder en 1799…» y «El golpe del 18 de julio de 1936 provocó…» ya preguntan «¿Cuándo…?»)
+    && /\s\p{Lu}/u.test(' ' + m[2].slice(1)) && !/\s(?:lo|la|los|las|le|les)$/i.test(m[2])
+    && !dates(m[2]).some(d => /\sde\s/.test(d.text)) && !/(?<![\p{L}])(?:en|el|entre|hacia)\s+(?:el\s+año\s+)?\d/iu.test(m[4].split(/,\s+que\s/)[0])) {
+    const lead = m[1] ? ` ${lowFirst(m[1])}` : '', obj = m[4].split(/,\s+(?=(?:que|el\s+cual|la\s+cual|lo\s+que|pero|aunque)\s)|;\s/)[0];
+    if (!ARTICLE.test(m[2])) basic('term', `¿Quién ${m[3]} ${obj}${lead}?`, m[2], 0.76, { atype: 'persona' });
+    else basic('term', `¿Qué ${m[3]} ${lowerSubject(m[2])}${lead}?`, obj, 0.76);
+    // «…el voto femenino, que se ejerció por primera vez en las elecciones de 1933» → ¿En qué año se ejerció por primera vez el voto femenino?
+    const rel = /,\s+que\s+((?:se\s+)?\p{L}+(?:ó|ió))\s+(.*?)(?<![\d])(1\d{3}|20\d{2})(?![\d])/u.exec(m[4]);
+    if (rel) {
+      const what = rel[2].replace(/\s*(?:en|desde|hasta)\s+(?:el|la|los|las)?\s*[^,]*?$/iu, '').trim();
+      push('date', 'number', { q: `¿En qué año ${rel[1]}${what ? ' ' + what : ''} ${obj}?`, a: rel[3], t: '', u: '', n: '' }, 0.7,
+        { atype: 'año', stmt: `${capFirst(obj)} ${rel[1]} ${rel[2]}${rel[3]}.` });
+    }
+  }
+  // «La Segunda República se proclamó el 14 de abril de 1931, tras las elecciones municipales del 12 de abril»
+  // → ¿Cuándo se proclamó la Segunda República? y ¿Tras qué elecciones se proclamó la Segunda República?
+  if ((m = /^(.+?),\s+(tras|después\s+de|antes\s+de)\s+((?:el|la|los|las)\s+(\p{L}+).+)$/iu.exec(body)) && dates(m[1]).length === 1) {
+    const when = whenSentence(m[1]);
+    if (when) {
+      push('date', when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.76, { atype: when.year ? 'año' : 'fecha' });
+      const vq = when.q.replace(/^¿Cuándo\s+/, '').replace(/\?$/, '');
+      basic('term', `¿${capFirst(m[2].toLocaleLowerCase())} qué ${m[4].toLocaleLowerCase()} ${vq}?`, m[3], 0.74);
+    }
+  }
+  // Una frase clave cualquiera: hueco en lo que se dice del sujeto («Las células eucariotas tienen {{un núcleo rodeado por
+  // una membrana}}», «La mitocondria produce {{la energía de la célula}} mediante…») o en la enumeración que es el sujeto
+  if (env.score >= 2 && !out.length && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
+    let clauseSubj = '';
+    for (const clause of body.split(/;\s+/)) {
+      let c = clause.trim();
+      // «…; su material genético está disperso…» → «El material genético de las células procariotas está disperso…»
+      if (/^sus?\s/i.test(c) && clauseSubj) {
+        c = c.replace(/^(sus?)\s+([^,]{3,40}?)\s+(?=(?:está|están|es|son|se|tiene|tienen)\s)/iu, (x, su, np) => {
+          const f = genderOf(np.split(' ')[0]) === 'f', pl = /^sus$/i.test(su);
+          return `${pl ? (f ? 'Las' : 'Los') : (f ? 'La' : 'El')} ${np} ${dePrep(lowerSubject(clauseSubj))} `;
+        });
+      }
+      const subj = subjectOfClause(c).replace(/\s+(?:no|solo|también|ya)$/i, '');
+      const listSubj = /,\s|\s[ye]\s/.test(subj) && !ARTICLE.test(subj);
+      if (!subj || words(subj).length > 7 || DANGLING.test(subj) || !(ARTICLE.test(subj) || /^tod[oa]s\s/i.test(subj) || listSubj)) continue;
+      clauseSubj ||= subj;
+      const rest = c.slice(c.indexOf(subj) + subj.length).trim();
+      const vm = /^((?:no\s+|solo\s+|también\s+)?(?:se\s+)?\p{L}+(?:\s+(?:formad|compuest|constituid|integrad|dispers|rodead|situad|ubicad)[oa]s?\s+(?:por|en))?)\s+(.+)$/iu.exec(rest);
+      if (!vm || !SUBJ_END.test(vm[1].split(/\s+/).filter(w => !/^(?:no|solo|también|se)$/i.test(w))[0] || '')) continue;
+      let obj = vm[2], tail = '', x;
+      const coord = /^(.*?)\s+y\s+(\p{L}+(?:a|e|an|en|ó|aron))\s+((?:el|la|los|las|un|una)\s.{2,60})$/iu.exec(obj);
+      if (listSubj) x = `{{${subj}}} ${rest}`;   // «Animales, plantas y hongos están formados por…»
+      else if (coord) x = `${subj} ${vm[1]} ${coord[1]} y ${coord[2]} {{${coord[3]}}}`;
+      else {
+        const cut = /,\s|\s(?=(?:mediante|según|salvo|porque|para|durante|cuando|si|excepto)\s)/iu.exec(obj);
+        if (cut) { tail = obj.slice(cut.index); obj = obj.slice(0, cut.index); }
+        // («Las células son capaces de dirigir…»: con «es / son», el hueco es un nombre, no una frase entera)
+        if (words(obj).length > 8 || /^(?:que|de|del|a|al)\s/i.test(obj) || (/^(?:es|son)$/i.test(vm[1]) && !ARTICLE.test(obj) && words(obj).length > 2)) continue;
+        x = `${subj} ${vm[1]} {{${obj}}}${tail}`;
+      }
+      push('key', 'cloze', { x: `${capFirst(x.trim())}.`, e: '' }, 0.55);
+    }
+  }
+  return out;
+}
+
 /* ---------------- Frases que dicen quién hace qué ---------------- */
 const PART_VERB = { constituid: ['constituye', 'constituyen'], formad: ['forma', 'forman'], compuest: ['compone', 'componen'], integrad: ['integra', 'integran'] };
 const subjOk = s => s && words(s).length <= 10 && ARTICLE.test(s) && !VAGUE.test(s) && !GENERIC_SUBJECT.test(s) && !/\b(que|cuando|porque)\b/i.test(s);
@@ -606,7 +749,7 @@ function shortenCloze(x, from = x.lastIndexOf('}}') + 2) {
 // Un hueco en una frase corta: el trozo que tiene el hueco (cortando por «;», «, y» o «, que»), con el sujeto delante
 // si se ha quedado sin él, y como mucho 25 palabras (si no cabe, null). «La Constitución se fundamenta en…, y reconoce y
 // garantiza el {{derecho a la autonomía}} de…» → «La Constitución reconoce y garantiza el {{derecho a la autonomía}} de…»
-const CLAUSE_CUT = /;\s+|,\s+(?=(?:y|e|que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme)\s)|\s+(?=conforme\s+a\s)/giu;
+const CLAUSE_CUT = /;\s+|,\s+(?=(?:y|e|que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme|salvo|excepto)\s)|\s+(?=conforme\s+a\s)/giu;
 const SUBJ_END = /^(?:se|es|son|está|están|ha|han|fue|fueron|será|serán|\p{Ll}\p{L}+(?:a|e|an|en|ó|aron|ieron|ía|ían|aba|aban|á|án))$/u;
 const DET = /^(?:el|la|los|las|un|una|unos|unas|lo|al|del|de|a|en|con|por|para|su|sus|este|esta|cada|toda|todo|todas|todos|y|e|o)$/i;
 const MAX_CLOZE = 25;
@@ -941,8 +1084,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
 
   /* 4) Bloque a bloque: vocabulario, definiciones, negritas, fechas, código */
+  const freq = wordFreq(blocks);
+  let lastSent = '';   // la frase de antes (para «Por eso…», «interponerlo», «este será…»)
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
+    if (/^h[1-3]$/.test(b.type)) lastSent = '';
     if (used.has(b.id) || !['p', 'li', 'ol', 'callout', 'quote', 'code'].includes(b.type)) continue;
     const text = emphasize(String(b.text || '').replace(IMG, '')).trim();
     if (!text) continue;
@@ -1038,6 +1184,9 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       const s = rawSentence.replace(CALLOUT_PRE, '').trim();
       const sp = plainText(s);
       if (sp.length < 12 || sp.length > 420) continue;
+      const before = lastSent;
+      lastSent = sp;
+      const lastSentHere = before;
       const art = artRef(b.id), withArt = q => (art && !/\(art\./i.test(q) ? q.replace(/\?$/, ` (art. ${art})?`) : q);
       // Quién hace qué, de qué está formado, a qué está sujeto… (aunque la frase tenga negritas)
       const rel = /^\p{Ll}/u.test(sp) ? [] : relationCards(sp, s);
@@ -1085,6 +1234,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       }
       // Enunciados de ejercicios y frases que empiezan a medias (un trozo de otra) no dan tarjetas
       if (EXERCISE.test(sp) || /^\p{Ll}/u.test(sp) || /(?<![\p{L}])\p{Lu}{4,}\s+\p{Lu}{2,}(?![\p{L}])/u.test(sp)) continue;
+      // Sin negritas: las frases clave (plazos, órganos, enumeraciones con número, quién hizo qué, para entender…)
+      if (pageEs) {
+        const env = { ctx: cleanCtx(title), prev: lastSentHere, prevSubj: lastSentHere ? subjectOfClause(lastSentHere) : '', score: keyScore(sp, freq) };
+        for (const r of plainRules(sp, env)) add(r.kind, b.id, r.typeId, r.fields, r.score, r.extra);
+      }
       const ac = acronymCard(sp);
       if (ac) add('term', b.id, 'basic', { q: ac.q, a: ac.a, n: '' }, ac.score);
       const cc = conceptCard(sp);
