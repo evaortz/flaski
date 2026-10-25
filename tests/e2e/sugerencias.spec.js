@@ -87,3 +87,9 @@ test('una sugerencia por dato: las otras formas de preguntarlo van plegadas y se
   await page.locator('[data-act="sug-refresh"]').click();
   await expect(page.locator('.sug > .row .f')).toHaveText('¿Cuál es la forma política del Estado?');
 });
+
+test('huecos cortos: la hoja enseña solo el trozo de la frase con el hueco, y ningún hueco en un verbo', async ({ page, seed }) => {
+  await withPage(page, seed, '# Constitución\n\nLa Constitución se fundamenta en la unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el **derecho a la autonomía** de las nacionalidades y regiones.\n\nMientras duermes, el cerebro **consolida** lo que has aprendido.');
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug .f')).toHaveText(['La Constitución reconoce y garantiza el […] de las nacionalidades y regiones.']);
+});

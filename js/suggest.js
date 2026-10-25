@@ -578,6 +578,50 @@ function shortenCloze(x, from = x.lastIndexOf('}}') + 2) {
   const m = TAIL_CLAUSE.exec(x.slice(from));
   return m && m.index + from > 20 ? x.slice(0, from + m.index).replace(/[,;:\s]+$/, '') + '.' : x;
 }
+// Un hueco en una frase corta: el trozo que tiene el hueco (cortando por «;», «, y» o «, que»), con el sujeto delante
+// si se ha quedado sin él, y como mucho 25 palabras (si no cabe, null). «La Constitución se fundamenta en…, y reconoce y
+// garantiza el {{derecho a la autonomía}} de…» → «La Constitución reconoce y garantiza el {{derecho a la autonomía}} de…»
+const CLAUSE_CUT = /;\s+|,\s+(?=(?:y|e|que|del\s+que|de\s+la\s+que|de\s+los\s+que|de\s+las\s+que|donde|siendo|patria|conforme)\s)|\s+(?=conforme\s+a\s)/giu;
+const SUBJ_END = /^(?:se|es|son|está|están|ha|han|fue|fueron|será|serán|\p{Ll}\p{L}+(?:a|e|an|en|ó|aron|ieron|ía|ían|aba|aban|á|án))$/u;
+const DET = /^(?:el|la|los|las|un|una|unos|unas|lo|al|del|de|a|en|con|por|para|su|sus|este|esta|cada|toda|todo|todas|todos|y|e|o)$/i;
+const MAX_CLOZE = 25;
+function subjectOfClause(s) {
+  const t = plainText(s).split(/\s+/);
+  for (let i = 1; i < Math.min(t.length, 9); i++) if (SUBJ_END.test(t[i]) && !DET.test(t[i - 1])) return /^\p{Lu}/u.test(t[0]) ? t.slice(0, i).join(' ') : '';
+  return '';
+}
+export function trimCloze(x) {
+  const t = String(x).trim().replace(/[.;:]+$/, '');
+  const cuts = [0];
+  for (const m of t.matchAll(CLAUSE_CUT)) {
+    const before = t.slice(0, m.index);
+    if ((before.match(/\{\{/g) || []).length === (before.match(/\}\}/g) || []).length) cuts.push(m.index, m.index + m[0].length);
+  }
+  cuts.push(t.length);
+  const segs = [];
+  for (let i = 0; i < cuts.length; i += 2) segs.push(t.slice(cuts[i], cuts[i + 1]));
+  const withHole = segs.filter(s => s.includes('{{'));
+  let out = t;
+  if (withHole.length === 1 && segs.length > 1) {
+    const k = segs.indexOf(withHole[0]);
+    let seg = withHole[0].replace(/^(?:y|e|que)\s+/i, '');
+    const subj = k > 0 && /^\p{Ll}/u.test(seg) && !/^(?:del?|la|el|los|las|donde|siendo|patria|conforme)\s/i.test(seg) ? subjectOfClause(segs[0]) : '';
+    if (k === 0 || subj) out = subj ? `${subj} ${seg}` : seg;
+  }
+  // Aún largo: fuera lo que va detrás del hueco, hasta la coma siguiente
+  if (words(out).length > MAX_CLOZE) { const end = out.lastIndexOf('}}') + 2, c = out.indexOf(',', end); if (c > 0) out = out.slice(0, c); }
+  // (y que siga siendo una frase, con su verbo: no «Las {{Fuerzas Armadas}}»)
+  if (words(out).length > MAX_CLOZE || !plainText(out).split(/\s+/).some((w, i, a) => i && SUBJ_END.test(w.replace(/[^\p{L}]/gu, '')) && !DET.test(a[i - 1]))) return null;
+  return capFirst(out.trim()) + '.';
+}
+// Un hueco que es un verbo («el cerebro {{consolida}} lo que…», «{{Espaciar}} los repasos…») no se propone
+export function verbHole(x) {
+  const m = /(^|\S+)\s*\{\{([^}]+)\}\}/u.exec(String(x).trim());
+  if (!m) return false;
+  const hole = m[2].trim().split(/\s+/), prev = m[1] === '' ? '' : m[1].replace(/[^\p{L}]/gu, '');
+  if (!prev && /^\p{L}+(?:ar|er|ir)(?:lo|la|los|las|se|le|les)?$/iu.test(hole[0])) return true;
+  return hole.length === 1 && !!prev && !DET.test(prev) && /^\p{Ll}\p{L}+(?:a|e|an|en|ó|aron|ieron|ía|ían|aba|aban|ará|erá|irá|arán|erán|irán)$/u.test(hole[0]) && !/(?:ción|sión|dad|tad|ura|encia|ancia|ente|ante|eza|ismo|ista)$/.test(hole[0]);
+}
 // Varias negritas seguidas en una enumeración («la **libertad**, la **justicia** y el **pluralismo**»): un solo hueco
 const ENUM_RX = /(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*(?:\s*,\s*(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*)+\s*,?\s+(?:y|e|o)\s+(?:(?:el|la|los|las)\s+)?\*\*[^*]+\*\*/iu;
 
@@ -600,6 +644,14 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       fields = { ...fields };
       for (const k of ['q', 'x', ...(typeId === 'truefalse' ? ['s'] : [])]) if (fields[k]) fields[k] = fixGrammar(fields[k]);
       if (grammarIssue([fields.q, fields.x, typeId === 'truefalse' ? fields.s : ''].filter(Boolean).join(' '))) return false;
+    }
+    // Huecos: en una frase corta y nunca en un verbo (las listas ya van cortas: «los demás a la vista»)
+    if (typeId === 'cloze' && !extra.list) {
+      if (verbHole(fields.x)) return false;
+      extra = { src: norm(fields.x), ...extra };
+      const x = trimCloze(fields.x);
+      if (!x) return false;
+      fields = { ...fields, x };
     }
     const note = asNote(typeId, fields, isLangDeck);
     const type = TYPE(note.typeId);

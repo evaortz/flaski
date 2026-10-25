@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE, fixGrammar, grammarIssue, genderOf, useGender } from '../../js/suggest.js';
+import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE, fixGrammar, grammarIssue, genderOf, useGender, trimCloze, verbHole } from '../../js/suggest.js';
 import { plainTextToPage } from '../../js/notesio.js';
 import genderEs from '../../js/vendor/gender-es.js';
 import { textToBlocks } from '../../js/pages.js';
@@ -339,4 +339,23 @@ test('una sugerencia por dato: el hueco del texto se enseña y la tabla de repas
   const deber = r.filter(s => /españoles tienen/.test(s.fields.x || ''));
   assert.equal(deber.length, 1);
   assert.deepEqual(deber[0].alts.map(a => a.front), ['Todos los españoles tienen el deber de conocerla y el […].', '¿Qué artículo establece que todos los españoles tienen el deber de conocerla y el derecho a usarla?']);
+});
+
+test('huecos cortos: el trozo de la frase que tiene el hueco, con su sujeto, hasta 25 palabras', () => {
+  assert.equal(trimCloze('La Constitución se fundamenta en la indisoluble unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el {{derecho a la autonomía}} de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas.'),
+    'La Constitución reconoce y garantiza el {{derecho a la autonomía}} de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas.');
+  assert.equal(trimCloze('España se constituye en un Estado social y democrático de Derecho, que propugna como valores superiores de su ordenamiento jurídico {{la libertad, la justicia, la igualdad y el pluralismo político}}.'),
+    'España propugna como valores superiores de su ordenamiento jurídico {{la libertad, la justicia, la igualdad y el pluralismo político}}.');
+  assert.equal(trimCloze('El plazo será de {{un mes}}; el de reposición, de dos.'), 'El plazo será de {{un mes}}.');
+  // Sin verbo ya no es una frase
+  assert.equal(trimCloze('Las {{Fuerzas Armadas}}, constituidas por el Ejército de Tierra, la Armada y el Ejército del Aire, tienen como misión garantizar la soberanía e independencia de España, defender su integridad territorial y el ordenamiento constitucional.'), null);
+});
+
+test('nunca un hueco en un verbo', () => {
+  assert.ok(verbHole('Mientras duermes, el cerebro {{consolida}} lo que has aprendido.'));
+  assert.ok(verbHole('{{Espaciar}} los repasos en vez de amontonarlos.'));
+  assert.ok(!verbHole('Cada repaso {{aplana la curva}}.'));
+  assert.ok(!verbHole('Valores como la {{justicia}} y la igualdad.'));
+  assert.ok(!verbHole('El {{castellano}} es la lengua oficial.'));
+  assert.ok(!run('Mientras duermes, el cerebro **consolida** lo que has aprendido durante el día.').some(s => s.typeId === 'cloze'));
 });
