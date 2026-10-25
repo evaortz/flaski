@@ -231,3 +231,8 @@ el código de antes y pasa con el arreglo.
    toca), en los dos algoritmos. Prueba: `unit/cambio-hora.test.js` con `TZ=Europe/Madrid` el 24 y el 25 oct y el 27 y
    el 28 mar (antes fallaban las 8). Las preguntas ya guardadas con la hora de antes no se tocan: como mucho salen
    unas horas antes una vez. El motor del plan ya contaba los días con `Math.round`, así que no le afectaba.
+10. **`medirRitmo` agrupaba las vueltas por día UTC**: confirmado (una nueva a las 00:30 y su vuelta a la 01:30 de
+    España caían en días distintos y contaban como dos). Ahora por día de aquí (`dateKey`).
+11. **Orden del filtro**: confirmado. Ahora primero las últimas 300 respuestas y después, de ellas, fuera las de más de
+    5 min (si quedan menos de 50, 40 s y 12 s). Los dos en un commit, porque son la misma función. Pruebas en
+    `cambio-hora.test.js` (con `TZ=Europe/Madrid`).

@@ -16,7 +16,7 @@
 //   newPerDay,             // las nuevas al día de Ajustes: el tope (null: sin tope, mandan los minutos)
 // }
 // La simulación cuenta preguntas por lista y día, no pregunta a pregunta: así cabe en unos milisegundos.
-import { DAY, startOfDay } from './srs.js';
+import { DAY, startOfDay, dateKey } from './srs.js';
 import { WEEK, addDays, daysBetween, weekdayOf, dayDate, isDay, live, specialOn, stageOn, allocate } from './plan.js';
 import { initStability, initDifficulty, nextDifficulty, recallStability, forgetStability, shortTermStability, intervalFor, memoryOf } from './fsrs.js';
 
@@ -39,13 +39,15 @@ export function plan2On(loc = globalThis.location, store = globalThis.localStora
 const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 // Segundos por pregunta nueva (sumando sus vueltas del mismo día) y por repaso, con las últimas 300 respuestas.
 // Las de más de 5 min son pausas y no cuentan. Con menos de 50, 40 s y 12 s.
+// Primero las últimas 300 y después, de ellas, fuera las pausas. Las vueltas se juntan por día de aquí (no UTC).
+const when = e => (Number.isFinite(e.t) ? e.t : Date.parse(e.ts));
 export function medirRitmo(events = []) {
-  const ok = (Array.isArray(events) ? events : []).filter(e => e && e.ms > 0 && e.ms <= PACE_MAX_MS && e.ts)
-    .sort((a, b) => String(a.ts).localeCompare(String(b.ts))).slice(-PACE_LAST);
+  const last = (Array.isArray(events) ? events : []).filter(e => e && Number.isFinite(when(e))).sort((a, b) => when(a) - when(b)).slice(-PACE_LAST);
+  const ok = last.filter(e => e.ms > 0 && e.ms <= PACE_MAX_MS);
   if (ok.length < PACE_MIN) return { ...PACE_DEFAULT, measured: false, n: ok.length };
   const fresh = new Map(), rev = [];
   for (const e of ok) {
-    const k = e.card_id + '@' + String(e.ts).slice(0, 10);
+    const k = e.card_id + '@' + dateKey(when(e));
     if (e.state === 'new') fresh.set(k, (fresh.get(k) || 0) + e.ms);
     else if (fresh.has(k)) fresh.set(k, fresh.get(k) + e.ms);     // otra vuelta de una nueva, el mismo día
     else if (e.state === 'review' || e.state === 'relearning') rev.push(e.ms);
