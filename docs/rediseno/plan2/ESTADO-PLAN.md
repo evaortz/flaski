@@ -180,3 +180,17 @@ Todo detrás del interruptor «plan2» (`?plan2` o `localStorage['flaski-plan2']
 - En una pausa, Hoy dice «Estás en pausa» (con «Volver ya»); a la vuelta, lo que se juntó se hace poco a poco
   (lo que no cabe cada día pasa al siguiente).
 - Novedades: no las he tocado, porque nada de esto se ve sin el interruptor. Irán con el paso C o D.
+
+### Pruebas del paso B
+
+- Unitarias: **256 de 256** (las del motor con lo nuevo de `today()`: «Hecho por hoy» y las «N nuevas más»).
+  Rendimiento con el ordenador libre: forecast **3,8 ms** y fixes **281 ms** (más que en el paso A, unos 170–230,
+  porque ahora hay que buscar el N de «Subir a N nuevas al día»: unas 25 simulaciones por llamada). La prueba mide
+  el mejor de varios intentos: con otra batería de Playwright a la vez, la mediana se va a 1 s y fallaría sin motivo.
+- e2e nuevas, `plan2-hoy.spec.js` (9, una con `@ambos`): «Hecho por hoy» tras la tanda de Hoy (40 repasos y 5 min:
+  caben 25), tras la del Plan y tras estudiar desde una lista; el domingo libre, Hoy y el Plan con los mismos 48
+  repasos; «Hoy solo tengo 5 min» (15 → 7 nuevas) y vuelta a lo de siempre, que al día siguiente ya no cuenta;
+  pausa de 3 días y vuelta; Tu tiempo cambia las nuevas de Hoy (7 → 15); por qué esta pregunta; y sin el
+  interruptor, Hoy como antes.
+- Batería completa con `PORT=8124`: **381 pasan, 2 fallan, 15 saltadas** (7,5 min). Las dos que fallan son
+  `lista.spec.js:65` «Desde un apunte…» (móvil y escritorio), de la otra conversación (ya avisada).
