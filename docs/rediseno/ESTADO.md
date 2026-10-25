@@ -311,7 +311,27 @@
 - `sw.js` → `flaski-v187`.
 - Pruebas al terminar: unitarias 213 de 213. Batería e2e completa: 533 pasan, 27 omitidas y 2 fallan (15,8 min, con otros procesos leyendo a la vez: el tiempo no vale como medida). Repetidas solas: la de kanji a mano era de carga (6 de 6) y la del icono de carpeta, la carrera de arriba (24 de 24 tras el arreglo).
 
-## Batería más rápida · qué pruebas corren también en escritorio
+## Remates tras el paso 6 (cada uno con su commit y su e2e)
+- Batería del paso 6 repetida con la máquina libre: 537 pasan, 27 omitidas, 0 fallan, a la primera (14,2 min).
+- Hecho por hoy (`dayDone` en `estudio.js`): el día se cumple con tus minutos o la tanda que te tocaba (respuestas de hoy ≥ lo que cabía, a tu ritmo de antes de hoy, o los minutos respondiendo), empieces donde empieces. Hoy y el Plan dicen «Hecho por hoy · N preguntas · M min»; lo que queda pasa a mañana, como enlace («Quedan 13 repasos · otra tanda de 5 min»). «Hoy toca» cuenta las nuevas que quedan (`hecho-por-hoy.spec.js`).
+- Errores con «Detalles» (`fail(e, qué hacías)` en `comun.js`): qué hacías (si no se dice, el último botón tocado, con el título de su hoja), el error de Supabase (code, message, details, hint) o del navegador (QuotaExceededError…), hora, versión y modo, sin claves, correos ni ids de otros; «Copiar». Con el navegador lleno: «No queda espacio en este navegador» y «Descargar una copia». Un error sin mensaje (Safari) lo dice (`errores.spec.js`, con `srv.failWrite` en `nube.js`).
+- Safari, «Añadir y empezar» con cuenta: WebKit no deja guardar un Blob en IndexedDB (la transacción falla con error null). `media.js` guarda entonces sus bytes; si ni así, la imagen se queda en memoria, con cuenta se sube directamente y se reintenta, y el tema se crea igual. Un tema a medias se completa al volver a pulsar (Explorar ya no dice «La tienes» con la lista vacía y `addTema` reutiliza el apunte y la lista vacía; también la que ya tiene Eva en su cuenta). `derivedId` usa `js/sha256.js` si no hay `crypto.subtle` (por la wifi con http://), con el mismo resultado (`safari-tema.spec.js` en WebKit con y sin cuenta, `unit/sha256.test.js`).
+- «Guardar y otra»: la hoja de la siguiente se abre al momento; con cuenta, lo que se escribía mientras se guardaba la anterior se perdía (`guardar-y-otra.spec.js`).
+- REPASO-25oct: 1 día libre (`normalNew`: el plan cuenta con las nuevas de un día normal; Hoy dice «Hoy es tu día libre» con la tanda como opción), 2 iconos `message-square` y `clipboard` (y `unit/iconos.test.js`, que busca todos los nombres, también los de ayudantes con un parámetro `ic`), 3 Biblioteca (16 px y el «+» centrado), 4 apunte (hueco para la insignia y «Estudiar N» como botón secundario), 5 Estadísticas (atrás y título en la misma fila), 7 sin emoji (`unit/textos.test.js`), 8 accesibilidad (roles, nombre de la barra de la tanda, `.hm-scroll` con teclado y 4,5:1 con `--red-ink`), 9 «tema 1» sin partir, 10 barra de «Hoy toca» en oscuro (`repaso-25oct.spec.js`, `dia-libre.spec.js`). El 6 (Novedades) queda para el final, lo decide Eva.
+- Visto una vez, solo en el código anterior y con la máquina muy cargada: tras «Guardar» en el editor de preguntas, la hoja tardó más de 10 s en cerrarse. No se ha vuelto a ver.
+- `sw.js` → `flaski-v201`.
+
+## Batería más rápida (hecha)
+- Traza solo con `TRACE=1` (antes se grababa en todas: un 24 % del tiempo).
+- «Escritorio» solo ejecuta las 81 pruebas con `@ambos` (lista y porqué, abajo).
+- Fixture `seed` (`fixtures.js`): listas, preguntas básicas, apuntes, carpetas, listas de Explorar y progreso ya hechos, construidos con el código de la app en una página aparte (una por proceso, todas las recetas sin recargar) y metidos en localStorage antes de abrir la app. Unas 100 pruebas de 37 archivos lo usan; las que prueban crear, añadir o pegar siguen con la pantalla. Con `openDeck` y `openPage`.
+- Carreras arregladas en la app: la imagen de carpeta descartada mientras se guardaba y «Guardar y otra».
+- `npm run e2e:rapida` (`tests/rapida.mjs`): solo «movil» y solo los archivos de lo cambiado (por pantalla, `-- plan apuntes`, o `-- --last-failed`). La completa, al final del paso. En CLAUDE.md.
+- No se ha probado con 6 navegadores (Eva: con 4 ya va).
+- Tiempos (8 núcleos, 4 navegadores, máquina libre): batería completa de 14,2 min (564 pruebas) a 5,2 min (385: 370 pasan, 15 omitidas, en verde a la primera). Rápida: Plan 28 s (19 pruebas), apuntes 70 s (64 pruebas, la pantalla con más).
+- Unitarias 217 de 217.
+
+## Qué pruebas corren también en escritorio
 
 De 280 pruebas, 81 llevan `@ambos` en el título (corren en «movil» y «escritorio»: el proyecto «escritorio» tiene `grep: /@ambos/`) y 199 solo en «movil». Las nuevas, igual: si dependen del tamaño, el teclado o el ratón, `@ambos`. Criterio: maquetación, anchos, posiciones, barra lateral o lo que solo hay a partir de 900 px, teclado como función que se prueba, arrastre o «hover» con ratón, ramas por proyecto y capturas por proyecto; ante la duda, `@ambos`. Las que se saltan en escritorio («solo móvil») no lo llevan.
 
