@@ -65,19 +65,19 @@ function pathHTML(ex, e) {
   const cur = e.topics.find(x => x.state === 'study' && x.from && x.from <= t && (!x.finish || x.finish >= t)) || e.topics.find(x => x.state === 'study' && x.fresh > 0);
   const rows = e.topics.map(x => {
     const name = deckName(x.id), now = x === cur;
-    const [mark, right] = x.state === 'done' ? ['done', 'hecho'] : x.state === 'known' ? ['done', 'ya lo sabes'] : x.state === 'exclude' ? ['off', 'no cae'] : x.state === 'later' ? ['off', 'después del examen']
-      : now ? ['now', x.finish ? `hasta el ${shortDay(x.finish)}` : ''] : ['todo', x.from ? rangeDay(x.from, x.finish) : 'después'];
+    const [mark, right] = x.state === 'done' ? ['p2-done', 'hecho'] : x.state === 'known' ? ['p2-done', 'ya lo sabes'] : x.state === 'exclude' ? ['p2-off', 'no cae'] : x.state === 'later' ? ['p2-off', 'después del examen']
+      : now ? ['p2-now', x.finish ? `hasta el ${shortDay(x.finish)}` : ''] : ['p2-todo', x.from ? rangeDay(x.from, x.finish) : 'después'];
     const sub = x.state !== 'study' ? '' : `${now && x.finish && x.finish <= addDays(t, 6) ? 'esta semana · ' : ''}${plural(x.fresh, 'nueva', 'nuevas')}${fixed[x.id] ? ` · antes del ${shortDay(fixed[x.id])}` : ''}`;
-    return `<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'done' ? icon('check', { size: 14 }) : ''}</i><button class="p2-step-b" data-p2="topic" data-id="${esc(x.id)}"><span><b>${esc(name)}</b>${sub ? `<small>${sub}</small>` : ''}</span><em>${right}</em></button></li>`;
+    return `<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'p2-done' ? icon('check', { size: 14 }) : ''}</i><button class="p2-step-b" data-p2="topic" data-id="${esc(x.id)}"><span><b>${esc(name)}</b>${sub ? `<small>${sub}</small>` : ''}</span><em>${right}</em></button></li>`;
   });
   // El repaso: por hacer (círculo vacío, como los temas), en marcha o, solo cuando ha pasado, hecho
   const rp = e.phases.repaso;
   if (rp && rp[0] <= rp[1]) {
-    const mark = rp[1] < t ? 'done' : rp[0] <= t ? 'now' : 'todo';
-    rows.push(`<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'done' ? icon('check', { size: 14 }) : ''}</i><div class="p2-step-b"><span><b>Repaso</b><small>solo repasos y simulacros</small></span><em>${rangeDay(rp[0], rp[1])}</em></div></li>`);
+    const mark = rp[1] < t ? 'p2-done' : rp[0] <= t ? 'p2-now' : 'p2-todo';
+    rows.push(`<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'p2-done' ? icon('check', { size: 14 }) : ''}</i><div class="p2-step-b"><span><b>Repaso</b><small>solo repasos y simulacros</small></span><em>${rangeDay(rp[0], rp[1])}</em></div></li>`);
   }
-  if (e.phases.lastWeek) rows.push(`<li class="p2-step last"><i class="p2-dot" aria-hidden="true">${icon('timer', { size: 14 })}</i><div class="p2-step-b"><span><b>Última semana</b><small>repasa lo que más te cuesta; sin nuevas</small></span><em>${rangeDay(e.phases.lastWeek[0], e.phases.lastWeek[1])}</em></div></li>`);
-  if (e.date) rows.push(`<li class="p2-step exam"><i class="p2-dot" aria-hidden="true"></i><div class="p2-step-b"><span><b>Examen</b><small>${ex.after ? `después: ${esc(shortName(ex.name))} ${AFTER[ex.after]}` : 'después: te preguntaremos'}</small></span><em>${shortDay(e.date)}</em></div></li>`);
+  if (e.phases.lastWeek) rows.push(`<li class="p2-step p2-last"><i class="p2-dot" aria-hidden="true">${icon('timer', { size: 14 })}</i><div class="p2-step-b"><span><b>Última semana</b><small>repasa lo que más te cuesta; sin nuevas</small></span><em>${rangeDay(e.phases.lastWeek[0], e.phases.lastWeek[1])}</em></div></li>`);
+  if (e.date) rows.push(`<li class="p2-step p2-exam"><i class="p2-dot" aria-hidden="true"></i><div class="p2-step-b"><span><b>Examen</b><small>${ex.after ? `después: ${esc(shortName(ex.name))} ${AFTER[ex.after]}` : 'después: te preguntaremos'}</small></span><em>${shortDay(e.date)}</em></div></li>`);
   return `<ol class="p2-path">${rows.join('')}</ol>`;
 }
 
@@ -104,7 +104,7 @@ function bindOrder() {
     const li = e.target.closest('.p2-ord-h')?.closest('.p2-ord');
     if (!li) return;
     e.preventDefault();
-    li.classList.add('dragging');
+    li.classList.add('p2-dragging');
     const move = ev => {
       const rows = [...ul.querySelectorAll('.p2-ord')].filter(r => r !== li);
       const after = rows.find(r => ev.clientY < r.getBoundingClientRect().top + r.offsetHeight / 2);
@@ -112,7 +112,7 @@ function bindOrder() {
     };
     const up = () => {
       removeEventListener('pointermove', move); removeEventListener('pointerup', up);
-      li.classList.remove('dragging');
+      li.classList.remove('p2-dragging');
       setOrder([...ul.querySelectorAll('.p2-ord')].map(r => r.dataset.id));
     };
     addEventListener('pointermove', move); addEventListener('pointerup', up);
