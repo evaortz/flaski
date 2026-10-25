@@ -211,9 +211,10 @@ export async function startTanda(page) {
 
 // Lo que dice Hoy para hoy (la tarjeta de la tanda): { new, reviews, total }; 0 si no hay tanda (hecho, libre…)
 export async function hoyCount(page) {
-  const txt = (await page.locator('#main .p2-legend span').allTextContents()).join(' · ');
-  const n = re => [...txt.matchAll(re)].reduce((a, m) => a + Number(m[1]), 0);
-  const reviews = n(/(\d+) repasos?/g), all = n(/(\d+)/g);
+  // Cada parte empieza por su número: «16 nuevas de Auxiliar», «4 de 3 listas», «92 repasos»
+  const parts = (await page.locator('#main .p2-legend span').allTextContents()).map(t => t.trim());
+  const num = t => Number(/^(\d+)/.exec(t)?.[1] || 0);
+  const reviews = parts.filter(t => /^\d+ repasos?$/.test(t)).reduce((a, t) => a + num(t), 0), all = parts.reduce((a, t) => a + num(t), 0);
   return { new: all - reviews, reviews, total: all };
 }
 

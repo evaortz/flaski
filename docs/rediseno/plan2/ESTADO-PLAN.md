@@ -386,3 +386,20 @@ Quien lo probó con el interruptor (`prefs.plan2`) se queda con el suyo. Hoy, la
 - `tests/rapida.mjs`: «plan» = plan-c, plan2-hoy y simulacro; «hoy» con tanda-corta; remates-plan, en «explorar».
 - Unitarias: **280 de 280**. Batería completa (`PORT=8124`): **375 pasan, 2 fallan, 13 saltadas** (4,9 min). Las dos que
   fallan son las de siempre, `lista.spec.js:65` «Desde un apunte…» (móvil y escritorio), de la otra conversación.
+
+## Revisión del paso C (25 oct 2026)
+
+1. **Sin exámenes, las pantallas solo nombraban la primera lista.** Ahora las nuevas de un día se agrupan
+   (`newGroups` en `plan-ui.js`): cada examen y lo que no tiene examen juntos. Hoy se titula con el tema principal del
+   examen que más da o, sin examen, «Tus listas» (o la lista, si es una), y la leyenda dice «15 nuevas de 5 listas»
+   («12 nuevas de Oposición · 3 de 2 listas» en el caso mezclado; «15 nuevas de Temario» con una sola). En Qué toca
+   ahora, una fila «Tus listas · sin examen · 15 nuevas hoy» que al tocarla dice cuántas de cada una. En la semana
+   (`dayTags`), la etiqueta solo si un tema se lleva más de la mitad del día (con el siguiente del mismo examen si se
+   lleva un cuarto: «T3·T4»), o dos temas del mismo examen a la par; si se reparte entre varias listas, nada.
+2. **El Repaso del camino llevaba la marca de hecho sin haber empezado.** Ahora va vacío como los temas por ver, con
+   el punto de «ahora» mientras dura, y la marca solo cuando ha pasado.
+
+Pruebas: e2e con la demo de verdad (`?local` → «Cargar datos de ejemplo»: 5 listas, 3 nuevas de cada una), el caso
+mezclado y el Repaso, en `plan-c.spec.js`. `hoyCount` cuenta ahora el número del principio de cada parte de la
+leyenda (con «de 5 listas» sumaba el 5). Unitarias 280 de 280; batería completa 378 pasan y 2 fallan (las de siempre,
+`lista.spec.js:65`, de la otra conversación).

@@ -70,7 +70,12 @@ function pathHTML(ex, e) {
     const sub = x.state !== 'study' ? '' : `${now && x.finish && x.finish <= addDays(t, 6) ? 'esta semana · ' : ''}${plural(x.fresh, 'nueva', 'nuevas')}${fixed[x.id] ? ` · antes del ${shortDay(fixed[x.id])}` : ''}`;
     return `<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'done' ? icon('check', { size: 14 }) : ''}</i><button class="p2-step-b" data-p2="topic" data-id="${esc(x.id)}"><span><b>${esc(name)}</b>${sub ? `<small>${sub}</small>` : ''}</span><em>${right}</em></button></li>`;
   });
-  if (e.phases.repaso && e.phases.repaso[0] <= e.phases.repaso[1]) rows.push(`<li class="p2-step rep"><i class="p2-dot" aria-hidden="true">${icon('check', { size: 14 })}</i><div class="p2-step-b"><span><b>Repaso</b><small>solo repasos y simulacros</small></span><em>${rangeDay(e.phases.repaso[0], e.phases.repaso[1])}</em></div></li>`);
+  // El repaso: por hacer (círculo vacío, como los temas), en marcha o, solo cuando ha pasado, hecho
+  const rp = e.phases.repaso;
+  if (rp && rp[0] <= rp[1]) {
+    const mark = rp[1] < t ? 'done' : rp[0] <= t ? 'now' : 'todo';
+    rows.push(`<li class="p2-step ${mark}"><i class="p2-dot" aria-hidden="true">${mark === 'done' ? icon('check', { size: 14 }) : ''}</i><div class="p2-step-b"><span><b>Repaso</b><small>solo repasos y simulacros</small></span><em>${rangeDay(rp[0], rp[1])}</em></div></li>`);
+  }
   if (e.phases.lastWeek) rows.push(`<li class="p2-step last"><i class="p2-dot" aria-hidden="true">${icon('timer', { size: 14 })}</i><div class="p2-step-b"><span><b>Última semana</b><small>repasa lo que más te cuesta; sin nuevas</small></span><em>${rangeDay(e.phases.lastWeek[0], e.phases.lastWeek[1])}</em></div></li>`);
   if (e.date) rows.push(`<li class="p2-step exam"><i class="p2-dot" aria-hidden="true"></i><div class="p2-step-b"><span><b>Examen</b><small>${ex.after ? `después: ${esc(shortName(ex.name))} ${AFTER[ex.after]}` : 'después: te preguntaremos'}</small></span><em>${shortDay(e.date)}</em></div></li>`);
   return `<ol class="p2-path">${rows.join('')}</ol>`;

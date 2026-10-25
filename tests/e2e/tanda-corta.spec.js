@@ -30,7 +30,7 @@ const left = page => page.locator('.studybar .left');
 test('la primera tanda pregunta la duración; los atrasados primero (sin nuevas si no caben) y «Otra vez» vuelve antes de acabar', async ({ page }) => {
   await seed(page);
   // Sin respuestas anteriores: 12 s por repaso y 40 s por nueva. 10 min: los 40 repasos y 3 nuevas
-  await expect(page.locator('#main .p2-legend span')).toHaveText(['3 nuevas', '40 repasos']);
+  await expect(page.locator('#main .p2-legend span')).toHaveText(['3 nuevas de Turco', '40 repasos']);
   await expect(page.locator('#main .p2-go')).toHaveText('Empezar · 10 min');
 
   await page.locator('#main .p2-go').click();
@@ -95,7 +95,7 @@ test('el ritmo sale de tus respuestas (la mediana, sin las pausas) y «Hoy solo 
   // 60 repasos de 10 s y unos ratos de dejar el móvil (más de 5 min) que no cuentan
   await seed(page, { study: { tandaAsked: true }, events: [...Array(60).fill(10), ...Array(8).fill(400)] });
   // 10 min: los 40 repasos (400 s) y 5 nuevas (200 s)
-  await expect(page.locator('#main .p2-legend span')).toHaveText(['5 nuevas', '40 repasos']);
+  await expect(page.locator('#main .p2-legend span')).toHaveText(['5 nuevas de Turco', '40 repasos']);
   await expect(page.locator('#main .p2-go')).toHaveText('Empezar · 10 min');
   // Hoy solo 5 min: caben 30 repasos y ninguna nueva; lo que quede, mañana
   await page.locator('#main [data-p2="today-min"]').click();

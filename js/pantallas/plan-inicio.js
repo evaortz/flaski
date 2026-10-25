@@ -10,7 +10,7 @@ import { todayQueue, dayDone, restLink } from './estudio.js';
 import { fixes, liveExams } from '../plan2.js';
 import { plural } from './mazos.js';
 import { cundeHTML } from './plan-tiempo.js';
-import { examBarHTML, legendHTML, weekRowHTML, weekTotalText, fixCardHTML, shortDay, shortName, topicTag, topicName, deckName, calIcon, daysLeft, VERDICT, MONTHS } from './plan-ui.js';
+import { examBarHTML, legendHTML, weekRowHTML, weekTotalText, fixCardHTML, shortDay, shortName, topicTag, topicName, deckName, calIcon, daysLeft, VERDICT, MONTHS, newGroups } from './plan-ui.js';
 import { commitPlan } from './plan-guardar.js';
 
 const upcoming = fc => fc.exams.filter(e => e.date && e.date >= dayKey()).sort((a, b) => a.date.localeCompare(b.date));
@@ -93,8 +93,14 @@ function nowHTML(fc, exams) {
       : `${shortName(e.name)} · ${plural(day.newBy[id], 'nueva', 'nuevas')} al día${exams[0] && exams[0].id !== e.id && exams[0].finish ? ` hasta que acabes ${shortName(exams[0].name)}` : ''}`;
     cards.push(`<button class="p2-now" data-p2="exam" data-id="${esc(e.id)}"><span class="p2-now-tag hand">${esc(topicTag(deckName(id)))}</span><span><b>${esc(topicName(deckName(id)))}</b><small>${esc(sub)}</small></span>${icon('chevron-right', { size: 18 })}</button>`);
   }
-  const free = Object.keys(day.newBy).filter(id => !exams.some(e => e.topics.some(t => t.id === id)));
-  if (free.length) cards.push(`<div class="p2-now"><span class="p2-now-tag hand">${esc(topicTag(deckName(free[0])))}</span><span><b>${esc(deckName(free[0]))}</b><small>sin examen · ${plural(free.reduce((a, id) => a + day.newBy[id], 0), 'nueva', 'nuevas')} ${day.day === k ? 'hoy' : `el ${WEEK_NAMES[weekdayOf(day.day)]}`}</small></span></div>`);
+  // Lo que no tiene examen: una fila (la lista, o «Tus listas» si son varias) que al tocarla dice cuántas de cada una
+  const free = newGroups(day.newBy, fc, k).find(g => !g.exam);
+  if (free) {
+    const when = day.day === k ? 'hoy' : `el ${WEEK_NAMES[weekdayOf(day.day)]}`, one = free.decks.length === 1;
+    const head = `<span class="p2-now-tag hand">${one ? esc(topicTag(free.name)) : icon('layers', { size: 22 })}</span><span><b>${esc(free.name)}</b><small>sin examen · ${plural(free.n, 'nueva', 'nuevas')} ${when}</small></span>`;
+    cards.push(one ? `<div class="p2-now">${head}</div>`
+      : `<details class="p2-now p2-now-free"><summary>${head}${icon('chevron-down', { size: 18 })}</summary><ul class="p2-now-list">${free.decks.map(([id, n]) => `<li><span>${esc(deckName(id))}</span><b>${plural(n, 'nueva', 'nuevas')}</b></li>`).join('')}</ul></details>`);
+  }
   return cards.join('') || '<p class="muted">Ahora no toca nada nuevo: solo repasos.</p>';
 }
 

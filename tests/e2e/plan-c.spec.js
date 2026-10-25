@@ -299,3 +299,57 @@ test('examen en 6 días: «Así no llegas», «Para llegar» con arreglos que ll
   await page.locator('#sheetBody [data-p2="exam-del-ok"]').click();
   await expect(page.locator('#main .p2-vt')).toHaveText('Sin exámenes a la vista');
 });
+
+test('sin exámenes (la demo): Hoy, Qué toca ahora y la semana hablan de «tus listas», no solo de la primera', async ({ page }) => {
+  await page.goto('/?local');
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
+  await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados');
+  // Hoy: el motor reparte entre las 5 listas, y la tarjeta lo dice
+  const by = await page.evaluate(() => import('/js/plan2-app.js').then(m => Object.values(m.todayPlan().newBy)));
+  expect(by.length).toBe(5);
+  await expect(page.locator('#main .p2-topic')).toHaveText('Tus listas');
+  const n = by.reduce((a, b) => a + b, 0);
+  await expect(page.locator('#main .p2-legend span').first()).toHaveText(`${n} nuevas de 5 listas`);
+  // Plan › Qué toca ahora: una fila para todas, que al tocarla dice cuántas de cada una
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  const row = page.locator('#main .p2-now-free');
+  await expect(row.locator('summary')).toContainText('Tus listas');
+  await expect(row.locator('summary')).toContainText(`sin examen · ${n} nuevas`);
+  await expect(row.locator('.p2-now-list li').first()).toBeHidden();
+  await row.locator('summary').click();
+  await expect(row.locator('.p2-now-list li')).toHaveCount(5);
+  // La semana: hoy ninguna lista se lleva más de la mitad, así que el día no nombra ninguna
+  await expect(page.locator('#main .p2-day em').first()).toHaveText('');
+});
+
+test('un examen y listas sueltas: el examen manda en el título y las sueltas van juntas', async ({ page, seed }) => {
+  await seed(OPOS);
+  await openApp(page);
+  await addExams(page, [['Oposición', 60]]);
+  // 30 min y el tope de 15: el examen se lleva 12 y lo que no tiene examen (Idiomas y Japonés), 3
+  const gs = await page.evaluate(async () => {
+    const m = await import('/js/plan2-app.js'), ui = await import('/js/pantallas/plan-ui.js');
+    return ui.newGroups(m.todayPlan().newBy, m.forecastNow()).map(g => [g.name, g.n, g.decks.length]);
+  });
+  expect(gs).toEqual([['Oposición', 12, 1], ['Tus listas', 3, 2]]);
+  await expect(page.locator('#main .p2-topic')).toHaveText('T1 · Constitución');
+  await expect(page.locator('#main .p2-legend span')).toHaveText(['12 nuevas de Oposición', '3 de 2 listas']);
+  await toPlan(page);
+  await expect(page.locator('#main .p2-now').first()).toContainText('Constitución');
+  await expect(page.locator('#main .p2-now-free summary')).toContainText('Tus listas');
+  // Y el día lo nombra por el tema del examen (se lleva más de la mitad)
+  await expect(page.locator('#main .p2-day em').first()).toHaveText('T1');
+});
+
+test('el camino: «Repaso» va vacío hasta que empieza; la marca de hecho, solo cuando ha pasado', async ({ page, seed }) => {
+  await seed(OPOS);
+  await openApp(page);
+  await addExams(page, [['Oposición', 60]]);
+  await toPlan(page);
+  await page.locator('#main .p2-exrow').click();
+  const rep = page.locator('#main .p2-step', { hasText: 'Repaso' });
+  await expect(rep).toHaveClass(/todo/);
+  await expect(rep.locator('.p2-dot svg')).toHaveCount(0);
+});

@@ -5,6 +5,7 @@ import { WEEK, WEEK_NAMES, dayKey, addDays, isDay, live, daysBetween, weekdayOf 
 import { main, S, esc, toast } from '../comun.js';
 import { plan2, editPlan2, todayPlan, forecastNow, minutesToday } from '../plan2-app.js';
 import { plural } from './mazos.js';
+import { newGroups, deckName } from './plan-ui.js';
 import { liveExams } from '../plan2.js';
 import { openSheet, closeSheet } from './editor.js';
 import { savePrefsSoon } from './perfil.js';
@@ -154,10 +155,7 @@ export function p2Click(b) {
 // La tanda de hoy: el tema principal, la barra (nuevas de cada examen y repasos) y «Empezar · N min»
 export function heroHTML({ hi, back, fresh = 0 }) {
   const t = todayPlan(), fc = forecastNow(), k = dayKey(), pause = pauseOn(k);
-  const examOf = id => fc.exams.filter(e => e.date >= k).find(e => e.topics.some(x => x.id === id && x.state === 'study'));
-  const groups = new Map();
-  for (const [id, n] of Object.entries(t.newBy)) { const e = examOf(id), key = e ? e.name : ''; groups.set(key, (groups.get(key) || 0) + n); }
-  const main_ = Object.entries(t.newBy).sort((a, b) => b[1] - a[1])[0];
+  const groups = newGroups(t.newBy, fc, k), first = groups[0];
   if (pause) {
     return `<h1 class="hero-hi hero-done">Estás en pausa</h1><p class="day-next">Hasta el ${longDay(pause.to)} no te toca nada. A la vuelta, el plan se recoloca solo. <button class="link" data-p2="unpause">Volver ya</button></p>`;
   }
@@ -172,10 +170,11 @@ export function heroHTML({ hi, back, fresh = 0 }) {
       ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : ''}`;
   }
   const total = Math.max(1, t.total), mins = Math.max(1, Math.min(t.minutes, Math.ceil(Math.min(t.secs, t.minutes * 60) / 60)));
-  const segs = [...groups].map(([, n], i) => `<i class="p2-seg p2-s${Math.min(i, 2)}" style="width:${(100 * n) / total}%"></i>`).join('') + (t.reviews ? `<i class="p2-seg p2-sr" style="width:${(100 * t.reviews) / total}%"></i>` : '');
-  const legend = [...[...groups].map(([name, n], i) => `<span><i class="p2-s${Math.min(i, 2)}"></i>${i ? n : plural(n, 'nueva', 'nuevas')}${name ? ` de ${esc(shortName(name))}` : ''}</span>`),
+  const segs = groups.map(({ n }, i) => `<i class="p2-seg p2-s${Math.min(i, 2)}" style="width:${(100 * n) / total}%"></i>`).join('') + (t.reviews ? `<i class="p2-seg p2-sr" style="width:${(100 * t.reviews) / total}%"></i>` : '');
+  const legend = [...groups.map((g, i) => `<span><i class="p2-s${Math.min(i, 2)}"></i>${i ? g.n : plural(g.n, 'nueva', 'nuevas')} ${esc(g.label)}</span>`),
     t.reviews ? `<span><i class="p2-sr"></i>${plural(t.reviews, 'repaso', 'repasos')}</span>` : ''].join('');
-  const title = main_ ? S.decks.get(main_[0])?.name || 'Tus nuevas' : 'Tus repasos';
+  // El título: el tema principal del examen que más nuevas da hoy; sin examen, la lista (o «Tus listas» si son varias)
+  const title = !first ? 'Tus repasos' : first.exam ? deckName(first.decks[0][0]) : first.name;
   const changed = plan2().time?.today?.day === k;
   return `<div class="p2-tanda"><small>${back ? `${hi}. ` : ''}Tu tanda de hoy · ${t.minutes} min</small>
       <h1 class="p2-topic">${esc(title)}</h1>

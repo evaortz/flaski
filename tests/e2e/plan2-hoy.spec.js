@@ -76,17 +76,17 @@ test('«Hoy solo tengo 10 min» cambia solo hoy: menos nuevas, y se vuelve a lo 
   await openApp(page);
   await setPlan(page, every(45));
   // 45 min: las 15 nuevas al día de Ajustes (el tope)
-  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas de Temario');
   await page.locator('#main [data-p2="today-min"]').click();
   await page.locator('#sheetBody [data-p2="today-set"][data-min="5"]').click();
   // 5 min a 40 s por nueva: 7
   await expect(page.locator('#main .p2-tanda')).toContainText('Tu tanda de hoy · 5 min');
-  await expect(page.locator('#main .p2-legend')).toHaveText('7 nuevas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('7 nuevas de Temario');
   await expect(page.locator('#main .p2-less')).toContainText('Hoy, 5 min.');
   const week = await page.evaluate(() => import('/js/plan2-app.js').then(m => m.plan2().time.week.mon));
   expect(week).toBe(45);
   await page.locator('#main .p2-less [data-p2="today-reset"]').click();
-  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas de Temario');
   // Mañana ya no cuenta
   await page.locator('#main [data-p2="today-min"]').click();
   await page.locator('#sheetBody [data-p2="today-set"][data-min="10"]').click();
@@ -122,7 +122,7 @@ test('Tu tiempo: más minutos el día de hoy dan más nuevas en Hoy, y «Cuánto
   await seed({ decks: [{ name: 'Temario', cards: qs(100) }] });
   await openApp(page);
   await setPlan(page, every(5));
-  await expect(page.locator('#main .p2-legend')).toHaveText('7 nuevas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('7 nuevas de Temario');
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
   await page.locator('#main [data-p2="time"]').first().click();
@@ -134,7 +134,7 @@ test('Tu tiempo: más minutos el día de hoy dan más nuevas en Hoy, y «Cuánto
   await expect(page.locator(`#p2w-${wd} + output`)).toHaveText('10 min');
   await expect(page.locator('#p2WeekTotal')).toHaveText('40 min a la semana');
   await nav(page, 'Hoy');
-  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas');
+  await expect(page.locator('#main .p2-legend')).toHaveText('15 nuevas de Temario');
   await expect(page.locator('#main .p2-tanda')).toContainText('10 min');
 });
 

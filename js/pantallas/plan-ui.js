@@ -47,13 +47,46 @@ export function barText(e) {
 }
 export const legendHTML = () => '<p class="pb-legend"><span><i class="pb-t"></i>temario por ver</span><span><i class="pb-r"></i>repaso</span><span><i class="pb-l"></i>última semana</span></p>';
 
+/* ---------------- las nuevas de un día, por grupos ---------------- */
+// Cada examen (sus temas) y lo que no tiene examen («tus listas»), del que más nuevas da al que menos; en cada
+// grupo, sus listas igual. g.label: «de Auxiliar», «de Japonés» (una lista suelta) o «de 5 listas»
+export function newGroups(newBy, fc, k = dayKey()) {
+  const exams = fc.exams.filter(e => !e.date || e.date >= k), out = new Map();
+  for (const [id, n] of Object.entries(newBy || {})) {
+    if (!(n > 0)) continue;
+    const e = exams.find(x => x.topics.some(t => t.id === id && t.state === 'study'));
+    const key = e ? e.id : 'free';
+    if (!out.has(key)) out.set(key, { key, exam: e || null, n: 0, decks: [] });
+    const g = out.get(key); g.n += n; g.decks.push([id, n]);
+  }
+  const gs = [...out.values()].sort((a, b) => b.n - a.n);
+  for (const g of gs) {
+    g.decks.sort((a, b) => b[1] - a[1]);
+    g.name = g.exam ? shortName(g.exam.name) : g.decks.length === 1 ? deckName(g.decks[0][0]) : 'Tus listas';
+    g.label = g.exam ? `de ${shortName(g.exam.name)}` : g.decks.length === 1 ? `de ${deckName(g.decks[0][0])}` : `de ${g.decks.length} listas`;
+  }
+  return gs;
+}
+// La etiqueta de un día de la semana: el tema que se lleva más de la mitad (y el siguiente del mismo examen si se
+// lleva un cuarto, como «T3·T4»), o dos temas del mismo examen a la par; si se reparte entre varias listas, nada
+export function dayTags(d, fc) {
+  if (!d.new) return [];
+  const gs = newGroups(d.newBy, fc, d.day), all = gs.flatMap(g => g.decks.map(([id, n]) => ({ id, n, g }))).sort((a, b) => b.n - a.n);
+  const top = all[0], tag = x => topicTag(deckName(x.id));
+  if (top.n > d.new / 2) {
+    const next = all.find(x => x !== top && x.g === top.g && top.g.exam && x.n >= d.new / 4);
+    return next ? [tag(top), tag(next)] : [tag(top)];
+  }
+  if (gs.length === 1 && gs[0].exam) return all.filter(x => x.n >= d.new / 4).slice(0, 2).map(tag);
+  return [];
+}
+
 /* ---------------- la fila de la semana ---------------- */
 // Los próximos 7 días (desde hoy) con sus minutos y el tema que toca; al tocar un día, Tu tiempo
 export function weekRowHTML(fc = forecastNow()) {
   const t = dayKey(), days = fc.days.slice(0, 7);
   const tiles = days.map((d, i) => {
-    // Los temas que se llevan buena parte del día (no el goteo del otro examen)
-    const tags = Object.entries(d.newBy).filter(([, n]) => n >= d.new / 4).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([id]) => topicTag(deckName(id)));
+    const tags = dayTags(d, fc);
     const free = !d.minutes;
     return `<button type="button" class="p2-day${free ? ' free' : ''}${i === 0 ? ' now' : ''}" data-p2="time" aria-label="${dayName(d.day)}: ${free ? 'libre' : `${d.minutes} minutos`}${tags.length ? `, ${tags.join(' y ')}` : ''}">
       <small>${WEEK_SHORT[weekdayOf(d.day)]}</small><b>${free ? '·' : d.minutes}</b><small>${free ? 'libre' : 'min'}</small><em>${esc([...new Set(tags)].join('·'))}</em></button>`;

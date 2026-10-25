@@ -280,3 +280,12 @@ button.p2-step-b{cursor:pointer}
   .p2-plan .p2-add{display:none}
 }
 .p2-today{margin:0;font-size:15px;line-height:1.5}
+.p2-now-free{display:block;padding:0}
+.p2-now-free summary{display:flex;align-items:center;gap:14px;padding:14px 16px;list-style:none;cursor:pointer}
+.p2-now-free summary::-webkit-details-marker{display:none}
+.p2-now-free summary > span:nth-child(2){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.p2-now-free summary > svg{flex:none;transition:transform .15s}
+.p2-now-free[open] summary > svg{transform:rotate(180deg)}
+.p2-now-list{list-style:none;margin:0;padding:0 16px 12px 70px}
+.p2-now-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:14.5px}
+.p2-now-list b{font-weight:600;white-space:nowrap}
