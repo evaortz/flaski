@@ -553,7 +553,7 @@ function entDoneHTML(ses) {
   const last = new Map();
   for (const x of ses.ent || []) last.set(x.id, x.g);
   if (!last.size) return '';
-  const rows = [...last].map(([id, g]) => { const c = S.cards.get(id); return c ? `<li><span>${esc(String(c.front).split('\n')[0].slice(0, 70))}</span><b class="ent-pill eg${g}">${ENT_LABEL[g]}</b></li>` : ''; }).join('');
+  const rows = [...last].map(([id, g]) => { const c = S.cards.get(id); return c ? `<li><span class="ent-done-q">${esc(String(c.front).split('\n')[0])}</span><b class="ent-pill eg${g}">${ENT_LABEL[g]}</b></li>` : ''; }).join('');
   return `<section class="ent-done"><h3>Lo que entiendes</h3><p>Por ideas de tu apunte, no por aciertos.</p><ul>${rows}</ul></section>`;
 }
 const canDictate = () => typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);

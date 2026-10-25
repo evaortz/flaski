@@ -131,3 +131,15 @@ test('casillas de «¿Qué ideas te salieron?»: aspecto propio, en claro y en o
     expect(on.mark).toBe(session);
   }
 });
+
+test('«Lo que entiendes» del fin de tanda: la pregunta no se corta a mitad de palabra (dos líneas como mucho)', async ({ page, seed }) => {
+  const q = 'Explica con tus palabras qué es la ilusión de fluidez y por qué engaña tanto al releer en vez de recordar';
+  await create(page, seed, 'explain', { q, k: 'Releer da sensación de saber' });
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('.grades [data-grade="3"]').click();
+  const row = page.locator('.ent-done li .ent-done-q');
+  await expect(row).toHaveText(q);
+  const r = await row.evaluate(el => ({ clamp: getComputedStyle(el).webkitLineClamp, lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || 20)) }));
+  expect(r.clamp).toBe('2');
+  expect(r.lines).toBeLessThanOrEqual(2);
+});
