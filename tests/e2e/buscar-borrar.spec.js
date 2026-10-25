@@ -78,13 +78,13 @@ test('borrar una lista: sus preguntas se van también de Hoy', async ({ page }) 
   await page.locator('#main .lt-list').filter({ hasText: 'Capitales' }).click();
   await deckMenu(page, '[data-act="ask-delete-deck"]');
   await page.locator('#sheetBody [data-act="delete-deck"]').click();
-  await expect(page.locator('#toast')).toContainText('Lista borrada');
+  await expect(page.locator('#toast')).toContainText('Lista en la papelera');
   expect(await page.evaluate(async () => { const { S } = await import('/js/comun.js'); return S.cards.size; })).toBe(0);
   await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveCount(0);
 });
 
-test('borrar una carpeta: sus listas y apuntes pasan a la de arriba, con sus preguntas', async ({ page }) => {
+test('borrar una carpeta: va a la papelera con sus listas y sus preguntas salen de Hoy', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').first().click();
@@ -100,12 +100,12 @@ test('borrar una carpeta: sus listas y apuntes pasan a la de arriba, con sus pre
   await page.locator('#main .lfold').filter({ hasText: 'Tema 1' }).click();
   await page.locator('#main [data-act="edit-folder"], #main .fhero [data-act*="folder"]').first().click();
   await page.locator('#sheetBody [data-act="ask-delete-folder"]').click();
-  await expect(page.locator('#sheetBody h2')).toHaveText('¿Borrar esta carpeta?');
+  await expect(page.locator('#sheetBody h2')).toHaveText('¿Borrar la carpeta «Tema 1»?');
   await page.locator('#sheetBody [data-act="delete-folder"]').click();
-  await expect(page.locator('#toast')).toContainText('Carpeta borrada');
+  await expect(page.locator('#toast')).toContainText('Carpeta en la papelera');
   await nav(page, 'Biblioteca');
   await expect(page.locator('#main .lfold')).toHaveCount(0);
-  await expect(page.locator('#main .ltiles')).toContainText('Capitales');
+  await expect(page.locator('#main')).not.toContainText('Capitales');
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-num')).toHaveText('1');
+  await expect(page.locator('.hero-num')).toHaveCount(0);
 });

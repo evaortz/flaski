@@ -70,9 +70,22 @@ export const cardList = () => [...S.cards.values()];
 let toastTimer;
 export function toast(msg) {
   const t = $('#toast');
-  t.textContent = msg; t.hidden = false;
+  t.textContent = msg; t.hidden = false; t.classList.remove('toast-act'); toastAct = null;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
+// Aviso oscuro con un botón («Deshacer», «Ver») y una barrita que se acaba (6 s)
+let toastAct = null;
+export function toastAction(msg, label, fn, { ms = 6000, icon: ic = '' } = {}) {
+  const t = $('#toast');
+  t.innerHTML = `${ic ? icon(ic, { size: 16, cls: 'ta-ic' }) : ''}<span class="ta-msg">${esc(msg)}</span><button type="button" class="ta-btn">${esc(label)}</button><i class="ta-bar" style="animation-duration:${ms}ms"></i>`;
+  t.classList.add('toast-act'); t.hidden = false;
+  toastAct = fn;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; toastAct = null; }, ms);
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest?.('#toast .ta-btn') || !toastAct) return;
+  const f = toastAct; toastAct = null; $('#toast').hidden = true; clearTimeout(toastTimer); f();
+});
 export function errMsg(e) {
   const m = (e && (e.message || e.error_description)) || '';
   if (/Invalid login credentials/i.test(m)) return 'Correo o contraseña incorrectos.';

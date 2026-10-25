@@ -19,6 +19,7 @@ import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
+import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
@@ -149,6 +150,7 @@ export async function onSignedIn(session) {
     migrateDeckLangs();
     dedupeTypes();
     if (!S.fromCache) dropEmptyPages();
+    if (!S.fromCache) purgeExpired();   // lo que lleva más de 30 días en la papelera se borra del todo
     if (!S.fromCache) migrateEntender();
     // Los pesos de foco de antes (porcentajes) pasan a Poco · Normal · Mucho
     if (!S.fromCache && normalizeWeights(S.decks, S.folders, S.prefs.plan.nodes)) savePrefsSoon();
@@ -181,6 +183,7 @@ function applyData(d) {
   S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
   S.pagesMissing = !!d.pagesMissing;
   S.pageTagsMissing = !!d.pageTagsMissing;
+  splitTrash();   // lo borrado (deleted_at) va a la papelera
 }
 
 // Apuntes vacíos de antes de que se descartaran al salir (sin título, sin nada escrito y sin preguntas): fuera

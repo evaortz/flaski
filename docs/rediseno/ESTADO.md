@@ -1,5 +1,10 @@
 # Estado del rediseño
 
+> **ANTES DEL PUSH DEL PASO 5**
+> 1. Ejecuta `supabase/schema.sql` entero en el SQL Editor de Supabase (columna `deleted_at` de la papelera, «¡Bravo!», `recent_cheers`, `delete_my_account` y las políticas de lectura pública). La app nueva pide `deleted_at`: sin este SQL, falla.
+> 2. Vuelve a desplegar la función `recordatorio` (`supabase functions deploy recordatorio`): ahora avisa también de «¡Bravo!».
+> 3. Después, el push.
+
 ## Fase 1 · dividir app.js (hecha)
 - Hecho: app.js (6.629 líneas) → `js/app.js` (~880: go/render, manejadores globales y arranque), `js/comun.js` (estado `S` único y utilidades) y `js/pantallas/` (cuenta, inicio, estudio, mazos, explorar, apuntes, perfil, editor, amigos). Un commit por archivo; `sw.js` va por `flaski-v82`.
 - Solo se ha movido código: las líneas son las mismas que en el original. Cambian los `import`/`export`, se quitan imports que no se usaban y hay un setter (`setImportInto`) porque app.js reasignaba esa variable de apuntes.

@@ -17,7 +17,7 @@ import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
@@ -32,6 +32,8 @@ import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, n
 import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
 import { focusPageBlock } from './pantallas/apuntes.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
+import { askTrash, trashItem, renderTrash } from './pantallas/papelera.js';
+import { renderBye, renderByeDone } from './pantallas/borrar-cuenta.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { renderPlan, renderExam, renderPlanStart, planClick, removeExam } from './pantallas/plan.js';
@@ -67,7 +69,7 @@ export function render() {
   if (S.view === 'decks' && !S.folderId) S.view = 'library';
   if (S.view === 'library') Object.assign(S, { folderId: null, noteFolder: null });
   if (S.view === 'decks') S.noteFolder = S.folderId;
-  $('#nav').hidden = !authed || S.view === 'study' || (S.view === 'sim' && (S.simShow ? S.simShow.mode !== 'answers' : !!S.sim));
+  $('#nav').hidden = !authed || !!S.byeDone || S.view === 'study' || (S.view === 'sim' && (S.simShow ? S.simShow.mode !== 'answers' : !!S.sim));
   document.body.classList.toggle('no-nav', $('#nav').hidden);
   // La marca (logo y nombre) solo en la pantalla de entrar: con la sesión iniciada, el contenido sube
   document.body.classList.toggle('signed-out', !authed);
@@ -75,15 +77,16 @@ export function render() {
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'sim'].includes(S.view));
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page', 'trash'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'sim', 'bye'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
+  if (S.byeDone) return renderByeDone();
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   // Mientras cargan los datos, un esqueleto de Hoy (no una caja vacía con un círculo)
   if (S.loading) { if (!main.querySelector('.skel')) main.innerHTML = '<div class="skel" role="status" aria-busy="true" aria-label="Cargando"><span class="sk sk-t"></span><span class="sk sk-num"></span><span class="sk sk-line"></span><span class="sk sk-btn"></span><span class="sk sk-card"></span><span class="sk sk-card sk-short"></span></div>'; return; }
-  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, sim: renderSim }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, sim: renderSim, trash: renderTrash, bye: renderBye }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -93,6 +96,16 @@ function navMe() {
   const who = S.name || (api.mode === 'local' ? 'Tú' : (S.email || '').split('@')[0]) || 'Tú', st = streaks(S.log).current;
   el.innerHTML = `<span class="pf-av">${esc(who.trim().charAt(0).toUpperCase())}</span><span class="nav-me-t"><b>${esc(who)}</b><span>${icon(st ? 'racha' : 'racha-apagada', { size: 14 })} ${plural(st, 'día', 'días')}</span></span>`;
 }
+
+// Preguntas borradas a la espera de «Deshacer» (6 s); si la app se cierra antes, se borran ya
+const laterDeletes = new Set();
+function laterDelete(ids) {
+  const job = { cancel() { clearTimeout(job.t); laterDeletes.delete(job); }, run() { job.cancel(); for (const id of ids) api.deleteCard(id).catch(() => {}); } };
+  job.t = setTimeout(() => job.run(), 6000);
+  laterDeletes.add(job);
+  return job;
+}
+addEventListener('pagehide', () => { for (const j of [...laterDeletes]) j.run(); });
 
 /* ===================== eventos ===================== */
 document.addEventListener('click', async e => {
@@ -468,13 +481,13 @@ document.addEventListener('click', async e => {
       return moveDecks(ids, S.folderId);
     }
     case 'edit-folder': return folderForm(S.folders.get(S.folderId));
-    case 'ask-delete-folder': return confirmSheet('¿Borrar esta carpeta?', 'delete-folder', 'Borrar carpeta');
+    // Borrar una lista, un apunte o una carpeta: a la papelera (30 días), con «Deshacer»
+    case 'ask-delete-folder': return askTrash('folder', S.folderId);
     case 'delete-folder': {
       b.disabled = true;
       const fid = S.folderId;
       const parent = S.folders.get(fid)?.parent_id || null;
-      const up = parent && S.folders.has(parent) ? parent : null;
-      try { await deleteFolder(fid); toast('Carpeta borrada'); return go('decks', { folderId: up }); }
+      try { await trashItem('folder', fid); closeSheet(); return go('decks', { folderId: parent && S.folders.has(parent) ? parent : null }); }
       catch (err) { b.disabled = false; return fail(err); }
     }
     case 'manage-tags': return tagsSheet();
@@ -501,14 +514,13 @@ document.addEventListener('click', async e => {
       return redrawBlocks(target.id, ds.act === 'add-table' ? 2 : 0);
     }
     case 'add-image': { const f = await pickImage(); return f && addImageBlock(f); }
-    case 'ask-delete-page': return confirmSheet('¿Borrar este apunte?', 'delete-page', 'Borrar');
+    case 'ask-delete-page': return askTrash('page', S.pageId);
     case 'delete-page': {
-      const id = S.pageId;
-      try { await api.deletePage(id); } catch (err) { return fail(err); }
-      S.pages.delete(id);
-      for (const c of S.cards.values()) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
-      toast('Apunte borrado. Sus preguntas se conservan.');
-      return go('notes');
+      const id = S.pageId, folder = S.pages.get(id)?.folder_id || null;
+      b.disabled = true;
+      try { await trashItem('page', id); } catch (err) { b.disabled = false; return fail(err); }
+      closeSheet();
+      return go('decks', { folderId: folder && S.folders.has(folder) ? folder : null });
     }
     case 'back-study': return go('study');
     case 'edit-nfolder': return folderForm(S.folders.get(S.noteFolder));
@@ -710,29 +722,33 @@ document.addEventListener('click', async e => {
       catch (err) { b.disabled = false; fail(err); }
       return;
     }
-    case 'ask-delete-deck': return confirmSheet('¿Borrar esta lista y todas sus preguntas?', 'delete-deck', 'Borrar lista');
+    case 'ask-delete-deck': return askTrash('deck', S.deckId);
     case 'delete-deck': {
       b.disabled = true;
       const folderOfDeleted = S.decks.get(S.deckId)?.folder_id || null;
-      try {
-        await api.deleteDeck(S.deckId);
-        for (const c of cardList()) if (c.deck_id === S.deckId) { S.cards.delete(c.id); S.progress.delete(c.id); }
-        S.decks.delete(S.deckId); S.pub = null;
-        toast('Lista borrada'); return go('decks', { folderId: folderOfDeleted });
-      } catch (err) { b.disabled = false; return fail(err); }
+      try { await trashItem('deck', S.deckId); closeSheet(); return go('decks', { folderId: folderOfDeleted && S.folders.has(folderOfDeleted) ? folderOfDeleted : null }); }
+      catch (err) { b.disabled = false; return fail(err); }
     }
     case 'ask-delete-card': {
       const ids = S.edit?.siblings?.length ? S.edit.siblings : [b.closest('form').dataset.id];
       S.deleting = ids;
       return confirmSheet(ids.length > 1 ? `¿Borrar esta nota y sus ${ids.length} preguntas?` : '¿Borrar esta pregunta?', 'delete-card', 'Borrar');
     }
+    // Una pregunta suelta no va a la papelera: desaparece al momento y se borra de verdad a los 6 s, si no se deshace
     case 'delete-card': {
-      const ids = S.deleting || []; b.disabled = true;
-      try {
-        for (const id of ids) { await api.deleteCard(id); S.cards.delete(id); S.progress.delete(id); }
-        if (S.session) { S.session.queue = S.session.queue.filter(x => !ids.includes(x)); S.session.st = null; S.session.revealed = false; }
-        toast(ids.length > 1 ? 'Preguntas borradas' : 'Pregunta borrada'); closeSheet(); return render();
-      } catch (err) { b.disabled = false; return fail(err); }
+      const ids = S.deleting || [];
+      const gone = ids.map(id => [S.cards.get(id), S.progress.get(id)]).filter(([c]) => c);
+      for (const id of ids) { S.cards.delete(id); S.progress.delete(id); }
+      const queue = S.session ? [...S.session.queue] : null;
+      if (S.session) { S.session.queue = S.session.queue.filter(x => !ids.includes(x)); S.session.st = null; S.session.revealed = false; }
+      const later = laterDelete(ids);
+      toastAction(ids.length > 1 ? 'Preguntas borradas' : 'Pregunta borrada', 'Deshacer', () => {
+        later.cancel();
+        for (const [c, p] of gone) { S.cards.set(c.id, c); if (p) S.progress.set(c.id, p); }
+        if (S.session && queue) { S.session.queue = queue; S.session.st = null; S.session.revealed = false; }
+        render();
+      }, { icon: 'trash-2' });
+      closeSheet(); return render();
     }
     case 'open-owned': return go('deck', { deckId: b.dataset.deck, cardQuery: '' });
     case 'ask-reset-card': S.resetCard = b.closest('form').dataset.id; return confirmSheet('¿Reiniciar el progreso de esta pregunta?', 'reset-card', 'Reiniciar');

@@ -39,6 +39,12 @@ export async function mockCloud(page) {
     const path = u.pathname.replace('/rest/v1/', '');
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (path.startsWith('/auth/v1/logout')) return route.fulfill({ status: 204, body: '' });
+    // Storage: listar la carpeta de la cuenta (al borrarla) y borrar
+    if (/^\/storage\/v1\/object\/list\//.test(path)) {
+      const { prefix = '' } = req.postDataJSON() || {};
+      if (srv.storageDown) return route.abort('internetdisconnected');
+      return json([...srv.files.keys()].filter(k => k.startsWith(`media/${prefix}/`)).map(k => ({ id: k, name: k.split('/').pop() })));
+    }
     // Storage: subir y descargar archivos (las imágenes)
     const obj = /^\/storage\/v1\/object\/(?:authenticated\/)?(.+)$/.exec(path);
     if (obj) {
@@ -65,6 +71,11 @@ export async function mockCloud(page) {
     const SOCIAL = { my_social: () => [{ code: srv.social.code, share: srv.social.share }], friend_summary: () => srv.social.friends,
       friend_requests: () => srv.social.requests, my_cheers: () => srv.social.cheers, recent_cheers: () => srv.social.recent || srv.social.cheers, request_friend: () => srv.social.result };
     const fn = path.startsWith('rpc/') ? path.slice(4) : '';
+    // Borrar la cuenta (srv.deleteFails: la función falla)
+    if (fn === 'delete_my_account') {
+      srv.writes.push(['rpc', fn, null]);
+      return srv.deleteFails ? json({ code: 'P0001', message: 'la base de datos no responde' }, 500) : route.fulfill({ status: 204, body: '' });
+    }
     if (['my_social', 'friend_summary', 'friend_requests', 'my_cheers', 'recent_cheers', 'request_friend', 'respond_friend', 'remove_friend', 'block_friend', 'unblock_friend', 'send_cheer', 'set_share'].includes(fn)) {
       if (srv.social.missing) return json({ code: 'PGRST202', message: 'Could not find the function' }, 404);
       srv.writes.push(['rpc', fn, req.postData() ? req.postDataJSON() : null]);

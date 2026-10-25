@@ -271,7 +271,7 @@ test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover ap
   await expect(page.locator('#main [data-act="new-folder"]')).toHaveCount(1);             // un solo «+ Carpeta»
 });
 
-test('borrar una carpeta no pierde sus apuntes ni sus listas: pasan a sueltos', async ({ page }) => {
+test('borrar una carpeta la manda entera a la papelera, con sus apuntes; al recuperarla vuelve con ellos', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').click();
@@ -283,12 +283,17 @@ test('borrar una carpeta no pierde sus apuntes ni sus listas: pasan a sueltos', 
   await page.locator('[data-act="ask-delete-folder"]').click();
   await page.locator('#sheetBody [data-act="delete-folder"]').click();
   await expect(page.locator('#main .lfold')).toHaveCount(0);
-  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Casos']);
-  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.folder_id));
-  await expect.poll(stored).toEqual([null]);
+  await expect(page.locator('#main .ltiles .lt-name')).toHaveCount(0);
+  // Guardado: la carpeta marcada y el apunte dentro, sin tocar
+  const stored = () => page.evaluate(() => { const d = JSON.parse(localStorage.getItem('flaski-local-v1')); return [!!d.folders[0].deleted_at, d.pages.map(p => p.folder_id === d.folders[0].id)]; });
+  await expect.poll(stored).toEqual([true, [true]]);
   await page.reload();
   await nav(page, 'Biblioteca');
-  await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Casos']);
+  await page.locator('.lib-trash').click();
+  await page.locator('.tr-row [data-tr="restore"]').click();
+  await page.locator('#sheetBody [data-tr="restore-ok"]').click();
+  await nav(page, 'Biblioteca');
+  await expect(page.locator('#main .lfold')).toContainText('Turco');
 });
 
 test('color de la carpeta: cobalto si no se elige ninguno; si no, el elegido', async ({ page }) => {

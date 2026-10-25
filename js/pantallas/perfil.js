@@ -23,6 +23,7 @@ import { openSheet, closeSheet, deckTypes, adoptTypes, deckOptionName } from './
 import { examList, forecast } from './plan.js';
 import { NEWS_VERSION } from '../news.js';
 import { friendsBadge, loadFriends } from './amigos.js';
+import { trashSummary } from './papelera.js';
 
 /* ===================== perfil ===================== */
 // Cabecera (nombre con lápiz, racha y comodín, 4 cifras), «Tu estudio», «Flaski», la cuenta y, al final,
@@ -319,11 +320,13 @@ export function renderSettings() {
     ${sec('s-data', () => `
       ${setRow('Copia de seguridad', 'Todas tus listas, preguntas, progreso y ajustes en un archivo.', `<button type="button" class="ghost" data-act="backup">${icon('download', { size: 16 })} Descargar</button>`, { keys: 'exportar backup' })}
       ${setRow('Restaurar copia', api.mode === 'local' ? 'Una copia de este navegador lo sustituye todo; una de una cuenta añade las listas que falten.' : 'Añade las listas que no tengas, con su progreso. Las que ya están no se tocan.', `<button type="button" class="ghost" data-act="restore">${icon('upload', { size: 16 })} Elegir archivo</button>`, { keys: 'importar recuperar' })}
+      ${setRow('Papelera', trashSummary(), `<button type="button" class="ghost" data-nav="trash">${icon('trash-2', { size: 16 })} Abrir la papelera</button>`, { keys: 'papelera recuperar borrado borrados borradas deshacer' })}
       ${setRow('Listas hechas con IA', 'Instrucciones para que ChatGPT, Gemini o Claude te preparen una lista. Lo que te respondan se pega en Biblioteca › Importar › Pegar.', AI_GUIDE_BTNS(), { keys: 'inteligencia artificial chatgpt' })}
       <div class="set-care"><h3>Con cuidado</h3>
         ${setRow('Reiniciar el progreso', 'Todas las preguntas vuelven a ser nuevas. Las listas no se tocan. No se puede deshacer.', `<button type="button" class="pr-danger" data-act="ask-reset-progress">Reiniciar</button>`, { keys: 'borrar progreso empezar de cero' })}
         ${setRow('Ajustes por defecto', 'Vuelve a la configuración original. No toca tus datos.', `<button type="button" class="ghost" data-act="ask-reset-prefs">Restablecer</button>`, { keys: 'restablecer original' })}
-      </div>`)}
+      </div>
+      <div class="set-care set-bye">${setRow('Borrar tu cuenta', api.mode === 'local' ? 'Se borra todo lo de Flaski en este navegador: listas, apuntes, preguntas, progreso y simulacros. No se puede deshacer.' : 'Se borra todo lo tuyo de Flaski: listas, apuntes, preguntas, progreso, simulacros y amigos. No se puede deshacer.', `<button type="button" class="danger solid primary" data-nav="bye">Borrar mi cuenta…</button>`, { col: true, keys: 'borrar cuenta eliminar cuenta darse de baja baja' })}</div>`)}
     <div class="set-moved" id="setMoved" hidden></div>
     </div></div>`;
   markToc();

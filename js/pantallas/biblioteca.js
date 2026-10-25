@@ -163,6 +163,7 @@ function renderRoot() {
     <div class="org-bar">
       <label class="sort-inline">Orden: <select id="libSort" aria-label="Ordenar">${SORTS.map(x => `<option value="${x.id}" ${x.id === o.sort ? 'selected' : ''}>${x.label}</option>`).join('')}</select></label>
       <button class="link" data-act="toggle-archived" aria-pressed="${o.archived}">${o.archived ? 'Ver las activas' : 'Archivadas'}</button>
+      ${S.trash?.size ? `<button class="fchip lib-trash" data-nav="trash">${icon('trash-2', { size: 15 })} Papelera · ${S.trash.size}</button>` : ''}
     </div>
     ${studyTag}
     ${folders.length ? `<ul class="lfolds">${folders.map(folderCard).join('')}</ul>` : ''}

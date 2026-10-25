@@ -76,7 +76,8 @@ test('lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Saca
   await page.locator('[data-act="page-menu"]').click();
   await expect(page.locator('#sheetBody')).toContainText('Borrar apunte');
   await page.locator('#sheetBody [data-act="ask-delete-page"]').click();
-  await expect(page.locator('#sheetBody h2')).toHaveText('¿Borrar este apunte?');
+  await expect(page.locator('#sheetBody h2')).toHaveText('¿Borrar «Tema 1»?');
+  await expect(page.locator('#sheetBody')).toContainText('Va a la papelera');
   await expect(page.locator('#sheetBody [data-act="delete-page"]')).toHaveText('Borrar');
 });
 

@@ -209,6 +209,7 @@ export async function publicDecks() {
   const decks = check(await sb.from('decks')
     .select('id, name, description, owner, created_at, cards(count)')
     .eq('is_public', true)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200));
   const owners = [...new Set(decks.map(d => d.owner))];
@@ -337,6 +338,30 @@ export async function createPage(fields) {
 }
 export async function deletePage(id) {
   check(await sb.from('pages').delete().eq('id', id));
+}
+// Papelera: marca (o desmarca con null) un apunte como borrado; fields: dónde vuelve, su título…
+export async function trashPage(id, when, fields = {}) {
+  check(await sb.from('pages').update({ deleted_at: when, ...fields }).eq('id', id));
+}
+
+/* ---------------- Borrar la cuenta ---------------- */
+// Primero las imágenes (desde la base de datos no se pueden borrar), luego todo lo demás con delete_my_account
+export async function removeAllImages(uid) {
+  const bucket = sb.storage.from('media');
+  for (;;) {
+    const { data, error } = await bucket.list(uid, { limit: 100 });
+    if (error) throw error;
+    const names = (data || []).filter(x => x.name && x.id !== null).map(x => `${uid}/${x.name}`);
+    if (!names.length) return;
+    const { error: e2 } = await bucket.remove(names);
+    if (e2) throw e2;
+  }
+}
+export async function deleteAccount() {
+  const { error } = await sb.rpc('delete_my_account');
+  if (error) throw error;
+  box?.clear();
+  await sb.auth.signOut({ scope: 'local' }).catch(() => {});
 }
 
 /* ---------------- Recordatorio diario (Web Push) ----------------

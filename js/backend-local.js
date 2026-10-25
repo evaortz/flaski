@@ -180,14 +180,14 @@ export async function deleteCard(id) {
 
 /* ---------------- Mazos públicos (en local solo existen los tuyos) ---------------- */
 export async function publicDecks() {
-  return db.decks.filter(d => d.is_public).map(d => ({
+  return db.decks.filter(d => d.is_public && !d.deleted_at).map(d => ({
     ...clone(d),
     count: db.cards.filter(c => c.deck_id === d.id).length,
     author: db.profile.display_name || 'Tú',
   }));
 }
 export async function getPublicDeck(id) {
-  const d = db.decks.find(x => x.id === id && x.is_public);
+  const d = db.decks.find(x => x.id === id && x.is_public && !x.deleted_at);
   if (!d) return null;
   const cards = db.cards.filter(c => c.deck_id === id).sort((a, b) => a.position - b.position)
     .map(({ front, back, note, position, note_id, type_id, template, fields, hint }) => ({ front, back, note, position, note_id, type_id, template, fields, hint }));
@@ -269,6 +269,15 @@ export async function createPage(fields) {
   if ((db.pages || []).some(p => p.id === fields.id)) throw Object.assign(new Error('duplicate key'), { code: '23505' });
   return savePage({ id: uuid(), ...fields });
 }
+export async function trashPage(id, when, fields = {}) {
+  const p = (db.pages || []).find(x => x.id === id);
+  if (!p) throw new Error('Ese apunte ya no existe');
+  Object.assign(p, fields, { deleted_at: when });
+  persist();
+}
+// Borrar la cuenta en local: todo lo de este navegador (las imágenes las borra media.js)
+export async function removeAllImages() {}
+export async function deleteAccount() { db = EMPTY(); persist(); }
 export async function deletePage(id) {
   db.pages = (db.pages || []).filter(p => p.id !== id);
   for (const c of db.cards) if (c.page_id === id) { c.page_id = null; c.block_id = null; }
