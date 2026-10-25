@@ -10,7 +10,7 @@ import { typeIcon, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet } from './editor.js';
 import { focusPageBlock } from './apuntes.js';
-import { sugHidden, setSugHidden, swapTo, sugAnswer, openSugEditor, makeSuggested, drawSuggestions, scheduleSugMarks } from './sugerencias.js';
+import { sugHidden, setSugHidden, swapTo, sugAnswer, altOptions, openSugEditor, makeSuggested, drawSuggestions, scheduleSugMarks } from './sugerencias.js';
 
 const PER_ITEM_S = 10;   // lo que se tarda en revisar una, más o menos (para «unos 2 min»)
 // En el móvil, el mazo; en el ordenador (o desde la ✨ de un bloque), la lista. En el móvil se puede pasar a la lista
@@ -87,8 +87,9 @@ export function drawDeck() {
         <div class="sd-q">${question(x)}</div>
         ${ans && x.typeId !== 'whatif' ? `<p class="sd-a"><span>Respuesta:</span> <b>${fmt(String(ans).split('\n')[0])}</b></p>` : ''}
         ${x.alts?.length ? `<details class="sug-alts sd-alts"${g.openAlts === x.id ? ' open' : ''}><summary>Otras formas de preguntarlo (${x.alts.length})</summary>
-          <ul>${x.alts.map((a, j) => `<li class="sug-alt"><span class="sug-alt-q"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></span>
-            <button type="button" class="ghost sug-use" data-sd-alt="${j}" title="Ponerla en lugar de esta">Usar esta</button></li>`).join('')}</ul></details>` : ''}
+          <ul>${x.alts.map((a, j) => `<li class="sug-alt sd-alt"><div class="sd-alt-top"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span>
+            <button type="button" class="ghost sug-use" data-sd-alt="${j}" title="Ponerla en lugar de esta">Usar esta</button></div>
+            <span class="f">${fmt(a.front)}</span>${altOptions(a, x) ? `<small class="sug-alt-opts">${esc(altOptions(a, x))}</small>` : ''}</li>`).join('')}</ul></details>` : ''}
         <div class="sd-foot"><span>de: ${esc(whereIn(p, x))}</span><button type="button" class="link" data-sd="see">Ver en el apunte</button></div>
       </article>
     </div>

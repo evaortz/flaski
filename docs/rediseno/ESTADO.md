@@ -370,7 +370,8 @@
 - Pruebas: `e2e/sugerencias-mazo.spec.js` (cabecera y tarjeta, deslizar a cada lado y arriba con pastilla y botón, botones y teclado, «Deshacer», fin de apartado, menos seguras, 1 o 2 sugerencias, otras formas, y la lista en el ordenador @ambos). Capturas para Eva en `tests/test-results/sugerencias-mazo/`.
 - En el móvil se puede pasar a la lista («Ver en lista», arriba a la derecha del mazo) y volver («De una en una», en la cabecera de la lista); se recuerda en `flaski-sug-vista`. En las pruebas, la opción `sugView` del fixture (por defecto, la lista; `sugerencias-mazo.spec.js` usa el mazo). El aviso «Descartada · Deshacer» va por encima de los botones del mazo.
 - Al final: unitarias 243 de 243; batería completa (`--workers=2`) 392 pasan, 15 omitidas, 0 fallan (8,9 min, con las otras conversaciones trabajando a la vez). Antes, dos pasadas: la primera con 20 fallos esperados (las pruebas de la lista se encontraban el mazo en el móvil y unas pocas daban por hechas las sugerencias de antes) y la segunda con 1 de la propia prueba (leía el anillo a mitad de su transición); arreglados y repetida entera.
-- `sw.js` → `flaski-v219`.
+- Remate de la revisión: en el mazo, cada otra forma de preguntarlo va en dos filas (el tipo y «Usar esta» arriba, la pregunta debajo a todo el ancho); si tiene el mismo texto que la de arriba (la opción múltiple de una básica), una línea pequeña con sus opciones (`altOptions`, también en la lista del ordenador). e2e en el móvil con la Constitución: la pregunta no pasa de 3 líneas. Captura `9-otras-formas.png`.
+- `sw.js` → `flaski-v220`.
 - Decisión: el texto de cuándo entran no dice «a partir de mañana» (las nuevas pueden salir hoy si quedan nuevas del día), sino «unas pocas cada día».
 
 ## Batería más rápida (hecha)

@@ -1,5 +1,6 @@
 // Revisar las sugerencias de una en una en el móvil (un mazo): deslizar, botones, teclado, «Deshacer», fin de apartado;
 // en el ordenador, la lista de siempre
+import { readFileSync } from 'node:fs';
 import { test, expect, openApp, openPage } from './fixtures.js';
 
 test.use({ sugView: 'mazo' });
@@ -165,4 +166,18 @@ test('en el móvil se pasa a la lista con «Ver en lista» y se vuelve con «De 
   await expect(page.locator('.sug').first()).toBeVisible();
   await page.locator('[data-sd-mazo]').click();
   await expect(page.locator('[data-sd-card]')).toBeVisible();
+});
+
+test('«Otras formas» en la tarjeta: el tipo y «Usar esta» arriba, la pregunta debajo a todo el ancho (3 líneas como mucho), y las opciones si el texto es el mismo', async ({ page, seed }) => {
+  const md = readFileSync(new URL('../../docs/rediseno/sugerencias/apuntes/constitucion-titulo-preliminar.md', import.meta.url), 'utf8');
+  await openDeck(page, seed, md);
+  const alts = page.locator('.sd-alts');
+  await alts.locator('summary').click();
+  const alt = alts.locator('.sd-alt').first();
+  await expect(alt.locator('.sd-alt-top .sug-use')).toHaveText('Usar esta');
+  const lines = await alt.locator('.f').evaluate(el => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  expect(lines).toBeLessThanOrEqual(3);
+  // La opción múltiple de «¿Cuándo aprobaron las Cortes…?»: mismo texto, con sus opciones debajo
+  await expect(alt.locator('.sug-alt-opts')).toHaveText(/31 de octubre de 1978/);
+  await expect(alt.locator('.sug-alt-opts')).toContainText(' · ');
 });

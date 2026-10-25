@@ -113,6 +113,13 @@ function keepInView(i) {
 }
 // Lo que hay que saber de una sugerencia, para la línea de debajo: en un hueco, solo lo que falta
 export const sugAnswer = x => (x.typeId === 'cloze' ? [...String(x.fields?.x || '').matchAll(/\{\{(.+?)(?:::.+?)?\}\}/g)].map(m => m[1]).join(' · ') || x.back : x.back);
+// Si otra forma de preguntarlo tiene el mismo texto que la de arriba (la opción múltiple de una básica), en qué cambia:
+// sus opciones («27 de diciembre de 1978 · 31 de octubre de 1978 · 6 de diciembre de 1978»)
+export function altOptions(a, x) {
+  if (!['choice', 'clozechoice'].includes(a.typeId) || plainText(a.front) !== plainText(x.front)) return '';
+  const right = a.typeId === 'choice' ? [a.fields.a] : sugAnswer(a).split(' · ');
+  return [...right, ...String(a.fields.w || '').split(/;\s*/)].filter(Boolean).sort((p, q) => p.localeCompare(q, 'es', { numeric: true })).join(' · ');
+}
 // El texto del apunte de donde sale una sugerencia (para ver qué forma de escribir la ha dado)
 // (de una tabla, la fila de la pregunta; de un párrafo, desde el trozo de la frase donde está la respuesta, con «…» delante)
 function sugSource(p, x) {
@@ -175,7 +182,7 @@ export function drawSuggestions() {
       <button type="button" class="iconbtn sug-ed" data-sug-open="${i}" aria-label="Escribirla con tus palabras" title="Escribirla con tus palabras">${icon('pencil', { size: 15 })}</button>
       <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button>
       ${x.alts?.length ? `<details class="sug-alts"${g.openAlts === x.id ? ' open' : ''}><summary>Otras formas de preguntarlo (${x.alts.length})</summary>
-        <ul>${x.alts.map((a, k) => `<li class="sug-alt"><span class="sug-alt-q"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></span>
+        <ul>${x.alts.map((a, k) => `<li class="sug-alt"><span class="sug-alt-q"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span>${altOptions(a, x) ? `<small class="sug-alt-opts">${esc(altOptions(a, x))}</small>` : ''}</span>
           <button type="button" class="ghost sug-use" data-sug-alt="${i}:${k}" title="Ponerla en lugar de la de arriba">Usar esta</button></li>`).join('')}</ul></details>` : ''}</li>`;
   };
   const group = (title, items, key) => items.length ? `<div class="sug-group">
