@@ -4164,3 +4164,5 @@ body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidde
 .wi-b.is-right,.wi-b.is-wrong{opacity:1;color:#16183A}
 .wi-b.is-right{background:#8EE3B5;border-color:#8EE3B5}
 .wi-b.is-wrong{background:#FF9F92;border-color:#FF9F92}
+/* Doble sentido: «¿Qué significa?» / «¿Cómo se llama?» encima de la cara */
+.rev-ask{margin:0 0 6px;font-size:14px;color:var(--muted)}

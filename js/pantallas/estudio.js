@@ -104,6 +104,8 @@ export function faceHTML(model, st, { preview = false } = {}) {
     if (sayAns && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v">${sayAns}</div></div>${front}`;
   }
   if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
+  // Doble sentido: qué hay que contestar, en pequeño encima (la cara del término o la de la definición)
+  if (type.id === 'reverse' && tpl.mode === 'flip') front = `<p class="rev-ask">${tpl.front[0] === 'a' ? '¿Qué significa?' : '¿Cómo se llama?'}</p>${front}`;
 
   // Interacción antes de destapar
   let ask = '';

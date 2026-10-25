@@ -33,3 +33,14 @@ test('escribir la respuesta en una lista sin idioma: la fila de letras especiale
   await tanda(page, [['typing', 't1', { q: '¿Cómo se llama el efecto por el que se recuerda mejor lo repartido?', a: 'Efecto de espaciado', n: '' }]]);
   await expect(page.locator('.chars-study button')).toHaveText(['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡']);
 });
+
+test('doble sentido: «¿Qué significa?» encima del término y «¿Cómo se llama?» encima de la definición', async ({ page }) => {
+  const f = { a: 'Consolidar (lo aprendido)', b: 'Fijar en la memoria lo aprendido, sobre todo mientras duermes', n: '' };
+  await tanda(page, [['reverse', 't1', f], ['reverse', 't2', f]]);
+  await expect(page.locator('article.card .rev-ask')).toHaveText('¿Qué significa?');
+  await expect(page.locator('article.card .front')).toContainText('Consolidar');
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('[data-grade="3"]').click();
+  await expect(page.locator('article.card .rev-ask')).toHaveText('¿Cómo se llama?');
+  await expect(page.locator('article.card .front')).toContainText('Fijar en la memoria');
+});
