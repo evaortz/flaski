@@ -11,7 +11,7 @@ import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortInfo, todayQueue, freshLeft } from './estudio.js';
+import { shortInfo, tandaFit, todayQueue, freshLeft } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES, tandaSize } from '../tanda.js';
 
@@ -96,12 +96,19 @@ export function backlogSheet() {
 
 // «Empezar una tanda · N min · M preguntas», la tanda de siempre («las X de hoy») y cambiar la duración
 function shortHTML(avail) {
-  const { minutes, n, secs } = shortInfo(), m = Math.min(n, avail);
-  const mins = m < n ? Math.max(1, Math.ceil((m * secs) / 60)) : minutes;
+  const { minutes, mins, m } = tandaFit(avail);
   return `<button class="primary big hero-go" data-act="tanda-short"><span class="hero-go-t">Empezar una tanda<small>${mins} min · ${plural(m, 'pregunta', 'preguntas')}</small></span></button>
     <div class="hero-more">${avail > m ? `<button class="hero-all" data-start="all"><span class="hero-m">o hacer las ${avail} de hoy</span><span class="hero-d">Hacer las ${avail} de hoy</span></button>` : ''}
       ${todayMinutes() == null ? `<button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button>`
-        : `<button class="link hero-min" data-nav="plan">${icon('pencil', { size: 15 })} ${todayMinutes() ? `Hoy, ${todayMinutes()} min` : `Hoy es libre · ${minutes} min`}<span class="hero-d"> · tu semana</span></button>`}</div>`;
+        : `<button class="link hero-min" data-nav="plan">${icon('pencil', { size: 15 })} ${todayMinutes() ? `Hoy, ${todayMinutes()} min` : `Hoy es libre · ${minutes} min`}<span class="hero-d"> · tu semana</span></button>`}</div>
+    ${spareHTML(avail)}`;
+}
+// Si lo de hoy se hace en bastante menos de tu rato y quedan nuevas: «Te sobra tiempo: ¿aprendes 10 nuevas más?»
+function spareHTML(avail) {
+  const { minutes, mins, m, n } = tandaFit(avail);
+  const more = Math.min(10, freshLeft('all') - todayQueue('all').fresh);
+  if (m >= n || minutes - mins < 2 || more <= 0) return '';
+  return `<p class="hero-spare">Te sobra tiempo: <button class="link" data-act="more-today" data-more="${more}">¿aprendes ${more === 1 ? '1 nueva más' : `${more} nuevas más`}?</button></p>`;
 }
 
 // Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»

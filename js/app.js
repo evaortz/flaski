@@ -425,6 +425,7 @@ document.addEventListener('click', async e => {
       return go(view, opts);
     }
     case 'more': { addExtraNew(Number(b.dataset.more) || 10); return startSession(S.session?.scope || 'all'); }
+    case 'more-today': { const n = Number(b.dataset.more) || 10; addExtraNew(n); render(); return toast(n === 1 ? '1 nueva más para hoy' : `${n} nuevas más para hoy`); }
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
     case 'tanda-short': return S.prefs.study.tandaAsked || todayMinutes() ? startSession('all', { minutes: tandaMinutes() }) : tandaSheet();
     case 'tanda-min': return tandaSheet();

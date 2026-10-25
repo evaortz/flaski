@@ -69,7 +69,9 @@ test('tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial
   await expect(page.locator(`[data-pl="day"][data-day="${wd}"] b`)).toHaveText('45');
   // Sin fijar, los demás días toman la tanda de Ajustes (10 min)
   await expect(page.locator('[data-pl="day"] b').filter({ hasText: '10' })).toHaveCount(6);
-  await expect(page.locator('#main')).toContainText('Empezar la tanda · 45 min');
+  // El botón dice lo que tardarás en lo de hoy (aquí hay pocas: menos de 45 min)
+  const fit = () => page.evaluate(() => import('/js/pantallas/estudio.js').then(m => m.tandaFit(m.todayQueue('all').ids.length).mins));
+  await expect(page.locator('#main [data-act="tanda-short"]')).toHaveText(`Empezar la tanda · ${await fit()} min`);
   await nav(page, 'Hoy');
   // La tanda es de 45 min (aquí caben todas las de hoy, así que dice lo que tardarás en ellas)
   expect(await page.evaluate(() => import('/js/pantallas/estudio.js').then(m => m.shortInfo().minutes))).toBe(45);
@@ -84,11 +86,12 @@ test('tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial
   await page.locator('#spMin').selectOption('15');
   await page.locator('[data-pl="special-save"]').click();
   await expect(page.locator('.pw-sp')).toContainText('vacaciones · 15 min');
-  await expect(page.locator('#main')).toContainText('Empezar la tanda · 15 min');
+  expect(await page.evaluate(() => import('/js/pantallas/estudio.js').then(m => m.shortInfo().minutes))).toBe(15);
+  await expect(page.locator('#main [data-act="tanda-short"]')).toHaveText(`Empezar la tanda · ${await fit()} min`);
   await page.locator('.pw-sp').click();
   await page.locator('[data-pl="special-del"]').click();
   await expect(page.locator('.pw-sp')).toHaveCount(0);
-  await expect(page.locator('#main')).toContainText('Empezar la tanda · 45 min');
+  await expect(page.locator('#main [data-act="tanda-short"]')).toHaveText(`Empezar la tanda · ${await fit()} min`);
   // Lo borrado se queda marcado (para no resucitar al juntar con otro dispositivo)
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.prefs.plan.special.map(s => !!s.deleted)))).toEqual([true]);
 });

@@ -481,6 +481,11 @@ export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
 export const shortSize = (minutes = tandaMinutes()) => tandaSize(minutes, pace(S.events));
 export function shortInfo() { const minutes = tandaMinutes(), secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
+// La tanda de hoy con lo que hay de verdad: si tocan menos preguntas de las que caben, los minutos que llevan (m preguntas, mins)
+export function tandaFit(avail) {
+  const { minutes, n, secs } = shortInfo(), m = Math.min(n, avail);
+  return { minutes, n, secs, m, mins: m < n ? Math.max(1, Math.ceil((m * secs) / 60)) : minutes };
+}
 export function shuffleTokens(o) {
   const a = o.tokens;
   for (let k = 0; k < 8; k++) {
