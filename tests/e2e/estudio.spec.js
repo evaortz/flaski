@@ -31,14 +31,15 @@ test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» 
 
   await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="1"]').click();
-  await expect(page.locator('.studybar .left')).toContainText('pregunta 2 de 2');   // la que vuelve se suma al total
+  await expect(page.locator('.studybar .left')).toHaveText('pregunta 1 de 1 · repite');   // la que vuelve no se suma al total
   await expect(page.locator('.card .front')).toContainText('bir');
 
   await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
   await expect(page.getByRole('heading', { name: '¡Tanda hecha!' })).toBeVisible();
+  await expect(page.locator('.done-sub')).toContainText('1 pregunta · 1 repetida');
   await page.getByRole('button', { name: 'Deshacer la última' }).click();
-  await expect(page.locator('.studybar .left')).toContainText('pregunta 2 de 2');
+  await expect(page.locator('.studybar .left')).toHaveText('pregunta 1 de 1 · repite');
   await expect(page.locator('[data-grade="3"]')).toBeVisible();
 });
 

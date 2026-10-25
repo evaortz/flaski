@@ -57,7 +57,7 @@ test('la primera tanda pregunta la duración; los atrasados primero, una nueva d
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="3"]').click();
   }
-  expect(seen.slice(0, 4)).toEqual(['r01 repaso', 'r02 repaso', 'n00 nueva', 'r00 repaso']);
+  expect(seen.slice(0, 4)).toEqual(['r01 repaso', 'r02 repaso', 'n00 nueva', 'r00 repite']);
   expect(seen.filter(s => s.endsWith('nueva'))).toEqual(['n00 nueva', 'n01 nueva', 'n02 nueva']);
   expect(seen).toHaveLength(15);
 

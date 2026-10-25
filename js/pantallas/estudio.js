@@ -472,7 +472,8 @@ export function todayQueue(scope = 'all') {
 }
 // La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
 function segBar(ses) {
-  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
+  // (las preguntas distintas: las que vuelven a la cola por «Otra vez» o «Difícil» no alargan la barra)
+  const seen = ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
   const aria = `role="progressbar" aria-label="Progreso de la tanda" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"`;
   if (total > 60 || total < 2) return `<div class="bar" ${aria}><span style="width:${pct}%"></span></div>`;
   return `<div class="bar bar-seg" style="--n:${total}" ${aria}>${Array.from({ length: total }, (_, i) => `<i${i < seen ? ' class="on"' : ''}></i>`).join('')}</div>`;
@@ -655,7 +656,8 @@ export function renderStudy() {
     const t = ses.tally, min = Math.max(1, Math.round((Date.now() - (ses.startedAt || Date.now())) / 60e3));
     if (!ses.counted) { ses.counted = true; countTanda(); }
     const tally = `<div class="tally">${GRADES.map(({ g, label }) => `<span class="g${g}"><b>${t[g]}</b>${label}</span>`).join('')}</div>`;
-    const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>`;
+    const rep = (ses.answered ?? ses.done) - ses.done;
+    const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')}${rep > 0 ? ` · ${plural(rep, 'repetida', 'repetidas')}` : ''} · ${min} min</p>`;
     const again = ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : '';
     // La primera tanda: cuánto suele durar tu rato de estudio y si te avisamos mañana a esta hora
     if (ses.firstRun) {
@@ -725,8 +727,10 @@ export function renderStudy() {
   }
   const tags = (c.tags || []).length ? `<span class="tags">${tagChips(c.tags)}</span>` : '';
   // «pregunta N de M»: cada respuesta avanza; la que vuelve tras «Otra vez» se suma al total
-  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length;
-  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, seen + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
+  // El total son las preguntas distintas (no salta al volver una a la cola); la que vuelve dice «repite»
+  const asked = ses.asked || [], again = asked.includes(c.id), total = ses.done + ses.queue.length;
+  const n = Math.min(total, asked.length + (again ? 0 : 1));
+  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${n} de ${total} · ${again ? 'repite' : p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
       ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
       ${ses.firstRun && ses.revealed && ses.done === 0 ? `<div class="first-tip" role="note"><b>¿Cómo te ha ido?</b><p>Sin trampas: según lo que elijas, Flaski decide cuándo volver a preguntártelo. Si te costó, pronto; si fue fácil, dentro de unos días.</p></div>` : ''}
@@ -836,9 +840,10 @@ export function grade(g) {
   const id = ses.queue[0];
   const now = Date.now();
   const ms = Math.min(120e3, Math.max(0, now - (ses.shownAt || now)));
-  const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally };
+  const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally }, asked = (ses.asked || []).slice();
   const { prev, next, ev, day } = recordAnswer(id, g, ms, now);
-  ses.undo = { id, prev, queue, done, answered, tally, day, evId: ev.id };
+  ses.undo = { id, prev, queue, done, answered, tally, asked, day, evId: ev.id };
+  if (!asked.includes(id)) ses.asked = [...asked, id];
   ses.queue.shift();
   ses.answered = (ses.answered ?? ses.done) + 1;
   // Solo vuelven a salir en esta sesión las tarjetas en aprendizaje (falladas o «difícil» siendo nuevas)
@@ -860,7 +865,7 @@ export function undo() {
   S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
   api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
-  Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, revealed: true, undo: null, st: null });
+  Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, asked: u.asked, revealed: true, undo: null, st: null });
   saveSnapSoon();
   renderStudy();
 }
