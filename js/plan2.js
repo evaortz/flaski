@@ -566,12 +566,15 @@ export function fixes(state, examId) {
   }
   let drop = null;
   if (!options.length) {
+    // Nunca todo el temario: como mucho, todos los temas menos el primero. Si ni así llega, lo dice («no» y lo que falta)
     const study = base.topics.filter(t => t.state === 'study');
-    for (let k = 1; k <= study.length; k++) {
+    drop = { topics: [], plan: state.plan, exam: base };
+    for (let k = 1; k < study.length; k++) {
       const ids = study.slice(-k).map(t => t.id);
       const plan = applyChange(state.plan, p => { const e = p.exams.find(x => x.id === examId); e.later = [...new Set([...(e.later || []), ...ids])]; });
       const r = forecast({ ...state, plan }, { light: true }).exams.find(e => e.id === examId);
-      if (reaches(r.verdict) || k === study.length) { drop = { topics: ids, plan, exam: r }; break; }
+      drop = { topics: ids, plan, exam: r };
+      if (reaches(r.verdict)) break;
     }
   }
   return { base, options, drop };

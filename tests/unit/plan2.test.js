@@ -136,14 +136,14 @@ test('la palanca del tope solo sale si el examen no llega (y si hay tope)', () =
 });
 
 test('ningún arreglo llega: propone qué temas dejar para el final', () => {
-  const S = invent({ seed: 3, n: 3000, nExams: 1, nTopics: 6, seen: 0, days: [10] });
+  // 2.000 nuevas en 6 temas y 30 días, con 20 al día: ni subiendo el tope ni con más minutos
+  const S = invent({ seed: 3, n: 2000, nExams: 1, nTopics: 6, seen: 0, days: [30] });
   S.plan.caps.newPerDay = 20;
   const fx = fixes(S, 'ex0');
   assert.equal(fx.base.verdict, 'no');
   assert.deepEqual(fx.options, []);
-  assert.ok(fx.drop.topics.length >= 1);
-  assert.ok(reaches(fx.drop.exam.verdict));
-  assert.equal(fx.drop.topics.at(-1), 'd0-5');       // los últimos del camino
+  assert.deepEqual(fx.drop.topics, ['d0-1', 'd0-2', 'd0-3', 'd0-4', 'd0-5']);   // los últimos del camino, nunca el primero
+  assert.equal(fx.drop.exam.verdict, 'justo');
 });
 
 // Un examen con tres temas a mano (sin progreso), tope de 20 al día y todos los días con tiempo de sobra
@@ -454,4 +454,21 @@ test('5 · mover la fecha solo con fecha aproximada, y como último recurso', ()
   // Si otra cosa llega, la fecha no compite aunque sea aproximada
   const c = fixes(make(300, 21, true), 'ex0');
   assert.ok(c.options.length > 0 && c.options.every(o => !o.kinds.includes('date')));
+});
+
+test('6 · «dejar para el final» nunca quita todo el temario; si ni así llega, lo dice', () => {
+  // Un tema, 900 preguntas, 20 días: no hay nada que dejar
+  const one = invent({ seed: 6, n: 900, nExams: 1, nTopics: 1, seen: 0, days: [20] });
+  one.plan.caps.newPerDay = 20;
+  const a = fixes(one, 'ex0');
+  assert.deepEqual(a.options, []);
+  assert.deepEqual(a.drop.topics, []);
+  assert.equal(a.drop.exam.verdict, 'no');
+  assert.ok(a.drop.exam.left > 0);
+  // Tres temas que ni dejando dos llegan: deja dos (nunca los tres) y sigue en «no»
+  const three_ = invent({ seed: 6, n: 3000, nExams: 1, nTopics: 3, seen: 0, days: [12] });
+  three_.plan.caps.newPerDay = 20;
+  const b = fixes(three_, 'ex0');
+  assert.ok(b.drop.topics.length <= 2);
+  assert.equal(b.drop.exam.verdict, 'no');
 });
