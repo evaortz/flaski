@@ -44,6 +44,53 @@ export function sentences(text) {
   return out.filter(Boolean);
 }
 
+/* ---------------- Género y gramática ---------------- */
+// Al abrir las sugerencias se carga rosaenlg-gender-es (js/vendor/gender-es.js, con useGender); sin él, o donde se
+// equivoca con palabras que salen mucho en los apuntes (-sis, -ie, «fase», «ley», «reforma»…), estas reglas
+let genderLib = null;
+export const useGender = fn => { genderLib = fn; };
+const FEM = /(?:sis|itis|ie|umbre|tud|ción|sión|dad|tad)$|^(?:fase|base|clase|frase|ley|reforma|forma|norma|plataforma|parte|muerte|suerte|noche|gente|fuente|mente|red|sede|llave|calle|carne|nube|nieve|torre|tarde|sangre|fe|imagen|piel|sal|flor|labor|mujer|mano|foto|moto|radio)$/;
+const MASC = /^(?:día|mapa|problema|tema|sistema|programa|esquema|clima|idioma|planeta|poema|dilema|régimen|origen|análisis|énfasis|paréntesis|virus|lunes|martes|miércoles|jueves|viernes|mes|país)$/;
+// «fases» → «fase», «leyes» → «ley», «funciones» → «función», «meses» → «mes»
+export function singular(w) {
+  w = String(w).toLocaleLowerCase();
+  if (/^(?:meses|países|intereses)$/.test(w)) return w.slice(0, -2).replace(/^paise$/, 'país');
+  if (/iones$/.test(w)) return w.slice(0, -5) + 'ión';
+  if (/ces$/.test(w)) return w.slice(0, -3) + 'z';
+  if (/[dlnrjy]es$/.test(w)) return w.slice(0, -2);
+  if (/s$/.test(w) && !/(?:sis|tis|xis|us|[áéíóú]s)$/.test(w)) return w.slice(0, -1);
+  return w;
+}
+export function genderOf(noun) {
+  const w = singular(noun);
+  if (MASC.test(w)) return 'm';
+  if (FEM.test(w)) return 'f';
+  const g = genderLib?.(w);
+  if (g === 'm' || g === 'f') return g;
+  return /[adz]$/.test(w) ? 'f' : 'm';
+}
+// Lo que se arregla solo antes de enseñar una pregunta: «de el» → «del», «a el» → «al», «¿Cuántos fases» → «¿Cuántas fases»
+const NOT_NOUN = /^(?:de|del|el|la|los|las|un|una|se|y|o|en|a|al|veces)$/i;
+export const fixGrammar = s => String(s)
+  .replace(/(?<![\p{L}])([Dd])el?\s+el(?![\p{L}])/gu, '$1el')
+  .replace(/(?<![\p{L}])([Aa])\s+el(?![\p{L}])/gu, '$1l')
+  .replace(/(?<![\p{L}])([Cc]uánt)(os|as)\s+(\p{L}+)/gu, (m, c, end, n) => (NOT_NOUN.test(n) ? m : `${c}${genderOf(n) === 'f' ? 'as' : 'os'} ${n}`));
+// Referencias que no se entienden fuera del apunte: «ese mismo mes», «dicho órgano», «Estas se utilizarán…», «…, este será de tres meses»
+const VAGUE_REF = new RegExp([
+  '(?<![\\p{L}])(?:es[eao]s?|est[eao]s?|aquel(?:l[oa]s?)?)\\s+mism[oa]s?(?![\\p{L}])',
+  '(?<![\\p{L}])dich[oa]s?(?![\\p{L}])',
+  '(?<![\\p{L}])(?:est[ea]s?|es[ea]s?)\\s+(?:mes|año|día|semana|momento|periodo|período|siglo|plazo|caso)(?![\\p{L}])',
+  '(?:^|[,;:]\\s*|¿\\s*)(?:est[ea]s?|es[ea]s?|esto|eso)\\s+(?:se\\s+\\p{L}+|es|son|era|eran|fue|fueron|está|están|tiene|tienen|puede|pueden|debe|deben|será|serán|podrá|podrán|deberá|deberán|\\p{L}{3,}(?:ará|arán|erá|erán|irá|irán|ó|aron|ieron))(?![\\p{L}])',
+].join('|'), 'iu');
+// Por qué una pregunta está mal escrita ('' si está bien); lo usa add() para descartarla y la batería para contarlas
+export function grammarIssue(s) {
+  const t = plainText(s);
+  if (/(?<![\p{L}])(?:de|del|a)\s+el(?![\p{L}])/u.test(t)) return 'del el';
+  for (const [, end, n] of t.matchAll(/(?<![\p{L}])[Cc]uánt(os|as)\s+(\p{L}+)/gu)) if (!NOT_NOUN.test(n) && (end === 'as') !== (genderOf(n) === 'f')) return 'cuántos';
+  if (VAGUE_REF.test(t)) return 'referencia';
+  return '';
+}
+
 // Etiquetas que no son conceptos: «Nota: …», «Ejemplo: …»
 const LABELS = /^(nota|notas|ejemplo|ejemplos|ej|p\.?\s?ej|importante|ojo|recuerda|atención|cuidado|observación|obs|fuente|fuentes|ver|véase|véase también|ver también|artículo principal|consejo|truco|tip|pista|resumen|conclusión|idea|pregunta|respuesta|respuesta correcta|solución|figura|fig|tabla|imagen|foto|gráfico|mapa|documento|texto|actividad|ejercicio|example|examples|e\.g|note|warning|hint|see also|figure|source|beispiel|achtung|hinweis|örnek|not|dikkat|nb|ps|pd|código \d+|criterios de codificación)\.?$/i;
 // Prefijos de aviso en apuntes y manuales («Importante: …», «Recuerda: …»)
@@ -375,6 +422,13 @@ function whenSentence(sp) {
   const ds = dates(sp);
   if (ds.length !== 1 || sp.length > 220) return null;
   const d = ds[0];
+  // «El golpe de Estado del 18 de julio de 1936 provocó…»: la fecha es del golpe → ¿Cuándo fue el golpe de Estado que provocó…?
+  const of = /^((?:El|La|Los|Las)\s[^,;]{2,60}?)\s+(?:del|de)$/u.exec(sp.slice(0, d.index).trim());
+  const after = sp.slice(d.index + d.text.length).replace(/[.;:]+$/, '').trim();
+  if (of && !/a\s+partir$/i.test(of[1]) && FINITE.test(after.split(' ')[0] || '') && !AUX.test(after.split(' ')[0])) {
+    const past = /(?:ó|ió|aron|ieron)$/.test(after.split(' ')[0]);
+    return { q: `¿Cuándo ${past ? 'fue' : 'es'} ${lowerSubject(of[1])} que ${after}?`, a: capFirst(d.text), year: isYear(d.text) };
+  }
   const pre = /(?:,\s*)?(?:(?<![\p{L}])(en(?:\s+el(?:\s+año)?)?|el|desde(?:\s+el)?|hasta(?:\s+el)?|hacia(?:\s+el)?|a\s+partir\s+del?)\s+)?$/iu.exec(sp.slice(0, d.index));
   const prep = (pre[1] || '').toLowerCase();
   let rest = (sp.slice(0, d.index - pre[0].length) + ' ' + sp.slice(d.index + d.text.length)).replace(/\s*,\s*,/g, ',').replace(/^\s*,\s*|\s+(?=[,.;:])/g, '').replace(/[.;:]+$/, '').replace(/\s+/g, ' ').trim();
@@ -386,7 +440,7 @@ function whenSentence(sp) {
   while (i < t.length && i <= 6 && !isVerb(i)) i++;
   if (i >= t.length || i > 6) return null;
   const subj = t.slice(0, i).join(' ');
-  if (!/^\p{Lu}/u.test(subj) || VAGUE.test(subj) || LEAD_PHRASE.test(subj) || GENERIC_SUBJECT.test(subj) || /,/.test(subj)) return null;
+  if (!/^\p{Lu}/u.test(subj) || VAGUE.test(subj) || LEAD_PHRASE.test(subj) || (GENERIC_SUBJECT.test(subj) && !isProperName(subj.replace(ARTICLE, ''))) || /,/.test(subj)) return null;
   // El verbo (con su auxiliar o su pronombre) y lo que sigue
   const clitic = /^(lo|la|los|las|le|les)$/i.test(t[i]);
   let j = i + 1;
@@ -426,7 +480,7 @@ function predicateCloze(sp) {
 const NUM_WORDS = { uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, quince: 15, veinte: 20, cien: 100 };
 const NUM = `(\\d+|${Object.keys(NUM_WORDS).join('|')})`;
 const toNumber = s => (/^\d+$/.test(s) ? s : String(NUM_WORDS[s.toLowerCase()] ?? ''));
-const howMany = unit => `¿${/(as|ciones|siones|dades)$/i.test(unit) ? 'Cuántas' : 'Cuántos'} ${unit.toLocaleLowerCase()}`;
+const howMany = unit => `¿${genderOf(unit) === 'f' ? 'Cuántas' : 'Cuántos'} ${unit.toLocaleLowerCase()}`;
 
 /* ---------------- Frases que dicen quién hace qué ---------------- */
 const PART_VERB = { constituid: ['constituye', 'constituyen'], formad: ['forma', 'forman'], compuest: ['compone', 'componen'], integrad: ['integra', 'integran'] };
@@ -511,6 +565,12 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   const used = new Set();   // bloques ya convertidos por una regla más fiable
   const subKids = new Set(), listed = new Set();   // subpuntos y viñetas que ya van en una pregunta de lista
   const add = (kind, blockId, typeId, fields, score, extra = {}) => {
+    // La gramática: lo que se puede se arregla («del el», «¿Cuántos fases»); lo que no se entiende solo, fuera
+    if (!isLangDeck) {
+      fields = { ...fields };
+      for (const k of ['q', 'x', ...(typeId === 'truefalse' ? ['s'] : [])]) if (fields[k]) fields[k] = fixGrammar(fields[k]);
+      if (grammarIssue([fields.q, fields.x, typeId === 'truefalse' ? fields.s : ''].filter(Boolean).join(' '))) return false;
+    }
     const note = asNote(typeId, fields, isLangDeck);
     const type = TYPE(note.typeId);
     const active = activeTemplates(type, note.fields);
@@ -774,8 +834,13 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       if (ctx && toNumber(n)) add('num', b.id, 'number', { q: `${howMany(unit)} tiene ${lowerSubject(ctx)}?`, a: toNumber(n), t: '', u: '', n: '' }, 0.72);
     }
     // Cifras sin negrita: «tiene 169 artículos», «consta de diez títulos»
-    for (const [, n, unit] of plainText(text).matchAll(new RegExp(`\\b(?:tiene|tienen|consta de|constan de|cuenta con|contiene)\\s+${NUM}\\s+(\\p{L}{4,}s)\\b`, 'giu'))) {
-      if (ctx && toNumber(n)) add('num', b.id, 'number', { q: `${howMany(unit)} tiene ${lowerSubject(ctx)}?`, a: toNumber(n), t: '', u: '', n: '' }, 0.72);
+    // (si la frase dice de qué, es eso y no el apartado: «La mitosis tiene cuatro fases» → ¿Cuántas fases tiene la mitosis?)
+    for (const sp of sentences(plainText(text))) {
+      for (const m of sp.matchAll(new RegExp(`(?<![\\p{L}])(tiene|tienen|consta de|constan de|cuenta con|cuentan con|contiene|contienen)\\s+${NUM}\\s+(\\p{L}{4,}s)(?![\\p{L}])`, 'giu'))) {
+        const own = new RegExp(`^((?:el|la|los|las)\\s[^,;:]{2,50}?)\\s+${m[1]}\\s`, 'iu').exec(sp.slice(0, m.index + m[1].length + 1))?.[1];
+        const what = own && subjOk(own) ? own : ctx, verb = /n$|n\s/.test(m[1]) && own ? 'tienen' : 'tiene';
+        if (what && toNumber(m[2])) add('num', b.id, 'number', { q: `${howMany(m[3])} ${verb} ${lowerSubject(what)}?`, a: toNumber(m[2]), t: '', u: '', n: '' }, 0.72);
+      }
     }
     const lab = def || (/^\*\*([^*]{1,60}?)\s*:?\*\*\s*:?\s+(\S.*)$/s.exec(text) || []).slice(1).reduce((o, v, k) => ({ ...o, [k ? 'def' : 'term']: v }), null);
     if (lab) {

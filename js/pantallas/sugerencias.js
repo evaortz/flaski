@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
-import { suggestCards, PRESELECT, writingTips, plainText } from '../suggest.js';
+import { suggestCards, PRESELECT, writingTips, plainText, useGender } from '../suggest.js';
 import { temaCards } from '../primera-vez.js';
 import { stripImages, storeImage, flushUploads } from '../media.js';
 import { toPlain } from '../inline.js';
@@ -25,10 +25,16 @@ function sugHidden(pageId) { try { return new Set(JSON.parse(localStorage.getIte
 export function setSugHidden(pageId, set) {
   try { const all = JSON.parse(localStorage.getItem(SUG_HIDDEN) || '{}'); if (set.size) all[pageId] = [...set]; else delete all[pageId]; localStorage.setItem(SUG_HIDDEN, JSON.stringify(all)); } catch { /* sin almacenamiento */ }
 }
+// El género de las palabras («¿Cuántas fases…?»), con rosaenlg-gender-es: se carga al abrir las sugerencias por primera
+// vez (ruta en una variable: no forma parte del arranque de la app); sin conexión, suggest.js se apaña con sus reglas
+const GENDER_LIB = '../vendor/gender-es.js';
+let genderReady = null;
+const loadGender = () => (genderReady ||= import(GENDER_LIB).then(m => useGender(m.default)).catch(() => {}));
 // only: solo las de un bloque (desde la ✨ del apunte)
 export function openSuggestions(only = null) {
   const p = curPage();
   if (!p) return;
+  if (!genderReady) { loadGender().then(() => openSuggestions(only)); return; }
   const open = document.querySelector('[data-block-input]');
   if (open) commitBlockEl(open);
   // Si ya se habían abierto en este apunte, se conserva lo retocado y lo marcado

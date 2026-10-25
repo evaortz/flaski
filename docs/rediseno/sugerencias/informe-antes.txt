@@ -1,0 +1,145 @@
+
+== constitucion-titulo-preliminar: imprescindibles 17/18 (94 %) · total 21/35 (60 %) · sugerencias 51 · ruido 3 · sin pareja 30
+  faltan · fecha_completa
+    I La Constitución fue ratificada en referéndum el {{6 de diciembre de 1978}}. → 6 de diciembre de 1978
+  faltan · distractores_del_apunte
+    D Fechas de la Constitución: ¿cuál es la del referéndum? → 6 de diciembre de 1978
+    D ¿Cuál de estos NO es un valor superior del art. 1.1? → La solidaridad
+    E ¿Qué tipo de norma regula las bases de la organización militar? → Una ley orgánica
+    D El art. 9.3 garantiza la irretroactividad de todas las normas. → Falso (solo de las disposiciones sancionadoras no favorables o restrictivas de derechos individuales)
+  faltan · lista_con_titulo
+    D Une cada reforma con su año → art. 13.2 = 1992 · art. 135 = 2011 · art. 49 = 2024
+  faltan · articulo
+    D ¿Qué regula el artículo 2? → La unidad de la Nación española y el derecho a la autonomía de nacionalidades y regiones
+    E ¿Qué artículo los regula? → Art. 6: partidos políticos · Art. 7: sindicatos de trabajadores, asociaciones empresariales
+  faltan · negrita
+    D Respecto al castellano, ¿qué deber y qué derecho tienen los españoles? → El deber de conocerlo y el derecho a usarlo
+    D ¿Según qué norma son oficiales las demás lenguas españolas en cada Comunidad Autónoma? → Según sus Estatutos
+    D Los partidos políticos son {{instrumento fundamental para la participación política}}. → instrumento fundamental para la participación política
+    D ¿Qué deben ser la estructura interna y el funcionamiento de partidos, sindicatos y asociaciones empresariales? → Democráticos
+  faltan · cifra
+    D La franja amarilla de la bandera tiene el triple de anchura que cada una de las rojas. → Falso (es de doble anchura)
+  faltan · quien_hace_que
+    D ¿Qué expresan los partidos políticos según el art. 6? → El pluralismo político
+  casan:
+    ¿Cuándo aprobaron las Cortes la Constitución?
+      ← [basic] ¿Cuándo aprobaron las Cortes la Constitución Española? → 31 de octubre de 1978
+    ¿Cuándo sancionó el Rey la Constitución?
+      ← [basic] ¿Cuándo sancionó el Rey la Constitución Española? → 27 de diciembre de 1978
+    ¿Cuándo se publicó y entró en vigor la Constitución?
+      ← [basic] ¿Cuándo se publicó y entró en vigor la Constitución Española? → 29 de diciembre de 1978
+    ¿Cuántos artículos tiene la Constitución?
+      ← [number] ¿Cuántos artículos tiene la Constitución Española? → 169
+    ¿Cuántas reformas ha tenido la Constitución?
+      ← [number] ¿Cuántas reformas tiene la Constitución Española? → 3
+    España se constituye en un {{Estado social y democrático de Derecho}}.
+      ← [cloze] España se constituye en un […]. → España se constituye en un Estado social y democrático de Derecho.
+    ¿Cuáles son los valores superiores del ordenamiento jurídico (art. 1.1)?
+      ← [cloze] España se constituye en un Estado social y democrático de Derecho, que propugna como valores superiores de su ordenamiento jurídico […]. → España se constituye en un Estado social y democrático de Derecho, que propugna como valores superiores de su ordenamiento jurídico la libertad, la justicia, la igualdad y el pluralismo político.
+    La soberanía nacional reside en {{el pueblo español}}.
+      ← [cloze] La soberanía nacional reside en el […]. → La soberanía nacional reside en el pueblo español.
+    La forma política del Estado español es la {{Monarquía parlamentaria}}.
+      ← [cloze] La forma política del Estado español es la […]. → La forma política del Estado español es la Monarquía parlamentaria.
+    ¿Qué artículo establece que la forma política del Estado es la Monarquía parlamentaria?
+      ← [basic] ¿Qué artículo establece que la forma política del Estado español es la Monarquía parlamentaria? → Art. 1.3
+    El {{castellano}} es la lengua española oficial del Estado.
+      ← [cloze] El […] es la lengua española oficial del Estado. → El castellano es la lengua española oficial del Estado.
+    ¿Cómo es la bandera de España según el art. 4.1?
+      ← [basic] ¿Cómo está formada la bandera de España (art. 4.1)? → Tres franjas horizontales, roja, amarilla y roja, siendo la amarilla de doble anchura que cada una de las rojas
+    La capital del Estado es la {{villa de Madrid}}.
+      ← [cloze] La capital del Estado es la […]. → La capital del Estado es la villa de Madrid.
+    ¿Quiénes constituyen las Fuerzas Armadas?
+      ← [basic] ¿Quiénes constituyen las Fuerzas Armadas (art. 8.1)? → El Ejército de Tierra, la Armada y el Ejército del Aire
+    ¿Cuál es la misión de las Fuerzas Armadas?
+      ← [basic] ¿Cuál es la misión de las Fuerzas Armadas (art. 8.1)? → Garantizar la soberanía e independencia de España, defender su integridad territorial y el ordenamiento constitucional
+    Una {{ley orgánica}} regulará las bases de la organización militar.
+      ← [cloze] Una […] regulará las bases de la organización militar. → Una ley orgánica regulará las bases de la organización militar.
+    ¿A qué están sujetos los ciudadanos y los poderes públicos (art. 9.1)?
+      ← [basic] ¿A qué están sujetos los ciudadanos y los poderes públicos (art. 9.1)? → A la Constitución y al resto del ordenamiento jurídico
+    ¿A quién corresponde promover que la libertad y la igualdad sean reales y efectivas?
+      ← [basic] ¿A quién corresponde promover las condiciones para que la libertad y la igualdad del individuo y de los grupos en que se integra sean reales y efectivas (art. 9.2)? → A los poderes públicos
+    ¿Qué principios garantiza la Constitución en el art. 9.3?
+      ← [basic] ¿Qué garantiza la Constitución (art. 9.3)? → - el principio de legalidad
+- la jerarquía normativa
+- la publicidad de las normas
+- la irretroactividad de las disposiciones sancionadoras no favorables o restrictivas de derechos individuales
+- la seguridad jurídica
+- la responsabilidad
+- la interdicción de la arbitrariedad de los poderes públicos.
+    ¿Dónde reside la soberanía nacional?
+      ← [basic] ¿Dónde reside la soberanía nacional? → respuesta → En el pueblo español (art. 1.2)
+    ¿Qué regula las bases de la organización militar?
+      ← [basic] ¿Qué regula las bases de la organización militar? → respuesta → Una ley orgánica (art. 8.2)
+  sin pareja:
+    [basic/date] ¿Cuándo ratificó el pueblo español la Constitución Española? → 6 de diciembre de 1978
+    [basic/def] Estructura → Un preámbulo, 169 artículos (un Título Preliminar y diez títulos más), 4 disposiciones adicionales, 9 transitorias, 1 derogatoria y 1 final.
+    [basic/def] Reformas → Tres. En 1992, el art. 13.2, para el voto de los ciudadanos de la UE en las elecciones municipales; en 2011, el art. 135, sobre la estabilidad presupuestaria; y en 2024, el art. 49, que sustituye «disminuidos» por «personas con discapacidad».
+    [basic/art] ¿Qué artículo establece que la soberanía nacional reside en el pueblo español, del que emanan los poderes del Estado? → Art. 1.2
+    [cloze/bold] La […] reside en el pueblo español. → La soberanía nacional reside en el pueblo español.
+    [cloze/bold] La Constitución se fundamenta en la […]. → La Constitución se fundamenta en la indisoluble unidad de la Nación española.
+    [cloze/bold] La Constitución se fundamenta en la indisoluble unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el […] de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas. → La Constitución se fundamenta en la indisoluble unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el derecho a la autonomía de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas.
+    [cloze/bold] La Constitución se fundamenta en la indisoluble unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el derecho a la autonomía de las nacionalidades y regiones que la integran y la […] entre todas ellas. → La Constitución se fundamenta en la indisoluble unidad de la Nación española, patria común e indivisible de todos los españoles, y reconoce y garantiza el derecho a la autonomía de las nacionalidades y regiones que la integran y la solidaridad entre todas ellas.
+    [basic/art] ¿Qué artículo establece que el castellano es la lengua española oficial del Estado? → Art. 3.1
+    [cloze/bold] Todos los españoles tienen el […] y el derecho a usarla. → Todos los españoles tienen el deber de conocerla y el derecho a usarla.
+    [cloze/bold] Todos los españoles tienen el deber de conocerla y el […]. → Todos los españoles tienen el deber de conocerla y el derecho a usarla.
+    [basic/art] ¿Qué artículo establece que las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus Estatutos? → Art. 3.2
+    [cloze/bold] Las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus […]. → Las demás lenguas españolas serán también oficiales en las respectivas Comunidades Autónomas de acuerdo con sus Estatutos.
+    [basic/art] ¿Qué artículo establece que la riqueza de las distintas modalidades lingüísticas de España es un patrimonio cultural que será objeto de especial respeto y protección? → Art. 3.3
+    [cloze/bold] La riqueza de las distintas modalidades lingüísticas de España es un […] que será objeto de especial respeto y protección. → La riqueza de las distintas modalidades lingüísticas de España es un patrimonio cultural que será objeto de especial respeto y protección.
+    [cloze/bold] La bandera de España está formada por […]. → La bandera de España está formada por tres franjas horizontales, roja, amarilla y roja.
+    [cloze/bold] La bandera de España está formada por tres franjas horizontales, roja, amarilla y roja, siendo la amarilla de […] que cada una de las rojas. → La bandera de España está formada por tres franjas horizontales, roja, amarilla y roja, siendo la amarilla de doble anchura que cada una de las rojas.
+    [basic/art] ¿Qué artículo establece que los Estatutos podrán reconocer banderas y enseñas propias de las Comunidades Autónomas? → Art. 4.2
+    [basic/art] ¿Qué artículo establece que la capital del Estado es la villa de Madrid? → Art. 5
+    [cloze/bold] Los […] expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular y son instrumento fundamental para la participación política. → Los partidos políticos expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular y son instrumento fundamental para la participación política.
+    [cloze/bold] Los partidos políticos expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular y son […]. → Los partidos políticos expresan el pluralismo político, concurren a la formación y manifestación de la voluntad popular y son instrumento fundamental para la participación política.
+    [cloze/bold] Los […] y las asociaciones empresariales contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios. → Los sindicatos de trabajadores y las asociaciones empresariales contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios.
+    [cloze/bold] Los sindicatos de trabajadores y las […] contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios. → Los sindicatos de trabajadores y las asociaciones empresariales contribuyen a la defensa y promoción de los intereses económicos y sociales que les son propios.
+    [cloze/bold] Las […], constituidas por el Ejército de Tierra, la Armada y el Ejército del Aire, tienen como misión garantizar la soberanía e independencia de España, defender su integridad territorial y el ordenamiento constitucional. → Las Fuerzas Armadas, constituidas por el Ejército de Tierra, la Armada y el Ejército del Aire, tienen como misión garantizar la soberanía e independencia de España, defender su integridad territorial y el ordenamiento constitucional.
+    [basic/art] ¿Qué artículo establece que una ley orgánica regulará las bases de la organización militar conforme a los principios de la presente Constitución? → Art. 8.2
+    [basic/art] ¿Qué artículo establece que los ciudadanos y los poderes públicos están sujetos a la Constitución y al resto del ordenamiento jurídico? → Art. 9.1
+    [basic/table] ¿Cuál es la forma política del Estado? → respuesta → La Monarquía parlamentaria (art. 1.3)
+    [basic/table] ¿Qué lengua es oficial en todo el Estado? → respuesta → El castellano (art. 3.1)
+    [basic/table] ¿Cuál es la capital del Estado? → respuesta → La villa de Madrid (art. 5)
+    [match/match] Une cada pregunta con su respuesta → ¿Dónde reside la soberanía nacional? = En el pueblo español (art. 1.2) | ¿Cuál es la forma política del Estado? = La Monarquía parlamentaria (art. 1.3) | ¿Qué lengua es oficial en todo el Estado? = El castellano (art. 3.1) | ¿Cuál es la capital del Estado? = La villa de Madrid (art. 5) | ¿Qué regula las bases de la organización militar? = Una ley orgánica (art. 8.2)
+
+== por-que-se-te-olvidan-las-cosas: imprescindibles 8/8 (100 %) · total 11/17 (65 %) · sugerencias 14 · ruido 0 · sin pareja 3
+  faltan · negrita
+    D ¿Qué memorizaba Ebbinghaus en sus experimentos? → Listas de sílabas sin sentido
+    D ¿Qué hace el cerebro con lo aprendido mientras duermes? → Lo consolida: lo reorganiza y lo afianza
+  faltan · contraste
+    D ¿Qué pasaría si estudias tres horas la víspera del examen en vez de repartirlas en varios días? → Te serviría para el examen de mañana, pero lo olvidarías enseguida; repartido, dura meses
+    D Explica con tus palabras por qué reconocer no es lo mismo que recordar. → Releer hace que el texto te suene, pero eso no significa que puedas sacarlo de memoria sin verlo
+  faltan · causal
+    D Explica por qué no conviene repasar ni antes ni después de estar a punto de olvidar. → Antes es perder el tiempo; después hay que volver a aprenderlo
+  faltan · autor_obra
+    D ¿Quiénes hicieron en 2006 el experimento de releer frente a intentar recordar? → Roediger y Karpicke
+  casan:
+    ¿Quién publicó en 1885 el primer estudio científico sobre la memoria?
+      ← [basic] ¿Quién publicó en 1885 el primer estudio científico sobre la memoria? → Hermann Ebbinghaus
+    ¿En qué año publicó Ebbinghaus su estudio sobre la memoria?
+      ← [number] ¿Cuándo publicó Hermann Ebbinghaus el primer estudio científico sobre la memoria? → 1885
+    ¿Qué describe la curva del olvido?
+      ← [basic] Descubrió la curva del olvido → Olvidamos muy deprisa al principio y cada vez más despacio después. Gran parte de lo que aprendes hoy se habrá ido en unos pocos días si no vuelves a ello.
+    Cada repaso {{aplana la curva}} del olvido.
+      ← [cloze] Cada repaso […]. → Cada repaso aplana la curva.
+    ¿Qué es el efecto de espaciado?
+      ← [basic] Efecto de espaciado → Se recuerda mejor lo que se repasa repartido en el tiempo que lo que se estudia todo de golpe.
+    ¿Cuál es el mejor momento para repasar algo?
+      ← [basic] ¿Cuál es el mejor momento para repasar algo? → Justo cuando estás a punto de olvidarlo
+    ¿Qué es la práctica de recuperación?
+      ← [basic] Práctica de recuperación → Intentar sacar algo de tu memoria, sin mirar, lo fija mucho más que volver a leerlo.
+    ¿Qué es la ilusión de fluidez?
+      ← [basic] ¿Qué es la ilusión de fluidez? → Releer da una sensación engañosa de saber: el texto te suena y crees que lo dominas
+    ¿Qué son las dificultades deseables y de quién es la idea?
+      ← [basic] Dificultades deseables → Idea del psicólogo Robert Bjork. Lo que cuesta un poco al practicar (recordar sin pistas, mezclar temas, dejar pasar tiempo entre repasos) hace que el aprendizaje dure más, aunque en el momento parezca que vas peor.
+    Algunas dificultades deseables
+      ← [basic] Algunas dificultades deseables: ¿cuáles? → - Espaciar los repasos en vez de amontonarlos.
+- Intercalar temas distintos en vez de practicar uno solo seguido.
+- Recordar en vez de releer.
+- Explicarlo con tus palabras en vez de repetir la definición.
+    Ordena cómo usa Flaski lo que sabemos de la memoria
+      ← [steps] Ordena: cómo lo usa Flaski → Cada pregunta te obliga a recordar, no a releer. → Cuando respondes, eliges cómo te ha ido: Otra vez, Difícil, Bien o Fácil. → Con eso, Flaski calcula cuándo estarás a punto de olvidarla y te la vuelve a preguntar justo entonces. → Cada vez que la aciertas, el siguiente repaso llega más tarde: días, luego semanas, luego meses.
+  sin pareja:
+    [cloze/bold] Se usó a sí mismo como sujeto: memorizaba listas de […] («DAX», «BOK»…) y medía cuánto recordaba con el paso del tiempo. → Se usó a sí mismo como sujeto: memorizaba listas de sílabas sin sentido («DAX», «BOK»…) y medía cuánto recordaba con el paso del tiempo.
+    [cloze/bold] En un experimento conocido ([…]), unos estudiantes releyeron un texto varias veces y otros lo leyeron una vez y luego intentaron recordarlo. → En un experimento conocido (Roediger y Karpicke, 2006), unos estudiantes releyeron un texto varias veces y otros lo leyeron una vez y luego intentaron recordarlo.
+    [cloze/bold] Mientras duermes, el cerebro […] lo que has aprendido durante el día: lo reorganiza y lo afianza. → Mientras duermes, el cerebro consolida lo que has aprendido durante el día: lo reorganiza y lo afianza.

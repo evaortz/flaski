@@ -12,7 +12,7 @@ test('batería de sugerencias: imprescindibles, total y ruido', () => {
     const m = MIN[r.name];
     assert.ok(m, r.name);
     assert.ok(r.imp.ok >= m.imp, `${r.name}: imprescindibles ${r.imp.ok}/${r.imp.of}`);
-    assert.ok(r.all.ok >= m.all, `${r.name}: total ${r.all.ok}/${r.all.of}`);
+    assert.ok(r.all_.ok >= m.all, `${r.name}: total ${r.all.ok}/${r.all_.of}`);
     assert.ok(r.noise <= m.noise, `${r.name}: ruido ${r.noise}`);
   }
 });

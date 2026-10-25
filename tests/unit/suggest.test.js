@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE } from '../../js/suggest.js';
+import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE, fixGrammar, grammarIssue, genderOf, useGender } from '../../js/suggest.js';
+import { plainTextToPage } from '../../js/notesio.js';
+import genderEs from '../../js/vendor/gender-es.js';
 import { textToBlocks } from '../../js/pages.js';
 
 const run = (md, opts) => suggestCards({ title: '', blocks: textToBlocks(md) }, opts);
@@ -272,4 +274,36 @@ test('huecos más cortos: fuera lo que va detrás («…, del que…», «…, p
 test('en una lista de idiomas, una fecha o una cifra se preguntan como tales antes que como «Ordenar frase»', () => {
   const r = run('- **Toma de la Bastilla:** 14 de julio de 1789\n- Guten Morgen, mein Freund: buenos días, amigo', { lang: 'de-DE' });
   assert.deepEqual(r.map(s => [s.kind, s.typeId]), [['date', 'basic'], ['phrase', 'order']]);
+});
+
+/* ---------- Paso 7+8 · parte 1: arreglar lo que hay ---------- */
+const paste = text => suggestCards({ id: 'p', ...plainTextToPage(text) }, { native: 'es-ES' });
+
+test('gramática: «cuántos/cuántas» concuerda con el sustantivo (con rosaenlg-gender-es y sus excepciones)', () => {
+  useGender(genderEs);
+  assert.equal(fixGrammar('¿Cuántos fases tiene la mitosis?'), '¿Cuántas fases tiene la mitosis?');
+  assert.equal(fixGrammar('¿Cuántas artículos tiene?'), '¿Cuántos artículos tiene?');
+  assert.deepEqual(['fases', 'reformas', 'leyes', 'mitosis', 'meses', 'etapas', 'plazos'].map(genderOf), ['f', 'f', 'f', 'f', 'm', 'f', 'm']);
+  assert.equal(grammarIssue('¿Cuántos fases tiene?'), 'cuántos');
+});
+
+test('gramática: nada de «del el», «de el» ni «a el»', () => {
+  assert.equal(fixGrammar('¿Cuándo provocó el golpe de Estado del el inicio de la Guerra Civil?'), '¿Cuándo provocó el golpe de Estado del inicio de la Guerra Civil?');
+  assert.equal(fixGrammar('Se interpone ante el órgano de el que depende y a el que lo dictó'), 'Se interpone ante el órgano del que depende y al que lo dictó');
+  // «El golpe de Estado del 18 de julio de 1936 provocó…»: la fecha es del golpe
+  const r = paste('La Segunda República\n\nEl golpe de Estado del 18 de julio de 1936 provocó el inicio de la Guerra Civil.');
+  assert.deepEqual(r.map(s => [s.front, s.back]), [['¿Cuándo fue el golpe de Estado que provocó el inicio de la Guerra Civil?', '18 de julio de 1936']]);
+});
+
+test('gramática: el sujeto sale de la frase, no del título («La mitosis tiene cuatro fases»)', () => {
+  const r = paste('La célula\n\nLa célula es la unidad básica de la vida.\nLa mitosis tiene cuatro fases: profase, metafase, anafase y telofase.');
+  assert.ok(r.some(s => s.front === '¿Cuántas fases tiene la mitosis?' && s.back === '4'), r.map(s => s.front).join(' / '));
+  assert.ok(!r.some(s => /fases tiene la célula/.test(s.front)));
+});
+
+test('gramática: fuera las referencias que no se entienden solas («ese mismo mes», «este», «dicho»)', () => {
+  for (const q of ['¿Cuándo abandonó España Alfonso XIII ese mismo mes?', 'Cuando no lo fijen, este será de tres meses.', 'Estas se utilizarán junto a la bandera de España.', '¿Qué hace dicho órgano?']) assert.ok(grammarIssue(q), q);
+  for (const q of ['¿Qué establece esta ley?', '¿Cuál es la capital del Estado?', 'La Constitución garantiza el derecho a la autonomía.']) assert.equal(grammarIssue(q), '', q);
+  const r = paste('La Segunda República\n\nLa Segunda República se proclamó el 14 de abril de 1931. Alfonso XIII abandonó España ese mismo mes.');
+  assert.ok(r.length && !r.some(s => /mismo mes/.test(s.front)), r.map(s => s.front).join(' / '));
 });

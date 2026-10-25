@@ -58,3 +58,9 @@ test('sin sugerencias: consejos según cómo está escrito el apunte y cómo se 
   await expect(page.locator('.sug-tips')).toContainText('viñetas');
   await expect(page.locator('.sug-how')).toHaveAttribute('open', '');
 });
+
+test('el género de las palabras se carga al abrir las sugerencias: «¿Cuántas legiones…?», no «¿Cuántos…?»', async ({ page, seed }) => {
+  await withPage(page, seed, '# Roma\n\nEl ejército tiene seis legiones.');
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug .f')).toHaveText(['¿Cuántas legiones tiene el ejército?']);
+});
