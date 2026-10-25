@@ -95,9 +95,16 @@ const dayIndex = (t, t0) => Math.round((startOfDay(t) - t0) / DAY);
 // Lo que hay en cada lista: nuevas sin ver y, por día, los repasos que ya tocan según el progreso (con sus
 // repasos siguientes). Se calcula una vez por datos y retención.
 const stockMemo = new WeakMap();
+function fingerprint(state) {
+  let n = 0, h = 0;
+  for (const p of progressOf(state.progress).values()) { n++; h = (h + (ms(p.due) % 999983) * 31 + (ms(p.last) % 999979)) % 2147483647; }
+  const cards = state.cards instanceof Map ? state.cards.size : (state.cards || []).length;
+  return `${n}.${h}.${cards}`;
+}
 export function stock(state, r = 0.9) {
-  // stockKey: quien llama dice cuándo ha cambiado el progreso (la app lo cambia en el sitio, sin copiarlo)
-  const key = `${state.today}|${r}|${state.stockKey ?? ''}`, holder = state.progress || state.cards;
+  // La app cambia el progreso en el sitio (sin copiarlo): la clave lleva una huella de lo que hay (cuántas, y
+  // cuándo tocan y cuándo se respondieron), para no seguir con las cuentas de antes de una respuesta
+  const key = `${state.today}|${r}|${state.stockKey ?? ''}|${fingerprint(state)}`, holder = state.progress || state.cards;
   const hit = holder && typeof holder === 'object' && stockMemo.get(holder);
   if (hit?.key === key && hit.cards === state.cards) return hit.value;
   const t0 = startOfDay(dayDate(state.today).getTime()), prog = progressOf(state.progress);
@@ -440,7 +447,8 @@ export function today(state) {
   const d = state.done || {}, done = { new: Math.max(0, d.new || 0), reviews: Math.max(0, d.reviews || 0), n: Math.max(0, d.n || 0), ms: Math.max(0, d.ms || 0) };
   const fc = forecast(state), d0 = fc.days[0], { secNew: sN, secReview: sR } = fc.pace;
   const reviews = d0.reviewsDue;
-  // Las nuevas de hoy con el tiempo que queda tras lo hecho y los repasos que faltan
+  // Las nuevas de hoy con el tiempo que queda: los minutos, menos los repasos que faltan (los hechos ya no tocan)
+  // y menos lo ya gastado (repasos y nuevas hechos)
   const minutes = d0.minutes, spent = done.reviews * sR + done.new * sN, room = minutes * 60 - reviews * sR - spent;
   const planned = Math.min(d0.new, Math.max(0, Math.floor(room / sN) + done.new));
   let left = Math.max(0, planned + Math.max(0, state.extraNew || 0) - done.new);

@@ -472,3 +472,22 @@ test('6 · «dejar para el final» nunca quita todo el temario; si ni así llega
   assert.ok(b.drop.topics.length <= 2);
   assert.equal(b.drop.exam.verdict, 'no');
 });
+
+test('7 · tras hacer todos los repasos, Hoy sigue ofreciendo las nuevas que caben (aunque el progreso cambie en el sitio)', () => {
+  const S = invent({ seed: 9, n: 300, nExams: 1, nTopics: 2, seen: 0, days: [60], week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 45])) });
+  const t0 = new Date(TODAY + 'T09:00:00').getTime();
+  for (let i = 0; i < 196; i++) { S.cards.push({ id: 'r' + i, deck_id: 'd0-0' }); S.progress.set('r' + i, { reps: 3, interval: 10, ease: 2.5, lapses: 0, due: t0, last: t0 - 10 * DAY, firstSeen: t0 - 40 * DAY }); }
+  S.newPerDay = 20;
+  // 45 min: 196 repasos a 12 s (39,2 min) y caben 8 nuevas
+  const before = today(S);
+  assert.deepEqual([before.reviews, before.new], [196, 8]);
+  // Hechos los 196 (la app cambia el mismo Map): siguen cabiendo las 8
+  for (let i = 0; i < 196; i++) S.progress.set('r' + i, { ...S.progress.get('r' + i), due: t0 + 12 * DAY, last: t0 + 3600e3 });
+  const done = { reviews: 196, new: 0, n: 196, ms: 196 * 12000 };
+  const after = today({ ...S, done });
+  assert.deepEqual([after.reviews, after.new, after.dayDone], [0, 8, null]);
+  // Lo mismo que con una copia del progreso (lo que vería otra pantalla)
+  assert.deepEqual(today({ ...S, progress: new Map(S.progress), done }), after);
+  // Y hechas también las 8: hecho por hoy
+  assert.ok(today({ ...S, done: { reviews: 196, new: 8, n: 204, ms: 196 * 12000 + 8 * 40000 } }).dayDone);
+});
