@@ -90,7 +90,7 @@ export function renderExplore() {
   main.innerHTML = `${headHTML(has)}
     <div class="ex-grid">
       ${goal === 'all' && featured ? `<div class="ex-hero"><span class="ex-sticker">¡en 5 min!</span><small>tema de ejemplo · para probar Flaski</small><h2>${esc(featured.title)}</h2>
-        <p>Un apunte corto sobre la memoria, con ${featured.count} preguntas ya hechas.</p>
+        <p>${esc(featured.text)}: un apunte corto sobre la memoria, con ${featured.count} preguntas ya hechas.</p>
         <div class="btnrow">${ownTema(featured) ? `<button class="ex-hero-go" data-ex="open-tema" data-i="${featured.i}">Abrir el tema</button>` : `<button class="ex-hero-go" data-ex="start-tema" data-i="${featured.i}">Añadir y empezar</button>`}<button class="link" data-ex="see-tema" data-i="${featured.i}">Ver el tema</button></div>
         <svg class="ex-curve" viewBox="0 0 160 90" aria-hidden="true"><path d="M4 20 C40 70 90 82 156 84" fill="none" stroke="#FF9F92" stroke-width="5" stroke-linecap="round"/><path d="M4 8 C20 40 30 52 40 50 C50 30 56 18 70 30 C80 48 90 52 100 50 C116 30 130 26 156 30" fill="none" stroke="#8EE3B5" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="50" r="6" fill="#FFFFFF"/><circle cx="100" cy="50" r="6" fill="#FFFFFF"/></svg></div>` : ''}
       ${show('amigos') ? `<section class="ex-sec ex-amigos" aria-labelledby="ex-h-amigos"><div class="section-h"><h2 id="ex-h-amigos">${local ? 'Tus listas compartidas' : 'De tus amigos'}</h2></div>${friendsBody}

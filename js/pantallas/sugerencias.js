@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
 import { suggestCards, PRESELECT, writingTips, plainText } from '../suggest.js';
 import { temaCards } from '../primera-vez.js';
-import { stripImages } from '../media.js';
+import { stripImages, storeImage, flushUploads } from '../media.js';
 import { toPlain } from '../inline.js';
 import { pageTitle } from '../pages.js';
 import { $, S, esc, fmt, cardList, toast, fail } from '../comun.js';
@@ -241,7 +241,15 @@ export function blockFor(p, answer) {
 // Las primeras de un tema de ejemplo: las marcadas «primera» en su JSON (cortas y claras), unidas a su parte
 export async function temaFirst(p, url) {
   const list = (await (await fetch(url, { cache: 'no-cache' })).json()).filter(x => x.primera);
-  return temaCards(list).map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
+  return temaPicks(p, list);
+}
+// Las preguntas de un tema, unidas a su apartado («bloque» en el JSON o, si no, donde está la respuesta),
+// con sus dibujos ya guardados (tapar partes de una imagen)
+export async function temaPicks(p, list) {
+  const picks = temaCards(list).map(x => ({ ...x, blockId: blockFor(p, x.block || x.answer) }));
+  for (const x of picks) if (x.image?.svg) await storeImage(x.image.id, new TextEncoder().encode(x.image.svg), 'image/svg+xml');
+  if (picks.some(x => x.image)) flushUploads();
+  return picks;
 }
 export async function createSuggested(btn) {
   const g = S.sug, p = S.pages.get(g?.pageId);

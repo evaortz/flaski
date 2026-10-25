@@ -3,7 +3,7 @@ import * as api from '../api.js';
 import { toRow } from '../rows.js';
 import { loadPrefs, applyLook, mergeSynced } from '../prefs.js';
 import { icon } from '../icons.js';
-import { LANGS, summarize } from '../cardtypes.js';
+import { LANGS, summarize, activeTemplates } from '../cardtypes.js';
 import { setBaseRate } from '../tts.js';
 import { saveSnapshot, loadSnapshot, rememberUser } from '../snapshot.js';
 import { isRetryable } from '../outbox.js';
@@ -18,13 +18,13 @@ import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
 import { setRemote as setImageRemote } from '../media.js';
-import { $, main, S, esc, toast, errMsg, fail, counts } from '../comun.js';
+import { $, main, S, esc, toast, errMsg, fail, counts, fold } from '../comun.js';
 import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
-import { suggestFor, makeSuggested, firstPicks, temaFirst, openSuggestions, drawSuggestions } from './sugerencias.js';
+import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions, drawSuggestions } from './sugerencias.js';
 import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
@@ -155,7 +155,7 @@ export async function onSignedIn(session) {
     dedupeTypes();
     if (!S.fromCache) dropEmptyPages();
     if (!S.fromCache) purgeExpired();   // lo que lleva más de 30 días en la papelera se borra del todo
-    if (!S.fromCache) migrateEntender();
+    if (!S.fromCache) migrateEntender().then(() => migrateTemas()).then(n => { if (n && ['home', 'page', 'deck'].includes(S.view)) render(); }).catch(() => {});
     // Los pesos de foco de antes (porcentajes) pasan a Poco · Normal · Mucho
     if (!S.fromCache && normalizeWeights(S.decks, S.folders, S.prefs.plan.nodes)) savePrefsSoon();
     if (!S.fromCache) saveSnap();
@@ -202,7 +202,8 @@ function dropEmptyPages() {
 export async function migrateEntender() {
   const maybe = [...S.cards.values()].filter(c => c.type_id === 'basic' && /^(Explica|¿Qué pasaría)/.test(c.fields?.q || ''));
   if (!maybe.length) return 0;
-  const lists = await Promise.all(TEMAS.map(t => fetch(t.cards).then(r => r.json()).catch(() => [])));
+  // (también las listas de antes de los temas que han cambiado)
+  const lists = await Promise.all(TEMAS.flatMap(t => [t.cards, t.old].filter(Boolean)).map(u => fetch(u).then(r => r.json()).catch(() => [])));
   const want = new Map();
   for (const list of lists) for (const [i, nu] of temaCards(list).entries()) if (nu.typeId === 'explain' || nu.typeId === 'whatif') want.set(list[i].pregunta, { ...nu, a: list[i].respuesta });
   let n = 0;
@@ -214,6 +215,50 @@ export async function migrateEntender() {
     Object.assign(c, patch);
     api.updateCard(c.id, patch).catch(() => {});
     n++;
+  }
+  if (n) saveSnap();
+  return n;
+}
+
+// Los temas de ejemplo cuyas preguntas han cambiado (ahora «Por qué se te olvidan las cosas» tiene una de cada
+// tipo): en la lista de quien ya lo tenía, las del tema de antes que siguen tal cual y ya no están se quitan, las
+// nuevas se añaden (unidas a su apartado) y las que tienen el mismo texto se quedan con su progreso (si cambian
+// de tipo o de campos, se actualizan sin cambiar su id). Lo que hayas añadido o editado tú no se toca.
+// Si se repite, no cambia nada.
+const noteKey = f => fold(String(f?.q ?? f?.x ?? f?.s ?? f?.t ?? f?.h ?? f?.a ?? '').replace(/\{\{|\}\}/g, ''));
+export async function migrateTemas() {
+  let n = 0;
+  for (const t of TEMAS.filter(t => t.old)) {
+    const src = temaSource(t), decks = [...S.decks.values()].filter(d => d.source === src);
+    if (!decks.length) continue;
+    const [now, before] = await Promise.all([t.cards, t.old].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()).catch(() => null)));
+    if (!now || !before) continue;
+    const oldKeys = new Set(temaCards(before).map(x => noteKey(x.fields)));
+    for (const d of decks) {
+      const notes = new Map();
+      for (const c of [...S.cards.values()].filter(c => c.deck_id === d.id)) (notes.get(c.note_id || c.id) || notes.set(c.note_id || c.id, []).get(c.note_id || c.id)).push(c);
+      const byKey = new Map([...notes.values()].map(cs => [noteKey(cs[0].fields), cs]));
+      const want = temaCards(now), wantKeys = new Set(want.map(x => noteKey(x.fields)));
+      // Las del tema de antes que ya no están (y siguen tal cual): fuera
+      for (const [k, cs] of byKey) {
+        if (wantKeys.has(k) || !oldKeys.has(k)) continue;
+        for (const c of cs) { S.cards.delete(c.id); S.progress.delete(c.id); api.deleteCard(c.id).catch(() => {}); n++; }
+      }
+      // Las que siguen: el mismo id (y su progreso), con su tipo y sus campos de ahora
+      for (const x of want) {
+        const cs = byKey.get(noteKey(x.fields));
+        if (!cs || cs.length !== 1 || (cs[0].type_id === x.typeId && JSON.stringify(cs[0].fields) === JSON.stringify(x.fields))) continue;
+        const type = getType(x.typeId), tpls = activeTemplates(type, x.fields);
+        if (tpls.length !== 1) continue;
+        const c = cs[0], sum = summarize(type, tpls[0], x.fields);
+        const patch = { type_id: x.typeId, template: tpls[0].id, fields: x.fields, front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000) };
+        Object.assign(c, patch); api.updateCard(c.id, patch).catch(() => {}); n++;
+      }
+      // Las nuevas
+      const p = [...S.pages.values()].find(p => p.deck_id === d.id);
+      const add = now.filter((x, i) => !byKey.has(noteKey(want[i].fields)));
+      if (p && add.length) { await makeSuggested(p, await temaPicks(p, add), d.id, src); n += add.length; }
+    }
   }
   if (n) saveSnap();
   return n;

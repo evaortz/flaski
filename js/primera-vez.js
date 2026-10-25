@@ -9,7 +9,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo
 export const TEMAS = [
   { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35, page: 'La Constitución Española · Título Preliminar' },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Cómo funciona la memoria y por qué repasar así', drawing: 'brujula', objetivo: 'destacado', count: 17, page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, old: 'temas/por-que-se-te-olvidan-las-cosas.v1.json', page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
 ];
 // El id de origen de un tema de ejemplo (va en «source» de su lista: «tema:constitucion-titulo-preliminar»)
 export const temaSource = t => 'tema:' + String(t.cards || '').replace(/^.*\//, '').replace(/\.json$/, '');
@@ -17,8 +17,16 @@ export const temaSource = t => 'tema:' + String(t.cards || '').replace(/^.*\//, 
 // Flaski: { typeId, fields, answer } (answer: el texto con el que se busca su bloque en el apunte)
 const items = r => String(r).split(' · ').map(x => x.trim()).filter(Boolean);
 export function temaCards(list) {
-  return list.map(x => {
+  return list.map(x => ({ ...temaCard(x), ...(x.bloque ? { block: x.bloque } : {}) }));
+}
+function temaCard(x) {
+  {
     const q = x.pregunta, a = x.respuesta, hole = /\{\{(.+?)\}\}/.exec(q)?.[1] || a;
+    if (x.tipo === 'reverse') return { typeId: 'reverse', fields: { a: q, b: a, n: '' }, answer: a };
+    if (x.tipo === 'typing') return { typeId: 'typing', fields: { q, a, n: '' }, answer: a };
+    if (x.tipo === 'order') return { typeId: 'order', fields: { f: a, t: q, n: '' }, answer: a.replace(/\s*\/\s*/g, ' ') };
+    // Tapar partes de una imagen: el dibujo va en el propio tema (svg) y se guarda con su id al crear las preguntas
+    if (x.tipo === 'occlusion') return { typeId: 'occlusion', fields: { img: `![${q}](img:${x.imagen})`, m: x.recuadros.map(r => r.join(' ')).join('\n'), h: q, n: '' }, answer: a, image: { id: x.imagen, svg: x.svg } };
     if (x.tipo === 'cloze') return { typeId: 'cloze', fields: { x: q, e: '' }, answer: hole };
     if (x.tipo === 'number') return { typeId: 'number', fields: { q, a }, answer: a };
     if (x.tipo === 'choice') return { typeId: 'choice', fields: { q, a, w: (x.incorrectas || []).join('; ') }, answer: a };
@@ -33,9 +41,9 @@ export function temaCards(list) {
     if (x.tipo === 'sort') return { typeId: 'basic', fields: { q, a: items(a).map(i => '- ' + i).join('\n') }, answer: items(a)[0] };
     // Explícalo y ¿Qué pasaría si…?: sus ideas clave salen de la respuesta
     if (x.tipo === 'explain') return { typeId: 'explain', fields: { q, k: ideasFromAnswer(a).join('\n'), n: '' }, answer: a };
-    if (x.tipo === 'whatif') return { typeId: 'whatif', fields: { s: q, p: '', e: '', k: ideasFromAnswer(a).join('\n'), n: '' }, answer: a };
+    if (x.tipo === 'whatif') return { typeId: 'whatif', fields: { s: q, p: '', e: (x.efectos || []).join('\n'), k: ideasFromAnswer(a).join('\n'), n: '' }, answer: a };
     return { typeId: 'basic', fields: { q, a }, answer: a };
-  });
+  }
 }
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const monthText = ym => { const [y, m] = String(ym || '').split('-').map(Number); return y && m ? `${MONTHS[m - 1]} de ${y}` : ''; };

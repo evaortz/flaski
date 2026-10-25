@@ -5,9 +5,9 @@ import { dateKey } from '../srs.js';
 import { S, toast, fail, cardList } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
 import { onSignedIn, readTema } from './cuenta.js';
-import { TEMAS, temaCards, temaSource } from '../primera-vez.js';
+import { TEMAS, temaSource } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
-import { makeSuggested, blockFor } from './sugerencias.js';
+import { makeSuggested, temaPicks } from './sugerencias.js';
 import { closeSheet } from './editor.js';
 import { pageRow } from './apuntes.js';
 
@@ -79,8 +79,7 @@ export async function addTema(t) {
     p.deck_id = deck.id; S.pages.set(p.id, p);
     await api.savePage(pageRow(p));
   }
-  const picks = temaCards(await (await fetch(t.cards, { cache: 'no-cache' })).json())
-    .map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
+  const picks = await temaPicks(p, await (await fetch(t.cards, { cache: 'no-cache' })).json());
   await makeSuggested(p, picks, p.deck_id);
   return { page: p, deck: S.decks.get(p.deck_id) };
 }
