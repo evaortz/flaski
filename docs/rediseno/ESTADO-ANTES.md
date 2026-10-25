@@ -55,6 +55,23 @@ Hecho en `../kartlar-antes` (rama `antes-del-push`, desde `de6ea1a`), en paralel
 `cheers_from_user_to_user_day_key` en bases nuevas y viejas (la misma desde la versión 8); por si acaso, también se
 quita cualquier otra única sobre esas tres columnas. `send_cheer` sigue igual.
 
+**Revisión de la parte A (después del informe)**
+1. El tema salía como lista de turco: las listas de un apunte o de un tema nacen con `options.lang: ''` (en
+   `api.createDeck`, porque `makeSuggested` está en `sugerencias.js`, que no toco); «Ordenar frase» ya no vota turco
+   sin letras del turco; y `migrateDeckLangs` repara las listas de apunte o de tema que se quedaron en `tr-TR` sin una
+   letra del turco (la de Eva se arregla sola al abrir). e2e por Explorar (local y con cuenta), la bienvenida, una
+   lista desde un apunte con una de ordenar y la reparación.
+2. Respuesta numérica contestada: el número correcto, dentro de «respuesta»; arriba, solo el veredicto y lo que
+   escribiste. e2e de acierto, casi y fallo.
+3. En la tanda, los avisos van encima de los botones de abajo (`placeToast` en `comun.js`).
+4. «Estudiar este apunte · 14 hoy» (y «Estudiar 3 hoy» en los apartados) cuando no salen todas el mismo día.
+5. `.pv-empty` («Rellena los campos…»): 4,5:1 con los 9 colores, en claro y oscuro (en claro tampoco llegaba).
+6. Apunte del tema de antes: si está tal cual se añadió (igual que `temas/por-que-se-te-olvidan-las-cosas.v2.md`, el
+   único apunte anterior: la v1 y la v2 de las preguntas usaban el mismo), pasa al nuevo y cada pregunta (también las
+   tuyas) sigue unida a su apartado: por el mismo texto o, si no, por el mismo título encima. Si lo has editado, se
+   queda como está. Se compara con el lector de Markdown de ahora: si en algún caso no coincide por cómo se leyó
+   entonces, el apunte se queda como estaba (sin perder nada).
+
 **Pruebas**: `playwright.config.js` lee el puerto de `PORT`; nueva `tests/e2e/antes-del-push.spec.js` (en `tanda` de
 `rapida.mjs`).
 
@@ -66,13 +83,11 @@ quita cualquier otra única sobre esas tres columnas. `send_cheer` sigue igual.
   la primera vez (`leer: true` en `TEMAS`). En Explorar, los dos temas se abren por el apunte. En Explorar no hay
   ninguna lista sin apunte que empiece la tanda directamente (se añaden con «Añadir a mis listas»), así que la prueba
   de «una lista sin apunte sigue abriendo la tanda» es la del texto pegado la primera vez (`remates-paso5.spec.js`).
-- **A1, quien ya tenía el tema**: su apunte se queda como estaba (solo cambian las preguntas); el apunte nuevo lo
-  tiene quien lo añade a partir de ahora.
-- **Pruebas**: unitarias 235/235. Batería completa (PORT=8125, 2 workers): 395 pasan, 15 saltadas y 7 fallos; 2 eran
-  míos (las etiquetas del editor aún esperaban «#») y ya pasan. Los otros **5 ya fallan en `main` (`de6ea1a`)**,
+- **Pruebas** (tras la revisión): unitarias 235/235. Batería completa (PORT=8125, 2 workers): 411 pasan, 15 saltadas y
+  5 fallos. Esos **5 ya fallan en `main` (`de6ea1a`)**,
   comprobado en una copia aparte, y dependen de `suggest.js` / la hoja de sugerencias (paso 7+8):
   `remates-paso5` › «texto pegado en «Trae tus apuntes»…» y `sugerencias` › «Usar esta» en una fila de abajo (móvil y
   escritorio), «el texto de origen…» y «ningún «·» suelto…». Al juntar con el paso 7+8, repasar la batería completa.
 - Novedades sin tocar (lo decide Eva).
-- `VERSION` de `sw.js` subida en cada commit (v210 → v224): al juntar con las otras ramas, quedarse con la más alta + 1
+- `VERSION` de `sw.js` subida en cada commit (v210 → v231): al juntar con las otras ramas, quedarse con la más alta + 1
   y volver a ejecutar `node version.mjs`.
