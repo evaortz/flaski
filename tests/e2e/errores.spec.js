@@ -53,3 +53,11 @@ test('sin espacio en el navegador: «No queda espacio…», «Descargar una copi
   await expect(page.locator('#sheetBody')).toContainText('QuotaExceededError');
   await expect(page.locator('#sheetBody')).toContainText('Modo local');
 });
+
+test('un error sin mensaje (Safari a veces rechaza con null): «Detalles» lo dice', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => import('/js/comun.js').then(({ fail }) => fail(null, 'Añadir tema «Prueba»')));
+  await page.locator('#toast').getByRole('button', { name: 'Detalles' }).click();
+  await expect(page.locator('#sheetBody')).toContainText('sin mensaje (el navegador no dijo qué falló)');
+  await expect(page.locator('#sheetBody')).toContainText('Añadir tema «Prueba»');
+});

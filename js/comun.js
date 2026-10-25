@@ -124,7 +124,7 @@ export function errorInfo(e, doing = '') {
   if (name) tech.push(['Error', name]);
   for (const k of ['code', 'status', 'message', 'details', 'hint']) if (e?.[k] != null && e[k] !== '') tech.push([k === 'status' ? 'estado' : k, clean(e[k])]);
   if (e?.cause?.message && e.cause.message !== e.message) tech.push(['causa', clean(e.cause.message)]);
-  if (!tech.length) tech.push(['Error', clean(typeof e === 'string' ? e : JSON.stringify(e) || 'sin datos')]);
+  if (!tech.length) tech.push(['Error', e == null ? 'sin mensaje (el navegador no dijo qué falló)' : clean(typeof e === 'string' ? e : JSON.stringify(e) || 'sin datos')]);
   return { doing: clean(doing || tap || 'Sin saber'), tech, when: new Date().toLocaleString('es-ES'), version: VERSION, mode: S.uid === 'local' ? 'Modo local (en este navegador)' : S.uid ? 'Con cuenta' : 'Sin sesión' };
 }
 export const errorText = i => [`Qué hacías: ${i.doing}`, ...i.tech.map(([k, v]) => `${k}: ${v}`), `Hora: ${i.when}`, `Versión: ${i.version}`, `Modo: ${i.mode}`].join('\n');
