@@ -206,3 +206,13 @@ test('reparación: una lista del tema que se quedó de turco sin una letra del t
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await checkNoTurkish(page, SRC);
 });
+
+test('el apunte del tema recién añadido: «17 sin estudiar» y «Estudiar este apunte · 14 hoy»', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Explorar');
+  await page.locator('.ex-hero [data-ex="read-tema"]').click();
+  await expect(page.locator('.pg-status')).toContainText('17 sin estudiar');
+  await expect(page.locator('.pg-status [data-start]')).toHaveText('Estudiar este apunte · 14 hoy');
+  // y en los apartados, «hoy» solo si no salen todas las suyas
+  for (const t of await page.locator('#pgBlocks .nb-sec:not([disabled])').allTextContents()) expect(t).toMatch(/^Estudiar \d+( hoy)?$/);
+});
