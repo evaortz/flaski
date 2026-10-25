@@ -4152,3 +4152,15 @@ body.in-study:has(.card[data-swipe=right]) .grade.g3,body.in-study:has(.card[dat
 /* Tanda sin conexión: el aviso ocupa el sitio del título de la lista (que se esconde mientras se ve), sin mover la tarjeta */
 body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidden}
 @media (max-width:959px){body.in-study:not(.signed-out) .top{top:calc(env(safe-area-inset-top,0px) + 12px)}}
+/* ¿Qué pasaría si…?: el nombre en letra normal y, debajo, «↑ Sube», «= Igual» y «↓ Baja» en tres columnas. El elegido,
+   blanco con el texto del azul de la tanda; al comprobar, la correcta en verde y la tuya equivocada en rosa, enteras,
+   y las demás apagadas */
+.wi-row{display:block;padding:12px 0}
+.wi-name{display:block;font-family:var(--font);font-size:17px;font-weight:600;margin:0 0 8px}
+.wi-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wi-b{width:auto;height:auto;min-height:44px;border-radius:99px;font-size:16px;font-weight:600;padding:6px 8px;white-space:nowrap}
+.wi-b[aria-pressed="true"]{background:#fff;color:var(--session);border-color:#fff}
+.wi-b:disabled{opacity:.4}
+.wi-b.is-right,.wi-b.is-wrong{opacity:1;color:#16183A}
+.wi-b.is-right{background:#8EE3B5;border-color:#8EE3B5}
+.wi-b.is-wrong{background:#FF9F92;border-color:#FF9F92}

@@ -574,10 +574,10 @@ function entenderHTML(model, st, { preview = false } = {}) {
   const ex = entState(model, st), ideas = ideasOf(model.fields[model.tpl.answer]), fx = ex.effects;
   let ask = '';
   if (fx.length) {
-    // ↑ = ↓ en cada efecto (al comprobar: bien o mal, y la correcta)
-    ask = `${model.fields.p ? '' : '<p class="ent-q">¿Qué pasa con…?</p>'}<div class="wi-rows">${fx.map((f, i) => `<div class="wi-row"><span class="wi-name">${esc(f.name)}</span><span class="wi-btns" role="group" aria-label="${esc(f.name)}">${DIRS.map(([d, sym, label]) => {
+    // ↑ = ↓ en cada efecto, con su palabra y en tres columnas bajo el nombre (al comprobar: bien o mal, y la correcta)
+    ask = `${model.fields.p ? '' : '<p class="ent-q">Para cada cosa, di si sube, se queda igual o baja.</p>'}<div class="wi-rows">${fx.map((f, i) => `<div class="wi-row"><span class="wi-name">${esc(f.name)}</span><span class="wi-btns" role="group" aria-label="${esc(f.name)}">${DIRS.map(([d, sym, label]) => {
       const cls = st.revealed ? (d === f.dir ? ' is-right' : ex.picks[i] === d ? ' is-wrong' : '') : '';
-      return `<button type="button" class="wi-b${cls}" data-wi="${i}:${d}" aria-pressed="${ex.picks[i] === d}" aria-label="${label}" ${st.revealed || preview ? 'disabled' : ''}>${sym}</button>`;
+      return `<button type="button" class="wi-b${cls}" data-wi="${i}:${d}" aria-pressed="${ex.picks[i] === d}" ${st.revealed || preview ? 'disabled' : ''}><span aria-hidden="true">${sym}</span> ${label}</button>`;
     }).join('')}</span></div>`).join('')}</div>`;
   } else if (!st.revealed) {
     const modes = [['write', 'Escribir'], ...(canDictate() ? [['dictate', 'Dictar']] : []), ['think', 'Pensarlo']];

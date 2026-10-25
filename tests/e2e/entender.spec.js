@@ -52,6 +52,34 @@ test('¿Qué pasaría si…?: ↑ = ↓ en cada efecto, «Comprobar» marca bien
   await expect(page.locator('.grades [data-grade="1"]')).toHaveClass(/suggested/);
 });
 
+// El color de un botón y el de su fondo (resuelto con un lienzo) → contraste WCAG
+const contrast = el => {
+  const rgba = c => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillStyle = c; x.fillRect(0, 0, 1, 1); return [...x.getImageData(0, 0, 1, 1).data]; };
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const [l1, l2] = [lum(rgba(getComputedStyle(el).color)), lum(rgba(getComputedStyle(el).backgroundColor))].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+};
+test('¿Qué pasaría si…?: botones con su palabra, el elegido se lee y al comprobar la correcta y la equivocada se ven enteras', async ({ page, seed }) => {
+  await create(page, seed, 'whatif', { s: 'Estudias todo la víspera.', e: 'Horas de estudio: igual\nLo que recuerdas un mes después: baja', k: 'Lo repartido dura más' });
+  await expect(page.locator('.ent-q')).toHaveText('Para cada cosa, di si sube, se queda igual o baja.');
+  await expect(page.locator('.wi-row').first().locator('.wi-b')).toHaveText(['↑ Sube', '= Igual', '↓ Baja']);
+  // El nombre, encima de sus tres botones y en letra normal
+  const [name, btn] = await Promise.all([page.locator('.wi-name').first().boundingBox(), page.locator('.wi-b').first().boundingBox()]);
+  expect(btn.y).toBeGreaterThanOrEqual(name.y + name.height - 1);
+  expect(await page.locator('.wi-name').first().evaluate(el => getComputedStyle(el).fontFamily)).not.toContain(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-hand').split(',')[0].trim()));
+  await page.locator('[data-wi="0:up"]').click();
+  await page.locator('[data-wi="1:down"]').click();
+  expect(await page.locator('[data-wi="0:up"]').evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
+  await page.locator('[data-act="reveal"]').click();
+  await expect(page.locator('[data-wi="0:eq"]')).toHaveClass(/is-right/);
+  await expect(page.locator('[data-wi="0:up"]')).toHaveClass(/is-wrong/);
+  for (const sel of ['[data-wi="0:eq"]', '[data-wi="0:up"]', '[data-wi="1:down"]']) {
+    expect(await page.locator(sel).evaluate(el => getComputedStyle(el).opacity)).toBe('1');
+    expect(await page.locator(sel).evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
+  }
+  expect(Number(await page.locator('[data-wi="0:down"]').evaluate(el => getComputedStyle(el).opacity))).toBeLessThan(1);
+});
+
 test('las básicas del tema de ejemplo pasan a «Explícalo» sin perder el progreso; las editadas no, y repetirlo no cambia nada', async ({ page }) => {
   const now = new Date().toISOString(), due = new Date(Date.now() + 5 * 864e5).toISOString();
   const Q = 'Explica por qué no conviene repasar ni antes ni después de estar a punto de olvidar.', A = 'Antes es perder el tiempo; después hay que volver a aprenderlo';

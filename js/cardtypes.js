@@ -148,7 +148,7 @@ export const BUILTIN_TYPES = [
   {
     id: 'whatif', builtin: true, scope: 'general', name: '¿Qué pasaría si…?', icon: '', lucide: 'circle-help',
     description: 'Un caso: qué sube, qué baja y qué se queda igual, y por qué.',
-    fields: [F('s', 'Escenario'), F('p', 'Pregunta', { help: 'Por ejemplo, «¿Qué pasa con…?»' }), F('e', 'Efectos', { help: 'Uno por línea: «Inversión: baja», «Ahorro: sube», «Precios: igual». Al repasar eliges ↑ = ↓.' }),
+    fields: [F('s', 'Escenario'), F('p', 'Pregunta', { help: 'Por ejemplo, «¿Qué pasa con…?»' }), F('e', 'Efectos', { help: 'Uno por línea, cada uno algo que se pueda medir y hacia dónde va: «Lo que recuerdas un mes después: baja», «Horas de estudio: igual». Al repasar eliges si sube, se queda igual o baja.' }),
       F('k', 'Ideas clave', { help: 'Una por línea: el porqué.' }), F('n', 'Nota')],
     templates: [{ id: 't1', name: '¿Qué pasaría si…?', mode: 'whatif', front: ['s', 'p'], back: ['n'], answer: 'k' }],
   },
