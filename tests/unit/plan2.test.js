@@ -439,3 +439,19 @@ test('4 · «pausar otro examen» solo pausa uno que va después, y ningún arre
     }
   }
 });
+
+test('5 · mover la fecha solo con fecha aproximada, y como último recurso', () => {
+  const make = (n, d, approx) => { const S = invent({ seed: 3, n, nExams: 1, nTopics: 3, seen: 0, days: [d] }); S.plan.caps.newPerDay = 20; S.plan.exams[0].approx = approx; return S; };
+  // 500 nuevas a 10 días: nada más llega; con fecha aproximada, se propone moverla (lo menos posible)
+  const a = fixes(make(500, 10, true), 'ex0');
+  assert.deepEqual(a.options.map(o => o.kinds), ['date']);
+  assert.equal(a.options[0].levers[0].weeks, 4);                       // con 2 semanas más no llega
+  const S2 = make(500, 10, true);
+  assert.equal(whatIf(S2, p => { p.exams[0].date = addDays(p.exams[0].date, 14); }, { light: true }).exams[0].verdict, 'no');
+  // Con fecha exacta, nunca
+  const b = fixes(make(500, 10, false), 'ex0');
+  assert.ok(b.options.every(o => !o.kinds.includes('date')));
+  // Si otra cosa llega, la fecha no compite aunque sea aproximada
+  const c = fixes(make(300, 21, true), 'ex0');
+  assert.ok(c.options.length > 0 && c.options.every(o => !o.kinds.includes('date')));
+});

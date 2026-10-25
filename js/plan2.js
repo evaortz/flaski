@@ -508,8 +508,13 @@ function levers(state, fc, examId) {
     const ids = study.slice(-k).map(t => t.id);
     out.push({ kind: 'later', topics: ids, cost: 2 + k, apply: p => { const e = p.exams.find(x => x.id === examId); e.later = [...new Set([...(e.later || []), ...ids])]; } });
   }
-  if (isDay(exam.date)) for (const w of [1, 2, 4]) out.push({ kind: 'date', date: addDays(exam.date, 7 * w), cost: 5 + w, apply: p => { p.exams.find(x => x.id === examId).date = addDays(exam.date, 7 * w); } });
   return out;
+}
+// Mover la fecha: solo si es aproximada («hacia junio»), y como último recurso (si nada más llega)
+function dateLevers(state, examId) {
+  const exam = liveExams(state.plan).find(e => e.id === examId);
+  if (!exam?.approx || !isDay(exam.date)) return [];
+  return [1, 2, 4, 8].map(w => ({ kind: 'date', date: addDays(exam.date, 7 * w), weeks: w, cost: 100 + w, apply: p => { p.exams.find(x => x.id === examId).date = addDays(exam.date, 7 * w); } }));
 }
 const reaches = v => v === 'llegas' || v === 'justo';
 const RANK = { no: 0, justo: 1, llegas: 2 };
@@ -555,6 +560,10 @@ export function fixes(state, examId) {
   const good = tried.filter(t => reaches(t.exam.verdict) && !t.worse).sort((a, b) => a.cost - b.cost || (a.exam.verdict === 'llegas' ? -1 : 1) - (b.exam.verdict === 'llegas' ? -1 : 1) || (b.exam.margin ?? 0) - (a.exam.margin ?? 0));
   const options = [], seen = new Set();
   for (const g of good) { if (seen.has(g.kinds)) continue; seen.add(g.kinds); options.push(g); if (options.length === 3) break; }
+  if (!options.length) for (const l of dateLevers(state, examId)) {
+    const t = run([l]);
+    if (reaches(t.exam.verdict) && !t.worse) { options.push(t); break; }
+  }
   let drop = null;
   if (!options.length) {
     const study = base.topics.filter(t => t.state === 'study');
