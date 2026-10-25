@@ -190,6 +190,6 @@ test('respuesta numérica: con margen, «casi» y la coma decimal @ambos', async
   await page.locator('#numIn').fill('1460');
   await page.locator('#numIn').press('Enter');
   await expect(page.locator('.verdict.bad')).toContainText('Casi');
-  await expect(page.locator('.verdict.bad')).toContainText('1453');
+  await expect(page.locator('article.card .answer .fld-main')).toContainText('1453');   // la correcta, en el recuadro «respuesta»
   await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
 });

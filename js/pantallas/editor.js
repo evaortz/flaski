@@ -56,16 +56,15 @@ export function requestClose() {
   }
   closeSheet();
 }
-const CHARS = ['ç', 'ğ', 'ı', 'İ', 'ö', 'ş', 'ü', 'ñ', 'á', 'é'];
-// Letras especiales según el idioma del campo (en japonés, chino, coreano… se usa el teclado del sistema)
+// Letras especiales según el idioma del campo (en japonés, chino, coreano… se usa el teclado del sistema); sin idioma,
+// las del idioma de la app (español)
 const CHARS_BY_LANG = {
   tr: ['ç', 'ğ', 'ı', 'İ', 'ö', 'ş', 'ü', 'â'], es: ['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡'],
   fr: ['é', 'è', 'ê', 'à', 'ç', 'ô', 'û', 'î', 'ë', 'œ'], de: ['ä', 'ö', 'ü', 'ß'], pt: ['ã', 'õ', 'ç', 'á', 'é', 'ê', 'ó', 'ô', 'à'],
   it: ['à', 'è', 'é', 'ì', 'ò', 'ù'], ca: ['à', 'è', 'é', 'í', 'ï', 'ò', 'ó', 'ú', 'ü', 'ç', 'l·l'], nl: ['ë', 'ï', 'é', 'ü'], gl: ['ñ', 'á', 'é', 'í', 'ó', 'ú'], eu: ['ñ'],
 };
 export function charsFor(lang) {
-  if (!lang) return CHARS;
-  return CHARS_BY_LANG[lang.split('-')[0]] || [];
+  return CHARS_BY_LANG[(lang || 'es').split('-')[0]] || [];
 }
 
 // El icono elegido: un emoji o, en las carpetas, uno de los dibujos de Flaski o una imagen propia
@@ -149,7 +148,7 @@ export function tagPicker(selected = [], color = nextTagColor(), { compact = fal
   const rest = tags.filter(t => !selected.includes(t.id));
   const top = new Set(rest.map(t => [t, tagCount(t.id)]).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t.id));
   return `<div class="tagpick compact" id="tagPick">
-    <div class="tagpick-sel">${selected.map(id => S.tags.get(id)).filter(Boolean).map(t => `<span class="tagsel"><input type="checkbox" name="f-tag" value="${t.id}" checked hidden>${tagSticker(t, { big: true })}<button type="button" class="tag-x" data-act="untag" data-id="${t.id}" aria-label="Quitar #${esc(t.name)}">${icon('x', { size: 14 })}</button></span>`).join('')}
+    <div class="tagpick-sel">${selected.map(id => S.tags.get(id)).filter(Boolean).map(t => `<span class="tagsel"><input type="checkbox" name="f-tag" value="${t.id}" checked hidden>${tagSticker(t, { big: true })}<button type="button" class="tag-x" data-act="untag" data-id="${t.id}" aria-label="Quitar ${esc(t.name)}">${icon('x', { size: 14 })}</button></span>`).join('')}
       <button type="button" class="tag-add" data-act="tagpick-open" aria-expanded="${open}">+ etiqueta</button></div>
     <div class="tagpick-pop" ${open ? '' : 'hidden'}>${search}
       <div class="tagpick-list">${rest.map(t => opt(t, top.has(t.id))).join('')}${create}</div>${colors}</div>
@@ -163,12 +162,12 @@ export function redrawTagPicker(checked, { open = false } = {}) {
   box.outerHTML = tagPicker(checked ?? [...box.querySelectorAll('input[name="f-tag"]:checked')].map(i => i.value), undefined, { compact, open });
   if (S.edit?.open) S.edit.dirty = true;
 }
-// Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear #…»
+// Al escribir en «Buscar o crear»: solo las que encajan (sin buscar, las de siempre) y, si no hay una que se llame así, «Crear «…»»
 export function filterTagPicker() {
   const name = tagName($('#f-newtag')?.value), q = norm(name), btn = document.querySelector('#tagPick .tag-create');
   for (const l of document.querySelectorAll('#tagPick .tagopt')) l.hidden = q ? !l.dataset.tagName.includes(q) : !('top' in l.dataset);
   const exact = [...S.tags.values()].some(t => norm(t.name) === q);
-  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear #${name}`; }
+  if (btn) { btn.hidden = !q || exact; btn.textContent = `Crear «${name}»`; }
 }
 // El color de una etiqueta nueva: el primero que aún no usa ninguna (si están todos, por orden)
 export function nextTagColor() {
@@ -243,7 +242,7 @@ export function tagsSheet(renaming = null) {
       ${renaming === t.id ? `<form data-form="renametag" data-id="${t.id}" class="tl-rename"><input class="t-name" value="${esc(t.name)}" maxlength="25" aria-label="Nombre de la etiqueta" required><button class="primary small-btn" type="submit">Guardar</button><button type="button" class="link" data-act="manage-tags">Cancelar</button></form>`
         : `<span class="tl-tag">${tagSticker(t, { big: true })}</span>`}
       <span class="tl-n">${plural(tagCount(t.id), 'pregunta', 'preguntas')}</span>
-      <span class="tl-colors" role="group" aria-label="Color de #${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
+      <span class="tl-colors" role="group" aria-label="Color de ${esc(t.name)}">${TAG_COLORS.map(c => `<button type="button" class="tcdot" data-tc="${c.id}" data-tag-color="${t.id}" data-color="${c.id}" aria-pressed="${tagColor(t.color) === c.id}" aria-label="${c.label}" title="${c.label}"></button>`).join('')}</span>
       <span class="tl-acts">${renaming === t.id ? '' : `<button type="button" class="link" data-rename-tag="${t.id}">Renombrar</button>`}<button type="button" class="link danger" data-del-tag="${t.id}">Borrar</button></span></li>`;
   openSheet(`<h2 class="hand-h">Gestionar etiquetas</h2>
     <p class="muted small">Sirven para juntar listas y apuntes de distintas carpetas (<i>examen junio</i>, <i>verbos</i>…) y estudiarlos juntos. Al borrar una, las preguntas se quedan: solo pierden la etiqueta.</p>
@@ -1270,6 +1269,11 @@ export async function adoptTypes(types = []) {
 // Antes el idioma iba en los tipos (Vocabulario, Dictado y Ordenar frase en turco, y copias como
 // «Vocabulario · Japonés» para el resto). Ahora es del mazo. Esto se hace una vez por mazo y por copia.
 const LEGACY_LANG = { vocab: 'tr-TR', listen: 'tr-TR', order: 'tr-TR', kanji: 'ja-JP', 'de-noun': 'de-DE' };
+// (Ordenar frase, que también se usa fuera de los idiomas, solo cuenta como turco si la pregunta tiene letras del
+// turco: si no, una de ordenar de un tema en español volvía la lista de turco)
+const TR_LETTERS = /[çğışöİ]/i;
+const textOf = c => Object.values(c.fields || {}).join(' ');
+const legacyVote = (t, c) => (t.id === 'order' && !TR_LETTERS.test(textOf(c)) ? '' : LEGACY_LANG[t.id]);
 function guessDeckLang(d) {
   const votes = new Map();
   const vote = l => { if (l) votes.set(l, (votes.get(l) || 0) + 1); };
@@ -1277,7 +1281,7 @@ function guessDeckLang(d) {
     if (c.deck_id !== d.id || !c.fields || !Object.keys(c.fields).length) continue;
     const t = getType(c.type_id);
     if (!t) continue;
-    if (t.builtin) { vote(LEGACY_LANG[t.id]); continue; }
+    if (t.builtin) { vote(legacyVote(t, c)); continue; }
     vote(t.fields.map(f => f.lang).find(l => l && !l.startsWith('@') && baseLang(l) !== 'es'));
   }
   if (votes.size) return [...votes].sort((a, b) => b[1] - a[1])[0][0];
@@ -1316,6 +1320,14 @@ export async function dedupeTypes() {
 export function migrateDeckLangs() {
   const decks = [...S.decks.values()].filter(x => !x.options || !('lang' in x.options));
   for (const d of decks) d.options = { ...(d.options || {}), lang: guessDeckLang(d) };
+  // Reparación: las listas de un apunte o de un tema que se adivinaron de turco sin una sola letra del turco
+  for (const d of S.decks.values()) {
+    const src = String(d.source || '');
+    if (d.options?.lang !== 'tr-TR' || !(src === 'apuntes' || src.startsWith('tema:'))) continue;
+    if (cardList().some(c => c.deck_id === d.id && TR_LETTERS.test(textOf(c)))) continue;
+    d.options = { ...d.options, lang: '' };
+    decks.push(d);
+  }
   const copies = [...S.types.values()].map(t => [t, legacyCopyOf(t)]).filter(([, base]) => base);
   const touched = new Set();
   for (const [t, base] of copies) {

@@ -1,4 +1,4 @@
-// Explorar › un tema de ejemplo, con cuenta: al añadirlo se abre su apunte, «Añadir y empezar» abre la tanda
+// Explorar › un tema de ejemplo, con cuenta: al añadirlo se abre su apunte (también con «Añadir y leer»)
 // y «La tienes» / «Abrir el tema» lo abren siempre
 import { test, expect, nav } from './fixtures.js';
 import { mockCloud, openCloud } from './nube.js';
@@ -17,13 +17,14 @@ test('con cuenta: «Añadir» abre el apunte y «La tienes» lo vuelve a abrir',
   await expect(page.locator('#pgTitle')).toHaveValue(/Constitución/);
 });
 
-test('con cuenta: «Añadir y empezar» del tema destacado abre la tanda de 5 min, y luego «Abrir el tema» abre el apunte', async ({ page }) => {
+test('con cuenta: «Añadir y leer» del tema destacado abre su apunte, y luego «Abrir el tema» también', async ({ page }) => {
   await mockCloud(page);
   await openCloud(page);
   await nav(page, 'Explorar');
-  await page.locator('.ex-hero [data-ex="start-tema"]').click();
-  await expect(page.locator('.studybar')).toBeVisible();
-  await page.locator('.studybar [data-act="exit"]').click();
+  await expect(page.locator('.ex-hero [data-ex="read-tema"]')).toHaveText('Añadir y leer');
+  await page.locator('.ex-hero [data-ex="read-tema"]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);
+  await expect(page.locator('.studybar')).toHaveCount(0);
   await nav(page, 'Explorar');
   await page.locator('.ex-hero [data-ex="open-tema"]').click();
   await expect(page.locator('#pgTitle')).toHaveValue(/Por qué se te olvidan/);

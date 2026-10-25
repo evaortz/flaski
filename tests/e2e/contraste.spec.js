@@ -1,6 +1,6 @@
 // Contraste: el texto pequeño de la cabecera de la tanda («pregunta N de M · repaso») pasa 4,5:1 sobre el azul
 // (o el color) de la tanda con los 9 acentos, en claro y en oscuro
-import { test, expect, openApp, startTanda } from './fixtures.js';
+import { test, expect, openApp, startTanda, openDeck, newCard } from './fixtures.js';
 
 const ACCENTS = ['cobalto', 'violeta', 'ciruela', 'frambuesa', 'teja', 'oliva', 'bosque', 'laguna', 'tinta'];
 
@@ -79,6 +79,37 @@ test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «
     await check('#main .lv-up, #main .lv-dn', `↑ en Estadísticas (${theme})`);
     await page.evaluate(() => import('/js/app.js').then(({ go }) => go('settings')));
     await check('[data-nav="bye"]', `Borrar mi cuenta (${theme})`);
+  }
+  expect(bad).toEqual([]);
+});
+
+// «Normal» elegido en «Cuánto de cada cosa» de una etapa (.lvb-normal): 4,5:1 con los 9 colores, en claro y en oscuro
+test('«Normal» elegido en «Cuánto de cada cosa»: 4,5:1 con los 9 colores, en claro y en oscuro', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => { document.querySelector('#main').insertAdjacentHTML('beforeend', '<div class="seg lv-seg" id="lvTest"><button type="button" class="seg-b lvb-normal" aria-pressed="true">Normal</button></div>'); });
+  const btn = page.locator('#lvTest .lvb-normal');
+  const bad = [];
+  for (const theme of ['light', 'dark']) for (const accent of ACCENTS) {
+    await page.evaluate(async ([accent, theme]) => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.accent = accent; S.prefs.look.theme = theme; applyLook(S.prefs.look); }, [accent, theme]);
+    const r = await btn.evaluate(ratioBg);
+    if (r < 4.5) bad.push(`${accent} (${theme}): ${r}`);
+  }
+  expect(bad).toEqual([]);
+});
+
+// «Rellena los campos…» de la vista previa de una pregunta nueva: 4,5:1 con los 9 colores, en claro y en oscuro
+test('vista previa del editor vacía («Rellena los campos…»): 4,5:1 con los 9 colores, en claro y en oscuro', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
+  await openApp(page);
+  await openDeck(page, 'Historia');
+  await newCard(page);
+  const empty = page.locator('.pv-empty:visible').first();
+  await expect(empty).toBeVisible();
+  const bad = [];
+  for (const theme of ['light', 'dark']) for (const accent of ACCENTS) {
+    await page.evaluate(async ([accent, theme]) => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.accent = accent; S.prefs.look.theme = theme; applyLook(S.prefs.look); }, [accent, theme]);
+    const r = await empty.evaluate(ratioBg);
+    if (r < 4.5) bad.push(`${accent} (${theme}): ${r}`);
   }
   expect(bad).toEqual([]);
 });

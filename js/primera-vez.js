@@ -6,18 +6,24 @@ import { ideasFromAnswer } from './entender.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo
+// Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo.
+// leer: la primera vez se abre por el apunte (con todas sus preguntas), no con una primera tanda
 export const TEMAS = [
   { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35, page: 'La Constitución Española · Título Preliminar' },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, old: 'temas/por-que-se-te-olvidan-las-cosas.v1.json', page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, leer: true, old: ['temas/por-que-se-te-olvidan-las-cosas.v2.json', 'temas/por-que-se-te-olvidan-las-cosas.v1.json'], oldPages: ['temas/por-que-se-te-olvidan-las-cosas.v2.md'], page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
 ];
 // El id de origen de un tema de ejemplo (va en «source» de su lista: «tema:constitucion-titulo-preliminar»)
 export const temaSource = t => 'tema:' + String(t.cards || '').replace(/^.*\//, '').replace(/\.json$/, '');
 // Las preguntas de un tema de ejemplo (temas/*.json, las que debería sacar un buen sugeridor) como preguntas de
 // Flaski: { typeId, fields, answer } (answer: el texto con el que se busca su bloque en el apunte)
 const items = r => String(r).split(' · ').map(x => x.trim()).filter(Boolean);
+// «nota»: una línea más que sale al ver la respuesta (en el campo de nota; en la de huecos, en «Extra»)
 export function temaCards(list) {
-  return list.map(x => ({ ...temaCard(x), ...(x.bloque ? { block: x.bloque } : {}) }));
+  return list.map(x => {
+    const c = temaCard(x);
+    if (x.nota) c.fields[c.typeId === 'cloze' ? 'e' : 'n'] = x.nota;
+    return { ...c, ...(x.bloque ? { block: x.bloque } : {}) };
+  });
 }
 function temaCard(x) {
   {
@@ -170,11 +176,15 @@ export function openFirstRun(opts) {
         <div class="fr-file"><span class="fr-file-k k-${p.kind}">${KIND_LABEL[p.kind] || 'TXT'}</span><span class="fr-card-t"><b>${esc(p.name)}</b><small>${meta}</small></span>${icon('check', { size: 24 })}</div>
         ${sections.length ? `<p class="fr-label">Hemos encontrado ${sections.length === 1 ? '1 apartado' : `${sections.length} apartados`}</p>
         <ol class="fr-secs">${sections.slice(0, 5).map((t, i) => `<li${i ? '' : ' class="on"'}><i>${i + 1}</i><span>${esc(t)}</span>${i ? '' : '<em>empiezas aquí</em>'}</li>`).join('')}${sections.length > 5 ? `<li class="more">y ${sections.length - 5} más</li>` : ''}</ol>` : ''}
-        <div class="fr-sug">${total ? `<h2>${icon('sugerencia', { size: 26 })} ${total === 1 ? '1 pregunta posible' : `${total} preguntas posibles`}</h2>
+        <div class="fr-sug">${p.leer && p.count ? `<h2>${icon('sugerencia', { size: 26 })} ${p.count} preguntas</h2>
+          <p>Se crean todas al abrirlo. Lee el apunte y estudia cada apartado con su botón «Estudiar».</p>`
+          : total ? `<h2>${icon('sugerencia', { size: 26 })} ${total === 1 ? '1 pregunta posible' : `${total} preguntas posibles`}</h2>
           <p>Empezamos con ${n} del principio.${total > n ? ' Las demás te esperan en tu apunte y las revisas cuando quieras.' : ''}</p>`
           : '<h2>Sin preguntas a la vista</h2><p>No hemos encontrado preguntas en este texto. Ábrelo y crea las tuyas seleccionando lo importante.</p>'}</div>
       </div>
-      <div class="fr-cta">${n ? `<button type="button" class="primary big fr-go2" data-fr-go="tanda"><b>Hacer mi primera tanda</b><small>${n === 1 ? '1 pregunta' : `${n} preguntas`} · ${Math.max(1, Math.round(n / 3)) === 1 ? '1 min' : `unos ${Math.round(n / 3)} min`}</small></button>
+      <div class="fr-cta">${p.leer ? `<button type="button" class="primary big fr-go2" data-fr-go="open"><b>Leer el tema</b><small>y estudiarlo desde el apunte</small></button>
+        <p class="fr-links"><button type="button" class="link" data-fr-back>elegir otro tema</button></p>`
+        : n ? `<button type="button" class="primary big fr-go2" data-fr-go="tanda"><b>Hacer mi primera tanda</b><small>${n === 1 ? '1 pregunta' : `${n} preguntas`} · ${Math.max(1, Math.round(n / 3)) === 1 ? '1 min' : `unos ${Math.round(n / 3)} min`}</small></button>
         <p class="fr-links"><button type="button" class="link" data-fr-go="review">Ver ${n === 1 ? 'la pregunta' : `las ${n}`} antes</button> · <button type="button" class="link" data-fr-back>cambiar de archivo</button></p>`
         : '<button type="button" class="primary big" data-fr-go="open">Abrir mi apunte</button><p class="fr-links"><button type="button" class="link" data-fr-back>cambiar de archivo</button></p>'}</div>`;
     },

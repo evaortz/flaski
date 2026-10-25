@@ -25,7 +25,10 @@ export const dumpLocal = impl.dumpLocal;
 export const restoreLocal = impl.restoreLocal;
 export const saveLog = impl.saveLog;
 export const bumpLog = impl.bumpLog;
-export const createDeck = impl.createDeck;
+// Las listas que salen de un apunte o de un tema de ejemplo nacen con su idioma dicho ('' si no lo traen): así no se
+// adivina después por los tipos de sus preguntas (una de ordenar no la vuelve de turco)
+const fromNotes = src => src === 'apuntes' || String(src || '').startsWith('tema:');
+export const createDeck = row => impl.createDeck(fromNotes(row?.source) && !('lang' in (row.options || {})) ? { ...row, options: { ...(row.options || {}), lang: '' } } : row);
 export const updateDeck = impl.updateDeck;
 export const deleteDeck = impl.deleteDeck;
 export const createCards = impl.createCards;

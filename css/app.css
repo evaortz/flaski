@@ -4125,8 +4125,7 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .ht-why{margin:0 0 6px;font-size:14px;color:var(--muted)}
 
 /* ===== Revisar las sugerencias de una en una (móvil): un mazo ===== */
-/* Colores de deslizar (los mismos que la tanda; si ya están definidos en otra parte, una sola definición al juntar) */
-:root{--sw-add:#8EE3B5;--sw-drop:#FF9F92;--sw-edit:#9ED4FF;--sw-ink:#16183A}
+/* Colores de deslizar y anillo: los de la tanda (--sw-*, .sw-lit, más abajo en «Antes del push») */
 .sd-wrap{display:flex;flex-direction:column;height:100%;min-height:0;padding:12px 20px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;background:var(--bg)}
 .sd-top{display:flex;align-items:center;gap:14px;margin:4px 0 12px}
 .sd-back{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--accent);background:var(--bg);color:var(--accent);cursor:pointer}
@@ -4171,9 +4170,10 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .sd-drop{background:var(--sw-drop)}
 .sd-add{background:var(--sw-add)}
 .sd-edit{width:56px;height:56px;background:color-mix(in srgb,var(--accent) 9%,var(--bg));color:var(--accent)}
-.sd-wrap:has(.sd-card[data-swipe=right]) .sd-add{transform:scale(1.12);box-shadow:0 0 0 4px var(--bg),0 0 0 7px var(--sw-add)}
-.sd-wrap:has(.sd-card[data-swipe=left]) .sd-drop{transform:scale(1.12);box-shadow:0 0 0 4px var(--bg),0 0 0 7px var(--sw-drop)}
-.sd-wrap:has(.sd-card[data-swipe=up]) .sd-edit{transform:scale(1.12);background:var(--sw-edit);color:var(--sw-ink);box-shadow:0 0 0 4px var(--bg),0 0 0 7px var(--sw-edit)}
+.sd-add{--sw-c:var(--sw-add)}
+.sd-drop{--sw-c:var(--sw-drop)}
+.sd-edit{--sw-c:var(--sw-edit)}
+.sd-wrap:has(.sd-card[data-swipe=up]) .sd-edit{background:var(--sw-edit);color:var(--sw-ink)}
 .sd-wrap:has(.sd-card[data-swipe=right]) .sd-btn:not(.sd-add),.sd-wrap:has(.sd-card[data-swipe=left]) .sd-btn:not(.sd-drop),.sd-wrap:has(.sd-card[data-swipe=up]) .sd-btn:not(.sd-edit){opacity:.35}
 .sd-to{margin:0;text-align:center;font-size:14.5px;color:color-mix(in srgb,var(--accent) 70%,var(--muted))}
 .sd-to b{color:var(--accent)}
@@ -4197,3 +4197,63 @@ body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15
 .sd-end-acts button{min-height:52px;border-radius:999px;font-size:17px}
 /* En el mazo, el aviso («Descartada · Deshacer») va por encima de los botones, sin taparlos */
 body:has([data-sd-deck]) #toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+/* Antes del push */
+/* Deslizar en la tanda: sin marco ni capa de color en la tarjeta; la etiqueta, una pastilla del color de su botón
+   con el intervalo («Bien · 9 d»), y ese botón se ilumina con un anillo de su color separado por una franja del fondo.
+   Colores y anillo en variables: los reutiliza la hoja de sugerencias (añadir, quitar, cambiar) */
+:root{--sw-add:#8EE3B5;--sw-drop:#FF9F92;--sw-edit:#9ED4FF;--sw-hard:#FFC36B;--sw-ink:#16183A;--sw-gap:var(--session,var(--bg))}
+/* .sw-lit: el elemento iluminado (con --sw-c, su color): un poco más grande y con el anillo */
+/* (en el mazo de sugerencias, el botón de lo que haces al arrastrar) */
+.sw-lit,.sd-wrap:has(.sd-card[data-swipe=right]) .sd-add,.sd-wrap:has(.sd-card[data-swipe=left]) .sd-drop,.sd-wrap:has(.sd-card[data-swipe=up]) .sd-edit{opacity:1;transform:scale(1.08);box-shadow:0 0 0 3px var(--sw-gap),0 0 0 6px var(--sw-c)}
+.card.swipeable[data-swipe]{box-shadow:none!important;border-radius:22px}
+.card.swipeable[data-swipe=right]{--sw-c:var(--sw-add)}
+.card.swipeable[data-swipe=left]{--sw-c:var(--sw-drop)}
+.card.swipeable[data-swipe=up]{--sw-c:var(--sw-edit)}
+.card.swipeable[data-swipe=down]{--sw-c:var(--sw-hard)}
+.card.swipeable[data-swipe]::after{background:var(--sw-c);color:var(--sw-ink);border:0;border-radius:999px;padding:8px 18px;font-size:18px;font-weight:700;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.18);z-index:2}
+.card.swipeable[data-swipe=down]::after{left:50%;top:auto;bottom:14px;transform:translateX(-50%)}
+.card.swipeable[data-swipe=up]::after{top:14px;bottom:auto}
+body.in-study .grade.g1{--sw-c:var(--sw-drop)}
+body.in-study .grade.g2{--sw-c:var(--sw-hard)}
+body.in-study .grade.g3{--sw-c:var(--sw-add)}
+body.in-study .grade.g4{--sw-c:var(--sw-edit)}
+body.in-study:has(.card[data-swipe]) .grade{transition:opacity .15s,transform .15s,box-shadow .15s;opacity:.35}
+body.in-study:has(.card[data-swipe=left]) .grade.g1,body.in-study:has(.card[data-swipe=down]) .grade.g2,
+body.in-study:has(.card[data-swipe=right]) .grade.g3,body.in-study:has(.card[data-swipe=up]) .grade.g4{opacity:1;transform:scale(1.08);box-shadow:0 0 0 3px var(--sw-gap),0 0 0 6px var(--sw-c)}
+@media (prefers-reduced-motion:reduce){
+  .card.swipeable[data-swipe]::after{transform:none}
+  .card.swipeable[data-swipe=down]::after,.card.swipeable[data-swipe=up]::after{transform:translateX(-50%)}
+  body.in-study:has(.card[data-swipe]) .grade,.sw-lit{transition:none;transform:none!important}
+}
+/* Tanda sin conexión: el aviso ocupa el sitio del título de la lista (que se esconde mientras se ve), sin mover la tarjeta */
+body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidden}
+@media (max-width:959px){body.in-study:not(.signed-out) .top{top:calc(env(safe-area-inset-top,0px) + 12px)}}
+/* ¿Qué pasaría si…?: el nombre en letra normal y, debajo, «↑ Sube», «= Igual» y «↓ Baja» en tres columnas. El elegido,
+   blanco con el texto del azul de la tanda; al comprobar, la correcta en verde y la tuya equivocada en rosa, enteras,
+   y las demás apagadas */
+.wi-row{display:block;padding:12px 0}
+.wi-name{display:block;font-family:var(--font);font-size:17px;font-weight:600;margin:0 0 8px}
+.wi-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wi-b{width:auto;height:auto;min-height:44px;border-radius:99px;font-size:16px;font-weight:600;padding:6px 8px;white-space:nowrap}
+.wi-b[aria-pressed="true"]{background:#fff;color:var(--session);border-color:#fff}
+.wi-b:disabled{opacity:.4}
+.wi-b.is-right,.wi-b.is-wrong{opacity:1;color:#16183A}
+.wi-b.is-right{background:#8EE3B5;border-color:#8EE3B5}
+.wi-b.is-wrong{background:#FF9F92;border-color:#FF9F92}
+/* Doble sentido: «¿Qué significa?» / «¿Cómo se llama?» encima de la cara */
+.rev-ask{margin:0 0 6px;font-size:14px;color:var(--muted)}
+/* Tablas del apunte: las celdas no parten palabras; si la tabla no cabe, se desplaza de lado dentro de su caja */
+.nb-tbl th,.nb-tbl td{overflow-wrap:normal;word-break:normal;hyphens:manual}
+/* «Normal» elegido en «Cuánto de cada cosa»: un tono más claro del color con texto oscuro (4,5:1 o más con cualquier color) */
+.lv-seg .seg-b[aria-pressed="true"].lvb-normal{background:color-mix(in oklab,var(--accent) 45%,#FFFFFF);color:#16183A}
+/* Casillas de «¿Qué ideas te salieron?»: aspecto propio (en Safari, las nativas salen negras sobre el azul).
+   Sin marcar, borde blanco y fondo transparente; marcada, blanca con la marca en el azul de la tanda */
+.ent-idea input[type=checkbox]{appearance:none;-webkit-appearance:none;margin:0;width:22px;height:22px;flex:none;border:2px solid #FFFFFF;border-radius:6px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.ent-idea input[type=checkbox]::after{content:'';width:6px;height:11px;border:solid var(--session);border-width:0 2.5px 2.5px 0;transform:translateY(-1px) rotate(45deg);opacity:0}
+.ent-idea input[type=checkbox]:checked{background:#FFFFFF}
+.ent-idea input[type=checkbox]:checked::after{opacity:1}
+.ent-idea input[type=checkbox]:focus-visible{outline:2px solid #FFFFFF;outline-offset:2px}
+/* «Lo que entiendes» del fin de tanda: la pregunta entera en dos líneas como mucho, sin cortar palabras */
+.ent-done .ent-done-q{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;min-width:0}
+/* «Rellena los campos…» de la vista previa del editor: 4,5:1 también en oscuro (el --faint de la tanda no llega) */
+.pv-empty{color:color-mix(in srgb,#FFFFFF 86%,var(--session))}

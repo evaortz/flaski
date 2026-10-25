@@ -1,5 +1,5 @@
 // Explorar: «La tienes» y «tú tienes N», vista previa por nota, mensajes cuando no hay nada, filtros por
-// objetivo, el tema destacado («Añadir y empezar») y añadir una lista con «+»
+// objetivo, el tema destacado («Añadir y leer») y añadir una lista con «+»
 import { test, expect, openApp, nav } from './fixtures.js';
 
 test('las listas que ya tienes dicen «La tienes» y «N preguntas · tú tienes M»; su hoja no dice «Se copiará…»', async ({ page, seed }) => {
@@ -58,19 +58,21 @@ test('filtros por objetivo: Idiomas solo enseña las listas de idiomas; «+» a�
   await expect(page.locator('.ex-row')).toContainText('La Constitución · Título Preliminar');
 });
 
-test('tema destacado: «Añadir y empezar» crea el apunte con sus preguntas y empieza una tanda de 5 min', async ({ page }) => {
+test('tema destacado: «Añadir y leer» crea el apunte con sus preguntas y lo abre arriba del todo, sin tanda', async ({ page }) => {
   await openApp(page);
   await nav(page, 'Explorar');
   await expect(page.locator('.ex-hero h2')).toHaveText('Por qué se te olvidan las cosas');
   await page.locator('.ex-hero [data-ex="see-tema"]').click();
   await expect(page.locator('#sheetBody .preview li')).toHaveCount(5);
-  await page.locator('#sheetBody [data-ex="start-tema"]').click();
-  await expect(page.locator('.studybar')).toBeVisible();
-  const r = await page.evaluate(async () => { const { S } = await import('/js/comun.js'); return { pages: [...S.pages.values()].map(p => p.title), cards: S.cards.size, minutes: S.session.minutes }; });
+  await page.locator('#sheetBody [data-ex="read-tema"]').click();
+  await expect(page.locator('#pgTitle')).toHaveValue('Por qué se te olvidan las cosas (y cómo evitarlo)');
+  const r = await page.evaluate(async () => { const { S } = await import('/js/comun.js'); return { pages: [...S.pages.values()].map(p => p.title), cards: S.cards.size, session: !!S.session, y: scrollY }; });
   expect(r.pages).toEqual(['Por qué se te olvidan las cosas (y cómo evitarlo)']);
   expect(r.cards).toBe(17);
-  expect(r.minutes).toBe(5);
-  await page.locator('.studybar [data-act="exit"]').click();
+  expect(r.session).toBe(false);
+  expect(r.y).toBe(0);
+  // Se estudia desde el apunte: sus apartados tienen su botón «Estudiar»
+  await expect(page.locator('#pgBlocks .nb-sec').first()).toContainText('Estudiar');
   await nav(page, 'Explorar');
   await expect(page.locator('.ex-hero [data-ex="open-tema"]')).toBeVisible();
 });

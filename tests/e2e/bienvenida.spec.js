@@ -130,3 +130,20 @@ test('oposición: «del tema 1» no se parte al final de la línea y los iconos 
   const empty = await page.locator('.fr-how-ic').evaluateAll(els => els.filter(e => !e.querySelector('svg, img')).length);
   expect(empty).toBe(0);
 });
+
+// El tema de ejemplo se abre por el apunte (arriba del todo, con sus preguntas), no con una primera tanda;
+// tus apuntes pegados siguen empezando con la primera tanda
+test('el tema de ejemplo se abre por el apunte; lo que pegas sigue empezando la tanda', async ({ page }) => {
+  await open(page);
+  await page.locator('[data-fr-what="otra"]').click();
+  await page.getByRole('button', { name: 'Prueba con un tema de ejemplo' }).click();
+  await page.locator('[data-fr-tema="1"]').click();
+  await expect(page.locator('.fr-file')).toContainText('Por qué se te olvidan las cosas');
+  await expect(page.locator('[data-fr-go="tanda"]')).toHaveCount(0);
+  await page.locator('[data-fr-go="open"]').click();
+  await expect(page.locator('.ob')).toHaveCount(0);
+  await expect(page.locator('#pgTitle')).toHaveValue('Por qué se te olvidan las cosas (y cómo evitarlo)');
+  const r = await page.evaluate(async () => { const { S } = await import('/js/comun.js'); return { cards: S.cards.size, session: !!S.session, y: scrollY }; });
+  expect(r).toEqual({ cards: 17, session: false, y: 0 });
+  await expect(page.locator('#pgBlocks .nb-sec').first()).toContainText('Estudiar');
+});

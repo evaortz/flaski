@@ -94,3 +94,41 @@ test('con «deslizar» desactivado no hay pistas', async ({ page }, info) => {
   await expect(page.locator('.grades')).toBeVisible();
   await expect(hints(page)).toHaveCount(0);
 });
+
+// Con la tarjeta a medio arrastrar: la pastilla dice el intervalo de su botón, ese botón lleva el anillo de su color
+// (separado por el fondo, nunca blanco), los demás se apagan y la tarjeta no lleva marco ni capa de color
+test('a medio arrastrar: pastilla con el intervalo, el botón con su anillo y la tarjeta sin marco', async ({ page }, info) => {
+  test.skip(info.project.name === 'escritorio', 'solo en el móvil');
+  await seed(page, { swipeCount: 10, swipeLast: Date.now() });
+  await expect(page.locator('.grades')).toBeVisible();
+  for (const [dir, g, name, dx, dy] of [['right', 3, 'Bien', 1, 0], ['left', 1, 'Otra vez', -1, 0], ['up', 4, 'Fácil', 0, -1], ['down', 2, 'Difícil', 0, 1]]) {
+    await page.locator('article.card .front').evaluate((el, [dx, dy]) => {
+      const r = el.getBoundingClientRect(), x0 = r.x + r.width / 2, y0 = r.y + r.height / 2;
+      const ev = (type, k) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: 11, clientX: x0 + dx * k, clientY: y0 + dy * k }));
+      ev('pointerdown', 0);
+      for (let k = 1; k <= 8; k++) ev('pointermove', k * 25);
+      window.__cancel = () => ev('pointercancel', 200);
+    }, [dx, dy]);
+    await page.waitForTimeout(300);
+    const r = await page.locator('article.card .front').evaluate(el => {
+      const card = el.closest('article.card'), cs = getComputedStyle(card), after = getComputedStyle(card, '::after');
+      const bar = document.querySelector('#main .bar').getBoundingClientRect();
+      const out = { swipe: card.dataset.swipe, label: after.content.replace(/^"|"$/g, ''), pill: after.backgroundColor, shadow: cs.boxShadow, bg: cs.backgroundColor, top: card.getBoundingClientRect().top, barBottom: bar.bottom,
+        grades: [...document.querySelectorAll('.grade')].map(b => ({ g: b.dataset.grade, when: b.querySelector('small')?.textContent.trim(), bg: getComputedStyle(b).backgroundColor, shadow: getComputedStyle(b).boxShadow, opacity: getComputedStyle(b).opacity })) };
+      window.__cancel();
+      return out;
+    });
+    expect(r.swipe).toBe(dir);
+    const btn = r.grades.find(x => x.g === String(g));
+    expect(r.label).toBe(`${name} · ${btn.when}`);
+    expect(r.pill).toBe(btn.bg);
+    expect(btn.shadow).toContain(btn.bg);
+    expect(btn.shadow).not.toContain('rgb(255, 255, 255)');
+    expect(btn.opacity).toBe('1');
+    for (const o of r.grades.filter(x => x !== btn)) expect(Number(o.opacity)).toBeCloseTo(0.35, 2);
+    expect(r.shadow).toBe('none');
+    expect(r.bg).toBe('rgba(0, 0, 0, 0)');
+    if (dir === 'up') expect(r.top).toBeGreaterThanOrEqual(r.barBottom);
+    await page.waitForTimeout(250);
+  }
+});

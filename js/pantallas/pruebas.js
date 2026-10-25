@@ -4,7 +4,7 @@ import { toRow } from '../rows.js';
 import { dateKey } from '../srs.js';
 import { S, toast, fail, cardList } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
-import { onSignedIn, readTema } from './cuenta.js';
+import { onSignedIn, readTema, storeTemaImages } from './cuenta.js';
 import { TEMAS, temaSource } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
 import { makeSuggested, temaPicks } from './sugerencias.js';
@@ -71,11 +71,12 @@ export async function addTema(t) {
   const { title, blocks } = await readTema(t);
   let p = [...S.pages.values()].find(x => x.title === title);
   if (p && cardList().some(c => c.page_id === p.id)) return null;
+  await storeTemaImages(blocks);
   if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
   if (!p.deck_id || !S.decks.has(p.deck_id)) {
     // Una lista del tema que se quedó vacía (algo falló a medias): se reutiliza en vez de crear otra
     const empty = [...S.decks.values()].find(d => d.source === temaSource(t) && !cardList().some(c => c.deck_id === d.id));
-    const deck = empty || await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null });
+    const deck = empty || await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: temaSource(t), folder_id: p.folder_id || null, options: { lang: '' } });
     S.decks.set(deck.id, { tags: [], ...deck });
     // Con cuenta, savePage va por la cola de envíos y no devuelve el apunte: se cambia el que ya tenemos
     p.deck_id = deck.id; S.pages.set(p.id, p);

@@ -171,3 +171,25 @@ test('si la red falla al borrar la imagen anterior de una carpeta, el borrado es
   await expect(page.locator('#net')).toBeHidden();
   await expect.poll(() => [...srv.files.keys()]).toEqual([`media/${UID}/${second}`]);
 });
+
+// En la tanda, el aviso ocupa el sitio del título de la lista: no se leen los dos a la vez ni se mueve la tarjeta
+test('sin red, en la tanda el aviso no se monta encima del título ni mueve la tarjeta @ambos', async ({ page, context }) => {
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await startTanda(page);
+  const cardTop = await page.locator('article.card').evaluate(el => el.getBoundingClientRect().top);
+  await context.setOffline(true);
+  srv.reachable = false;
+  await answer(page, 3);
+  await expect(page.locator('#net')).toContainText('por enviar');
+  const r = await page.evaluate(() => {
+    const box = el => { const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, r: b.right, b: b.bottom, vis: getComputedStyle(el).visibility }; };
+    return { net: box(document.querySelector('#net')), where: box(document.querySelector('.studybar .where')), left: box(document.querySelector('.studybar .left')), card: document.querySelector('article.card').getBoundingClientRect().top };
+  });
+  const overlap = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
+  expect(r.where.vis === 'hidden' || !overlap(r.net, r.where)).toBe(true);
+  expect(overlap(r.net, r.left)).toBe(false);
+  expect(Math.abs(r.card - cardTop)).toBeLessThan(1);
+  srv.reachable = true;
+  await context.setOffline(false);
+});

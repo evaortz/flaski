@@ -104,6 +104,8 @@ export function faceHTML(model, st, { preview = false } = {}) {
     if (sayAns && !val(tpl.front[0]).trim()) front = `<div class="fld fld-main"><div class="fld-v">${sayAns}</div></div>${front}`;
   }
   if (tpl.hideRuby && !st.revealed && hasRuby(fields[tpl.front[0]] ?? '')) front = `<div class="ruby-hide" title="Toca un kanji para ver su lectura">${front}</div>`;
+  // Doble sentido: qué hay que contestar, en pequeño encima (la cara del término o la de la definición)
+  if (type.id === 'reverse' && tpl.mode === 'flip') front = `<p class="rev-ask">${tpl.front[0] === 'a' ? '¿Qué significa?' : '¿Cómo se llama?'}</p>${front}`;
 
   // Interacción antes de destapar
   let ask = '';
@@ -162,10 +164,11 @@ export function faceHTML(model, st, { preview = false } = {}) {
         <span class="num-in"><input id="numIn" inputmode="decimal" placeholder="Tu respuesta" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>${unit ? `<span class="muted">${esc(unit)}</span>` : ''}</span>
         <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>`;
     } else {
-      const r = st.number, right = `<b>${esc(val(tpl.answer))}${unit ? ' ' + esc(unit) : ''}</b>${tol ? ` <span class="muted">(±${esc(tol)})</span>` : ''}`;
-      ask = !r ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${right}</span></div></div>`
-        : r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto: ${right}${r.diff ? ` · pusiste ${esc(String(r.given))}` : ''}</div>`
-        : `<div class="verdict bad">${r.near ? '<div class="vnear">Casi</div>' : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span>${Number.isFinite(r.given) ? esc(String(r.given)) : '<i>(no es un número)</i>'}</span></div><div class="vrow"><span class="vl">Correcta</span><span>${right}</span></div></div>`;
+      // El número va en el recuadro de la respuesta, como en el resto de tipos; arriba, solo el veredicto con lo que escribiste
+      const r = st.number, given = r && (Number.isFinite(r.given) ? esc(String(r.given)) : '<i>no es un número</i>');
+      ask = !r ? ''
+        : r.ok ? `<div class="verdict ok">${icon('check', { size: 16 })} Correcto${r.diff ? ` · pusiste ${given}` : ''}</div>`
+        : `<div class="verdict bad">${r.near ? '<div class="vnear">Casi</div>' : ''}<div class="vrow"><span class="vl">Tu respuesta</span><span>${given}</span></div></div>`;
     }
   }
   if (tpl.mode === 'conj') {
@@ -241,6 +244,10 @@ export function faceHTML(model, st, { preview = false } = {}) {
   let answer = '';
   if (st.revealed) {
     if (tpl.mode === 'flip') answer = tpl.back.map((id, i) => block(id, i === 0)).join('');
+    else if (tpl.mode === 'number') {
+      const unit = String(fields.u || '').trim(), tol = String(fields.t || '').trim();
+      answer = `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${esc(val(tpl.answer))}${unit ? ' ' + esc(unit) : ''}${tol ? ` <span class="muted">(±${esc(tol)})</span>` : ''}</span></div></div>` + tpl.back.map(id => block(id, false)).join('');
+    }
     else if (['cloze', 'choice', 'match', 'occlusion', 'conj', 'sort', 'clozechoice', 'number'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
@@ -465,7 +472,8 @@ export function todayQueue(scope = 'all') {
 }
 // La barra de la sesión: un segmento por tarjeta (las hechas, en blanco); con muchas, una barra continua
 function segBar(ses) {
-  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
+  // (las preguntas distintas: las que vuelven a la cola por «Otra vez» o «Difícil» no alargan la barra)
+  const seen = ses.done, total = seen + ses.queue.length, pct = Math.round(100 * seen / Math.max(1, total));
   const aria = `role="progressbar" aria-label="Progreso de la tanda" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${seen}"`;
   if (total > 60 || total < 2) return `<div class="bar" ${aria}><span style="width:${pct}%"></span></div>`;
   return `<div class="bar bar-seg" style="--n:${total}" ${aria}>${Array.from({ length: total }, (_, i) => `<i${i < seen ? ' class="on"' : ''}></i>`).join('')}</div>`;
@@ -546,7 +554,7 @@ function entDoneHTML(ses) {
   const last = new Map();
   for (const x of ses.ent || []) last.set(x.id, x.g);
   if (!last.size) return '';
-  const rows = [...last].map(([id, g]) => { const c = S.cards.get(id); return c ? `<li><span>${esc(String(c.front).split('\n')[0].slice(0, 70))}</span><b class="ent-pill eg${g}">${ENT_LABEL[g]}</b></li>` : ''; }).join('');
+  const rows = [...last].map(([id, g]) => { const c = S.cards.get(id); return c ? `<li><span class="ent-done-q">${esc(String(c.front).split('\n')[0])}</span><b class="ent-pill eg${g}">${ENT_LABEL[g]}</b></li>` : ''; }).join('');
   return `<section class="ent-done"><h3>Lo que entiendes</h3><p>Por ideas de tu apunte, no por aciertos.</p><ul>${rows}</ul></section>`;
 }
 const canDictate = () => typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -569,10 +577,10 @@ function entenderHTML(model, st, { preview = false } = {}) {
   const ex = entState(model, st), ideas = ideasOf(model.fields[model.tpl.answer]), fx = ex.effects;
   let ask = '';
   if (fx.length) {
-    // ↑ = ↓ en cada efecto (al comprobar: bien o mal, y la correcta)
-    ask = `${model.fields.p ? '' : '<p class="ent-q">¿Qué pasa con…?</p>'}<div class="wi-rows">${fx.map((f, i) => `<div class="wi-row"><span class="wi-name">${esc(f.name)}</span><span class="wi-btns" role="group" aria-label="${esc(f.name)}">${DIRS.map(([d, sym, label]) => {
+    // ↑ = ↓ en cada efecto, con su palabra y en tres columnas bajo el nombre (al comprobar: bien o mal, y la correcta)
+    ask = `${model.fields.p ? '' : '<p class="ent-q">Para cada cosa, di si sube, se queda igual o baja.</p>'}<div class="wi-rows">${fx.map((f, i) => `<div class="wi-row"><span class="wi-name">${esc(f.name)}</span><span class="wi-btns" role="group" aria-label="${esc(f.name)}">${DIRS.map(([d, sym, label]) => {
       const cls = st.revealed ? (d === f.dir ? ' is-right' : ex.picks[i] === d ? ' is-wrong' : '') : '';
-      return `<button type="button" class="wi-b${cls}" data-wi="${i}:${d}" aria-pressed="${ex.picks[i] === d}" aria-label="${label}" ${st.revealed || preview ? 'disabled' : ''}>${sym}</button>`;
+      return `<button type="button" class="wi-b${cls}" data-wi="${i}:${d}" aria-pressed="${ex.picks[i] === d}" ${st.revealed || preview ? 'disabled' : ''}><span aria-hidden="true">${sym}</span> ${label}</button>`;
     }).join('')}</span></div>`).join('')}</div>`;
   } else if (!st.revealed) {
     const modes = [['write', 'Escribir'], ...(canDictate() ? [['dictate', 'Dictar']] : []), ['think', 'Pensarlo']];
@@ -648,7 +656,8 @@ export function renderStudy() {
     const t = ses.tally, min = Math.max(1, Math.round((Date.now() - (ses.startedAt || Date.now())) / 60e3));
     if (!ses.counted) { ses.counted = true; countTanda(); }
     const tally = `<div class="tally">${GRADES.map(({ g, label }) => `<span class="g${g}"><b>${t[g]}</b>${label}</span>`).join('')}</div>`;
-    const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')} · ${min} min</p>`;
+    const rep = (ses.answered ?? ses.done) - ses.done;
+    const sub = `<p class="done-sub">${plural(ses.done, 'pregunta', 'preguntas')}${rep > 0 ? ` · ${plural(rep, 'repetida', 'repetidas')}` : ''} · ${min} min</p>`;
     const again = ses.undo ? '<button class="link" data-act="undo">Deshacer la última</button>' : '';
     // La primera tanda: cuánto suele durar tu rato de estudio y si te avisamos mañana a esta hora
     if (ses.firstRun) {
@@ -718,8 +727,10 @@ export function renderStudy() {
   }
   const tags = (c.tags || []).length ? `<span class="tags">${tagChips(c.tags)}</span>` : '';
   // «pregunta N de M»: cada respuesta avanza; la que vuelve tras «Otra vez» se suma al total
-  const seen = ses.answered ?? ses.done, total = seen + ses.queue.length;
-  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${Math.min(total, seen + 1)} de ${total} · ${p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
+  // El total son las preguntas distintas (no salta al volver una a la cola); la que vuelve dice «repite»
+  const asked = ses.asked || [], again = asked.includes(c.id), total = ses.done + ses.queue.length;
+  const n = Math.min(total, asked.length + (again ? 0 : 1));
+  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${n} de ${total} · ${again ? 'repite' : p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
       ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
       ${ses.firstRun && ses.revealed && ses.done === 0 ? `<div class="first-tip" role="note"><b>¿Cómo te ha ido?</b><p>Sin trampas: según lo que elijas, Flaski decide cuándo volver a preguntártelo. Si te costó, pronto; si fue fácil, dentro de unos días.</p></div>` : ''}
@@ -740,8 +751,12 @@ export function renderStudy() {
   if (ses.revealed && S.prefs.study.swipe) {
     const two = S.prefs.study.buttons === 2;
     const map = { left: 1, right: 3, up: 4, down: 2 };
+    const names = ENT_MODES.includes(model.tpl.mode) ? { left: 'Todavía no', right: 'Lo sé explicar', up: null, down: 'A medias' } : { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' };
+    // La etiqueta dice también el intervalo de su botón: «Bien · 9 d»
+    const when = d => main.querySelector(`.grade.g${map[d]} small`)?.textContent.trim();
     const sw = swipeable(main.querySelector('article.card'), {
-      dirs: ENT_MODES.includes(model.tpl.mode) ? { left: 'Todavía no', right: 'Lo sé explicar', up: null, down: 'A medias' } : { left: 'Otra vez', right: 'Bien', up: two ? null : 'Fácil', down: two ? null : 'Difícil' },
+      dirs: Object.fromEntries(Object.entries(names).map(([d, l]) => [d, l && when(d) ? `${l} · ${when(d)}` : l])),
+      ceiling: () => (main.querySelector('.bar') || main.querySelector('.studybar'))?.getBoundingClientRect().bottom + 8 || 0,
       onCross: () => haptic('tick'),
       onSwipe: d => { countSwipe(); grade(map[d]); },
       // Mientras arrastras, las cuatro direcciones (si aún te hacen falta)
@@ -825,9 +840,10 @@ export function grade(g) {
   const id = ses.queue[0];
   const now = Date.now();
   const ms = Math.min(120e3, Math.max(0, now - (ses.shownAt || now)));
-  const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally };
+  const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally }, asked = (ses.asked || []).slice();
   const { prev, next, ev, day } = recordAnswer(id, g, ms, now);
-  ses.undo = { id, prev, queue, done, answered, tally, day, evId: ev.id };
+  ses.undo = { id, prev, queue, done, answered, tally, asked, day, evId: ev.id };
+  if (!asked.includes(id)) ses.asked = [...asked, id];
   ses.queue.shift();
   ses.answered = (ses.answered ?? ses.done) + 1;
   // Solo vuelven a salir en esta sesión las tarjetas en aprendizaje (falladas o «difícil» siendo nuevas)
@@ -849,7 +865,7 @@ export function undo() {
   S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
   api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
-  Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, revealed: true, undo: null, st: null });
+  Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, asked: u.asked, revealed: true, undo: null, st: null });
   saveSnapSoon();
   renderStudy();
 }

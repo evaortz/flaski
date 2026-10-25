@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { cardsFromCSV } from '../csv.js';
 import { icon } from '../icons.js';
-import { isNotesDeck, notesToDeck } from '../notes.js';
+import { isNotesDeck, notesToDeck, dropTags, TOO_MANY_TAGS } from '../notes.js';
 import { importImages } from '../media.js';
 import { $, main, S, esc, fmt, norm, fold, toast, fail, cardList } from '../comun.js';
 import { plural, parseDeckFile, download } from './mazos.js';
@@ -11,7 +11,7 @@ import { go } from '../app.js';
 import { TEMAS, temaSource } from '../primera-vez.js';
 import { addTema } from './pruebas.js';
 import { readTema } from './cuenta.js';
-import { startSession, langLabel } from './estudio.js';
+import { langLabel } from './estudio.js';
 
 /* ===================== explorar ===================== */
 async function loadExplore(force) {
@@ -98,7 +98,7 @@ export function renderExplore() {
     <div class="ex-grid">
       ${goal === 'all' && featured ? `<div class="ex-hero"><span class="ex-sticker">¡en 5 min!</span><small>tema de ejemplo · para probar Flaski</small><h2>${esc(featured.title)}</h2>
         <p>${esc(featured.text)}: un apunte corto sobre la memoria, con ${featured.count} preguntas ya hechas.</p>
-        <div class="btnrow">${ownTema(featured) ? `<button class="ex-hero-go" data-ex="open-tema" data-i="${featured.i}">Abrir el tema</button>` : `<button class="ex-hero-go" data-ex="start-tema" data-i="${featured.i}">Añadir y empezar</button>`}<button class="link" data-ex="see-tema" data-i="${featured.i}">Ver el tema</button></div>
+        <div class="btnrow">${ownTema(featured) ? `<button class="ex-hero-go" data-ex="open-tema" data-i="${featured.i}">Abrir el tema</button>` : `<button class="ex-hero-go" data-ex="read-tema" data-i="${featured.i}">Añadir y leer</button>`}<button class="link" data-ex="see-tema" data-i="${featured.i}">Ver el tema</button></div>
         <svg class="ex-curve" viewBox="0 0 160 90" aria-hidden="true"><path d="M4 20 C40 70 90 82 156 84" fill="none" stroke="#FF9F92" stroke-width="5" stroke-linecap="round"/><path d="M4 8 C20 40 30 52 40 50 C50 30 56 18 70 30 C80 48 90 52 100 50 C116 30 130 26 156 30" fill="none" stroke="#8EE3B5" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="50" r="6" fill="#FFFFFF"/><circle cx="100" cy="50" r="6" fill="#FFFFFF"/></svg></div>` : ''}
       ${show('amigos') ? `<section class="ex-sec ex-amigos" aria-labelledby="ex-h-amigos"><div class="section-h"><h2 id="ex-h-amigos">${local ? 'Tus listas compartidas' : 'De tus amigos'}</h2></div>${friendsBody}
         ${goal === 'all' ? `<button class="ex-import" data-act="import-menu">${icon('download', { size: 22 })}<span><b>¿Ya tienes preguntas en otra app?</b><small>Importa un mazo de Anki o un CSV</small></span></button>` : ''}</section>` : ''}
@@ -126,16 +126,16 @@ export async function exploreClick(b) {
       catch (e) { b.disabled = false; fail(e); }
       return;
     }
-    case 'add-tema': case 'start-tema': {
+    case 'add-tema': case 'read-tema': {
       b.disabled = true;
       const t = TEMAS[Number(ds.i)];
       try {
         const r = await addTema(t);
         const p = r?.page || ownTema(t)?.page;
         closeSheet();
-        // «Añadir y empezar»: la tanda de 5 min; «Añadir»: se abre el apunte
-        if (ds.ex === 'start-tema' && p?.deck_id) return startSession(p.deck_id, { minutes: 5 });
-        if (p && S.pages.has(p.id)) { toast(`«${t.title}» añadido`); return go('page', { pageId: p.id }); }
+        // «Añadir y leer» y «Añadir»: se abre el apunte, arriba del todo, con sus preguntas ya creadas (se estudia
+        // desde ahí, con su botón «Estudiar»)
+        if (p && S.pages.has(p.id)) { toast(`«${t.title}» añadido`); go('page', { pageId: p.id }); return scrollTo(0, 0); }
         toast(`«${t.title}» añadido`); renderExplore();
       } catch (e) { b.disabled = false; fail(e, `Añadir tema «${t.title}»`); }
       return;
@@ -159,7 +159,7 @@ async function temaPreview(i) {
     const own = ownTema(t);
     openSheet(`<h2 class="sheet-hand">${esc(t.title)}</h2><p class="muted small">tema de ejemplo · apunte y ${t.count} preguntas</p>${text}
       <ul class="preview">${qs.slice(0, 5).map(x => { const v = holes(x.pregunta, x.respuesta); return `<li><span>${esc(v.q)}</span><b>${esc(v.a)}</b></li>`; }).join('')}</ul>
-      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button>${own ? `<button class="primary" data-ex="open-tema" data-i="${i}">Abrir</button>` : `<button class="primary" data-ex="start-tema" data-i="${i}">Añadir y empezar</button>`}</div>`);
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button>${own ? `<button class="primary" data-ex="open-tema" data-i="${i}">Abrir</button>` : `<button class="primary" data-ex="read-tema" data-i="${i}">Añadir y leer</button>`}</div>`);
   } catch (e) { closeSheet(); fail(e); }
 }
 // Una pregunta con huecos, como en la tanda: «[…]» en la pregunta y lo que va en el hueco como respuesta
@@ -201,6 +201,7 @@ function showPreview(byline) {
       ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
       : /^(incluido|compartido):/.test(p.source || '') && ownedDeck(p.source) ? '' : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
+    ${p.tagNames?.length > TOO_MANY_TAGS ? `<p class="muted small pv-tags">La IA ha puesto ${p.tagNames.length} etiquetas · <button type="button" class="link" data-act="drop-preview-tags">Quitarlas</button></p>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
     ${(() => {
@@ -238,6 +239,13 @@ export function previewImport(parsed, { source, baseName = 'Lista importada' }) 
   }
   S.preview = { ...parseDeckFile(parsed.data), source };
   showPreview('desde archivo Flaski');
+}
+
+// «Quitarlas»: la lista se añade sin sus etiquetas (sin volver a pintar la hoja: se queda lo que hayas elegido)
+export function dropPreviewTags(b) {
+  if (!S.preview) return;
+  S.preview = dropTags(S.preview);
+  b.closest('.pv-tags').textContent = 'Sin etiquetas: se añade sin ellas.';
 }
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */

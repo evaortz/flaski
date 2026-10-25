@@ -44,13 +44,20 @@ export function friendsBadge() {
   const ch = S.friends?.cheers?.length || 0, req = incoming().length;
   return ch ? `<span class="pr-tag warm">${plural(ch, 'ánimo', 'ánimos')}</span>` : req ? `<span class="pr-tag warm">${plural(req, 'petición', 'peticiones')}</span>` : '';
 }
-// Ánimos ya mandados hoy (para no ofrecer otro al mismo amigo)
+// Ánimos ya mandados hoy, por amigo y clase: un «¡Ánimo!» mientras no ha estudiado y un «¡Bravo!» cuando ya ha
+// estudiado (aunque antes le mandaras el «¡Ánimo!») → Map(id → Set('clap' | 'bravo'))
+const cheerClass = kind => (kind === 'bravo' ? 'bravo' : 'clap');
 function cheeredToday() {
-  try { const c = JSON.parse(localStorage.getItem('flaski-cheered') || 'null'); return c?.day === dateKey() ? new Set(c.ids) : new Set(); } catch { return new Set(); }
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem('flaski-cheered') || 'null'); } catch { /* sin almacenamiento */ }
+  if (c?.day !== dateKey()) return new Map();
+  // (antes se guardaba solo la lista de amigos: eran «¡Ánimo!»)
+  return new Map(Array.isArray(c.ids) ? c.ids.map(id => [id, new Set(['clap'])]) : Object.entries(c.sent || {}).map(([id, ks]) => [id, new Set(ks)]));
 }
-export function markCheered(id) {
-  const ids = cheeredToday(); ids.add(id);
-  try { localStorage.setItem('flaski-cheered', JSON.stringify({ day: dateKey(), ids: [...ids] })); } catch {}
+export function markCheered(id, kind = 'clap') {
+  const sent = cheeredToday();
+  sent.set(id, (sent.get(id) || new Set()).add(cheerClass(kind)));
+  try { localStorage.setItem('flaski-cheered', JSON.stringify({ day: dateKey(), sent: Object.fromEntries([...sent].map(([k, v]) => [k, [...v]])) })); } catch { /* sin almacenamiento */ }
 }
 const avatar = (name, me = false) => `<span class="fr-av${me ? ' me' : ''}" aria-hidden="true">${esc(initial(name))}</span>`;
 
@@ -86,7 +93,7 @@ export function homeFriendsHTML() {
 // En la pantalla Amigos (full), el nombre abre las opciones de ese amigo (quitar, bloquear)
 function friendRow(p, cheered, full = false) {
   const right = p.me ? (p.today ? `<span class="frow-ok">${icon('check', { size: 14 })} hoy</span>` : pendingToday() ? '<button type="button" class="frow-cheer" data-act="tanda-short">¡Te toca!</button>' : '')
-    : cheered.has(p.id) ? `<span class="frow-sent">${icon('heart', { size: 14 })} enviado</span>`
+    : cheered.get(p.id)?.has(p.shared && p.today ? 'bravo' : 'clap') ? `<span class="frow-sent">${icon('heart', { size: 14 })} ${p.shared && p.today ? '¡Bravo!' : '¡Ánimo!'} enviado</span>`
     : p.shared && p.today ? `<button type="button" class="frow-cheer bravo" data-cheer="${p.id}" data-cheer-kind="bravo" aria-label="Decir «¡Bravo!» a ${esc(p.name || 'tu amigo')}">${icon('racha', { size: 15 })}¡Bravo!</button>`
     : `<button type="button" class="frow-cheer" data-cheer="${p.id}" data-cheer-kind="clap" aria-label="Animar a ${esc(p.name || 'tu amigo')}">¡Ánimo!</button>`;
   return `<li class="frow${p.me ? ' me' : ''}"><span class="frow-pos">${p.pos || ''}</span>${avatar(p.name, p.me)}

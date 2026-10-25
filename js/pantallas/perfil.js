@@ -106,7 +106,7 @@ function statsScopeOptions(sel) {
   return o('all', 'Todas las listas')
     + (folders.length ? `<optgroup label="Carpetas">${folders.map(f => o('folder:' + f.id, f.name)).join('')}</optgroup>` : '')
     + `<optgroup label="Listas">${decks.map(d => o(d.id, deckOptionName(d))).join('')}</optgroup>`
-    + (tags.length ? `<optgroup label="Etiquetas">${tags.map(t => o('tag:' + t.id, '#' + t.name)).join('')}</optgroup>` : '');
+    + (tags.length ? `<optgroup label="Etiquetas">${tags.map(t => o('tag:' + t.id, t.name)).join('')}</optgroup>` : '');
 }
 export let statsData = null;
 export function renderStats() {

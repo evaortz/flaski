@@ -52,6 +52,34 @@ test('¿Qué pasaría si…?: ↑ = ↓ en cada efecto, «Comprobar» marca bien
   await expect(page.locator('.grades [data-grade="1"]')).toHaveClass(/suggested/);
 });
 
+// El color de un botón y el de su fondo (resuelto con un lienzo) → contraste WCAG
+const contrast = el => {
+  const rgba = c => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillStyle = c; x.fillRect(0, 0, 1, 1); return [...x.getImageData(0, 0, 1, 1).data]; };
+  const lum = c => { const [r, g, b] = c.slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const [l1, l2] = [lum(rgba(getComputedStyle(el).color)), lum(rgba(getComputedStyle(el).backgroundColor))].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+};
+test('¿Qué pasaría si…?: botones con su palabra, el elegido se lee y al comprobar la correcta y la equivocada se ven enteras', async ({ page, seed }) => {
+  await create(page, seed, 'whatif', { s: 'Estudias todo la víspera.', e: 'Horas de estudio: igual\nLo que recuerdas un mes después: baja', k: 'Lo repartido dura más' });
+  await expect(page.locator('.ent-q')).toHaveText('Para cada cosa, di si sube, se queda igual o baja.');
+  await expect(page.locator('.wi-row').first().locator('.wi-b')).toHaveText(['↑ Sube', '= Igual', '↓ Baja']);
+  // El nombre, encima de sus tres botones y en letra normal
+  const [name, btn] = await Promise.all([page.locator('.wi-name').first().boundingBox(), page.locator('.wi-b').first().boundingBox()]);
+  expect(btn.y).toBeGreaterThanOrEqual(name.y + name.height - 1);
+  expect(await page.locator('.wi-name').first().evaluate(el => getComputedStyle(el).fontFamily)).not.toContain(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-hand').split(',')[0].trim()));
+  await page.locator('[data-wi="0:up"]').click();
+  await page.locator('[data-wi="1:down"]').click();
+  expect(await page.locator('[data-wi="0:up"]').evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
+  await page.locator('[data-act="reveal"]').click();
+  await expect(page.locator('[data-wi="0:eq"]')).toHaveClass(/is-right/);
+  await expect(page.locator('[data-wi="0:up"]')).toHaveClass(/is-wrong/);
+  for (const sel of ['[data-wi="0:eq"]', '[data-wi="0:up"]', '[data-wi="1:down"]']) {
+    expect(await page.locator(sel).evaluate(el => getComputedStyle(el).opacity)).toBe('1');
+    expect(await page.locator(sel).evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
+  }
+  expect(Number(await page.locator('[data-wi="0:down"]').evaluate(el => getComputedStyle(el).opacity))).toBeLessThan(1);
+});
+
 test('las básicas del tema de ejemplo pasan a «Explícalo» sin perder el progreso; las editadas no, y repetirlo no cambia nada', async ({ page }) => {
   const now = new Date().toISOString(), due = new Date(Date.now() + 5 * 864e5).toISOString();
   const Q = 'Explica por qué no conviene repasar ni antes ni después de estar a punto de olvidar.', A = 'Antes es perder el tiempo; después hay que volver a aprenderlo';
@@ -85,4 +113,33 @@ test('Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color d
     expect(fg).not.toBe(bg);
     expect(txt.trim().length).toBeGreaterThan(0);
   }
+});
+
+// Las casillas de las ideas tienen aspecto propio: sin marcar, borde blanco y fondo transparente; marcada, blanca
+// con la marca en el azul de la tanda (también en oscuro)
+test('casillas de «¿Qué ideas te salieron?»: aspecto propio, en claro y en oscuro', async ({ page, seed }) => {
+  await create(page, seed, 'explain', { q: '¿Por qué funciona repartir?', k: 'Se olvida un poco\nRecordar cuesta y fija' });
+  await page.locator('[data-act="reveal"]').click();
+  const boxes = page.locator('.ent-idea input');
+  await boxes.nth(1).check();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(async theme => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.theme = theme; applyLook(S.prefs.look); }, theme);
+    const [off, on] = await boxes.evaluateAll(xs => xs.map(x => { const cs = getComputedStyle(x), mark = getComputedStyle(x, '::after'); return { app: cs.appearance, bg: cs.backgroundColor, border: cs.borderTopColor, mark: mark.borderRightColor, markOn: mark.opacity }; }));
+    expect(off).toMatchObject({ app: 'none', bg: 'rgba(0, 0, 0, 0)', border: 'rgb(255, 255, 255)', markOn: '0' });
+    expect(on).toMatchObject({ app: 'none', bg: 'rgb(255, 255, 255)', markOn: '1' });
+    const session = await page.evaluate(() => { const x = document.createElement('i'); x.style.color = 'var(--session)'; document.body.append(x); const c = getComputedStyle(x).color; x.remove(); return c; });
+    expect(on.mark).toBe(session);
+  }
+});
+
+test('«Lo que entiendes» del fin de tanda: la pregunta no se corta a mitad de palabra (dos líneas como mucho)', async ({ page, seed }) => {
+  const q = 'Explica con tus palabras qué es la ilusión de fluidez y por qué engaña tanto al releer en vez de recordar';
+  await create(page, seed, 'explain', { q, k: 'Releer da sensación de saber' });
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('.grades [data-grade="3"]').click();
+  const row = page.locator('.ent-done li .ent-done-q');
+  await expect(row).toHaveText(q);
+  const r = await row.evaluate(el => ({ clamp: getComputedStyle(el).webkitLineClamp, lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || 20)) }));
+  expect(r.clamp).toBe('2');
+  expect(r.lines).toBeLessThanOrEqual(2);
 });

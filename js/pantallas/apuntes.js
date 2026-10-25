@@ -147,7 +147,7 @@ export function blockHTML(b, cards = [], ctx = blockCtx()) {
     const secCards = cardList().filter(c => c.page_id === p.id && ids.has(c.block_id));
     if (secCards.length) {
       const pend = pendingIn(`page:${p.id}:${b.id}`), sst = statusOf(secCards);
-      sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'pregunta', 'preguntas')} en este apartado">${pend ? `Estudiar ${pend}` : esc(statusLabel(sst))}</button>`;
+      sec = `<button type="button" class="nb-sec st-${sst}" data-study-section="${b.id}" ${pend ? '' : 'disabled'} title="${esc(statusLabel(sst))} · ${plural(secCards.length, 'pregunta', 'preguntas')} en este apartado">${pend ? `Estudiar ${pend}${pend < secCards.length ? ' hoy' : ''}` : esc(statusLabel(sst))}</button>`;
     }
   }
   const ind = b.indent ? ` data-ind="${b.indent}" style="--ind:${b.indent}"` : '';
@@ -159,10 +159,12 @@ function pageStatusHTML(p, cards) {
   const byStatus = new Map();
   for (const list of cards.values()) for (const c of list) { const st = statusOf([c]); if (st) byStatus.set(st, (byStatus.get(st) || 0) + 1); }
   if (!byStatus.size) return '';
-  const pend = pendingIn(`page:${p.id}`);
+  // (con hermanas, como las dos caras de una de doble sentido o los recuadros de una imagen, no salen todas el mismo
+  // día: entonces «· 14 hoy», para que no choque con «17 sin estudiar»)
+  const pend = pendingIn(`page:${p.id}`), total = [...cards.values()].reduce((n, l) => n + l.length, 0);
   const chips = STATUS.filter(s => byStatus.has(s.id)).map(s => `<span class="st-chip st-${s.id}"><i aria-hidden="true"></i>${byStatus.get(s.id)} ${s.label.toLowerCase()}</span>`).join('');
   return `<div class="pg-status" aria-label="Cómo llevas las preguntas de este apunte">${chips}<span class="spacer"></span>
-    ${pend ? `<button class="primary small-btn" data-start="page:${p.id}">Estudiar este apunte · ${pend}</button>` : '<span class="muted small">Todo al día</span>'}</div>`;
+    ${pend ? `<button class="primary small-btn" data-start="page:${p.id}">Estudiar este apunte · ${pend}${pend < total ? ' hoy' : ''}</button>` : '<span class="muted small">Todo al día</span>'}</div>`;
 }
 export function renderPage() {
   const p = S.pages.get(S.pageId);

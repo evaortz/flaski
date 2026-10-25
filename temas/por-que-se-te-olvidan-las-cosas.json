@@ -1,16 +1,130 @@
 [
-  {"primera": true, "tipo": "basic", "pregunta": "¿Quién estudió por primera vez cómo olvidamos?", "respuesta": "Hermann Ebbinghaus, en 1885", "bloque": "Hermann Ebbinghaus"},
-  {"tipo": "reverse", "pregunta": "Curva del olvido", "respuesta": "Cómo se pierde lo aprendido con el tiempo si no repasas", "bloque": "curva del olvido"},
-  {"primera": true, "tipo": "cloze", "pregunta": "En un solo día se olvida {{más de la mitad}} de lo que acabas de aprender.", "respuesta": "más de la mitad", "bloque": "curva del olvido"},
-  {"primera": true, "tipo": "typing", "pregunta": "¿Cómo se llama repasar dejando cada vez más días entre repaso y repaso?", "respuesta": "repaso espaciado", "bloque": "Efecto de espaciado"},
-  {"tipo": "choice", "pregunta": "¿Cuándo conviene repasar algo?", "respuesta": "Cuando estás a punto de olvidarlo", "incorrectas": ["Justo después de estudiarlo", "La víspera del examen", "Nunca, si ya lo entendiste"], "bloque": "a punto de olvidarlo"},
-  {"primera": true, "tipo": "truefalse", "pregunta": "Releer los apuntes varias veces es la forma más eficaz de memorizar.", "respuesta": "Falso (recordar fija más que releer)", "bloque": "Práctica de recuperación"},
-  {"primera": true, "tipo": "number", "pregunta": "¿En qué año publicó Ebbinghaus su estudio sobre la memoria?", "respuesta": "1885", "bloque": "Hermann Ebbinghaus"},
-  {"tipo": "order", "pregunta": "¿Qué enseña más? Ordena la frase", "respuesta": "Recordar / enseña más / que / releer", "bloque": "Práctica de recuperación"},
-  {"tipo": "steps", "pregunta": "Ordena qué hace Flaski con cada pregunta", "respuesta": "Te la enseña · Intentas recordarla · Dices cómo te ha salido · Calcula cuándo volver a preguntártela", "bloque": "Cada pregunta te obliga"},
-  {"tipo": "sort", "pregunta": "¿Ayuda a recordar o no?", "respuesta": "Ayuda: repasar espaciado, intentar recordar, dormir bien · No ayuda: releer lo subrayado, empollar la víspera, estudiar con notificaciones", "bloque": "Dificultades deseables"},
-  {"tipo": "match", "pregunta": "Une cada idea con lo que significa", "respuesta": "Efecto de espaciado = se recuerda mejor repartiendo el estudio · Efecto de recuperación = recordar fija más que releer · Dificultad deseable = que cueste un poco ayuda · Curva del olvido = lo que se pierde con el tiempo", "bloque": "Dificultades deseables"},
-  {"tipo": "explain", "pregunta": "Explica con tus palabras por qué reconocer no es lo mismo que recordar.", "respuesta": "Releer hace que el texto te suene, pero eso no significa que puedas sacarlo de memoria sin verlo", "bloque": "ilusión de fluidez"},
-  {"tipo": "whatif", "pregunta": "¿Qué pasaría si estudias tres horas la víspera del examen en vez de repartirlas en varios días?", "efectos": ["Al día siguiente, aprobarías: sube", "Un mes después, lo recordarías: baja"], "respuesta": "Te serviría para el examen de mañana, pero lo olvidarías enseguida; repartido, dura meses", "bloque": "el atracón"},
-  {"tipo": "occlusion", "pregunta": "¿Qué pone en el recuadro?", "respuesta": "1 día · 1 semana · con repasos", "imagen": "tema-curva-olvido", "recuadros": [[24, 74, 16, 10], [52, 74, 18, 10], [70, 12, 26, 10]], "bloque": "curva del olvido", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 260\" width=\"800\" height=\"520\"><rect width=\"400\" height=\"260\" fill=\"#ffffff\"/><g font-family=\"Arial, sans-serif\" fill=\"#2a2f45\"><text x=\"200\" y=\"22\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\">La curva del olvido</text><text x=\"14\" y=\"130\" font-size=\"11\" transform=\"rotate(-90 14 130)\" text-anchor=\"middle\">lo que recuerdas</text><text x=\"215\" y=\"252\" font-size=\"11\" text-anchor=\"middle\">tiempo</text></g><line x1=\"30\" y1=\"230\" x2=\"390\" y2=\"230\" stroke=\"#2a2f45\" stroke-width=\"2\"/><line x1=\"30\" y1=\"230\" x2=\"30\" y2=\"36\" stroke=\"#2a2f45\" stroke-width=\"2\"/><path d=\"M30 44 C 60 150, 110 190, 390 205\" fill=\"none\" stroke=\"#e0533d\" stroke-width=\"4\"/><path d=\"M30 44 C 50 80, 70 90, 100 92 L 100 50 C 130 70, 160 76, 190 78 L 190 52 C 240 64, 300 66, 390 68\" fill=\"none\" stroke=\"#2f9e6b\" stroke-width=\"4\" stroke-linejoin=\"round\"/><g font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"700\"><text x=\"128\" y=\"212\" fill=\"#e0533d\" text-anchor=\"middle\">1 día</text><text x=\"244\" y=\"212\" fill=\"#e0533d\" text-anchor=\"middle\">1 semana</text><text x=\"332\" y=\"52\" fill=\"#2f9e6b\" text-anchor=\"middle\">con repasos</text></g></svg>"}
+ {
+  "primera": true,
+  "tipo": "basic",
+  "pregunta": "¿Por qué memorizaba Ebbinghaus sílabas sin sentido, como «DAX» o «BOK»?",
+  "respuesta": "Para que nada de lo que ya sabía le ayudara a recordarlas",
+  "bloque": "sílabas sin sentido",
+  "nota": "Si hubiera usado palabras de verdad, lo que ya sabía de ellas le habría ayudado y no habría medido solo el olvido."
+ },
+ {
+  "tipo": "number",
+  "pregunta": "¿En qué año publicó Ebbinghaus el primer estudio científico sobre la memoria?",
+  "respuesta": "1885",
+  "bloque": "Hermann Ebbinghaus",
+  "nota": "Lo publicó en el libro «Über das Gedächtnis» («Sobre la memoria»)."
+ },
+ {
+  "primera": true,
+  "tipo": "cloze",
+  "pregunta": "Un día después de aprenderlas, Ebbinghaus ya había perdido {{unos dos tercios}} de las sílabas.",
+  "respuesta": "unos dos tercios",
+  "bloque": "ya había perdido unos dos tercios",
+  "nota": "Le quedaba un 34 %. Después se perdía mucho más despacio: al mes aún le quedaba un 21 %."
+ },
+ {
+  "primera": true,
+  "tipo": "occlusion",
+  "pregunta": "La curva del olvido: ¿qué tapa el recuadro?",
+  "respuesta": "Con repasos · Sin repasar · repaso",
+  "imagen": "tema-curva-olvido",
+  "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 260\" width=\"800\" height=\"520\"><rect width=\"400\" height=\"260\" fill=\"#ffffff\"/><g stroke=\"#e6e8ef\" stroke-width=\"1\"><line x1=\"40\" y1=\"80\" x2=\"390\" y2=\"80\"/><line x1=\"40\" y1=\"130\" x2=\"390\" y2=\"130\"/><line x1=\"40\" y1=\"180\" x2=\"390\" y2=\"180\"/></g><line x1=\"40\" y1=\"220\" x2=\"390\" y2=\"220\" stroke=\"#2a2f45\" stroke-width=\"2\"/><line x1=\"40\" y1=\"220\" x2=\"40\" y2=\"24\" stroke=\"#2a2f45\" stroke-width=\"2\"/><g font-family=\"Arial, sans-serif\" fill=\"#5b6178\" font-size=\"11\"><text x=\"16\" y=\"122\" transform=\"rotate(-90 16 122)\" text-anchor=\"middle\">Lo que recuerdas</text><text x=\"40\" y=\"238\" text-anchor=\"middle\">hoy</text><text x=\"110\" y=\"238\" text-anchor=\"middle\">1 día</text><text x=\"210\" y=\"238\" text-anchor=\"middle\">1 semana</text><text x=\"370\" y=\"238\" text-anchor=\"middle\">1 mes</text><text x=\"34\" y=\"34\" text-anchor=\"end\">100 %</text><text x=\"34\" y=\"224\" text-anchor=\"end\">0</text></g><g stroke=\"#9aa0b4\" stroke-width=\"1.5\" stroke-dasharray=\"4 4\"><line x1=\"110\" y1=\"30\" x2=\"110\" y2=\"220\"/><line x1=\"210\" y1=\"30\" x2=\"210\" y2=\"220\"/></g><path d=\"M40 30 C 52 120, 80 150, 110 155 C 160 165, 260 175, 390 182\" fill=\"none\" stroke=\"#e0533d\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M40 30 C 52 120, 80 150, 110 155 L 110 32 C 135 70, 170 84, 210 88 L 210 32 C 260 52, 330 60, 390 62\" fill=\"none\" stroke=\"#2f9e6b\" stroke-width=\"4\" stroke-linejoin=\"round\" stroke-linecap=\"round\"/><circle cx=\"110\" cy=\"32\" r=\"5\" fill=\"#2f9e6b\"/><circle cx=\"210\" cy=\"32\" r=\"5\" fill=\"#2f9e6b\"/><g font-family=\"Arial, sans-serif\" font-size=\"14\" font-weight=\"700\"><text x=\"146\" y=\"22\" fill=\"#5b6178\" text-anchor=\"middle\">repaso</text><text x=\"330\" y=\"46\" fill=\"#2f9e6b\" text-anchor=\"middle\">Con repasos</text><text x=\"330\" y=\"204\" fill=\"#e0533d\" text-anchor=\"middle\">Sin repasar</text></g></svg>",
+  "recuadros": [
+   [
+    68,
+    12,
+    30,
+    8
+   ],
+   [
+    68,
+    73,
+    30,
+    8
+   ],
+   [
+    27,
+    3,
+    20,
+    8
+   ]
+  ],
+  "bloque": "cada repaso aplana la curva"
+ },
+ {
+  "tipo": "typing",
+  "pregunta": "¿Cómo se llama el efecto por el que se recuerda mejor lo que se repasa repartido en el tiempo que lo que se estudia de golpe?",
+  "respuesta": "efecto de espaciado",
+  "bloque": "Efecto de espaciado:",
+  "nota": "El atracón de la víspera sirve para mañana, pero lo repartido dura meses."
+ },
+ {
+  "primera": true,
+  "tipo": "choice",
+  "pregunta": "¿Cuál es el mejor momento para repasar algo?",
+  "respuesta": "Justo cuando estás a punto de olvidarlo",
+  "incorrectas": [
+   "Justo después de aprenderlo, mientras aún te lo sabes",
+   "Cuando ya lo has olvidado del todo",
+   "Solo la víspera del examen"
+  ],
+  "bloque": "justo cuando estás a punto de olvidarlo",
+  "nota": "Antes es perder el tiempo, porque aún te lo sabes; después, tendrías que aprenderlo otra vez."
+ },
+ {
+  "tipo": "whatif",
+  "pregunta": "Tienes tres horas para un examen. En vez de repartirlas en tres ratos de una hora con días entre medias, lo estudias todo la víspera. ¿Qué pasaría?",
+  "efectos": [
+   "Horas de estudio: igual",
+   "Lo que recuerdas al día siguiente: igual",
+   "Lo que recuerdas un mes después: baja"
+  ],
+  "respuesta": "Estudias lo mismo y al día siguiente te acuerdas igual, pero un mes después casi no te queda nada; repartido, recuerdas buena parte",
+  "bloque": "Tres horas la víspera"
+ },
+ {
+  "primera": true,
+  "tipo": "truefalse",
+  "pregunta": "En el experimento de Roediger y Karpicke, una semana después recordaban más quienes habían releído el texto varias veces.",
+  "respuesta": "Falso (una semana después recordaban más quienes habían practicado recordando; releer solo ganaba a los cinco minutos)",
+  "bloque": "Roediger y Karpicke"
+ },
+ {
+  "tipo": "explain",
+  "pregunta": "Explica con tus palabras qué es la ilusión de fluidez y por qué engaña.",
+  "respuesta": "Al releer, el texto te suena y crees que lo dominas; pero reconocerlo no es lo mismo que poder recordarlo sin mirar",
+  "bloque": "ilusión de fluidez"
+ },
+ {
+  "tipo": "order",
+  "pregunta": "Ordena la definición de práctica de recuperación",
+  "respuesta": "Intentar sacar algo de la memoria / sin mirar / lo fija mucho más / que volver a leerlo",
+  "bloque": "Práctica de recuperación:",
+  "nota": "Por eso Flaski te pregunta en vez de enseñarte la respuesta."
+ },
+ {
+  "tipo": "match",
+  "pregunta": "Une cada dificultad deseable con lo que significa",
+  "respuesta": "Espaciar = repartir los repasos en varios días · Intercalar = mezclar temas distintos en la misma sesión · Recordar = sacarlo de memoria sin mirar · Explicar = contarlo con tus palabras",
+  "bloque": "Dificultades deseables:"
+ },
+ {
+  "tipo": "sort",
+  "pregunta": "Según Dunlosky (2013), ¿qué técnicas son muy útiles y cuáles poco?",
+  "respuesta": "Muy útiles: ponerse a prueba, espaciar los repasos · Poco útiles: releer, subrayar, resumir",
+  "bloque": "Dunlosky"
+ },
+ {
+  "tipo": "reverse",
+  "pregunta": "Consolidar (lo aprendido)",
+  "respuesta": "Lo que hace el cerebro mientras duermes: reorganizar y afianzar lo que has aprendido durante el día",
+  "bloque": "consolida",
+  "nota": "Por eso funciona mejor estudiar un poco cada día y dormir bien que estudiar mucho y dormir poco."
+ },
+ {
+  "tipo": "steps",
+  "pregunta": "Ordena lo que hace Flaski con cada pregunta",
+  "respuesta": "Te la hace e intentas recordar sin mirar · Dices cómo te ha ido · Calcula cuándo estarás a punto de olvidarla · Te la vuelve a preguntar justo entonces",
+  "bloque": "Te hace una pregunta"
+ }
 ]

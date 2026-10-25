@@ -22,7 +22,7 @@ import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
-import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
+import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview, dropPreviewTags } from './pantallas/explorar.js';
 import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
@@ -281,7 +281,7 @@ document.addEventListener('click', async e => {
     const p = S.friends?.list.find(x => x.id === ds.cheer);
     e.target.closest('button').disabled = true;
     try { await api.social.cheer(ds.cheer, ds.cheerKind || 'clap'); } catch (err) { e.target.closest('button').disabled = false; return fail(err); }
-    markCheered(ds.cheer);
+    markCheered(ds.cheer, ds.cheerKind || 'clap');
     toast(ds.cheerKind === 'bravo' ? `Le has dicho «¡Bravo!» a ${p?.name || 'tu amigo'}` : `Le has mandado ánimos a ${p?.name || 'tu amigo'}`);
     if (S.view === 'friends') renderFriends();
     if (S.view === 'home') friendsChanged();
@@ -714,6 +714,7 @@ document.addEventListener('click', async e => {
     case 'export-csv': if ($('.dk-msheet')) closeSheet(); return exportDeck('csv');
     case 'refresh-explore': S.pub = null; S.builtin = null; return renderExplore();
     case 'add-preview': return addPreview(b);
+    case 'drop-preview-tags': return dropPreviewTags(b);
     case 'save-card-more': return saveCardForm(b.closest('form'), true);
     case 'copy-link': {
       const input = $('#shareUrl');

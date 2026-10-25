@@ -4,7 +4,7 @@ import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 const left = page => page.locator('.studybar .left');
 const study = page => page.locator('#main [data-start]').first().click();
 
-test('tras «Otra vez» el contador avanza y la que vuelve se suma al total; al salir se vuelve a la lista', async ({ page, seed }) => {
+test('tras «Otra vez» el contador avanza sin que salte el total, la que vuelve dice «repite» y el final cuenta las repetidas', async ({ page, seed }) => {
   await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París'], ['Italia', 'Roma'], ['Portugal', 'Lisboa']] }] });
   await openApp(page);
   await openDeck(page, 'Capitales');
@@ -12,10 +12,19 @@ test('tras «Otra vez» el contador avanza y la que vuelve se suma al total; al 
   await expect(left(page)).toContainText('pregunta 1 de 3');
   await page.locator('[data-act="reveal"]').click();
   await page.locator('[data-grade="1"]').click();
-  await expect(left(page)).toContainText('pregunta 2 de 4');
+  await expect(left(page)).toHaveText('pregunta 2 de 3 · nueva');
+  await expect(page.locator('#main .bar')).toHaveAttribute('aria-valuemax', '3');
   await page.locator('[data-act="reveal"]').click();
   await page.locator('[data-grade="3"]').click();
-  await expect(left(page)).toContainText('pregunta 3 de 4');
+  await expect(left(page)).toHaveText('pregunta 3 de 3 · nueva');
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('[data-grade="3"]').click();
+  await expect(left(page)).toHaveText('pregunta 3 de 3 · repite');
+  await expect(page.locator('.card .front')).toContainText('Francia');
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('[data-grade="3"]').click();
+  await expect(page.locator('.done-sub')).toContainText('3 preguntas · 1 repetida');
+  await expect(page.locator('.tally')).toContainText('1');
   await page.locator('.studybar [data-act="exit"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Capitales' })).toBeVisible();
 });

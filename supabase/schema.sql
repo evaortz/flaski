@@ -342,7 +342,8 @@ drop policy if exists "mis amistades" on public.friendships;
 create policy "mis amistades" on public.friendships
   for select to authenticated using (requester = auth.uid() or addressee = auth.uid());
 
--- Ánimos (👏) entre amigos: como mucho uno al día de cada persona a cada amigo
+-- Ánimos (👏) entre amigos: como mucho uno de cada clase al día de cada persona a cada amigo (un «¡Ánimo!» y un
+-- «¡Bravo!»; ver la versión 12, al final)
 create table if not exists public.cheers (
   id         uuid primary key default gen_random_uuid(),
   from_user  uuid not null references auth.users on delete cascade,
@@ -605,3 +606,23 @@ end;
 $$;
 revoke execute on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ---------- Antes del push (versión 12): un «¡Ánimo!» y un «¡Bravo!» al día ----------
+-- Hasta ahora, un solo ánimo al día por amigo (unique (from_user, to_user, day)): tras un «¡Ánimo!» ya no cabía
+-- el «¡Bravo!» de cuando ese amigo estudia. Ahora, uno de cada clase al día: «¡Bravo!» por un lado y los demás
+-- («¡Ánimo!», «¡Tú puedes!», fuego) por otro. send_cheer sigue igual: «on conflict do nothing» vale con el índice.
+-- La restricción se llama cheers_from_user_to_user_day_key en las bases nuevas y en las de antes (es la misma
+-- desde la versión 8); por si acaso, también se quita cualquier otra única sobre esas tres columnas.
+alter table public.cheers drop constraint if exists cheers_from_user_to_user_day_key;
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname from pg_constraint c
+    where c.conrelid = 'public.cheers'::regclass and c.contype = 'u'
+      and (select array_agg(a.attname::text order by a.attname) from pg_attribute a where a.attrelid = c.conrelid and a.attnum = any (c.conkey)) = array['day', 'from_user', 'to_user']
+  loop
+    execute format('alter table public.cheers drop constraint %I', r.conname);
+  end loop;
+end $$;
+create unique index if not exists cheers_one_per_kind_idx on public.cheers (from_user, to_user, day, (kind = 'bravo'));

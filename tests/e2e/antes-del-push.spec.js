@@ -1,0 +1,86 @@
+// Remates de antes del push en la tanda: la respuesta numérica en su recuadro, la fila de letras especiales sin
+// idioma, la pregunta de la cara de doble sentido…
+import { test, expect, startTanda, nav } from './fixtures.js';
+
+const DAY = 864e5, T0 = Date.now() - 30 * DAY;
+// Una lista con estas preguntas (todas para hoy, en este orden) y la tanda empezada
+async function tanda(page, cards, { lang = '', prefs = {}, tags = [] } = {}) {
+  const now = new Date().toISOString();
+  const db = {
+    profile: { id: 'local', display_name: '' }, settings: { new_per_day: 15, prefs },
+    decks: [{ id: 'd', owner: 'local', name: 'Repaso', created_at: now, folder_id: null, icon: '', color: '', tags: [], pinned: false, archived: false, options: lang ? { lang } : {} }],
+    cards: cards.map(([type, tpl, fields, ctags = []], k) => ({ id: `c${k}`, deck_id: 'd', owner: 'local', type_id: type, template: tpl, fields, front: '—', back: '—', note: '', hint: '', tags: ctags, position: k, created_at: now })),
+    progress: cards.map((_, k) => ({ user_id: 'local', card_id: `c${k}`, reps: 3, interval: 4, ease: 2.5, lapses: 0, stability: 4, difficulty: 5, due: new Date(T0 + k * 1000).toISOString(), first_seen: new Date(T0).toISOString(), last: new Date(T0).toISOString() })),
+    log: [], folders: [], tags: tags.map(([id, name]) => ({ id, owner: 'local', name, color: '' })), types: [], events: [], pages: [],
+  };
+  await page.addInitScript(data => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', data); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
+  await page.goto('/');
+  await startTanda(page);
+}
+
+test('respuesta numérica: al verla sin contestar, el número va en el recuadro «respuesta»', async ({ page }) => {
+  await tanda(page, [['number', 't1', { q: '¿En qué año publicó Ebbinghaus su estudio?', a: '1885', t: '', u: '', n: 'Über das Gedächtnis' }]]);
+  await page.locator('[data-act="reveal"]').click();
+  const box = page.locator('article.card .answer');
+  await expect(box.locator('.ans-l')).toHaveText('respuesta');
+  await expect(box.locator('.fld-main')).toContainText('1885');
+  await expect(box).toContainText('Über das Gedächtnis');
+  // y no suelto debajo de la pregunta
+  await expect(page.locator('article.card > :not(.answer)').filter({ hasText: '1885' })).toHaveCount(0);
+});
+
+test('escribir la respuesta en una lista sin idioma: la fila de letras especiales es la del español', async ({ page }) => {
+  await tanda(page, [['typing', 't1', { q: '¿Cómo se llama el efecto por el que se recuerda mejor lo repartido?', a: 'Efecto de espaciado', n: '' }]]);
+  await expect(page.locator('.chars-study button')).toHaveText(['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡']);
+});
+
+test('doble sentido: «¿Qué significa?» encima del término y «¿Cómo se llama?» encima de la definición', async ({ page }) => {
+  const f = { a: 'Consolidar (lo aprendido)', b: 'Fijar en la memoria lo aprendido, sobre todo mientras duermes', n: '' };
+  await tanda(page, [['reverse', 't1', f], ['reverse', 't2', f]]);
+  await expect(page.locator('article.card .rev-ask')).toHaveText('¿Qué significa?');
+  await expect(page.locator('article.card .front')).toContainText('Consolidar');
+  await page.locator('[data-act="reveal"]').click();
+  await page.locator('[data-grade="3"]').click();
+  await expect(page.locator('article.card .rev-ask')).toHaveText('¿Cómo se llama?');
+  await expect(page.locator('article.card .front')).toContainText('Fijar en la memoria');
+});
+
+test('etiquetas sin «#»: en la tanda, en los filtros de Biblioteca y en «Estudiar…»', async ({ page }) => {
+  await tanda(page, [['basic', 't1', { q: 'ev', a: 'casa', n: '' }, ['t1']]], { tags: [['t1', 'casa']] });
+  await expect(page.locator('article.card .tags')).toHaveText('casa');
+  await page.locator('.studybar [data-act="exit"]').click();
+  await nav(page, 'Biblioteca');
+  const filter = page.locator('[data-tagfilter="t1"]:visible').first();
+  await expect(filter).toHaveText('casa');
+  await filter.click();
+  await expect(page.locator('#main [data-start="tag:t1"]:visible').first()).toHaveText(/^Estudiar casa/);
+  expect(await page.locator('#main').innerText()).not.toContain('#casa');
+});
+
+// Respuesta numérica contestada: arriba solo el veredicto con lo que escribiste; el 1885, dentro de «respuesta»
+for (const [given, verdict] of [['1885', 'Correcto'], ['1890', 'Casi'], ['1500', 'Tu respuesta']]) test(`respuesta numérica, ${verdict.toLowerCase()} (${given}): el número va en el recuadro «respuesta»`, async ({ page }) => {
+  await tanda(page, [['number', 't1', { q: '¿En qué año publicó Ebbinghaus su estudio?', a: '1885', t: '', u: '', n: 'Über das Gedächtnis' }]]);
+  await page.locator('#numIn').fill(given);
+  await page.locator('#numIn').press('Enter');
+  const box = page.locator('article.card .answer');
+  await expect(box.locator('.fld-main')).toContainText('1885');
+  await expect(box).toContainText('Über das Gedächtnis');
+  const v = page.locator('article.card .verdict');
+  await expect(v).toContainText(verdict);
+  if (given !== '1885') await expect(v).toContainText(given);
+  await expect(v).not.toContainText(given === '1885' ? 'Correcta' : '1885');
+  // Nunca un «respuesta» sin nada debajo
+  expect(await box.evaluate(el => [...el.children].filter(c => !c.classList.contains('ans-l')).some(c => c.textContent.trim()))).toBe(true);
+});
+
+// En la tanda los avisos van encima de los botones de abajo: con uno abierto, «Ver respuesta» se puede pulsar
+test('con un aviso abierto al entrar en la tanda, «Ver respuesta» se puede pulsar @ambos', async ({ page }) => {
+  await tanda(page, [['basic', 't1', { q: 'ev', a: 'casa', n: '' }]]);
+  await page.evaluate(() => import('/js/comun.js').then(m => m.toast('«Por qué se te olvidan las cosas» añadido')));
+  await expect(page.locator('#toast')).toBeVisible();
+  const [t, b] = await Promise.all([page.locator('#toast').boundingBox(), page.locator('[data-act="reveal"]').boundingBox()]);
+  expect(t.y + t.height).toBeLessThanOrEqual(b.y);
+  await page.locator('[data-act="reveal"]').click({ trial: true, timeout: 2000 });
+  await page.locator('[data-act="reveal"]').click();
+  await expect(page.locator('.grades')).toBeVisible();
+});

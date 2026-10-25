@@ -144,7 +144,7 @@ function renderRoot() {
   const tagFilter = [...S.tags.values()].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(t =>
     `<button class="tagbtn" data-tagfilter="${t.id}" aria-pressed="${o.tagIds.includes(t.id)}">${tagSticker(t, { big: true })}</button>`).join('');
   const studyTag = o.tagIds.length === 1 && !o.archived ? (() => { const c = counts('tag:' + o.tagIds[0]), n = dueOf(c);
-    return `<div class="btnrow"><button class="primary" data-start="tag:${o.tagIds[0]}" ${n ? '' : 'disabled'}>Estudiar #${esc(S.tags.get(o.tagIds[0])?.name || '')}${n ? ' · ' + n : ''}</button></div>`; })() : '';
+    return `<div class="btnrow"><button class="primary" data-start="tag:${o.tagIds[0]}" ${n ? '' : 'disabled'}>Estudiar ${esc(S.tags.get(o.tagIds[0])?.name || '')}${n ? ' · ' + n : ''}</button></div>`; })() : '';
   const empty = filtering ? 'Nada coincide con la búsqueda o el filtro.' : 'Aún no tienes apuntes ni listas. Crea uno o busca listas en Explorar.';
 
   main.innerHTML = `

@@ -17,7 +17,7 @@ Flaski es una app de flashcards con repaso espaciado. Tu tarea: convertir lo que
   "description": "Vocabulario básico para pedir en un restaurante.",
   "lang": "tr-TR",
   "notes": [
-    { "type": "vocab", "fields": { "w": "ekmek", "t": "pan", "e": "Ekmek alabilir miyim?" }, "tags": ["comida"] },
+    { "type": "vocab", "fields": { "w": "ekmek", "t": "pan", "e": "Ekmek alabilir miyim?" } },
     { "type": "basic", "fields": { "q": "¿Cómo se pide la cuenta en turco?", "a": "Hesap, lütfen." } },
     { "type": "cloze", "fields": { "x": "Su{{yu::acusativo}} içiyorum." }, "hint": "beber agua" }
   ]
@@ -32,7 +32,7 @@ Este ejemplo crea 4 tarjetas.
   - **type**: uno de los tipos de la tabla. Si falta, es `basic`.
   - **fields**: los campos del tipo, con sus claves exactas (`q`, `a`, `w`…). Todos los valores son texto.
   - **hint** (opcional): una pista que se puede ver antes de responder.
-  - **tags** (opcional): etiquetas, por ejemplo `["verbos", "examen"]`.
+  - **tags**: no las pongas salvo que te las pidan. Si te las piden, como mucho 3 para todo el mazo, y repítelas en vez de inventar una por nota. Los temas ya se separan con el nombre del mazo.
 
 ## Tipos
 
@@ -87,7 +87,7 @@ Japonés, con kanji, furigana y ordenar:
   "lang": "ja-JP",
   "notes": [
     { "type": "kanji", "fields": { "k": "水", "m": "agua", "on": "スイ", "kun": "みず", "e": "水[みず]を 飲[の]む (beber agua)" } },
-    { "type": "vocab", "fields": { "w": "学校[がっこう]", "t": "escuela", "e": "学校[がっこう]に 行[い]きます。" }, "tags": ["lugares"] },
+    { "type": "vocab", "fields": { "w": "学校[がっこう]", "t": "escuela", "e": "学校[がっこう]に 行[い]きます。" } },
     { "type": "order", "fields": { "f": "私は / 毎朝 / コーヒーを / 飲みます", "t": "Bebo café todas las mañanas." } },
     { "type": "choice", "fields": { "q": "¿Qué partícula marca el tema de la frase?", "a": "は", "w": "を; に; で" } }
   ]
@@ -107,7 +107,7 @@ Alemán, con sustantivos y vocabulario:
   "notes": [
     { "type": "de-noun", "fields": { "g": "das", "w": "Haus", "pl": "die Häuser", "t": "la casa" } },
     { "type": "de-noun", "fields": { "g": "die", "w": "Tür", "pl": "die Türen", "t": "la puerta" } },
-    { "type": "vocab", "fields": { "w": "wohnen", "t": "vivir (residir)", "e": "Ich wohne in Berlin." }, "tags": ["verbos"] }
+    { "type": "vocab", "fields": { "w": "wohnen", "t": "vivir (residir)", "e": "Ich wohne in Berlin." } }
   ]
 }
 ```
@@ -123,7 +123,7 @@ Historia, sin idioma:
   "name": "Historia · Revolución francesa",
   "description": "Fechas y conceptos clave para el examen.",
   "notes": [
-    { "type": "basic", "fields": { "q": "¿En qué año fue la toma de la Bastilla?", "a": "1789", "n": "El 14 de julio, hoy fiesta nacional de Francia." }, "tags": ["fechas"] },
+    { "type": "basic", "fields": { "q": "¿En qué año fue la toma de la Bastilla?", "a": "1789", "n": "El 14 de julio, hoy fiesta nacional de Francia." } },
     { "type": "cloze", "fields": { "x": "La Declaración de los Derechos del Hombre y del Ciudadano se aprobó en {{1789}} por la {{Asamblea Nacional::institución}}." } },
     { "type": "choice", "fields": { "q": "¿Quién encabezó el periodo del Terror?", "a": "Robespierre", "w": "Napoleón; Luis XVI; Danton" }, "hint": "Fue líder de los jacobinos." },
     { "type": "reverse", "fields": { "a": "Girondinos", "b": "Facción republicana moderada", "n": "Rivales de los jacobinos." } }

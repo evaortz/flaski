@@ -17,14 +17,14 @@ import { markdownToPage, plainTextToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
-import { setRemote as setImageRemote } from '../media.js';
-import { $, main, S, esc, toast, errMsg, fail, counts, fold } from '../comun.js';
+import { setRemote as setImageRemote, storeImage, flushUploads } from '../media.js';
+import { $, main, S, esc, toast, errMsg, fail, counts, fold, plain } from '../comun.js';
 import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
 import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
-import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions } from './sugerencias.js';
+import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions, blockFor } from './sugerencias.js';
 import { startSession } from './estudio.js';
 import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
@@ -203,7 +203,7 @@ export async function migrateEntender() {
   const maybe = [...S.cards.values()].filter(c => c.type_id === 'basic' && /^(Explica|¿Qué pasaría)/.test(c.fields?.q || ''));
   if (!maybe.length) return 0;
   // (también las listas de antes de los temas que han cambiado)
-  const lists = await Promise.all(TEMAS.flatMap(t => [t.cards, t.old].filter(Boolean)).map(u => fetch(u).then(r => r.json()).catch(() => [])));
+  const lists = await Promise.all(TEMAS.flatMap(t => [t.cards, ...(t.old || [])]).map(u => fetch(u).then(r => r.json()).catch(() => [])));
   const want = new Map();
   for (const list of lists) for (const [i, nu] of temaCards(list).entries()) if (nu.typeId === 'explain' || nu.typeId === 'whatif') want.set(list[i].pregunta, { ...nu, a: list[i].respuesta });
   let n = 0;
@@ -226,15 +226,49 @@ export async function migrateEntender() {
 // de tipo o de campos, se actualizan sin cambiar su id). Lo que hayas añadido o editado tú no se toca.
 // Si se repite, no cambia nada.
 const noteKey = f => fold(String(f?.q ?? f?.x ?? f?.s ?? f?.t ?? f?.h ?? f?.a ?? '').replace(/\{\{|\}\}/g, ''));
+// Un apunte tal como se creó (sin los id de los bloques), para saber si lo has tocado
+const blockSig = b => [b.type, String(b.text || '').replace(/\s+/g, ' ').trim(), b.src || '', b.indent || 0, !!b.checked, b.icon || ''];
+const sameBlocks = (a, b) => a.length === b.length && a.every((x, i) => JSON.stringify(blockSig(x)) === JSON.stringify(blockSig(b[i])));
+// El apunte de un tema que no has tocado desde que lo añadiste (igual que el de alguna versión de antes) pasa al de
+// ahora; cada pregunta sigue unida a su apartado (el mismo texto o, si no, el mismo título por encima). Si lo has
+// editado, se queda como está. Devuelve si lo ha cambiado.
+async function renewTemaPage(t, p, want) {
+  const olds = await Promise.all((t.oldPages || []).map(u => fetch(u, { cache: 'no-cache' }).then(r => r.ok ? r.text() : null).catch(() => null)));
+  if (!olds.some(md => md && sameBlocks(p.blocks, markdownToPage(md, u0(t)).blocks))) return false;
+  const { blocks } = await readTema(t);
+  await storeTemaImages(blocks);
+  const before = p.blocks, headOf = (list, i) => { for (let k = i; k >= 0; k--) if (/^h[1-3]$/.test(list[k].type)) return list[k]; return null; };
+  const key = b => (b ? JSON.stringify(blockSig(b).slice(0, 2)) : '');
+  const relink = c => {
+    const x = want.find(w => noteKey(w.fields) === noteKey(c.fields));
+    if (x) return blockFor({ blocks }, x.block || x.answer);
+    const i = before.findIndex(b => b.id === c.block_id);
+    if (i < 0) return c.block_id;
+    const same = blocks.find(b => key(b) === key(before[i]));
+    const head = headOf(before, i), sameHead = head && blocks.find(b => key(b) === key(head));
+    return (same || sameHead)?.id || blockFor({ blocks }, plain(c.back || c.front || ''));
+  };
+  for (const c of [...S.cards.values()].filter(c => c.page_id === p.id || c.deck_id === p.deck_id)) {
+    const id = relink(c);
+    if (id && id !== c.block_id) { c.block_id = id; api.updateCard(c.id, { block_id: id }).catch(() => {}); }
+  }
+  p.blocks = blocks;
+  savePageSoon(p, 0);
+  return true;
+}
+const u0 = t => t.file;
 export async function migrateTemas() {
   let n = 0;
   for (const t of TEMAS.filter(t => t.old)) {
     const src = temaSource(t), decks = [...S.decks.values()].filter(d => d.source === src);
     if (!decks.length) continue;
-    const [now, before] = await Promise.all([t.cards, t.old].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()).catch(() => null)));
-    if (!now || !before) continue;
-    const oldKeys = new Set(temaCards(before).map(x => noteKey(x.fields)));
+    // (las preguntas de cualquiera de sus versiones de antes)
+    const [now, ...befores] = await Promise.all([t.cards, ...t.old].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()).catch(() => null)));
+    if (!now || !befores.some(Boolean)) continue;
+    const oldKeys = new Set(befores.filter(Boolean).flatMap(b => temaCards(b).map(x => noteKey(x.fields))));
     for (const d of decks) {
+      const pg = [...S.pages.values()].find(p => p.deck_id === d.id);
+      if (pg && await renewTemaPage(t, pg, temaCards(now))) n++;
       const notes = new Map();
       for (const c of [...S.cards.values()].filter(c => c.deck_id === d.id)) (notes.get(c.note_id || c.id) || notes.set(c.note_id || c.id, []).get(c.note_id || c.id)).push(c);
       const byKey = new Map([...notes.values()].map(cs => [noteKey(cs[0].fields), cs]));
@@ -338,9 +372,22 @@ function restoredNotice() {
 }
 /* ===================== primera vez ===================== */
 // Un tema de ejemplo como apunte (también para los datos de ejemplo de ?local)
+// Las imágenes que cita el apunte de un tema (img:<id>, en temas/<id>.svg), guardadas antes de crear y pintar el
+// apunte para que salgan ya cargadas
+export async function storeTemaImages(blocks) {
+  const ids = new Set((blocks || []).flatMap(b => [b.type === 'img' ? b.src : '', ...[...String(b.text || '').matchAll(/img:([\w-]+)/g)].map(m => m[1])]).filter(Boolean));
+  let n = 0;
+  for (const id of ids) {
+    const r = await fetch(`temas/${id}.svg`, { cache: 'no-cache' }).catch(() => null);
+    if (!r?.ok) continue;
+    await storeImage(id, new Uint8Array(await r.arrayBuffer()), 'image/svg+xml');
+    n++;
+  }
+  if (n) flushUploads();
+}
 export async function readTema(t) {
   const md = await (await fetch(t.file, { cache: 'no-cache' })).text();
-  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards };
+  return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards, count: t.count, leer: !!t.leer };
 }
 // Apartados de un apunte (los títulos de más arriba), cuántas preguntas salen y con cuántas se empieza
 function analyzePage(page) {
@@ -391,12 +438,20 @@ async function firstRunChosen(choice) {
     if (kind === 'anki') return go('decks', { folderId });
     if (kind === 'ia') { go('decks', { folderId }); return pasteSheet(); }
     const { title, blocks } = choice.page;
+    if (choice.page.cards) await storeTemaImages(blocks);
     const p = { id: api.newId(), owner: S.uid, title: title || '', icon: '', deck_id: null, folder_id: folderId, tags: [], blocks };
     S.pages.set(p.id, p);
     savePageSoon(p, 0);
-    // Un tema de ejemplo empieza con sus 5 preguntas cortas; «Ver las 5 antes» las crea y abre su lista
     const tema = choice.page.cards;
     const temaSrc = tema ? temaSource({ cards: tema }) : 'apuntes';
+    // Un tema de ejemplo se abre por el apunte, arriba del todo, con todas sus preguntas ya creadas: desde ahí
+    // se estudia con su botón «Estudiar»
+    if (tema && kind === 'open') {
+      const list = await (await fetch(tema, { cache: 'no-cache' })).json();
+      await makeSuggested(p, await temaPicks(p, list), 'new', temaSrc);
+      go('page', { pageId: p.id });
+      return scrollTo(0, 0);
+    }
     const picks = tema ? await temaFirst(p, tema) : firstPicks(suggestFor(p, ''));
     if (tema && kind === 'review' && picks.length) {
       const { deckId } = await makeSuggested(p, picks, 'new', temaSrc);

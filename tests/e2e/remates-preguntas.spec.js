@@ -110,17 +110,17 @@ test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o cre
   await pick.locator('[data-act="tagpick-open"]').click();
   await page.locator('#f-newtag').fill('verbos');
   await page.locator('#f-newtag').press('Enter');
-  await expect(pick.locator('.tagsel')).toHaveText(['#verbos']);
+  await expect(pick.locator('.tagsel')).toHaveText(['verbos']);
   await expect(page.locator('#f-newtag')).toBeHidden();
   await pick.locator('[data-act="tagpick-open"]').click();
   await page.locator('#f-newtag').fill('casa');
   await page.locator('[data-act="add-tag-inline"]').click();
-  await expect(pick.locator('.tagsel')).toHaveText(['#verbos', '#casa']);
+  await expect(pick.locator('.tagsel')).toHaveText(['verbos', 'casa']);
   // Quitar con ✕: vuelve a salir al buscar; Esc cierra el buscador sin cerrar el editor
-  await pick.locator('[data-act="untag"][aria-label="Quitar #verbos"]').click();
-  await expect(pick.locator('.tagsel')).toHaveText(['#casa']);
+  await pick.locator('[data-act="untag"][aria-label="Quitar verbos"]').click();
+  await expect(pick.locator('.tagsel')).toHaveText(['casa']);
   await pick.locator('[data-act="tagpick-open"]').click();
-  await expect(pick.locator('.tagopt:visible')).toHaveText(['#verbos']);
+  await expect(pick.locator('.tagopt:visible')).toHaveText(['verbos']);
   await page.locator('#f-newtag').fill('cas');
   await expect(pick.locator('.tagopt:visible')).toHaveCount(0);
   await expect(pick.locator('.tag-create')).toBeVisible();
@@ -131,6 +131,6 @@ test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o cre
   await page.locator('#fld-a').fill('Robespierre');
   await page.locator('.ed-foot button[type="submit"]').click();
   await expect(page.locator('#sheet')).toBeHidden();
-  await expect(page.locator('#main')).toContainText('#casa');
-  await expect(page.locator('#main')).not.toContainText('#verbos');
+  await expect(page.locator('#main')).toContainText('casa');
+  await expect(page.locator('#main')).not.toContainText('verbos');
 });

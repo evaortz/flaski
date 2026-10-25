@@ -60,7 +60,7 @@ let hydrateQueued = false;
 new MutationObserver(() => {
   if (hydrateQueued) return;
   hydrateQueued = true;
-  queueMicrotask(() => { hydrateQueued = false; hydrate(document); });
+  queueMicrotask(() => { hydrateQueued = false; hydrate(document); placeToast(); });
 }).observe(document.body, { childList: true, subtree: true });
 export const plain = s => toPlain(stripImages(s));
 // Para buscar y comparar: sin mayúsculas ni tildes ni diéresis (á→a, ü→u, ö→o…); la ñ se queda como ñ
@@ -68,10 +68,20 @@ export const fold = s => String(s ?? '').toLocaleLowerCase().replace(/ñ/g, '\u0
 export const norm = s => fold(plain(s));
 export const cardList = () => [...S.cards.values()];
 let toastTimer;
+// En la tanda, el aviso va encima de los botones de abajo («Ver respuesta», los de valorar): nunca los tapa
+function placeToast() {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  const foot = document.body.classList.contains('in-study') && !t.hidden
+    && [...document.querySelectorAll('#main :is(.grades, .big, .studyfoot .btnrow)')].filter(el => el.offsetParent).map(el => el.getBoundingClientRect().top).filter(y => y > innerHeight / 2);
+  if (foot?.length) t.style.bottom = `${Math.max(16, innerHeight - Math.min(...foot) + 12)}px`;
+  else t.style.removeProperty('bottom');
+}
 export function toast(msg) {
   const t = $('#toast');
   t.textContent = msg; t.hidden = false; t.classList.remove('toast-act', 'toast-err'); toastAct = null;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  placeToast();
 }
 // Aviso oscuro con un botón («Deshacer», «Ver») y una barrita que se acaba (6 s)
 let toastAct = null;
@@ -80,6 +90,7 @@ export function toastAction(msg, label, fn, { ms = 6000, icon: ic = '' } = {}) {
   t.innerHTML = `${ic ? icon(ic, { size: 16, cls: 'ta-ic' }) : ''}<span class="ta-msg">${esc(msg)}</span><button type="button" class="ta-btn">${esc(label)}</button><i class="ta-bar" style="animation-duration:${ms}ms"></i>`;
   t.classList.add('toast-act'); t.classList.remove('toast-err'); t.hidden = false;
   toastAct = fn;
+  placeToast();
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; toastAct = null; }, ms);
 }
 document.addEventListener('click', e => {
@@ -169,7 +180,7 @@ export function folderIcon(f, big = false) {
 }
 // Una etiqueta como pegatina: a mano, con «#», de su color y un poco torcida (big: la del filtro y el editor)
 export function tagSticker(t, { big = false } = {}) {
-  return `<span class="tag${big ? ' tag-big' : ''}" data-tc="${tagColor(t.color)}" style="--tilt:${tagTilt(t.name)}deg"><i aria-hidden="true">#</i>${esc(t.name)}</span>`;
+  return `<span class="tag${big ? ' tag-big' : ''}" data-tc="${tagColor(t.color)}" style="--tilt:${tagTilt(t.name)}deg">${esc(t.name)}</span>`;
 }
 export function tagChips(ids = []) {
   return ids.map(id => S.tags.get(id)).filter(Boolean).map(t => tagSticker(t)).join('');
@@ -253,7 +264,7 @@ export function scopeName(scope = 'all') {
   }
   if (scope === 'all') return 'Todas las listas';
   if (scope.startsWith('folder:')) return S.folders.get(scope.slice(7))?.name || 'Carpeta';
-  if (scope.startsWith('tag:')) return '#' + (S.tags.get(scope.slice(4))?.name || 'etiqueta');
+  if (scope.startsWith('tag:')) return S.tags.get(scope.slice(4))?.name || 'etiqueta';
   return S.decks.get(scope)?.name || 'Lista';
 }
 export const deckName = id => scopeName(id);
