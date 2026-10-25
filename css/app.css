@@ -1572,7 +1572,11 @@ a.wl:hover{text-decoration:underline}
 .nb:has(.nb-cards)>.nb-sugdot{right:34px}
 .nb:has(.nb-sec)>.nb-sugdot{display:none}
 .nb-h1>.nb-sugdot{top:18px}.nb-h2>.nb-sugdot{top:13px}
-.sug-x.iconbtn{border:0;background:transparent;box-shadow:none}
+.sug-x.iconbtn,.sug-ed.iconbtn{border:0;background:transparent;box-shadow:none}
+.sug-ed{flex:none;align-self:flex-start;margin-top:8px;color:var(--muted)}
+.sug-ed:hover{color:var(--fg)}
+.sug-own{display:flex;align-items:center;gap:8px;margin:0 auto 12px;font-size:14px;color:var(--fg)}
+.sug-own svg{flex:none;color:var(--muted)}
 
 /* Atkinson Hyperlegible en toda la app (ver --font en :root); la de cada dispositivo, como opción para las tarjetas */
 :root{--font-native:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI Variable Display","Segoe UI",Helvetica,Arial,sans-serif}

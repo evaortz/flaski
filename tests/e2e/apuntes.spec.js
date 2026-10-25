@@ -621,7 +621,7 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await page.locator('[data-sug-type="cloze"]').click();
   await expect(items).toHaveCount(3);
   // Editar con el mismo editor que «+ Tarjeta»: se guarda en la sugerencia y se vuelve a la lista
-  await items.nth(0).locator('[data-sug-open]').click();
+  await items.nth(0).locator('.row[data-sug-open]').click();
   await expect(page.locator('.ed-title')).toContainText('Editar sugerencia');
   await expect(page.locator('#fld-q')).toHaveValue('¿Qué es la mitosis?');
   await page.locator('#fld-q').fill('¿Cómo se define la mitosis?');
@@ -629,7 +629,7 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await expect(items.nth(0)).toContainText('¿Cómo se define la mitosis?');
   // Cerrar el editor sin guardar también vuelve a la lista
-  await items.nth(2).locator('[data-sug-open]').click();
+  await items.nth(2).locator('.row[data-sug-open]').click();
   await page.locator('.ed-x').click();
   await expect(page.locator('#sheetBody')).toContainText('Preguntas sugeridas');
   await items.nth(1).locator('[data-sug]').uncheck();
@@ -653,6 +653,7 @@ test('sugerencias: la lista se desplaza con la rueda del ratón @ambos', async (
   }, md);
   await page.keyboard.press('Escape');
   await page.locator('[data-act="suggest-cards"]').first().click();
+  await page.locator('[data-act="sug-more"]').click();
   await expect(page.locator('.sug')).toHaveCount(30);
   const main = page.locator('#sugMain');
   const box = await main.boundingBox();

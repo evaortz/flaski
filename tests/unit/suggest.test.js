@@ -370,3 +370,11 @@ test('listas de 5 o más: un hueco por elemento con los demás a la vista y en s
   assert.equal(count.fields.a, '6');
   assert.equal(count.alts?.[0]?.front, '¿Qué garantiza la Constitución (art. 9.3)?');
 });
+
+test('marcadas de entrada: solo las de 0,75 o más y como mucho 15 por apunte', () => {
+  const r = run(Array.from({ length: 20 }, (_, i) => `Término ${i + 1}: definición número ${i + 1} del tema.`).join('\n\n') + '\n\nLa célula es la unidad básica de la vida.');
+  assert.equal(r.length, 21);
+  assert.equal(r.filter(s => s.selected).length, 15);
+  assert.ok(r.filter(s => s.selected).every(s => s.score >= 0.75 && s.rec));
+  assert.ok(!r.find(s => s.front === '¿Qué es la célula?').selected);   // 0,70: a un toque
+});

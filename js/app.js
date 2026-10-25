@@ -12,7 +12,6 @@ import { setBaseRate } from './tts.js';
 import { loadSnapshot, deleteSnapshot, lastUser, forgetUser } from './snapshot.js';
 import { parsePasted } from './notes.js';
 import { formatCode, parseInvite } from './friends.js';
-import { PRESELECT } from './suggest.js';
 import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
@@ -256,7 +255,7 @@ document.addEventListener('click', async e => {
   }
   if (ds.sugGroup) {
     readSugEdit();
-    const g = S.sug, items = g.list.filter(x => (!g.types || g.types.has(x.typeId)) && (ds.sugGroup === 'all' ? x.blockId === g.only : (ds.sugGroup === 'rec') === (x.score >= PRESELECT)));
+    const g = S.sug, items = g.list.filter(x => (!g.types || g.types.has(x.typeId)) && (ds.sugGroup === 'all' ? x.blockId === g.only : (ds.sugGroup === 'rec') === !!x.rec));
     const all = items.every(x => x.selected);
     items.forEach(x => { x.selected = !all; });
     return redrawSuggestions();
@@ -907,7 +906,7 @@ document.addEventListener('change', async e => {
     if (btn) { btn.disabled = !n; btn.textContent = n ? `Crear ${plural(n, 'pregunta', 'preguntas')}` : 'Marca alguna'; }
     const cnt = $('#sugCount'); if (cnt) cnt.textContent = plural(sel.length, 'marcada', 'marcadas');
     const gh = e.target.closest('.sug-group')?.querySelector('[data-sug-group]');
-    if (gh) { const items = S.sug.list.filter(x => (!S.sug.types || S.sug.types.has(x.typeId)) && (gh.dataset.sugGroup === 'rec') === (x.score >= PRESELECT)); gh.textContent = items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'; }
+    if (gh) { const items = S.sug.list.filter(x => (!S.sug.types || S.sug.types.has(x.typeId)) && (gh.dataset.sugGroup === 'rec') === !!x.rec); gh.textContent = items.every(x => x.selected) ? 'Quitar todas' : 'Marcar todas'; }
     return;
   }
   if (e.target.id === 'sugMarksOpt') {

@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { icon } from '../icons.js';
 import { BUILTIN_TYPES, activeTemplates, summarize, missingFor } from '../cardtypes.js';
-import { suggestCards, PRESELECT, writingTips, plainText, useGender } from '../suggest.js';
+import { suggestCards, writingTips, plainText, useGender } from '../suggest.js';
 import { temaCards } from '../primera-vez.js';
 import { stripImages, storeImage, flushUploads } from '../media.js';
 import { toPlain } from '../inline.js';
@@ -114,7 +114,7 @@ export function drawSuggestions() {
   // Filtro por tipo de tarjeta
   const typeIds = [...new Set(list.map(x => x.typeId))];
   const visible = list.filter(x => !g.types || g.types.has(x.typeId));
-  const rec = visible.filter(x => x.score >= PRESELECT), more = visible.filter(x => x.score < PRESELECT);
+  const rec = visible.filter(x => x.rec), more = visible.filter(x => !x.rec);
   if (g.showMore == null) g.showMore = rec.length < 5;
   if (g.only) g.showMore = true;
   const hiddenN = sugHidden(p.id).size;
@@ -130,6 +130,7 @@ export function drawSuggestions() {
       <button class="row" data-sug-open="${i}" title="Ver y editar"><span class="f">${fmt(x.front)}</span><span class="b">${fmt(x.back)}</span>
         <span class="rmeta"><span class="tchip">${typeIcon(t, 13)} ${esc(t?.name || '')}</span>${x.cards > 1 ? `<span class="muted small">· ${x.cards} preguntas</span>` : ''}${x.edited ? '<span class="muted small">· Retocada</span>' : ''}${x.fresh ? '<span class="sug-new">Nueva</span>' : ''}${where ? `<span class="muted small">· ${esc(where)}</span>` : ''}</span>
         ${src ? `<span class="sug-src" title="Sale de esta parte del apunte (${esc(x.label || '')})">${icon('notebook-text', { size: 12 })} <span>${esc(x.label || '')}</span> «${esc(src)}»</span>` : ''}</button>
+      <button type="button" class="iconbtn sug-ed" data-sug-open="${i}" aria-label="Escribirla con tus palabras" title="Escribirla con tus palabras">${icon('pencil', { size: 15 })}</button>
       <button type="button" class="iconbtn sug-x" data-sug-hide="${i}" aria-label="Descartar" title="Descartar: no volverá a salir">${icon('x', { size: 15 })}</button>
       ${x.alts?.length ? `<details class="sug-alts"${g.openAlts === x.id ? ' open' : ''}><summary>Otras formas de preguntarlo (${x.alts.length})</summary>
         <ul>${x.alts.map((a, k) => `<li><button type="button" class="sug-alt" data-sug-alt="${i}:${k}" title="Preguntarlo así"><span class="tchip">${typeIcon(getType(a.typeId), 13)} ${esc(getType(a.typeId)?.name || '')}</span> <span class="f">${fmt(a.front)}</span></button></li>`).join('')}</ul></details>` : ''}</li>`;
@@ -159,7 +160,8 @@ export function drawSuggestions() {
       <div class="ed-title"><span>Preguntas sugeridas</span><small class="muted">${esc(pageTitle(p))}</small></div>
       <button type="button" class="iconbtn sug-refresh" data-act="sug-refresh" aria-label="Actualizar" title="Actualizar: vuelve a leer el apunte (lo que has retocado se queda)">${icon('refresh-cw', { size: 18 })}</button></header>
     <div class="sug-main" id="sugMain">
-      ${all.length ? `<p class="sug-intro">He encontrado <b>${plural(all.length, 'posible pregunta', 'posibles preguntas')}</b> en tus apuntes. Las recomendadas ya están marcadas: toca una para verla y retocarla, o descártala con la ✕. Si cambias el apunte, pulsa ${icon('refresh-cw', { size: 13 })} para actualizarlas.</p>
+      ${all.length ? `<p class="sug-intro">He encontrado <b>${plural(all.length, 'posible pregunta', 'posibles preguntas')}</b> en tus apuntes. Las más seguras ya están marcadas: toca una para verla, o descártala con la ✕. Si cambias el apunte, pulsa ${icon('refresh-cw', { size: 13 })} para actualizarlas.</p>
+      <p class="sug-own">${icon('pencil', { size: 15 })} <span>Si la escribes con tus palabras, la recordarás mejor.</span></p>
       <div class="sug-deck"><label for="sugDeck">Crear en</label>${deckSel}</div>` : ''}
       ${body}
       ${how}

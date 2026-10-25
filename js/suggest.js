@@ -13,7 +13,10 @@ export const KINDS = {
 };
 // Orden dentro de una misma parte del apunte: fechas y cifras primero; ordenar frases, al final
 const KIND_RANK = { date: 0, num: 0, phrase: 2 };
-export const PRESELECT = 0.65;
+// Salen marcadas de entrada solo las más seguras (0,75 o más), como mucho MAX_PRESELECT por apunte: las demás, a un toque
+export const PRESELECT = 0.75;
+export const MAX_PRESELECT = 15;
+const NEVER_PRESELECT = new Set(['explain', 'whatif']);
 
 /* ---------------- Texto ---------------- */
 const IMG = /!\[[^\]\n]*\]\(img:[\w-]+\)/g;
@@ -663,7 +666,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(normQ(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
     seen.add(key); seen.add(norm(sum.front)); seen.add(normQ(sum.front));
     out.push({ key: `${kind}:${blockId}:${out.length}`, id: `${kind}|${blockId}|${norm(sum.front).slice(0, 60)}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
-      front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.1 : 0)),
+      front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.15 : 0)),
       src: extra.src ?? (note.typeId === 'cloze' ? norm(note.fields.x) : ''), ...extra });
     return true;
   };
@@ -1105,7 +1108,10 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
 
   // En el orden en que aparecen en los apuntes
   const pos = new Map(blocks.map((b, i) => [b.id, i]));
-  return onePerDatum(out, pos).map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s).map(s => ({ ...s, selected: s.score >= PRESELECT }));
+  const list = onePerDatum(out, pos).map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s);
+  // Marcadas de entrada: la mejor de cada dato con 0,75 o más, las de más puntuación primero, hasta MAX_PRESELECT
+  const top = new Set(list.filter(s => s.score >= PRESELECT && !NEVER_PRESELECT.has(s.typeId)).sort((a, b) => b.score - a.score).slice(0, MAX_PRESELECT));
+  return list.map(s => ({ ...s, selected: top.has(s), rec: top.has(s) }));
 }
 
 /* ---------------- Una sugerencia por dato ---------------- */

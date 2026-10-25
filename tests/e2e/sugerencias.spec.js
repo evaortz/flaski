@@ -103,3 +103,17 @@ test('una lista de 5 o más: un hueco por elemento y «¿Cuántos…?», con la 
   await count.locator('.sug-alts summary').click();
   await expect(count.locator('.sug-alt')).toContainText('¿Qué garantiza la Constitución?');
 });
+
+test('la hoja marca como mucho 15 de entrada, con el lápiz a la vista y «Si la escribes con tus palabras, la recordarás mejor»', async ({ page, seed }) => {
+  await withPage(page, seed, '# Muchas\n\n' + Array.from({ length: 20 }, (_, i) => `Término ${i + 1}: definición número ${i + 1} del tema.`).join('\n\n'));
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug')).toHaveCount(15);
+  await page.locator('[data-act="sug-more"]').click();
+  await expect(page.locator('.sug')).toHaveCount(20);
+  await expect(page.locator('.sug.on')).toHaveCount(15);
+  await expect(page.locator('#sugCount')).toHaveText('15 marcadas');
+  await expect(page.locator('.sug-own')).toHaveText('Si la escribes con tus palabras, la recordarás mejor.');
+  await expect(page.locator('.sug').first().locator('.sug-ed')).toBeVisible();
+  await page.locator('.sug').first().locator('.sug-ed').click();
+  await expect(page.locator('.ed-title')).toContainText('Editar sugerencia');
+});
