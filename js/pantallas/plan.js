@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { tandaSize } from '../tanda.js';
 import {
   childrenOf, decksUnder, folderKey, WEEK, WEEK_SHORT, WEEK_NAMES, dayKey, isDay, dayDate, addDays, daysBetween, weekdayOf,
-  live, weekTotal, weekAverage, LEVELS, levelLabel, levelOf, levelNode, sortStages, stageOn, nodesOn, topicOrder, orderedTopics, simulate,
+  live, weekTotal, weekAverage, minutesOn, LEVELS, levelLabel, levelOf, levelNode, sortStages, stageOn, nodesOn, topicOrder, orderedTopics, simulate,
 } from '../plan.js';
 import { main, S, esc, toast, folderIcon, deckIcon, freshByDeck, planNodes, newPlan, todayMinutes, tandaMinutes } from '../comun.js';
 import { plural } from './mazos.js';
@@ -184,9 +184,16 @@ export function planFixes(ex) {
     const p2 = clone(plan), add = free ? Math.max(15, Math.min(...WEEK.map(d => Number(w[d]) || Infinity))) : 15;
     p2.week[day] = (Number(w[day]) || 0) + (free ? Math.min(add, 60) : 15);
     const { e } = result(p2), dn = WEEK_NAMES[WEEK.indexOf(day)];
-    out.push({ id: 'minutes', title: free ? `Estudiar ${p2.week[day]} min los ${dn === 'sábado' || dn === 'domingo' ? dn + 's' : dn}` : `Estudiar 15 min más los ${dn === 'sábado' || dn === 'domingo' ? dn + 's' : dn}`, text: `Tu semana pasa de ${fmtMin(weekTotal(w))} a ${fmtMin(weekTotal(p2.week))} · ${tail(e)}`, plan: p2 });
+    out.push({ id: 'minutes', title: free ? `Estudiar ${p2.week[day]} min los ${dn === 'sábado' || dn === 'domingo' ? dn + 's' : dn}` : `Estudiar 15 min más los ${dn === 'sábado' || dn === 'domingo' ? dn + 's' : dn}`, text: `Tu semana pasa de ${fmtMin(weekTotal(w))} a ${fmtMin(weekTotal(p2.week))} · ${tail(e)}`, plan: p2, e });
   }
-  return out;
+  // 4 · Si la última semana es solo de repasos, que sigan entrando nuevas hasta el examen
+  if (plan.nodes[ex.key]?.lastWeek) {
+    const p2 = clone(plan); p2.nodes[ex.key] = { ...p2.nodes[ex.key], lastWeek: false };
+    const { e } = result(p2);
+    out.push({ id: 'lastweek', title: 'Que sigan entrando nuevas hasta el examen', text: [`La última semana deja de ser solo de repasos`, tail(e)].filter(Boolean).join(' · '), plan: p2, e });
+  }
+  // Solo los que mejoran lo que falta
+  return out.filter(f => { const e = f.e || result(f.plan, f.npd || S.newPerDay).e; return !e || e.left < ex.left; });
 }
 const lateKey = fc => fc.exams.filter(e => e.late).map(e => `${e.key}@${e.exam}`).join(',');
 function fixesHTML(fc) {
@@ -678,7 +685,7 @@ export function planClick(b) {
     case 'exam-day': S.examDraft.date = ds.k; return drawExamSheet();
     case 'exam-save': return saveExam();
     case 'exam-del': return confirmSheet('¿Quitar el examen?', 'exam-del-ok', 'Quitar');
-    case 'exam-last': { const n = planNodes()[S.examKey]; if (n) { n.lastWeek = !n.lastWeek; saveAndDraw(); } return; }
+    case 'exam-last': { const n = planNodes()[S.examKey]; if (n && (n.lastWeek || addDays(n.exam, -7) > today())) { n.lastWeek = !n.lastWeek; saveAndDraw(); } return; }
     case 'exam-after': return afterSheet();
     case 'exam-after-set': { const n = planNodes()[S.examKey]; if (n) { if (ds.v) n.after = ds.v; else delete n.after; } closeSheet(); return saveAndDraw(); }
     case 'exam-map': return examMap();
@@ -719,7 +726,7 @@ function drawExamSheet() {
     return `<button type="button" class="cal-d${k === x.date ? ' on' : ''}${k === t ? ' today' : ''}" data-pl="exam-day" data-k="${k}" ${past ? 'disabled' : ''} aria-label="${longDate(k)}" aria-pressed="${k === x.date}">${i + 1}</button>`;
   })).join('');
   // Cuántas nuevas al día hacen falta
-  const ids = keyDecks(x.key).map(d => d.id), left = sum(ids, rem), days = Math.max(1, daysBetween(t, x.date));
+  const ids = keyDecks(x.key).map(d => d.id), left = sum(ids, rem), days = newDays(x.key, t, x.date, x.old ? planNodes()[x.old]?.lastWeek : daysBetween(t, x.date) > 21);
   const need = Math.ceil(left / days), per = sum(ids, newPlan('all', { steady: true }));
   const lvl = baseLevel(rootKey(x.key)), name = esc(shortName(keyName(x.key)));
   const tip = !x.key ? '' : !left ? '<p>Ya lo has visto todo: hasta el examen, a repasar.</p>'
@@ -731,10 +738,21 @@ function drawExamSheet() {
     ${tip ? `<div class="ex-tip">${tip}</div>` : ''}
     <button class="primary big" data-pl="exam-save" ${x.key ? '' : 'disabled'}>Guardar examen</button></div>`);
 }
+// Días con nuevas hasta el examen: sin el examen, sin los libres (de tu semana o días especiales) y, si la
+// última semana es solo de repasos, sin esa semana
+function newDays(key, t, exam, lastWeek) {
+  let n = 0;
+  for (let k = t; k < exam; k = addDays(k, 1)) {
+    if (lastWeek && daysBetween(k, exam) <= 7) continue;
+    if (minutesOn(P(), k) === 0) continue;
+    n++;
+  }
+  return Math.max(1, n);
+}
 function saveExam() {
   const x = S.examDraft, N = planNodes();
   if (!x.key || !isDay(x.date)) return;
-  let extra = { lastWeek: true, after: 'reviews' };
+  let extra = { lastWeek: daysBetween(today(), x.date) > 21, after: 'reviews' };
   if (x.old && N[x.old]) {
     extra = { lastWeek: N[x.old].lastWeek, after: N[x.old].after };
     if (x.old !== x.key) { delete N[x.old].exam; delete N[x.old].lastWeek; delete N[x.old].after; if (!Object.keys(N[x.old]).length) delete N[x.old]; }
@@ -779,7 +797,7 @@ export function renderExam() {
     const card = S.cards.get(c.ids[0]);
     return `<li><span class="exr-chip">${esc(c.label)}</span><span><b>${esc(S.decks.get(card?.deck_id)?.name || '')}</b><small>${esc(failNote(c) || `${plural(c.ids.length, 'pregunta', 'preguntas')}`)}</small></span></li>`;
   }).join('')}</ul><button class="soft-btn big" data-pl="exam-resist">Practicar lo que se resiste · ${rn}</button>` : '';
-  const lastFrom = addDays(n.exam, -7);
+  const lastFrom = addDays(n.exam, -7), inLast = lastFrom <= t;
   main.innerHTML = `<div class="ex-page"><div class="crumbs-row"><button class="back-round" data-nav="plan" aria-label="Volver al plan">${icon('chevron-left', { size: 22 })}</button><button class="link crumb-link" data-nav="plan">Plan de estudio ›</button></div>
     <div class="ex-head">${calIcon(n.exam, 96)}<div><small>examen · ${longDate(n.exam)}</small><h1>${esc(keyName(key))}</h1><b>${days > 1 ? `faltan ${days} días` : days === 1 ? 'es mañana' : days === 0 ? 'es hoy' : `fue hace ${plural(-days, 'día', 'días')}`}</b></div></div>
     <div class="ex-grid"><div class="ex-l">
@@ -790,8 +808,8 @@ export function renderExam() {
     ${m ? '<button class="link" data-pl="exam-map">Ver el mapa de lo que sabes</button>' : ''}
     ${resistHTML}
     <div class="section-h"><h2>La recta final</h2></div>
-    <div class="set-row"><div class="set-l"><b id="exLastL">La última semana, solo repasos</b><small>${n.lastWeek ? `Desde el ${shortDate(lastFrom)} no entran preguntas nuevas.` : 'Las nuevas siguen entrando hasta el examen.'}</small></div>
-      <div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="exLastL" data-pl="exam-last" ${n.lastWeek ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
+    <div class="set-row${inLast && !n.lastWeek ? ' is-off' : ''}"><div class="set-l"><b id="exLastL">La última semana, solo repasos</b><small>${inLast ? (n.lastWeek ? 'Ya estás en la última semana: no entran preguntas nuevas.' : 'Ya estás en la última semana: las nuevas siguen entrando hasta el examen.') : n.lastWeek ? `Desde el ${shortDate(lastFrom)} no entran preguntas nuevas.` : 'Las nuevas siguen entrando hasta el examen.'}</small></div>
+      <div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="exLastL" data-pl="exam-last" ${n.lastWeek ? 'checked' : ''} ${inLast && !n.lastWeek ? 'disabled' : ''}><span class="slider" aria-hidden="true"></span></label></div></div>
     <div class="set-row"><div class="set-l"><b>Después del examen</b><small>${esc(keyName(key))} ${AFTER[n.after || '']}.</small></div><div class="set-c"><button class="link" data-pl="exam-after">cambiar</button></div></div>
     <div class="ex-foot"><button class="link" data-pl="exam-edit" data-key="${esc(key)}">Cambiar fecha</button><button class="link danger" data-pl="exam-del">Quitar el examen</button></div>
     </div><div class="ex-r">${simBlockHTML(key)}</div></div></div>`;
@@ -799,15 +817,16 @@ export function renderExam() {
 
 /* ===================== primera vez: «Hagamos tu plan» ===================== */
 const START_MIN = [[15, '15 min', 'un rato'], [30, '30 min', 'lo normal'], [60, '1 h', 'en serio'], ['free', 'a mi aire', 'cada día']];
-// Etapas propuestas: por cada examen, acabar su temario (Mucho; los demás exámenes, Poco) hasta 8 días antes
-// y la recta final (Repasar). Lo de exámenes ya pasados, a repasar. Después del último examen, nada.
+// Etapas propuestas: por cada examen, acabar su temario (Mucho; los demás exámenes, Poco) y la recta final
+// (Repasar), que dura el 25 % del tiempo que queda: entre 2 y 7 días. Lo de exámenes ya pasados, a repasar. Después del último examen, nada.
 export function proposeStages(exams, t = today()) {
   const out = [];
   let start = t;
   exams.forEach((e, i) => {
     const rk = rootKey(e.key), later = exams.slice(i + 1).map(x => rootKey(x.key)).filter(k => k !== rk), before = exams.slice(0, i).map(x => rootKey(x.key)).filter(k => k !== rk);
     const levels = () => Object.fromEntries([...before.map(k => [k, 'reviews']), ...later.map(k => [k, 'low'])]);
-    const finEnd = addDays(e.exam, -8), name = shortName(keyName(e.key));
+    const fin = Math.min(7, Math.max(2, Math.round(daysBetween(start, e.exam) * 0.25)));
+    const finEnd = addDays(e.exam, -(fin + 1)), name = shortName(keyName(e.key));
     if (finEnd >= start) { out.push({ id: newId(), name: `Acabar el temario de ${name}`, from: start, to: finEnd, levels: { ...levels(), [rk]: 'high' }, order: {} }); start = addDays(finEnd, 1); }
     if (e.exam >= start) out.push({ id: newId(), name: `Recta final de ${name}`, from: start, to: e.exam, levels: { ...levels(), [rk]: 'reviews' }, order: {} });
     start = addDays(e.exam, 1);
@@ -824,14 +843,26 @@ export function renderPlanStart() {
   const ps = S.planStart, stages = proposeStages(exams);
   const week = ps.min ? Object.fromEntries(WEEK.map(d => [d, ps.min])) : null;
   ps.stages = stages; ps.week = week;
-  const fc = forecast({ ...P(), stages, week });
+  // Las nuevas al día que caben en ese rato (una de cada cuatro preguntas de la tanda); a tu aire, las de siempre
+  const fits = ps.min ? Math.max(5, Math.round(tandaSize(ps.min, shortInfo().secs) / 4)) : S.newPerDay;
+  const plan2 = { ...P(), stages, week };
+  let npd = fits, fc = forecast(plan2, npd);
+  // Si así no llegas, la propuesta ya lleva cuántas nuevas hacen falta
+  if (fc.exams.some(e => e.late)) {
+    let lo = npd, hi = 500;
+    if (forecast(plan2, hi).exams.some(e => e.late)) npd = hi;
+    else { while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (forecast(plan2, mid).exams.some(e => e.late)) lo = mid; else hi = mid; } npd = hi; }
+    fc = forecast(plan2, npd);
+  }
+  ps.npd = npd;
+  const raised = npd > fits;
   const late = fc.exams.filter(e => e.late);
   const names = exams.map(e => `<b>${esc(keyName(e.key))} el ${shortDate(e.exam)}</b>`);
   const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names.at(-1)}` : names[0];
   const cards = stages.map((s, i) => `<li class="psx"><span class="ps-num">${i + 1}</span><div><small>${s.from === today() ? 'hoy' : shortDate(s.from)} → ${shortDate(s.to)}</small><b>${esc(s.name)}</b>
     <span class="psx-lv">${Object.entries(s.levels).map(([k, l]) => `${keyIcon(k)}<em class="pill lv-${l}">${levelLabel(l)}</em>`).join('')}</span></div></li>`).join('');
-  const verdict = late.length ? `<div class="st-verdict bad"><b class="hand">Así no llegas a ${late.length === exams.length && exams.length > 1 ? 'ninguno' : `${esc(shortName(keyName(late[0].key)))}`}</b><p>Con más tiempo al día, o cambiando las etapas después, sí.</p></div>`
-    : `<div class="st-verdict"><b class="hand">${exams.length === 1 ? 'Así llegas' : exams.length === 2 ? 'Así llegas a los dos' : `Así llegas a los ${exams.length}`}</b><p>${cap(fc.exams.filter(e => e.finish).map(e => `acabas ${esc(shortName(keyName(e.key)))} el ${shortDate(e.finish)}`).join(' y '))}${fc.exams.some(e => e.finish) ? '.' : 'Ya lo has visto todo: a repasar.'}</p></div>`;
+  const verdict = late.length ? `<div class="st-verdict bad"><b class="hand">Así no llegas a ${late.length === exams.length && exams.length > 1 ? 'ninguno' : `${esc(shortName(keyName(late[0].key)))}`}</b><p>Ni con  nuevas al día: mueve el examen o cambia las etapas después.</p></div>`
+    : `<div class="st-verdict"><b class="hand">${exams.length === 1 ? 'Así llegas' : exams.length === 2 ? 'Así llegas a los dos' : `Así llegas a los ${exams.length}`}</b><p class="pls-npd">${raised ? `Para llegar, ${npd} nuevas al día.` : `Con ${npd} nuevas al día.`}</p><p>${cap(fc.exams.filter(e => e.finish).map(e => `acabas ${esc(shortName(keyName(e.key)))} el ${shortDate(e.finish)}`).join(' y '))}${fc.exams.some(e => e.finish) ? '.' : 'Ya lo has visto todo: a repasar.'}</p></div>`;
   main.innerHTML = `<div class="pls-page"><div class="crumbs-row"><button class="back-round" data-nav="plan" aria-label="Volver al plan">${icon('chevron-left', { size: 22 })}</button><h1>Hagamos tu plan</h1></div>
     <p class="pls-lead">Tienes ${exams.length === 1 ? 'un examen' : exams.length === 2 ? 'dos exámenes' : `${exams.length} exámenes`}: ${list}. Contesta una cosa y te propongo cómo repartirlo.</p>
     <p class="st-lab">¿Cuánto tiempo sueles tener al día?</p>
@@ -847,6 +878,7 @@ function startOk(edit) {
   const ps = S.planStart;
   if (!ps) return;
   P().week = ps.week ? { ...ps.week } : null;
+  if (ps.npd) S.newPerDay = ps.npd;
   for (const s of ps.stages) putIn(P().stages, s);
   P().startDone = true;
   const first = ps.stages[0]?.id;

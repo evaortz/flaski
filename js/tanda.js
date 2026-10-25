@@ -3,7 +3,7 @@
 
 export const TANDA_MINUTES = [5, 10, 15, 20];
 export const DEFAULT_PACE = 20;   // segundos por pregunta si aún no hay datos
-export const MIN_PACE = 6;        // como mínimo, segundos por pregunta en las estimaciones
+export const MIN_PACE = 10;        // como mínimo, segundos por pregunta en las estimaciones
 
 // Segundos por pregunta: la mediana de las últimas 100 respuestas (cada una ya trae su tiempo, con tope de 2 min).
 // La mediana aguanta los ratos en que dejas el móvil a mitad de pregunta. Con menos de 20 respuestas, 20 s.

@@ -17,11 +17,11 @@ test('ritmo: la mediana, que aguanta las respuestas en que dejas el móvil', () 
 });
 
 test('ritmo: solo las últimas 100 respuestas, sin contar las que no tienen tiempo', () => {
-  const old = evs(...Array(200).fill(60)), recent = evs(...Array(100).fill(9));
-  assert.equal(pace([...old, ...recent]), 9);
+  const old = evs(...Array(200).fill(60)), recent = evs(...Array(100).fill(12));
+  assert.equal(pace([...old, ...recent]), 12);
   assert.equal(pace([...evs(...Array(30).fill(15)), ...Array(50).fill({ ms: 0 })]), 15);
-  // Nunca menos de 6 s por pregunta, aunque respondas más rápido
-  assert.equal(pace(evs(...Array(40).fill(2))), 6);
+  // Nunca menos de 10 s por pregunta, aunque respondas más rápido
+  assert.equal(pace(evs(...Array(40).fill(2))), 10);
 });
 
 test('tamaño: minutos × 60 / ritmo, redondeado y como mínimo 5', () => {

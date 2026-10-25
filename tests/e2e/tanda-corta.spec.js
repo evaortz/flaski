@@ -91,16 +91,16 @@ test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver
   await expect(page.locator('.hero-done')).toContainText('estás al día');
 });
 
-test('el ritmo sale de tus respuestas (la mediana) y la duración se cambia en Ajustes', async ({ page }) => {
+test('el ritmo sale de tus respuestas (la mediana) y la duración se cambia en Hoy', async ({ page }) => {
   // 10 s por pregunta, con algún rato de dejar el móvil (120 s) que la mediana no tiene en cuenta
   await seed(page, { study: { tandaAsked: true }, events: [...Array(30).fill(10), ...Array(8).fill(120)] });
   // 10 min caben 60, pero hoy solo hay 50: la tanda es de 50, unos 9 min (redondeando hacia arriba)
   await expect(page.locator('.hero-go')).toContainText('9 min · 50 preguntas');
   await expect(page.locator('.hero-all')).toHaveCount(0);
-  await nav(page, 'Perfil');
-  await page.locator('[data-nav="settings"]').first().click();
-  await page.locator('[data-seg="study.tandaMin"] [data-v="5"]').click();
-  await nav(page, 'Hoy');
+  // La duración ya no está en Ajustes: se cambia en «Tanda de N min» (o en el Plan, con tu semana)
+  await page.locator('.hero-min').click();
+  await page.locator('#sheetBody [data-tanda-min="5"]').click();
+  await page.keyboard.press('Escape');
   await expect(page.locator('.hero-go')).toContainText('5 min · 30 preguntas');
   await expect(page.locator('.hero-all').first()).toContainText('las 50 de hoy');
   // «Tanda de N min» abre la misma hoja

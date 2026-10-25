@@ -104,8 +104,9 @@ test('nuevo examen en 2 días: «Así no llegas» con tres arreglos; aplicar, de
   await expect(page.locator('#sheetBody .ex-tip')).toContainText('al día');
   await page.locator('[data-pl="exam-save"]').click();
   await expect(page.locator('#plSum')).toContainText('Así no llegas al examen de ' + JA);
-  await expect(page.locator('.fix-opt')).toHaveCount(2);   // sin etapas ni semana: subir el nivel y subir las nuevas al día
-  await page.locator('.fix-opt').nth(1).click();
+  // Sin etapas ni semana: subir las nuevas al día (subir el nivel no mejora nada con una sola lista, y no sale)
+  await expect(page.locator('.fix-opt')).toHaveCount(1);
+  await page.locator('.fix-opt', { hasText: 'Subir las nuevas al día' }).click();
   await page.locator('[data-pl="fix-apply"]').click();
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.newPerDay))).toBeGreaterThan(15);
   await page.locator('#plSum [data-pl="undo"]').click();
