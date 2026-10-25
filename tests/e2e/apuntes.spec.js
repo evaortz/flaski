@@ -387,10 +387,11 @@ test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la 
   const first = (await page.locator('#f-icon').inputValue()).slice(2);
   expect(await stored()).toContain(first);
   const upload = async () => {
+    const before = await page.locator('#f-icon').inputValue();
     const ch = page.waitForEvent('filechooser');
     await page.locator('[data-act="folder-image"]').click();
     await (await ch).setFiles({ name: 'otra.png', mimeType: 'image/png', buffer: Buffer.from(png) });
-    await expect(page.locator('#f-icon')).not.toHaveValue(`i:${first}`);
+    await expect(page.locator('#f-icon')).not.toHaveValue(before);
     return (await page.locator('#f-icon').inputValue()).slice(2);
   };
   const second = await upload();
@@ -703,4 +704,24 @@ test('Biblioteca: «vacío» solo para apuntes sin texto; con texto y sin pregun
   await expect(txt).not.toHaveClass(/is-empty/);
   await expect(blank.locator('.lt-hand')).toHaveText('vacío');
   await expect(blank).toHaveClass(/is-empty/);
+});
+
+test('icono de carpeta: si cancelas mientras se guarda la imagen, no se queda guardada', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="new-folder"]').click();
+  await page.locator('[data-icon-tab="img"]').click();
+  const png = await page.evaluate(async () => {
+    const c = Object.assign(document.createElement('canvas'), { width: 1600, height: 1200 });
+    const g = c.getContext('2d'); g.fillStyle = '#3a3'; g.fillRect(0, 0, 1600, 1200);
+    return [...new Uint8Array(await (await new Promise(ok => c.toBlob(ok, 'image/png'))).arrayBuffer())];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('[data-act="folder-image"]').click();
+  await (await chooser).setFiles({ name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(png) });
+  await page.locator('#sheetBody').getByRole('button', { name: 'Cancelar' }).click();   // sin esperar a que termine
+  await expect(page.locator('#sheet')).toBeHidden();
+  const stored = () => page.evaluate(() => new Promise(ok => { const r = indexedDB.open('flaski-media', 1); r.onsuccess = () => { const q = r.result.transaction('img').objectStore('img').getAllKeys(); q.onsuccess = () => ok(q.result); }; }));
+  await page.waitForTimeout(1500);   // lo que tarde en guardarse
+  expect(await stored()).toEqual([]);
 });

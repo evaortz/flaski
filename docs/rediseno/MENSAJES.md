@@ -1,15 +1,15 @@
 # Cola del rediseño · 5 pasos (en orden · una conversación nueva por paso)
 
-Hechos: pasos 1 a 4 (y el logo). Siguiente: paso 5.
+Hechos: pasos 1 a 6 (el 6, remates y logo B; el vídeo de Novedades queda para más adelante).
 
 Reglas para que no se eternice:
 - Un paso = una conversación. Los remates que salgan se pegan al principio del paso siguiente.
 - Dentro de cada paso, trabaja por partes (a, b, c…) con un commit por parte, y no te pares entre partes salvo donde pone (OK).
-- Batería completa solo al final del paso, con --workers=100 %; si falla algo, repite solo eso.
+- Batería completa solo al final del paso, con `npx playwright test` desde `tests/` (sin `--workers`: la configuración ya usa la mitad de los núcleos); tiene que pasar en verde de una vez. Si falla algo, arréglalo y repite solo eso.
 - Al acabar: commit (nunca push) y 5–10 líneas en ESTADO.md.
 
 Pie común (pégalo al final de cada mensaje):
-> Pruebas: durante el trabajo solo las relacionadas; la batería completa una vez al final con --workers=100%; si una falla, repite solo esa. No hagas push nunca; solo commits. Actualiza ESTADO.md al terminar.
+> Pruebas: durante el trabajo solo las relacionadas; la batería completa una vez al final con `npx playwright test` (sin `--workers`), en verde de una vez; si una falla, arréglala y repite solo esa. No hagas push nunca; solo commits. Actualiza ESTADO.md al terminar.
 
 ---
 
@@ -68,3 +68,7 @@ a) Reordena Perfil y Ajustes (con el buscador) como dice el LEEME; no borres nin
 b) Pantalla Amigos nueva y el texto «X te dice: …». Para «¡Bravo!» como tipo de ánimo, dime qué cambio necesitas en Supabase y espera mi OK; lo demás hazlo sin parar.
 c) Papelera (borrar va a la papelera 30 días, «Deshacer», recuperar) y borrar la cuenta (pantalla de 3 pasos). Antes de programar c, dime qué necesitas en Supabase para el borrado suave y para borrar la cuenta, y espera mi OK.
 d) Cierre: repasa toda la app en modo oscuro, a 375 px y a 1440 px, arregla lo que se vea roto y deja ESTADO.md al día. Después hago yo el push.
+
+## 6 · Remates y logo B (hecho)
+- Salir de Repasar en el apunte («✕ Salir de repasar», barra fija, Esc y botón atrás), minutos de verdad en Plan y Hoy («Te sobra tiempo…»), logo B (iconos, marca y `logo.spec.js`).
+- La pregunta de entender ya estaba bien desde el paso 5. El vídeo de Novedades se puso y se quitó a petición de Eva: queda para cuando esté la versión corta.

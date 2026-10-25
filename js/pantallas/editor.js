@@ -101,6 +101,7 @@ export function pickFolderImage() {
   inp.addEventListener('change', async () => {
     const file = inp.files?.[0];
     if (!file) return;
+    const fp = S.folderPick;   // la hoja que la pidió
     try {
       const bmp = await createImageBitmap(file), s = Math.min(bmp.width, bmp.height), N = Math.min(256, s);
       const c = Object.assign(document.createElement('canvas'), { width: N, height: N });
@@ -108,7 +109,9 @@ export function pickFolderImage() {
       bmp.close?.();
       const blob = await new Promise(ok => c.toBlob(b => (b?.type === 'image/webp' ? ok(b) : c.toBlob(ok, 'image/jpeg', 0.88)), 'image/webp', 0.88));
       const id = await addImage(blob);
-      S.folderPick?.picked.add(id);
+      // Si mientras se guardaba se cerró la hoja (Cancelar, Guardar…), no la usa nada: se borra
+      if (!fp || S.folderPick !== fp) { deleteImage(id); return; }
+      fp.picked.add(id);
       if ($('#f-icon')) { setIcon('i:' + id); const b = $('[data-act="folder-image"]'); if (b) b.lastChild.textContent = ' Cambiar la imagen'; }
     } catch (e) { fail(e); }
   });
