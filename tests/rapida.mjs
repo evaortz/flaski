@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 // Qué pruebas (tests/e2e/<nombre>.spec.js) mira cada pantalla
 const PANTALLAS = {
   apuntes: ['apuntes', 'bloques', 'editor-apunte', 'apunte-repasar', 'apunte-ancho', 'formato', 'remates-pasada', 'exportar', 'remates-archivos', 'sugerencias', 'remates-paso5'],
-  tanda: ['estudio', 'tanda-corta', 'tanda-tipos', 'remates-tanda', 'remates-repaso', 'deslizar', 'entender', 'remates-correccion', 'aleman'],
+  tanda: ['antes-del-push', 'estudio', 'tanda-corta', 'tanda-tipos', 'remates-tanda', 'remates-repaso', 'deslizar', 'entender', 'remates-correccion', 'aleman'],
   tipos: ['tipos', 'tipos-nuevos', 'kanji', 'remates-kanji', 'furigana', 'voz'],
   editor: ['remates-editor', 'remates-preguntas', 'guardar-y-otra', 'tipos'],
   hoy: ['hoy', 'inicio', 'hecho-por-hoy', 'minutos-de-verdad', 'dia-libre', 'progreso'],
