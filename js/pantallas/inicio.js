@@ -14,6 +14,8 @@ import { homeFriendsHTML } from './amigos.js';
 import { shortInfo, tandaFit, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES, tandaSize } from '../tanda.js';
+import { P2 } from '../plan2-app.js';
+import { heroHTML as p2Hero, examCardHTML as p2Exam } from './plan-tiempo.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -39,6 +41,8 @@ export function renderHome() {
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
       ${done ? doneHTML(done, q)
+      // Plan nuevo (interruptor «plan2»): la tanda de hoy con las cuentas del motor
+      : P2 ? p2Hero({ hi, back })
       : todayMinutes() === 0 ? freeHTML(q)
       : avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
       <div class="hero-row">
@@ -59,7 +63,7 @@ export function renderHome() {
       ${lastPageHTML()}
     </section>
     ${weakHTML()}
-    ${examHTML()}
+    ${P2 ? p2Exam() : examHTML()}
     ${H.activity ? activityHTML() : ''}
     </div>
     <div class="home-r">

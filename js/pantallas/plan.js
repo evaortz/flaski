@@ -16,6 +16,7 @@ import { savePrefsSoon } from './perfil.js';
 import { mapModel, failNote, resistIds, practiceResist, setMapView } from './mapa.js';
 import { simBlockHTML } from './simulacro.js';
 import { go } from '../app.js';
+import { P2, plan2, todayPlan } from '../plan2-app.js';
 
 /* ===================== datos ===================== */
 const P = () => S.prefs.plan;
@@ -225,6 +226,7 @@ function applyFix() {
 /* ---------------- tu semana y días especiales ---------------- */
 const DAY_MIN = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
 function weekHTML() {
+  if (P2) return p2WeekHTML();
   const w = P().week, t = today(), free = w ? WEEK.filter(d => !(Number(w[d]) > 0)).length : 0;
   const head = w ? `${fmtMin(weekTotal(w))} · ${plural(free, 'día libre', 'días libres')}` : `cada tanda, ${S.prefs.study.tandaMin} min`;
   const days = WEEK.map((d, i) => {
@@ -271,6 +273,15 @@ function saveSpecial(id) {
   closeSheet(); saveAndDraw();
 }
 
+// Plan nuevo (interruptor «plan2»): la semana se cambia en Tu tiempo
+function p2WeekHTML() {
+  const w = plan2().time?.week, free = w ? WEEK.filter(d => !(Number(w[d]) > 0)).length : 0;
+  const days = WEEK.map((d, i) => { const m = w ? Number(w[d]) || 0 : null; return `<span class="pw-day${m === 0 ? ' pw-free' : ''}${m == null ? ' pw-unset' : ''}"><small>${WEEK_SHORT[i]}</small><b>${m == null ? '–' : m || '·'}</b><small>${m == null ? '' : m ? 'min' : 'libre'}</small></span>`; }).join('');
+  return `<div class="section-h"><h2 id="h-week">Tu semana</h2><span class="sec-note">${w ? `${fmtMin(weekTotal(w))} · ${plural(free, 'día libre', 'días libres')}` : `cada tanda, ${S.prefs.study.tandaMin} min`}</span></div>
+    <div class="pw-days">${days}</div>
+    <button type="button" class="ghost" data-p2="time">Tu tiempo: semana, días especiales y pausa</button>`;
+}
+
 /* ---------------- hoy toca ---------------- */
 function todayHTML() {
   const t = today(), m = todayMinutes(), q = todayQueue('all'), { m: size, mins } = tandaFit(q.ids.length), done = dayDone();
@@ -279,27 +290,31 @@ function todayHTML() {
     <p class="day-done"><b>Hecho por hoy:</b> ${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min.</p>
     ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
   }
+  // Plan nuevo: los repasos y el total, los mismos que dice Hoy (today() del motor)
+  const p2 = P2 ? todayPlan() : null, rv = p2 ? p2.reviews : q.due;
   const byRoot = new Map();
   for (const id of q.ids) {
     if (S.progress.get(id)) continue;
     const k = rootKey(S.cards.get(id)?.deck_id || '');
     byRoot.set(k, (byRoot.get(k) || 0) + 1);
   }
-  const parts = [...byRoot].sort((a, b) => b[1] - a[1]), total = Math.max(1, q.ids.length);
-  const bar = parts.map(([k, c], i) => `<i class="ht-s ht-${Math.min(i, 3)}" style="width:${(100 * c) / total}%" title="${esc(keyName(k))}"></i>`).join('') + (q.due ? `<i class="ht-s ht-r" style="width:${(100 * q.due) / total}%"></i>` : '');
-  const legend = parts.map(([k, c], i) => `<span><i class="ht-${Math.min(i, 3)}"></i>${esc(shortName(keyName(k)))} · ${i ? c : plural(c, 'nueva', 'nuevas')}</span>`).join('') + (q.due ? `<span><i class="ht-r"></i>repasos · ${q.due}</span>` : '');
+  const parts = [...byRoot].sort((a, b) => b[1] - a[1]), total = Math.max(1, p2 ? p2.total : q.ids.length);
+  const bar = parts.map(([k, c], i) => `<i class="ht-s ht-${Math.min(i, 3)}" style="width:${(100 * c) / total}%" title="${esc(keyName(k))}"></i>`).join('') + (rv ? `<i class="ht-s ht-r" style="width:${(100 * rv) / total}%"></i>` : '');
+  const legend = parts.map(([k, c], i) => `<span><i class="ht-${Math.min(i, 3)}"></i>${esc(shortName(keyName(k)))} · ${i ? c : plural(c, 'nueva', 'nuevas')}</span>`).join('') + (rv ? `<span><i class="ht-r"></i>repasos · ${rv}</span>` : '');
   const st = stageOn(P().stages, t), { current } = topicOrder(st, S.decks, S.folders, freshByDeck());
   const topics = [...current].map(([fid, did]) => {
     const pos = orderedTopics(st.order[fid], fid, S.decks, S.folders).indexOf(did) + 1;
     return `${esc(shortName(S.folders.get(fid)?.name || ''))}: ${esc(S.decks.get(did)?.name || '')}${pos > 1 ? ` (va ${ordinal(pos)} en el orden)` : ''}`;
   }).join(' · ');
-  const head = `${WEEK_NAMES[weekdayOf(t)]} · ${m === 0 ? 'libre' : `${tandaMinutes()} min`}${size ? ` · ${plural(size, 'pregunta', 'preguntas')}` : ''}`;
+  const n2 = p2 ? p2.total : size;
+  const head = `${WEEK_NAMES[weekdayOf(t)]} · ${m === 0 ? 'libre' : `${tandaMinutes()} min`}${n2 ? ` · ${plural(n2, 'pregunta', 'preguntas')}` : ''}`;
   const btn = !q.ids.length ? '<p class="muted">Lo de hoy ya está hecho.</p>'
     : m === 0 ? `<p class="muted">Hoy es tu día libre.</p><button class="ghost" data-act="tanda-short">Estudiar igualmente · ${tandaMinutes()} min</button>`
     : `<button class="primary big" data-act="tanda-short">Empezar la tanda · ${mins} min</button>`;
   // El porqué de las nuevas de hoy: con tu semana, más minutos dan más nuevas (como mucho el doble) y menos, menos
   const nNew = m ? newOn(P(), t, S.newPerDay, S.prefs.study.tandaMin) : 0, avg = Math.round(weekAverage(P().week, S.prefs.study.tandaMin));
-  const why = m && P().week && q.fresh ? `<p class="ht-why">Hoy ${q.fresh < nNew ? `te quedan ${plural(q.fresh, 'nueva', 'nuevas')} de ${nNew}` : plural(nNew, 'nueva', 'nuevas')}: tienes ${m} min${m > avg ? `, más que un día normal (${avg} min)` : m < avg ? `, menos que un día normal (${avg} min)` : ''}${nNew >= 2 * S.newPerDay && m > avg ? '. Como mucho, el doble' : ''}.</p>` : '';
+  const why = p2 ? (m ? `<p class="ht-why">Hoy ${plural(p2.new, 'nueva', 'nuevas')}: tienes ${m} min y ${plural(p2.reviews, 'repaso', 'repasos')}${p2.short ? `, y caben ${p2.reviewsFit}` : ''}.</p>` : '')
+    : m && P().week && q.fresh ? `<p class="ht-why">Hoy ${q.fresh < nNew ? `te quedan ${plural(q.fresh, 'nueva', 'nuevas')} de ${nNew}` : plural(nNew, 'nueva', 'nuevas')}: tienes ${m} min${m > avg ? `, más que un día normal (${avg} min)` : m < avg ? `, menos que un día normal (${avg} min)` : ''}${nNew >= 2 * S.newPerDay && m > avg ? '. Como mucho, el doble' : ''}.</p>` : '';
   return `<div class="section-h"><h2 id="h-today">Hoy toca</h2><span class="sec-note">${head}</span></div>
     ${why}${q.ids.length ? `<div class="ht-bar">${bar}</div><div class="ht-legend">${legend}</div>` : ''}
     ${topics ? `<p class="ht-topics">${topics}</p>` : ''}${btn}`;

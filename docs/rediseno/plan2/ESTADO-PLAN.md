@@ -130,3 +130,53 @@ prueba de `plan2.test.js`.
   - `lista.spec.js:65` «Desde un apunte…» (móvil y escritorio), siempre: en la hoja de sugerencias la lista elegida
     es «+ Lista nueva: «Gramática turca»» en vez de «Turco · Armonía vocálica».
   - `remates-paso5.spec.js:20` (texto pegado en «Trae tus apuntes»): falló una vez y pasó al repetirla.
+
+## Paso B · Hoy y la tanda con el motor (25 oct 2026)
+
+Todo detrás del interruptor «plan2» (`?plan2` o `localStorage['flaski-plan2'] = '1'`). Sin él, la app sigue igual
+(lo prueba `plan2-hoy.spec.js › sin el interruptor…` y el resto de la batería, que va sin él).
+
+### Cómo se engancha
+
+- `js/plan2-app.js`: el estado del motor con los datos de `S` (progreso, respuestas, lo hecho hoy, las «N nuevas
+  más», las nuevas al día de Ajustes como tope) y `todayPlan()` / `forecastNow()`, guardados hasta que cambie algo.
+  El plan nuevo se guarda aparte, en `S.prefs.plan2` (nuevo en `prefs.js`, por defecto `null`): mientras no se
+  toque, se lee migrado al vuelo del de ahora; al cambiarlo (Tu tiempo, «Hoy solo tengo…») se queda guardado.
+  Apagar el interruptor deja el plan de ahora como estaba. En el paso C la migración pasa a `prefs.plan`.
+- `js/comun.js`: `hooks.plan2` (lo rellena `plan2-app.js` con el interruptor puesto). Con él, `todayMinutes()` son
+  los del plan nuevo, `newPlan()` da las nuevas de cada lista de `today()` (y las de un día normal con `steady`), y
+  `backlog()` no reparte lo atrasado (el motor ya pasa a mañana lo que no cabe). `extraNew` se exporta.
+- `js/pantallas/estudio.js`: `dayDone()` y `shortSize()` preguntan al motor; al mantener pulsada una pregunta en
+  la tanda, una línea dice por qué sale («Toca repasarla hoy», «Toca repasarla: lleva 3 días esperando», «La has
+  fallado hace un rato: vuelve hoy», «Es nueva de T3 · Cortes Generales, para Auxiliar»).
+- `js/pantallas/inicio.js`: con el interruptor, la tanda de hoy (tema principal, barra y «16 nuevas de Auxiliar ·
+  4 de Inglés · 92 repasos», «Empezar · N min»), el aviso si no caben los repasos, «¿Hoy tienes menos tiempo? Hoy
+  solo tengo…», el día libre («Hoy tocan 48 repasos. Si te apetece, 10 min de repasos adelantan el lunes…»), la
+  pausa y la tarjeta del examen con el veredicto del motor.
+- `js/pantallas/plan.js`: con el interruptor, «Tu semana» lleva a Tu tiempo y «Hoy toca» usa los números de
+  `today()` («lunes · 45 min · 120 preguntas», «Hoy 20 nuevas: tienes 45 min y 100 repasos»). El resto del Plan
+  (resumen, exámenes, etapas, «Qué estudias») sigue con el plan de ahora hasta el paso C.
+- `js/pantallas/plan-tiempo.js`: la pantalla **Tu tiempo** (vista `planTime`): deslizadores de cada día (de 0 a 180
+  min, de 5 en 5), el total de la semana, días especiales (hoja para crearlos, cambiarlos y borrarlos), «Pausar
+  unos días» (`time.pause`) y **Cuánto te cunde** (40 s / 12 s o lo medido, y «Un día de 45 min da para unos 48
+  repasos y 20 nuevas», sacado del día siguiente con esos minutos en el forecast). También las hojas «¿Cuánto tienes
+  hoy?» (`time.today`) y lo que pinta Hoy.
+- `js/app.js`: la vista `planTime`, `data-p2` en clic, `input` y `change`, y el import de `plan2-app.js`.
+- `css/plan2.css` (enlazado en `index.html`, en `SHELL`): los estilos nuevos. **No he cambiado nada de `app.css`.**
+- `sw.js`: `VERSION` 205 → **206** (al juntar con el 7+8, que también la sube, quedarse con la mayor + 1) y los cinco
+  archivos nuevos en `SHELL`, en una línea propia tras `atrasos.js`. `node version.mjs` puesto.
+- `js/plan2.js`: `today()` dice además `dayDone` (has respondido algo y has cumplido tus minutos: lo hecho, a tu
+  ritmo, o el tiempo de verdad, o no queda nada; en un día libre, nunca), `reviewsFit` y suma `state.extraNew`.
+  `state.stockKey` dice cuándo ha cambiado el progreso (la app lo cambia en el sitio).
+- `tests/rapida.mjs`: `plan2-hoy` en las pantallas «hoy» y «plan»; `plan2*.js` cuenta como «plan» y «hoy».
+
+### Lo que hay que saber
+
+- «Hecho por hoy» ya no cuenta preguntas con el ritmo de `tanda.js`, sino segundos con el del motor (40 s por
+  nueva, 12 s por repaso o lo medido). El mismo cálculo vale para Hoy, el Plan y una lista.
+- Hoy cuenta como repasos de hoy los que tocan hasta el final del día (como el motor); la tanda sigue sacando los
+  que tocan ya. Si fallas una y vuelve en 10 min, cuenta en los dos.
+- «Hoy solo tengo…» ofrece 5, 10, 15, 20, 30, 45 y 60 min, y «Lo de siempre».
+- En una pausa, Hoy dice «Estás en pausa» (con «Volver ya»); a la vuelta, lo que se juntó se hace poco a poco
+  (lo que no cabe cada día pasa al siguiente).
+- Novedades: no las he tocado, porque nada de esto se ve sin el interruptor. Irán con el paso C o D.

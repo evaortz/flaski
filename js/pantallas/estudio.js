@@ -10,7 +10,7 @@ import { ideasOf, ideaHit, parseEffects, suggestGrade, verdictText } from '../en
 import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes, todayMinutes } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes, todayMinutes, hooks } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
@@ -480,12 +480,13 @@ export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
-export const shortSize = (minutes = tandaMinutes()) => tandaSize(minutes, pace(S.events));
+export const shortSize = (minutes = tandaMinutes()) => (hooks.plan2 ? hooks.plan2.size(minutes) : tandaSize(minutes, pace(S.events)));
 export function shortInfo() { const minutes = tandaMinutes(), secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
 // El día se cumple con tus minutos, no con dejar la cola a cero: hecho por hoy si ya has respondido lo que cabía
 // en la tanda de hoy (a tu ritmo de antes de hoy) o has estado los minutos del día respondiendo, empezaras donde
 // empezaras (Hoy, el Plan, una lista o un apunte). Lo que queda pasa a mañana. null si no, o si hoy es libre.
 export function dayDone(now = Date.now()) {
+  if (hooks.plan2) return hooks.plan2.dayDone();   // el plan nuevo: lo dice el motor (plan2.js)
   const m = todayMinutes();
   if (m === 0) return null;
   const minutes = m || S.prefs.study.tandaMin, t0 = startOfDay(now);
@@ -750,6 +751,24 @@ export function renderStudy() {
     // La primera vez, solas un momento para que sepas que se puede deslizar
     if (!st.hinted && !S.prefs.study.swipeShown && swipeHintsDue()) { st.hinted = true; S.prefs.study.swipeShown = true; savePrefsSoon(); showSwipeHints(sw || {}); }
   }
+  if (hooks.plan2) holdWhy(main.querySelector('article.card'), c);
+}
+// Plan nuevo: al mantener pulsada la pregunta, una línea dice por qué sale («Toca repasarla hoy», «Es nueva de T3»)
+function holdWhy(el, c) {
+  if (!el) return;
+  let timer = null, x0 = 0, y0 = 0;
+  const stop = () => clearTimeout(timer);
+  el.addEventListener('pointerdown', e => {
+    x0 = e.clientX; y0 = e.clientY; stop();
+    timer = setTimeout(() => {
+      let line = main.querySelector('.p2-why');
+      if (!line) { line = document.createElement('p'); line.className = 'p2-why'; line.setAttribute('role', 'status'); el.after(line); }
+      line.textContent = hooks.plan2.why(c);
+    }, 500);
+  });
+  el.addEventListener('pointermove', e => { if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) > 10) stop(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, stop);
+  el.addEventListener('contextmenu', e => e.preventDefault());
 }
 // Pistas de deslizar (la chuleta de las cuatro direcciones): en cada borde la dirección y su botón, tenues.
 // La primera vez salen solas un momento al ver la respuesta; después, solo mientras arrastras (no tapan nada).

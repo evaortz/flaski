@@ -37,6 +37,8 @@ import { renderBye, renderByeDone } from './pantallas/borrar-cuenta.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { renderPlan, renderExam, renderPlanStart, planClick, removeExam } from './pantallas/plan.js';
+import './plan2-app.js';
+import { renderPlanTime, p2Click, p2Input } from './pantallas/plan-tiempo.js';
 import { simClick, renderSim, simKey } from './pantallas/simulacro.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -77,7 +79,7 @@ export function render() {
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page', 'trash'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'sim', 'bye'].includes(S.view));
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page', 'trash'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'planTime', 'sim', 'bye'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
@@ -86,7 +88,7 @@ export function render() {
   if (!S.uid) return renderAuth();
   // Mientras cargan los datos, un esqueleto de Hoy (no una caja vacía con un círculo)
   if (S.loading) { if (!main.querySelector('.skel')) main.innerHTML = '<div class="skel" role="status" aria-busy="true" aria-label="Cargando"><span class="sk sk-t"></span><span class="sk sk-num"></span><span class="sk sk-line"></span><span class="sk sk-btn"></span><span class="sk sk-card"></span><span class="sk sk-card sk-short"></span></div>'; return; }
-  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, sim: renderSim, trash: renderTrash, bye: renderBye }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, planTime: renderPlanTime, sim: renderSim, trash: renderTrash, bye: renderBye }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -154,6 +156,7 @@ document.addEventListener('click', async e => {
   // Plan de estudio, exámenes y simulacros: sus botones llevan data-pl o data-sim
   if (ds.pl) return planClick(b);
   if (ds.sim) return simClick(b, e);
+  if (ds.p2) return p2Click(b);   // el plan nuevo (interruptor «plan2»): Tu tiempo y «Hoy solo tengo…»
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
@@ -841,6 +844,7 @@ document.addEventListener('submit', async e => {
 });
 
 document.addEventListener('input', e => {
+  if (e.target.dataset?.p2) return p2Input(e.target);
   if (e.target.id === 'f-newtag') return filterTagPicker();
   if (e.target.id === 'exText' && S.session?.st?.ex) { S.session.st.ex.text = e.target.value; return; }
   if (e.target.id === 'typeSearch' && S.pick) { S.pick.q = e.target.value; return drawTypePicker(); }
@@ -896,6 +900,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', async e => {
   if (e.target.dataset.pl) return planClick(e.target);
+  if (e.target.dataset.p2) return p2Click(e.target);
   if (e.target.id === 'cardSort') { S.cardSort = e.target.value; return renderDeck(); }
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);

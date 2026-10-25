@@ -95,7 +95,8 @@ const dayIndex = (t, t0) => Math.round((startOfDay(t) - t0) / DAY);
 // repasos siguientes). Se calcula una vez por datos y retención.
 const stockMemo = new WeakMap();
 export function stock(state, r = 0.9) {
-  const key = `${state.today}|${r}`, holder = state.progress || state.cards;
+  // stockKey: quien llama dice cuándo ha cambiado el progreso (la app lo cambia en el sitio, sin copiarlo)
+  const key = `${state.today}|${r}|${state.stockKey ?? ''}`, holder = state.progress || state.cards;
   const hit = holder && typeof holder === 'object' && stockMemo.get(holder);
   if (hit?.key === key && hit.cards === state.cards) return hit.value;
   const t0 = startOfDay(dayDate(state.today).getTime()), prog = progressOf(state.progress);
@@ -421,21 +422,35 @@ function examResult(x, P, start, exFinish, exLeft, rem, firstDay, finish) {
 /* ===================== lo de hoy ===================== */
 // Lo de hoy: cuántas nuevas de cada lista, los repasos y los minutos, y si ya está hecho. Hoy y el Plan leen
 // esto mismo, así que dicen el mismo número. Los repasos son los que tocan hoy (también en un día libre).
+// state.done = { new, reviews, n, ms }: lo hecho hoy (nuevas, repasos, respuestas y su tiempo).
+// state.extraNew: las «N nuevas más» que has pedido hoy, por encima del plan.
+// «Hecho por hoy» (dayDone): has respondido algo y has cumplido tus minutos (lo hecho, a tu ritmo, o el tiempo
+// de verdad), o no queda nada. Lo que quede pasa a mañana.
 export function today(state) {
-  const done = { new: Math.max(0, state.done?.new || 0), reviews: Math.max(0, state.done?.reviews || 0) };
+  const d = state.done || {}, done = { new: Math.max(0, d.new || 0), reviews: Math.max(0, d.reviews || 0), n: Math.max(0, d.n || 0), ms: Math.max(0, d.ms || 0) };
   const fc = forecast(state), d0 = fc.days[0], { secNew: sN, secReview: sR } = fc.pace;
   const reviews = d0.reviewsDue;
   // Las nuevas de hoy con el tiempo que queda tras lo hecho y los repasos que faltan
-  const minutes = d0.minutes, room = minutes * 60 - (done.reviews + reviews) * sR - done.new * sN;
+  const minutes = d0.minutes, spent = done.reviews * sR + done.new * sN, room = minutes * 60 - reviews * sR - spent;
   const planned = Math.min(d0.new, Math.max(0, Math.floor(room / sN) + done.new));
-  let left = Math.max(0, planned - done.new);
-  const newBy = {};
-  for (const [id, n] of Object.entries(d0.newBy).sort((a, b) => b[1] - a[1])) { const q = Math.min(n, left - Object.values(newBy).reduce((a, b) => a + b, 0)); if (q > 0) newBy[id] = q; }
-  left = Object.values(newBy).reduce((a, b) => a + b, 0);
+  let left = Math.max(0, planned + Math.max(0, state.extraNew || 0) - done.new);
+  const newBy = {}, give = (id, n) => { const q = Math.min(n, left); if (q > 0) { newBy[id] = (newBy[id] || 0) + q; left -= q; } };
+  const plan = Object.entries(d0.newBy).sort((a, b) => b[1] - a[1]);
+  for (const [id, n] of plan) give(id, n);
+  // Lo que pides de más, de las listas de hoy y después de las demás que tienen nuevas
+  if (left > 0) {
+    const fresh = stock(state, fc.retention).fresh;
+    for (const [id] of plan) give(id, (fresh.get(id) || 0) - (newBy[id] || 0));
+    for (const [id, n] of fresh) give(id, n - (newBy[id] || 0));
+  }
+  const nNew = Object.values(newBy).reduce((a, b) => a + b, 0);
+  const finished = done.n > 0 && minutes > 0 && (spent >= minutes * 60 || done.ms >= minutes * 60e3 || (reviews === 0 && nNew === 0));
   return {
-    day: d0.day, minutes, rest: minutes === 0, reviews, new: left, newBy, total: reviews + left,
-    secs: reviews * sR + left * sN, fits: reviews * sR <= Math.max(0, minutes * 60 - (done.reviews * sR + done.new * sN)),
-    short: d0.short, done: reviews === 0 && left === 0, pace: fc.pace,
+    day: d0.day, minutes, rest: minutes === 0, reviews, reviewsFit: d0.reviews, new: nNew, newBy, total: reviews + nNew,
+    secs: reviews * sR + nNew * sN, fits: reviews * sR <= Math.max(0, minutes * 60 - spent),
+    short: d0.short, done: reviews === 0 && nNew === 0,
+    dayDone: finished ? { n: done.n, minutes: Math.max(1, Math.round((done.ms || spent * 1000) / 60e3)) } : null,
+    pace: fc.pace,
   };
 }
 

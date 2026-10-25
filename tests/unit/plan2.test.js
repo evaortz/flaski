@@ -341,3 +341,26 @@ test('rendimiento: 5.000 preguntas, 3 exámenes y un año: forecast < 50 ms y fi
   assert.ok(fcs[2] < 50, `forecast ${fcs[2]} ms`);
   assert.ok(fx[1] < 500, `fixes ${fx[1]} ms`);
 });
+
+test('today(): «Hecho por hoy» al cumplir los minutos (o sin nada pendiente); un día libre, nunca', () => {
+  const S = three([100, 0, 0], { lastWeek: false });
+  S.plan.time.week = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 10]));
+  assert.equal(today(S).dayDone, null);
+  assert.equal(today({ ...S, done: { new: 5, reviews: 0, n: 9, ms: 4 * 60e3 } }).dayDone, null);
+  // 15 nuevas a 40 s = 10 min: hecho
+  assert.deepEqual(today({ ...S, done: { new: 15, reviews: 0, n: 30, ms: 7 * 60e3 } }).dayDone, { n: 30, minutes: 7 });
+  // O 10 min de verdad respondiendo
+  assert.ok(today({ ...S, done: { new: 3, reviews: 0, n: 12, ms: 10 * 60e3 } }).dayDone);
+  const free = { ...S, plan: { ...S.plan, time: { ...S.plan.time, week: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 0])) } } };
+  assert.equal(today({ ...free, done: { new: 15, reviews: 0, n: 30, ms: 20 * 60e3 } }).dayDone, null);
+});
+
+test('today(): las «N nuevas más» que pides se suman a las del plan', () => {
+  const S = three([100, 30, 0]);
+  assert.equal(today(S).new, 20);
+  const t = today({ ...S, extraNew: 10 });
+  assert.equal(t.new, 30);
+  assert.equal(Object.values(t.newBy).reduce((a, b) => a + b, 0), 30);
+  // Ya hechas las 20 del plan, quedan las 10 de más
+  assert.equal(today({ ...S, extraNew: 10, done: { new: 20, reviews: 0, n: 20, ms: 0 } }).new, 10);
+});

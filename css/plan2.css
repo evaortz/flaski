@@ -1,0 +1,59 @@
+/* Flaski · plan nuevo (paso B, interruptor «plan2»): la tanda de Hoy con el motor, Tu tiempo y «por qué esta
+   pregunta». Aparte de app.css para no chocar con otros cambios; al quitar el plan viejo se puede juntar. */
+
+/* ---------- Hoy: tu tanda de hoy ---------- */
+.p2-tanda{display:flex;flex-direction:column;gap:10px;padding:18px 18px 16px;border-radius:24px;background:var(--accent);color:var(--accent-fg)}
+.p2-tanda > small{font-size:13.5px;opacity:.9}
+.p2-topic{margin:0;font-family:var(--font-hand);font-weight:400;font-size:clamp(30px,8vw,40px);line-height:1.05;overflow-wrap:anywhere}
+.p2-bar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:color-mix(in srgb,var(--accent-fg) 25%,transparent)}
+.p2-seg{display:block;height:100%}
+.p2-s0{background:var(--accent-fg)}
+.p2-s1{background:color-mix(in srgb,var(--accent-fg) 70%,var(--accent))}
+.p2-s2{background:color-mix(in srgb,var(--accent-fg) 50%,var(--accent))}
+.p2-sr{background:color-mix(in srgb,var(--accent-fg) 32%,var(--accent))}
+.p2-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px}
+.p2-legend span{display:inline-flex;align-items:center;gap:6px}
+.p2-legend i{display:inline-block;width:9px;height:9px;border-radius:2px}
+.p2-legend .p2-s0,.p2-legend .p2-s1,.p2-legend .p2-s2,.p2-legend .p2-sr{outline:1px solid color-mix(in srgb,var(--accent-fg) 50%,transparent)}
+.p2-go{margin-top:4px;min-height:52px;border:0;border-radius:99px;background:var(--accent-fg);color:var(--accent);font-size:17px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000)}
+.p2-go:active{transform:translateY(2px);box-shadow:none}
+.p2-go:focus-visible{outline:3px solid var(--accent-fg);outline-offset:3px}
+.p2-short{margin:10px 0 0;padding:10px 14px;border-radius:14px;background:var(--tag-yellow-bg);color:var(--tag-yellow);font-size:14px}
+.p2-less{margin:10px 0 0;font-size:14px;color:var(--muted)}
+.p2-min{margin-top:6px}
+.p2-n{font-weight:600}
+
+/* ---------- Hoy: el examen más cercano ---------- */
+.p2-exam{display:flex;align-items:center;gap:14px;width:100%;margin-top:14px;padding:14px 16px;border:0;border-radius:20px;background:var(--soft);color:var(--fg);text-align:left;cursor:pointer}
+.p2-exam > span:nth-child(2){display:flex;flex-direction:column;gap:2px;min-width:0}
+.p2-exam b{font-size:16px;font-weight:600}
+.p2-exam small{font-size:13px;color:var(--muted)}
+.p2-exam > svg{flex:none;margin-left:auto}
+
+/* ---------- Tu tiempo ---------- */
+.p2-lead{margin:4px 0 14px;color:var(--muted);font-size:15.5px;line-height:1.5}
+.p2-week{list-style:none;margin:0;padding:0}
+.p2-wd{display:grid;grid-template-columns:minmax(84px,auto) 1fr 64px;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid var(--line)}
+.p2-wd label{font-weight:600}
+.p2-wd output{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.p2-wd input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:32px;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer}
+.p2-wd input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(to right,var(--accent) var(--p,0%),var(--soft) var(--p,0%))}
+.p2-wd input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-10px;border-radius:50%;background:var(--bg);border:2.5px solid var(--accent)}
+.p2-wd input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--soft)}
+.p2-wd input[type=range]::-moz-range-progress{height:6px;border-radius:99px;background:var(--accent)}
+.p2-wd input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--bg);border:2.5px solid var(--accent)}
+.p2-wd input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}
+.p2-sp{display:flex;align-items:center;gap:12px;width:100%;margin:6px 0;padding:12px 14px;border:0;border-radius:16px;background:var(--tag-yellow-bg);color:var(--tag-yellow);text-align:left;cursor:pointer}
+.p2-sp > span{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.p2-sp small{font-size:13px}
+.p2-add{display:inline-flex;align-items:center;gap:6px;margin:8px 0}
+.p2-pause{display:flex;align-items:flex-start;gap:8px;margin:8px 0;font-size:14.5px}
+.p2-cunde{padding:14px;border-radius:20px;background:var(--soft)}
+.p2-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.p2-tiles > div{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:14px;background:var(--bg)}
+.p2-tiles b{font-family:var(--font-hand);font-weight:400;font-size:30px;line-height:1}
+.p2-tiles span{font-size:13px;color:var(--muted)}
+.p2-cunde p{margin:12px 2px 0;font-size:14.5px;line-height:1.5}
+
+/* ---------- La tanda: por qué esta pregunta ---------- */
+.p2-why{margin:10px auto 0;max-width:36rem;padding:8px 14px;border-radius:12px;background:var(--soft);color:var(--fg);font-size:14px;text-align:center}
