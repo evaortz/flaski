@@ -4168,3 +4168,5 @@ body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidde
 .rev-ask{margin:0 0 6px;font-size:14px;color:var(--muted)}
 /* Tablas del apunte: las celdas no parten palabras; si la tabla no cabe, se desplaza de lado dentro de su caja */
 .nb-tbl th,.nb-tbl td{overflow-wrap:normal;word-break:normal;hyphens:manual}
+/* «Normal» elegido en «Cuánto de cada cosa»: un tono más claro del color con texto oscuro (4,5:1 o más con cualquier color) */
+.lv-seg .seg-b[aria-pressed="true"].lvb-normal{background:color-mix(in oklab,var(--accent) 45%,#FFFFFF);color:#16183A}
