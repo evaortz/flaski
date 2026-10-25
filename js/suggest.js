@@ -651,6 +651,28 @@ export function plainRules(sp, env = {}) {
       basic('term', `¿${capFirst(m[2].toLocaleLowerCase())} qué ${m[4].toLocaleLowerCase()} ${vq}?`, m[3], 0.74);
     }
   }
+  // Para entender (nunca marcadas de entrada): «Por eso X» → Explícalo: ¿por qué X? (con la frase de antes como idea clave)
+  if ((m = /^Por\s+eso,?\s+(.{8,})$/iu.exec(body)) && env.prev) push('why', 'explain', { q: `Explícalo: ¿por qué ${lowFirst(m[1])}?`, k: `Porque ${lowFirst(env.prev.replace(/[.;:]+$/, ''))}`, n: '' }, 0.6);
+  else if ((m = /^(.{12,}?),?\s+porque\s+(.{8,})$/iu.exec(body))) push('why', 'explain', { q: `Explícalo: ¿por qué ${lowFirst(m[1])}?`, k: `Porque ${m[2]}`, n: '' }, 0.6);
+  // «A diferencia de las células animales, las vegetales tienen pared celular» → ¿En qué se diferencian las células vegetales de las animales?
+  if ((m = /^A\s+diferencia\s+de\s+((?:el|la|los|las)\s+(\p{L}+)\s+(\p{L}+)),\s+((?:el|la|los|las)\s+(\p{L}+))\s+(.{6,})$/iu.exec(body))) {
+    const a = m[1], noun = m[2], b = m[5] === noun ? m[4] : `${m[4].split(' ')[0]} ${noun} ${m[5]}`;
+    push('diff', 'explain', { q: `¿En qué se diferencian ${lowFirst(b)} de ${a.split(' ')[0].toLocaleLowerCase()} ${m[3]}?`, k: `${capFirst(b)} ${m[6]}`, n: '' }, 0.6);
+  } else if ((m = /^(.{4,40}?)\s+en\s+vez\s+de\s+([^,]{3,40}?),?\s+(hace|hacen|es|son|sirve|funciona|dura|fija|ayuda)\s+(.{4,})$/iu.exec(body))) {
+    push('diff', 'explain', { q: `¿En qué se diferencia ${lowFirst(m[1])} de ${m[2]}?`, k: `${capFirst(m[1])} ${m[3]} ${m[4]}`, n: '' }, 0.6);
+  }
+  // «Gran parte de lo que aprendes hoy se habrá ido en unos pocos días si no vuelves a ello» → ¿Qué pasaría si no vuelves
+  // a lo que aprendes hoy? · «Lo que recuerdas en unos pocos días: baja» (efectos que se miden: suben, bajan o se quedan igual)
+  if ((m = /^(.{10,}?)\s+si\s+(.{6,})$/iu.exec(body)) && !/plazo/i.test(m[1])) {
+    const main = m[1], down = /(?<![\p{L}])(?:se\s+habrá\s+ido|se\s+va|olvid\p{L}*|se\s+pierde|disminuye|baja|empeora|cae)(?![\p{L}])/iu, up = /(?<![\p{L}])(?:aumenta|sube|mejora|dura\s+más|crece|se\s+recuerda\s+mejor)(?![\p{L}])/iu;
+    const dir = down.test(main) ? 'baja' : up.test(main) ? 'sube' : '';
+    const when = /(?<![\p{L}])((?:en|al\s+cabo\s+de|después\s+de)\s+(?:unos?|unas?|pocos?|pocas?|\d+|una|un)[^,]*?(?:días?|semanas?|meses|mes|años?)(?:\s+después)?)/iu.exec(main)?.[1] || '';
+    const thing = /(?<![\p{L}])(lo\s+que\s+\p{L}+(?:\s+hoy)?)/iu.exec(main)?.[1];
+    const cond = thing ? m[2].replace(/(?<![\p{L}])(?:ello|eso|esto)(?![\p{L}])/iu, thing) : m[2];
+    if (dir && !/(?<![\p{L}])(?:ello|eso|esto)(?![\p{L}])/iu.test(cond)) {
+      push('whatif', 'whatif', { s: `¿Qué pasaría si ${cond}?`, p: '¿Qué pasa con lo que recuerdas?', e: `Lo que recuerdas${when ? ' ' + when : ''}: ${dir}`, k: capFirst(sp), n: '' }, 0.58);
+    }
+  }
   // Una frase clave cualquiera: hueco en lo que se dice del sujeto («Las células eucariotas tienen {{un núcleo rodeado por
   // una membrana}}», «La mitocondria produce {{la energía de la célula}} mediante…») o en la enumeración que es el sujeto
   if (env.score >= 2 && !out.some(r => r.kind !== 'tf') && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
@@ -1190,6 +1212,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
           ? capFirst(subj.replace(/^¿?/, '¿').replace(/\??$/, '?'))
           : (pageEs && termQuestion(def.term, ctx)) || def.term.replace(/\*\*/g, '').trim();   // en otro idioma, el término tal cual
         add('def', b.id, 'basic', { q, a: capFirst(cleanAnswer(defP)), n: '' }, 0.85);
+        // (las frases que siguen a la definición también pueden dar «¿Qué pasaría si…?», «Explícalo»…)
+        if (pageEs) {
+          const more = sentences(defP);
+          more.slice(1).forEach((sp2, k) => { for (const r of plainRules(sp2, { ctx: cleanCtx(title), prev: more[k], prevSubj: subjectOfClause(more[k]), score: keyScore(sp2, freq), text: pagePlain })) add(r.kind, b.id, r.typeId, r.fields, r.score, r.extra); });
+        }
         continue;
       }
     }

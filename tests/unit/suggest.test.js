@@ -472,3 +472,18 @@ test('verdadero o falso: otra respuesta del mismo tipo en su sitio, la excepció
   assert.ok(b.some(([s]) => s === 'Las bacterias son eucariotas.'), b.join('\n'));
   assert.ok(b.some(([s, , n]) => s === 'Los cloroplastos están en todas las células y realizan la fotosíntesis.' && n === 'Falso: solo están en las células vegetales.'), b.join('\n'));
 });
+
+test('para entender: «Por eso» y «porque» → Explícalo; «a diferencia de» → ¿En qué se diferencian…?; «si…» → ¿Qué pasaría si…? con efectos que suben o bajan; nunca marcadas', () => {
+  const r = paste('La célula\n\nLa mitocondria produce la energía de la célula mediante la respiración celular. Por eso las células musculares tienen muchas mitocondrias.\nA diferencia de las células animales, las vegetales tienen pared celular de celulosa.\nEl hielo flota porque es menos denso que el agua líquida.\nGran parte de lo que aprendes hoy se habrá ido en unos pocos días si no vuelves a ello.');
+  const all = r.flatMap(s => [s, ...(s.alts || [])]);
+  const ex = all.filter(s => s.typeId === 'explain').map(s => [s.fields.q, s.fields.k]);
+  assert.deepEqual(ex, [
+    ['Explícalo: ¿por qué las células musculares tienen muchas mitocondrias?', 'Porque la mitocondria produce la energía de la célula mediante la respiración celular'],
+    ['¿En qué se diferencian las células vegetales de las animales?', 'Las células vegetales tienen pared celular de celulosa'],
+    ['Explícalo: ¿por qué el hielo flota?', 'Porque es menos denso que el agua líquida'],
+  ]);
+  const wi = all.find(s => s.typeId === 'whatif');
+  assert.equal(wi.fields.s, '¿Qué pasaría si no vuelves a lo que aprendes hoy?');
+  assert.equal(wi.fields.e, 'Lo que recuerdas en unos pocos días: baja');
+  assert.ok(all.filter(s => ['explain', 'whatif'].includes(s.typeId)).every(s => !s.selected));
+});
