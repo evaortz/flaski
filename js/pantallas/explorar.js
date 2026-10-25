@@ -26,7 +26,7 @@ async function loadExplore(force) {
 // Filtros por objetivo (los que tienen algo) y lo que sale en cada uno
 const GOALS = [['all', 'Todo'], ['idiomas', 'Idiomas'], ['oposiciones', 'Oposiciones'], ['carrera', 'Carrera'], ['amigos', 'De tus amigos']];
 const GOAL_TITLE = { idiomas: 'Idiomas', oposiciones: 'Oposiciones', carrera: 'Carrera' };
-const ownTema = t => [...S.pages.values()].find(p => p.title === t.title || p.title?.startsWith(t.title + ' ('));
+const ownTema = t => [...S.pages.values()].find(p => p.title === t.title || p.title === t.page);
 const friendIds = () => new Set((S.friends?.list || []).map(f => f.id));
 export function renderExplore() {
   if (!S.pub || !S.builtin) {

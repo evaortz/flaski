@@ -11,6 +11,7 @@ import { openOnboarding } from '../onboarding.js';
 import { openFirstRun, TEMAS, fileKind, temaCards } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
 import { folderKey, normalizeWeights } from '../plan.js';
+import { maybeResumeSim } from './simulacro.js';
 import { markdownToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
@@ -156,6 +157,7 @@ export async function onSignedIn(session) {
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
+    maybeResumeSim();
     maybeIntro();
     maybeNews();
     pushAutoSync();

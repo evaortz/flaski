@@ -8,8 +8,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 // Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo
 export const TEMAS = [
-  { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35 },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Cómo funciona la memoria y por qué repasar así', drawing: 'brujula', objetivo: 'destacado', count: 17 },
+  { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35, page: 'La Constitución Española · Título Preliminar' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Cómo funciona la memoria y por qué repasar así', drawing: 'brujula', objetivo: 'destacado', count: 17, page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
 ];
 // Las preguntas de un tema de ejemplo (temas/*.json, las que debería sacar un buen sugeridor) como preguntas de
 // Flaski: { typeId, fields, answer } (answer: el texto con el que se busca su bloque en el apunte)

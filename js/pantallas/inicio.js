@@ -182,7 +182,8 @@ function examHTML() {
     <span class="hoy-cal" aria-hidden="true"><i></i><b>${d.getDate()}</b></span>
     <span class="hoy-exam-t"><small>Examen de ${esc(examName(next.key))} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>
       <span class="${cls}">${say} · ver el plan</span></span>
-    ${icon('chevron-right', { size: 18 })}</button>`;
+    ${icon('chevron-right', { size: 18 })}</button>
+    ${ex.days >= 0 && ex.days < 30 ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(next.key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
 }
 
 // «mar 14» a partir de una clave AAAA-MM-DD

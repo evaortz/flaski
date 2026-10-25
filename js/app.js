@@ -35,7 +35,7 @@ import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practic
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
 import { renderPlan, renderExam, renderPlanStart, planClick, removeExam } from './pantallas/plan.js';
-import { simClick, renderSim } from './pantallas/simulacro.js';
+import { simClick, renderSim, simKey } from './pantallas/simulacro.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
 /* ===================== navegación ===================== */
@@ -67,9 +67,9 @@ export function render() {
   if (S.view === 'decks' && !S.folderId) S.view = 'library';
   if (S.view === 'library') Object.assign(S, { folderId: null, noteFolder: null });
   if (S.view === 'decks') S.noteFolder = S.folderId;
-  $('#nav').hidden = !authed || S.view === 'study';
+  $('#nav').hidden = !authed || S.view === 'study' || (S.view === 'sim' && (S.simShow ? S.simShow.mode !== 'answers' : !!S.sim));
   document.body.classList.toggle('no-nav', $('#nav').hidden);
-  document.body.classList.toggle('in-study', authed && S.view === 'study' && !document.body.classList.contains('study-sheet'));
+  document.body.classList.toggle('in-study', authed && (S.view === 'study' || (S.view === 'sim' && !S.simShow?.mode?.startsWith('answers'))) && !document.body.classList.contains('study-sheet'));
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
@@ -962,6 +962,7 @@ $('#importFile').addEventListener('change', e => { const f = e.target.files?.[0]
 document.addEventListener('keydown', e => {
   if (e.target.matches?.('[data-block-input]')) return blockKey(e);
   if (rvKey(e)) return;
+  if (simKey(e)) return;
   if (e.target.matches?.('.tc')) return tableKey(e);
   if (e.key === 'Escape' && S.mapSel && $('#sheet').hidden) { clearMapSel(); return; }
   if (e.key === 'Escape' && e.target.id === 'f-newtag' && e.target.closest('.tagpick.compact')) { e.preventDefault(); redrawTagPicker(); $('#tagPick .tag-add')?.focus(); return; }

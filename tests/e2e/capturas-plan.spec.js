@@ -40,3 +40,39 @@ test('explorar', async ({ page }, info) => {
   await nav(page, 'Explorar');
   await page.screenshot({ path: `test-results/plan/${info.project.name}-7-explorar.png`, fullPage: true });
 });
+
+test('simulacro', async ({ page }, info) => {
+  const dir = `test-results/plan/${info.project.name}-sim-`;
+  await openApp(page);
+  await nav(page, 'Explorar');
+  await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click();
+  await page.locator('[data-ex="add-tema"]').first().click();
+  await expect(page.locator('.ex-row [data-ex="open-tema"]')).toBeVisible();
+  await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const deck = [...S.decks.values()][0], now = Date.now();
+    for (const c of S.cards.values()) S.progress.set(c.id, { reps: 2, interval: 10, ease: 2.5, lapses: 0, due: now + 9 * 864e5, last: now - 864e5 });
+    S.prefs.plan.nodes[deck.id] = { exam: addDays(dayKey(), 20), lastWeek: true, after: 'reviews' };
+    const t = dayKey();
+    S.prefs.sims = [5.9, 6.1, 5.8].map((v, i) => ({ id: 'old' + i, exam: deck.id, at: i, done: i, date: addDays(t, -21 + i * 7), name: 'Constitución', settings: { n: 20, time: 30, pen: 3 }, n: 20, min: 19, score: v, ok: 14, bad: 4, blank: 2, topics: [], qs: null }));
+  });
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  await page.locator('.pe-row').first().click();
+  await page.screenshot({ path: dir + '1-ficha.png', fullPage: true });
+  await page.locator('[data-sim="prep"]').click();
+  await page.screenshot({ path: dir + '2-preparar.png', fullPage: true });
+  await page.locator('[data-sim="start"]').click();
+  const kinds = await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.sim.qs.map(q => q.kind)));
+  const ci = kinds.indexOf('choice');
+  for (let i = 0; i < ci; i++) await page.locator('[data-sim="next"]').click();
+  await page.locator('.sm-choices .choice').nth(2).click();
+  await page.locator('[data-sim="flag"]').click();
+  await page.screenshot({ path: dir + '3-pregunta.png', fullPage: true });
+  await page.locator('.sm-clock').click();
+  await page.screenshot({ path: dir + '4-entregas.png', fullPage: true });
+  await page.locator('[data-sim="submit"]').click();
+  await page.screenshot({ path: dir + '5-nota.png', fullPage: true });
+  await page.locator('[data-sim="answers"]').click();
+  await page.screenshot({ path: dir + '6-respuestas.png', fullPage: true });
+});
