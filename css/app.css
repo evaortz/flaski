@@ -3236,7 +3236,7 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 .rv-intro{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:15px;margin:4px 0 18px}
 .rv-intro svg{flex:none;margin-top:3px}
 .pg-body.is-review{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
-@media (min-width:1100px){.pg-body.is-review{grid-template-columns:minmax(0,1fr) 300px;align-items:start}.rv-panel{position:sticky;top:16px}}
+@media (min-width:1100px){.pg-body.is-review{grid-template-columns:minmax(0,1fr) 300px;align-items:start}.rv-panel{position:sticky;top:64px}}
 .is-review .pg-blocks{position:relative}
 .is-review .nb-grip,.is-review .nb-del,.is-review .nb-sec,.is-review .nb-fold{display:none}
 .rv-gap{display:inline-block;min-width:var(--w,4ch);min-height:1.35em;vertical-align:baseline;padding:0 6px;margin:0 1px;border:1.5px dashed var(--line-strong);border-radius:8px;background:var(--soft);color:inherit;font:inherit;line-height:1.35;cursor:pointer}
@@ -3266,6 +3266,12 @@ body.in-study .card :is(.front,.answer) .fld-sub.fld-kana .fld-v,.pv-card :is(.f
 .rv-help,.rv-keys{font-size:13.5px;color:var(--muted);margin:14px 0 0}
 .rv-keys kbd{font:inherit;font-size:12.5px;border:1px solid var(--line-strong);border-radius:6px;padding:0 6px}
 .rv-foot{display:none}
+/* Mientras se repasa, «Escribir | Repasar» queda arriba a la vista para poder salir */
+.pg-top.is-review{position:sticky;top:0;z-index:40;background:var(--bg);padding-top:calc(env(safe-area-inset-top,0px) + 4px);padding-bottom:4px;margin-top:calc(-4px - env(safe-area-inset-top,0px))}
+.rv-quitrow{margin:14px 0 0}
+.rv-quit{font-size:14px;font-weight:600;color:var(--muted)}
+.rv-foot .rv-quit{display:block;margin:6px auto 0;min-height:44px}
+@media (max-width:899px){.rv-panel .rv-quitrow{display:none}}
 @media (max-width:1099px){
   .rv-panel{order:-1}
   .rv-panel .rv-help,.rv-panel .rv-keys,.rv-panel .rv-nh,.rv-panel .rv-bad{display:none}

@@ -138,3 +138,29 @@ test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como 
   await nav(page, 'Hoy');
   await expect(page.locator('#sheetBody')).toContainText('«Manzanares»');
 });
+
+test('Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar', async ({ page }) => {
+  const long = Array.from({ length: 40 }, (_, i) => `Frase ${i + 1} con **dato ${i + 1}** para repasar.`).join('\n\n');
+  await notes(page, `# Largo\n\n${long}`);
+  const write = page.locator('.pg-top [data-act="pg-mode"][data-mode="write"]');
+  // ✕ Salir de repasar (en el panel de «Destapar» en el móvil; en el panel de al lado en el ordenador)
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await page.locator('.rv-quit:visible').click();
+  await expect(page.locator('.rv-gap')).toHaveCount(0);
+  await expect(page.locator('#pgBlocks [data-edit-block]').first()).toBeAttached();
+  // Al bajar por el apunte, la barra sigue arriba
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await expect(page.locator('.rv-gap')).toHaveCount(40);
+  await page.locator('.rv-gap').last().scrollIntoViewIfNeeded();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(400);
+  await expect(write).toBeInViewport();
+  await expect(page.locator('.rv-quit:visible')).toBeInViewport();
+  // El botón atrás sale de Repasar y se queda en el apunte
+  await page.goBack();
+  await expect(page.locator('.rv-gap')).toHaveCount(0);
+  await expect(page.locator('#pgTitle')).toHaveValue('Largo');
+  // Salir con el botón no deja una entrada de más: atrás ya no vuelve a Repasar
+  await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
+  await write.click();
+  await expect.poll(() => page.evaluate(() => history.state?.flaskiRv ?? null)).toBeNull();
+});

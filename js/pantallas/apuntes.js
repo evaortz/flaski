@@ -174,7 +174,7 @@ export function renderPage() {
   if (!withMap && mapOn(scope)) S.mapView = null;
   const rv = rvOn(p), mapped = !rv && withMap && mapOn(scope);
   const prop = (ic, label, value, forId = '') => `<div class="prop"><${forId ? `label for="${forId}"` : 'span'} class="prop-k">${icon(ic, { size: 16 })} ${label}</${forId ? 'label' : 'span'}><div class="prop-v">${value}</div></div>`;
-  main.innerHTML = `<div class="pg-top">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
+  main.innerHTML = `<div class="pg-top${rv ? ' is-review' : ''}">${noteCrumbs(pageFolder(p), pageTitle(p))}<span class="spacer"></span>
       ${modeSeg(p)}
       <span id="pgSaved" class="pg-saved" aria-live="polite"></span>
       ${S.session ? '<button class="primary small-btn" data-act="back-study">Volver al estudio</button>' : ''}

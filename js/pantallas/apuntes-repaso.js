@@ -139,8 +139,12 @@ export function startReview() {
   if (!items.length) { toast('No hay nada que tapar: pon en negrita lo que quieras repasar'); return; }
   S.mapView = null;
   S.rv = { pageId: p.id, items, i: 0, revealed: false, res: new Map(), shownAt: Date.now(), made: false };
+  // Una entrada en el historial: el botón atrás del móvil sale de Repasar en vez de irse del apunte
+  if (!history.state?.flaskiRv) history.pushState({ flaskiRv: p.id }, '');
   renderPage();
 }
+// Botón atrás (Android) con Repasar abierto: sale de Repasar
+addEventListener('popstate', () => { if (rvOn()) stopReview(); });
 // Salir de Repasar (a mitad o al final): si fallaste cosas que aún no son pregunta, se proponen como «Hueco»
 export function stopReview() {
   const R = rvLeave();
@@ -152,6 +156,8 @@ export function stopReview() {
 export function rvLeave() {
   const R = S.rv;
   S.rv = null;
+  // Se quita la entrada que puso Repasar (si no se ha salido ya con el botón atrás)
+  if (R && history.state?.flaskiRv) history.back();
   return R && !R.made && failed(R).some(x => !x.cardId) ? R : null;
 }
 export function rvOffer(R) {
@@ -196,20 +202,22 @@ function drawReviewPanel() {
   const segs = R.items.map(it => `<i class="${R.res.has(it.k) ? `g${R.res.get(it.k)}` : it.k === R.items[R.i]?.k && !R.done ? 'is-cur' : ''}"></i>`).join('');
   const sum = GRADES.filter(([g]) => n[g]).map(([g, l]) => `${l} ${n[g]}`).join(' · ');
   const bad = failed(R), toMake = bad.filter(it => !it.cardId);
+  const quit = '<button type="button" class="link rv-quit" data-act="pg-mode" data-mode="write">✕ Salir de repasar</button>';
   box.innerHTML = `<div class="rv-card"><div class="rv-h"><h3>${R.done ? 'Repaso hecho' : 'Repasando'}</h3><span>${Math.min(done + (R.done ? 0 : 1), total)} de ${total}</span></div>
       <span class="rv-segs">${segs}</span>${sum ? `<p class="rv-sum">${sum}</p>` : ''}
       ${R.done ? `<div class="rv-end">${toMake.length && !R.made ? `<button type="button" class="primary" data-act="rv-make">Crear ${toMake.length === 1 ? '1 pregunta' : `${toMake.length} preguntas`} «Hueco»</button>` : ''}
         <button type="button" class="ghost" data-act="rv-again">Repasar otra vez</button><button type="button" class="link" data-act="pg-mode" data-mode="write">Volver a escribir</button></div>` : ''}</div>
     ${bad.length ? `<h4 class="rv-nh">Lo que no te sale</h4><ul class="rv-bad">${bad.map(it => `<li><span>${toLiveHTML(it.text)}</span>${it.cardId ? '<em>ya es pregunta</em>' : ''}</li>`).join('')}</ul>` : ''}
     <p class="rv-help">Son los mismos 4 botones de la tanda: si ya es pregunta, cuenta como un repaso más y decide cuándo vuelve. Si no, al terminar te proponemos crearla como «Hueco», unida a su frase.</p>
-    <p class="rv-keys"><kbd>Espacio</kbd> destapar · <kbd>1–4</kbd> igual que en una tanda · <kbd>Esc</kbd> volver a escribir</p>`;
+    <p class="rv-keys"><kbd>Espacio</kbd> destapar · <kbd>1–4</kbd> igual que en una tanda · <kbd>Esc</kbd> volver a escribir</p>
+    ${R.done ? '' : `<p class="rv-quitrow">${quit}</p>`}`;
   // Los botones: junto a lo destapado (ordenador) o abajo, fijos (móvil)
   const it = R.items[R.i];
   const grades = `<div class="rv-grades">${GRADES.map(([g, l]) => `<button type="button" class="grade g${g}" data-rv-grade="${g}"><small>${g}</small> ${l}</button>`).join('')}</div>`;
   if (foot) {
     foot.hidden = !!R.done;
-    foot.innerHTML = R.done ? '' : R.revealed ? `<p class="rv-ask">¿Cómo te ha salido «${esc(toPlain(it.text).replace(/[:：]\s*$/, ''))}»?</p>${grades}`
-      : `<button type="button" class="primary big rv-open" data-act="rv-reveal">Destapar</button><p class="rv-tip">Toca un hueco para destaparlo · lo que falles y no sea pregunta, te lo propongo al final</p>`;
+    foot.innerHTML = R.done ? '' : (R.revealed ? `<p class="rv-ask">¿Cómo te ha salido «${esc(toPlain(it.text).replace(/[:：]\s*$/, ''))}»?</p>${grades}`
+      : `<button type="button" class="primary big rv-open" data-act="rv-reveal">Destapar</button><p class="rv-tip">Toca un hueco para destaparlo · lo que falles y no sea pregunta, te lo propongo al final</p>`) + quit;
   }
   document.querySelector('.rv-float')?.remove();
   const cur = it && !R.done && R.revealed && document.querySelector(`.rv-gap[data-rv="${it.k}"]`);
