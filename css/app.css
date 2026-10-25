@@ -4149,3 +4149,6 @@ body.in-study:has(.card[data-swipe=right]) .grade.g3,body.in-study:has(.card[dat
   .card.swipeable[data-swipe=down]::after,.card.swipeable[data-swipe=up]::after{transform:translateX(-50%)}
   body.in-study:has(.card[data-swipe]) .grade,.sw-lit{transition:none;transform:none!important}
 }
+/* Tanda sin conexión: el aviso ocupa el sitio del título de la lista (que se esconde mientras se ve), sin mover la tarjeta */
+body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidden}
+@media (max-width:959px){body.in-study:not(.signed-out) .top{top:calc(env(safe-area-inset-top,0px) + 12px)}}
