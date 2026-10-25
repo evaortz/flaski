@@ -1,14 +1,9 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v185';
+const VERSION = 'flaski-v186';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
-// El vídeo de Novedades (y su portada) va en su propia caché: no cambia entre versiones, así que se baja una
-// vez y no con cada versión nueva. Si cambia el vídeo, sube MEDIA.
-const MEDIA = 'flaski-media-v1';
-const MEDIA_FILES = ['./media/flaski-lo-nuevo-720x1280.mp4', './media/portada.jpg'];
-const isMedia = u => u.origin === location.origin && u.pathname.startsWith(new URL('./media/', self.registration.scope).pathname);
 const SHELL = [
   './',
   './index.html',
@@ -63,19 +58,13 @@ const SHELL = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(Promise.all([caches.open(VERSION).then(c => c.addAll(SHELL)), saveMedia()]).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
-// Lo que falte del vídeo se guarda; si no se puede (sin conexión), la app se instala igual
-const saveMedia = () => caches.open(MEDIA).then(c => Promise.all(MEDIA_FILES.map(async f => {
-  if (await c.match(f)) return;
-  const res = await fetch(f, { cache: 'no-cache' });
-  if (res.status === 200) await c.put(f, res);
-}))).catch(() => {});
 
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== STROKES && k !== FONTS && k !== MEDIA).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== STROKES && k !== FONTS).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -115,39 +104,12 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// El vídeo: de su caché (o de la red la primera vez). Los navegadores lo piden por trozos («Range»): se
-// responde con el trozo pedido, que es lo que Safari necesita para reproducirlo.
-self.addEventListener('fetch', e => {
-  const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || !isMedia(u)) return;
-  e.respondWith((async () => {
-    const c = await caches.open(MEDIA), key = new URL(u.pathname, location.origin).href;
-    let res = await c.match(key);
-    if (!res) {
-      // Sin copia: a la red tal cual (con su «Range»), y se guarda entero aparte
-      fetch(key, { cache: 'no-cache' }).then(r => r.status === 200 && c.put(key, r)).catch(() => {});
-      return fetch(e.request);
-    }
-    const range = /bytes=(\d*)-(\d*)/.exec(e.request.headers.get('range') || '');
-    if (!range) return res;
-    const buf = await res.arrayBuffer(), size = buf.byteLength;
-    let a = range[1] === '' ? size - Number(range[2]) : Number(range[1]);
-    let z = range[1] === '' || range[2] === '' ? size - 1 : Math.min(size - 1, Number(range[2]));
-    a = Math.max(0, a);
-    if (a > z) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
-    return new Response(buf.slice(a, z + 1), { status: 206, headers: {
-      'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Content-Range': `bytes ${a}-${z}/${size}`,
-      'Content-Length': String(z - a + 1), 'Accept-Ranges': 'bytes',
-    } });
-  })());
-});
-
 // Archivos de la propia app: primero la red (para tener siempre lo último), si falla, la copia guardada.
 // A la red se pregunta siempre (cache: 'no-cache'): una copia vieja en la caché del navegador mezclaría
 // módulos de dos versiones. Todo lo demás (Supabase, otras fuentes, librerías) va directo a la red.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || isMedia(url)) return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   // (una petición de navegación no se puede copiar con opciones: se pide por su dirección)
   const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(

@@ -51,11 +51,12 @@ npx playwright test                       # movil + escritorio
 
 ## Novedades al publicar algo visible
 
-1. Edita la lista en `js/news.js` (`ITEMS`: icono, título y frase) y, si hay vídeo nuevo, cámbialo en `media/`
-   (y sube `MEDIA` en `sw.js` para que se vuelva a bajar).
-2. Sube `NEWS_VERSION` (año-mes, con `-2`, `-3`… si hay más de una en el mes; actual `'2026-10-2'`) para que salgan una vez
-   a quien no las haya visto. `NEWS_ALWAYS` debe quedar en `false`.
-3. Las capturas de la bienvenida se regeneran con `npx playwright test --config capturas.config.js` (`img/onboarding/`).
+1. Edita las pantallas en `js/news.js` (`SLIDES`: `id`, `title`, `text`, `alt`).
+2. Sube `NEWS_VERSION` (formato actual `'2026-10'`) para que se muestren una vez a quien no las haya visto.
+   `NEWS_ALWAYS` debe quedar en `false`.
+3. Prepara la captura en `tests/novedades.spec.js` (o `capturas.spec.js` para la bienvenida) y regenera:
+   `npx playwright test --config capturas.config.js` (salen en `img/novedades/` y `img/onboarding/`, claro y oscuro).
+4. Si añades imágenes nuevas que deban ir sin conexión, valora añadirlas al `SHELL`.
 
 ## Commits
 

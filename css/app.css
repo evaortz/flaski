@@ -1560,19 +1560,20 @@ a.wl:hover{text-decoration:underline}
 :root{--font-head:"General Sans",var(--font)}
 h1,h2,h3,h4,#pgTitle.pg-title,.nb-h1 .nb-text,.nb-h2 .nb-text,.nb-h3 .nb-text,.nb-h1 .nb-input,.nb-h2 .nb-input,.nb-h3 .nb-input,
 .ed-title > span,.help-h,.toc-h,.ob-mark,.brand .name,.brand .mark{font-family:var(--font-head);letter-spacing:-.005em}
-/* Novedades: el vídeo «Lo nuevo» arriba y lo mismo en texto debajo */
-.news-body{width:100%;max-width:520px;margin:0 auto;padding:0 20px calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:20px}
-.news-body h1{font-family:var(--font-hand);font-weight:400;font-size:34px;line-height:1.1;margin:0;text-align:center}
-.news-video{position:relative;width:min(100%,360px,calc(62dvh * 720 / 1280));margin:0 auto;aspect-ratio:720/1280;flex:none;border-radius:24px;overflow:hidden;background:#141414}
-.news-video video{display:block;width:100%;height:100%;object-fit:cover}
-.news-play{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 20px;border:0;border-radius:99px;background:#fff;color:#16183A;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-.news-items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.news-items li{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.4;color:var(--muted)}
-.news-items li:last-child{border-bottom:0}
-.news-items .lu{flex:none;margin-top:2px;color:var(--fg)}
-.news-items b{display:block;color:var(--fg);font-weight:600}
-.news-btns{display:flex;flex-direction:column;gap:10px}
-@media (min-width:600px){.news-btns{flex-direction:row-reverse}.news-btns button{flex:1}}
+/* Novedades (mismo diseño que la bienvenida) */
+.news .ob-mark{color:var(--bg)}
+.news-list li{padding:0;background:none}
+.news-jump{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--soft);color:var(--muted);font:inherit;font-size:15px;line-height:1.35;text-align:left;cursor:pointer}
+.news-jump:hover{background:var(--hover)}
+.news-jump b{color:var(--fg);font-weight:600}
+.news-jump .lu{flex:none;color:var(--fg)}
+.news-jump .chev{margin-left:auto;color:var(--faint)}
+@media (min-width:900px){
+  .news .ob-body:not(.ob-welcome){flex-direction:row;gap:56px}
+  .news .ob-body:not(.ob-welcome) .ob-phone{width:min(300px,calc((100dvh - 190px) * 390 / 760))}
+  .news .ob-body:not(.ob-welcome) .ob-copy{text-align:left;max-width:440px}
+  .news .ob-copy h2{font-size:28px}
+}
 /* Editor de tablas, como una hoja de cálculo: números de fila y menú en cada cabecera, siempre a la vista */
 .tbl-ed{padding-left:0}
 .tbl-tools button:not(.tbl-done):not(.danger){color:var(--fg)}

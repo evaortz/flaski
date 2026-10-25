@@ -77,8 +77,8 @@ Objetivo: gráficos **mínimos, que «no parezcan hechos con IA»**. Reglas:
 
 ## Novedades y bienvenida
 
-- La bienvenida (`.ob-*`): pantallas con título corto, una o dos frases claras y una captura real de la app en claro y
-  oscuro (`img/onboarding`), regeneradas con Playwright. Novedades es una hoja con el vídeo «Lo nuevo» y la lista en texto.
+- Mismo diseño en las dos (`.ob-*`): pantallas con título corto, una o dos frases claras y una captura real de la app
+  en claro y oscuro (`img/onboarding`, `img/novedades`), regeneradas con Playwright.
 
 ## Lo que no hacer
 
