@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rápido y sin conexión.
 // Cuando cambies cualquier archivo de la app, sube el número de versión
 // para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v209';
+const VERSION = 'flaski-v210';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const SHELL = [
@@ -28,7 +28,7 @@ const SHELL = [
   './js/tts.js',
   './js/handwriting.js',
   './js/icons.js', './js/dibujos.js', './js/primera-vez.js',
-  './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md',
+  './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md', './temas/tema-curva-olvido.svg', './temas/tema-repasos.svg',
   './js/vendor/hanzi-writer.min.js',
   './js/vendor/supabase.js',
   './js/outbox.js',

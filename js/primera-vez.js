@@ -9,15 +9,20 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // Temas de ejemplo (carpeta temas/): para quien no tiene nada que subir; también entran en los datos de ejemplo
 export const TEMAS = [
   { file: 'temas/constitucion-titulo-preliminar.md', cards: 'temas/constitucion-titulo-preliminar.json', title: 'La Constitución · Título Preliminar', text: 'Para oposiciones: los artículos 1 a 9', drawing: 'balanza-color', objetivo: 'oposiciones', count: 35, page: 'La Constitución Española · Título Preliminar' },
-  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, old: 'temas/por-que-se-te-olvidan-las-cosas.v1.json', page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
+  { file: 'temas/por-que-se-te-olvidan-las-cosas.md', cards: 'temas/por-que-se-te-olvidan-las-cosas.json', title: 'Por qué se te olvidan las cosas', text: 'Un recorrido por todos los tipos de pregunta', drawing: 'brujula', objetivo: 'destacado', count: 17, old: ['temas/por-que-se-te-olvidan-las-cosas.v2.json', 'temas/por-que-se-te-olvidan-las-cosas.v1.json'], page: 'Por qué se te olvidan las cosas (y cómo evitarlo)' },
 ];
 // El id de origen de un tema de ejemplo (va en «source» de su lista: «tema:constitucion-titulo-preliminar»)
 export const temaSource = t => 'tema:' + String(t.cards || '').replace(/^.*\//, '').replace(/\.json$/, '');
 // Las preguntas de un tema de ejemplo (temas/*.json, las que debería sacar un buen sugeridor) como preguntas de
 // Flaski: { typeId, fields, answer } (answer: el texto con el que se busca su bloque en el apunte)
 const items = r => String(r).split(' · ').map(x => x.trim()).filter(Boolean);
+// «nota»: una línea más que sale al ver la respuesta (en el campo de nota; en la de huecos, en «Extra»)
 export function temaCards(list) {
-  return list.map(x => ({ ...temaCard(x), ...(x.bloque ? { block: x.bloque } : {}) }));
+  return list.map(x => {
+    const c = temaCard(x);
+    if (x.nota) c.fields[c.typeId === 'cloze' ? 'e' : 'n'] = x.nota;
+    return { ...c, ...(x.bloque ? { block: x.bloque } : {}) };
+  });
 }
 function temaCard(x) {
   {

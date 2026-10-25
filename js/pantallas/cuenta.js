@@ -17,7 +17,7 @@ import { markdownToPage, plainTextToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
-import { setRemote as setImageRemote } from '../media.js';
+import { setRemote as setImageRemote, storeImage, flushUploads } from '../media.js';
 import { $, main, S, esc, toast, errMsg, fail, counts, fold } from '../comun.js';
 import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
@@ -203,7 +203,7 @@ export async function migrateEntender() {
   const maybe = [...S.cards.values()].filter(c => c.type_id === 'basic' && /^(Explica|¿Qué pasaría)/.test(c.fields?.q || ''));
   if (!maybe.length) return 0;
   // (también las listas de antes de los temas que han cambiado)
-  const lists = await Promise.all(TEMAS.flatMap(t => [t.cards, t.old].filter(Boolean)).map(u => fetch(u).then(r => r.json()).catch(() => [])));
+  const lists = await Promise.all(TEMAS.flatMap(t => [t.cards, ...(t.old || [])]).map(u => fetch(u).then(r => r.json()).catch(() => [])));
   const want = new Map();
   for (const list of lists) for (const [i, nu] of temaCards(list).entries()) if (nu.typeId === 'explain' || nu.typeId === 'whatif') want.set(list[i].pregunta, { ...nu, a: list[i].respuesta });
   let n = 0;
@@ -231,9 +231,10 @@ export async function migrateTemas() {
   for (const t of TEMAS.filter(t => t.old)) {
     const src = temaSource(t), decks = [...S.decks.values()].filter(d => d.source === src);
     if (!decks.length) continue;
-    const [now, before] = await Promise.all([t.cards, t.old].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()).catch(() => null)));
-    if (!now || !before) continue;
-    const oldKeys = new Set(temaCards(before).map(x => noteKey(x.fields)));
+    // (las preguntas de cualquiera de sus versiones de antes)
+    const [now, ...befores] = await Promise.all([t.cards, ...t.old].map(u => fetch(u, { cache: 'no-cache' }).then(r => r.json()).catch(() => null)));
+    if (!now || !befores.some(Boolean)) continue;
+    const oldKeys = new Set(befores.filter(Boolean).flatMap(b => temaCards(b).map(x => noteKey(x.fields))));
     for (const d of decks) {
       const notes = new Map();
       for (const c of [...S.cards.values()].filter(c => c.deck_id === d.id)) (notes.get(c.note_id || c.id) || notes.set(c.note_id || c.id, []).get(c.note_id || c.id)).push(c);
@@ -338,6 +339,19 @@ function restoredNotice() {
 }
 /* ===================== primera vez ===================== */
 // Un tema de ejemplo como apunte (también para los datos de ejemplo de ?local)
+// Las imágenes que cita el apunte de un tema (img:<id>, en temas/<id>.svg), guardadas antes de crear y pintar el
+// apunte para que salgan ya cargadas
+export async function storeTemaImages(blocks) {
+  const ids = new Set((blocks || []).flatMap(b => [b.type === 'img' ? b.src : '', ...[...String(b.text || '').matchAll(/img:([\w-]+)/g)].map(m => m[1])]).filter(Boolean));
+  let n = 0;
+  for (const id of ids) {
+    const r = await fetch(`temas/${id}.svg`, { cache: 'no-cache' }).catch(() => null);
+    if (!r?.ok) continue;
+    await storeImage(id, new Uint8Array(await r.arrayBuffer()), 'image/svg+xml');
+    n++;
+  }
+  if (n) flushUploads();
+}
 export async function readTema(t) {
   const md = await (await fetch(t.file, { cache: 'no-cache' })).text();
   return { ...markdownToPage(md, t.file), name: t.title, kind: 'example', cards: t.cards };
@@ -391,6 +405,7 @@ async function firstRunChosen(choice) {
     if (kind === 'anki') return go('decks', { folderId });
     if (kind === 'ia') { go('decks', { folderId }); return pasteSheet(); }
     const { title, blocks } = choice.page;
+    if (choice.page.cards) await storeTemaImages(blocks);
     const p = { id: api.newId(), owner: S.uid, title: title || '', icon: '', deck_id: null, folder_id: folderId, tags: [], blocks };
     S.pages.set(p.id, p);
     savePageSoon(p, 0);

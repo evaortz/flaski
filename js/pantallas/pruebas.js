@@ -4,7 +4,7 @@ import { toRow } from '../rows.js';
 import { dateKey } from '../srs.js';
 import { S, toast, fail, cardList } from '../comun.js';
 import { readBuiltin, importParsed } from './explorar.js';
-import { onSignedIn, readTema } from './cuenta.js';
+import { onSignedIn, readTema, storeTemaImages } from './cuenta.js';
 import { TEMAS, temaSource } from '../primera-vez.js';
 import { TAG_COLORS, tagColor } from '../org.js';
 import { makeSuggested, temaPicks } from './sugerencias.js';
@@ -71,6 +71,7 @@ export async function addTema(t) {
   const { title, blocks } = await readTema(t);
   let p = [...S.pages.values()].find(x => x.title === title);
   if (p && cardList().some(c => c.page_id === p.id)) return null;
+  await storeTemaImages(blocks);
   if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
   if (!p.deck_id || !S.decks.has(p.deck_id)) {
     // Una lista del tema que se quedó vacía (algo falló a medias): se reutiliza en vez de crear otra
