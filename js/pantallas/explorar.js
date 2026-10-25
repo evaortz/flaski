@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { cardsFromCSV } from '../csv.js';
 import { icon } from '../icons.js';
-import { isNotesDeck, notesToDeck } from '../notes.js';
+import { isNotesDeck, notesToDeck, dropTags, TOO_MANY_TAGS } from '../notes.js';
 import { importImages } from '../media.js';
 import { $, main, S, esc, fmt, norm, fold, toast, fail, cardList } from '../comun.js';
 import { plural, parseDeckFile, download } from './mazos.js';
@@ -201,6 +201,7 @@ function showPreview(byline) {
       ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
       : /^(incluido|compartido):/.test(p.source || '') && ownedDeck(p.source) ? '' : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
     ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
+    ${p.tagNames?.length > TOO_MANY_TAGS ? `<p class="muted small pv-tags">La IA ha puesto ${p.tagNames.length} etiquetas · <button type="button" class="link" data-act="drop-preview-tags">Quitarlas</button></p>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
     ${(() => {
@@ -238,6 +239,13 @@ export function previewImport(parsed, { source, baseName = 'Lista importada' }) 
   }
   S.preview = { ...parseDeckFile(parsed.data), source };
   showPreview('desde archivo Flaski');
+}
+
+// «Quitarlas»: la lista se añade sin sus etiquetas (sin volver a pintar la hoja: se queda lo que hayas elegido)
+export function dropPreviewTags(b) {
+  if (!S.preview) return;
+  S.preview = dropTags(S.preview);
+  b.closest('.pv-tags').textContent = 'Sin etiquetas: se añade sin ellas.';
 }
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */

@@ -45,8 +45,11 @@ test('los ejemplos de FORMATO-IA.md se importan enteros, tal como los daría una
 test('las etiquetas se crean y el mazo queda con su idioma al importar', async ({ page }) => {
   const { examples } = await docExamples();
   const ja = examples.find(e => /"lang": "ja-JP"/.test(e.json));
+  // (los ejemplos ya no llevan etiquetas: se le pone una, como si la pidieras)
+  const data = JSON.parse(ja.json);
+  data.notes.find(n => n.type === 'vocab').tags = ['lugares'];
   await openApp(page);
-  await paste(page, ja.json);
+  await paste(page, JSON.stringify(data));
   await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.locator('#cardRows')).toContainText('lugares');
   await expect(page.locator('#cardRows')).toContainText('Ordenar frase');
@@ -118,4 +121,28 @@ test('las instrucciones para IA se descargan desde la app', async ({ page }) => 
   await nav(page, 'Perfil');
   await page.locator('[data-nav="settings"]').click();
   await expect(page.locator('#main [data-act="download-ai-guide"]')).toBeVisible();
+});
+
+// Una lista que vuelve de la IA con una etiqueta distinta en cada nota: «La IA ha puesto 8 etiquetas · Quitarlas»
+test('pegar una lista con 8 etiquetas: «Quitarlas» la añade sin ellas y Biblioteca no tiene filtros nuevos', async ({ page }) => {
+  await openApp(page);
+  const notes = Array.from({ length: 8 }, (_, i) => ({ fields: { q: `Pregunta ${i + 1}`, a: `Respuesta ${i + 1}` }, tags: [`tema${i + 1}`] }));
+  await paste(page, JSON.stringify({ format: 'flaski-notes', name: 'Con etiquetas', notes }));
+  await expect(page.locator('#sheetBody .pv-tags')).toContainText('La IA ha puesto 8 etiquetas');
+  await page.locator('#sheetBody [data-act="drop-preview-tags"]').click();
+  await expect(page.locator('#sheetBody .pv-tags')).toContainText('Sin etiquetas');
+  await page.locator('#sheetBody [data-act="add-preview"]').click();
+  await expect(page.locator('#sheet')).toBeHidden();
+  const r = await page.evaluate(() => import('/js/comun.js').then(({ S }) => ({ tags: S.tags.size, cards: S.cards.size, tagged: [...S.cards.values()].filter(c => (c.tags || []).length).length })));
+  expect(r).toEqual({ tags: 0, cards: 8, tagged: 0 });
+  await nav(page, 'Biblioteca');
+  await expect(page.locator('#main [data-tagfilter]')).toHaveCount(0);
+});
+
+test('con pocas etiquetas no se ofrece quitarlas', async ({ page }) => {
+  await openApp(page);
+  const notes = [1, 2, 3].map(i => ({ fields: { q: `P${i}`, a: `R${i}` }, tags: ['verbos'] }));
+  await paste(page, JSON.stringify({ format: 'flaski-notes', name: 'Pocas', notes }));
+  await expect(page.locator('#sheetBody [data-act="add-preview"]')).toBeVisible();
+  await expect(page.locator('#sheetBody .pv-tags')).toHaveCount(0);
 });

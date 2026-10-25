@@ -78,6 +78,10 @@ function jsonError(json, e) {
 
 /* ---------------- Notas → tarjetas ---------------- */
 
+// Las etiquetas que trae una lista: si son muchas (las IAs ponen una distinta casi en cada nota), se ofrece quitarlas
+export const TOO_MANY_TAGS = 5;
+export const dropTags = d => ({ ...d, tagNames: [], cards: d.cards.map(c => ({ ...c, tagNames: [] })) });
+
 const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
 const langName = base => (LANGS.find(l => l.id.split('-')[0] === base)?.label || base).toLowerCase();
 
