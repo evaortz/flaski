@@ -52,7 +52,8 @@ export function score(x, s) {
     if (e.a !== g.a) return 0;
   } else if (cover(ea, ga) < 0.6 || cover(ga, ea) < 0.4) return 0;
   // En un hueco la pregunta es la frase entera: lo que cuenta es la frase sin la respuesta
-  if (s.typeId === 'cloze' || s.typeId === 'clozechoice') { for (const w of ga) gq.delete(w); for (const w of ea) eq.delete(w); }
+  if (s.typeId === 'cloze' || s.typeId === 'clozechoice') for (const w of ga) gq.delete(w);
+  if (s.typeId === 'cloze' || s.typeId === 'clozechoice' || x.tipo === 'cloze') for (const w of ea) eq.delete(w);
   const qe = cover(eq, gq), qg = cover(gq, eq);
   if (qe < 0.6 || qg < 0.35) return 0;
   return qe + qg;

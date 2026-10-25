@@ -1,5 +1,5 @@
 [
-  {"tipo": "cloze", "pregunta": "La Constitución fue ratificada en referéndum el {{6 de diciembre de 1978}}.", "respuesta": "6 de diciembre de 1978", "regla": "fecha_completa", "prioridad": "imprescindible", "existe_hoy": false},
+  {"tipo": "cloze", "tipo_alt": ["basic"], "pregunta": "La Constitución fue ratificada en referéndum el {{6 de diciembre de 1978}}.", "respuesta": "6 de diciembre de 1978", "regla": "fecha_completa", "prioridad": "imprescindible", "existe_hoy": false},
   {"tipo": "basic", "pregunta": "¿Cuándo aprobaron las Cortes la Constitución?", "respuesta": "31 de octubre de 1978", "regla": "fecha_completa", "prioridad": "deseable", "existe_hoy": false},
   {"tipo": "basic", "pregunta": "¿Cuándo sancionó el Rey la Constitución?", "respuesta": "27 de diciembre de 1978", "regla": "fecha_completa", "prioridad": "deseable", "existe_hoy": false},
   {"tipo": "basic", "pregunta": "¿Cuándo se publicó y entró en vigor la Constitución?", "respuesta": "29 de diciembre de 1978", "regla": "fecha_completa", "prioridad": "imprescindible", "existe_hoy": false},

@@ -94,6 +94,8 @@ export function grammarIssue(s) {
   if (/(?<![\p{L}])(?:de|del|a)\s+el(?![\p{L}])/u.test(t)) return 'del el';
   for (const [, end, n] of t.matchAll(/(?<![\p{L}])[Cc]uánt(os|as)\s+(\p{L}+)/gu)) if (!NOT_NOUN.test(n) && (end === 'as') !== (genderOf(n) === 'f')) return 'cuántos';
   if (VAGUE_REF.test(t)) return 'referencia';
+  if (/¿Qu[eé] (?:es|son) (?:el|la|los|las|lo) (?:y|e|o|u|ni|pero|que|qué|cómo|cuándo|dónde|si)(?![\p{L}])/iu.test(t)) return 'no es un término';
+  if (/(?<![.…])\.\.(?!\.)|…\./u.test(t)) return 'dos puntos seguidos';
   return '';
 }
 
@@ -357,6 +359,7 @@ export function emphasize(src) {
 // Títulos y términos que no dicen de qué («Estructura», «Reformas»): necesitan el apartado o el título del apunte
 const GENERIC_TOPIC = /^(definición|concepto|características|propiedades|funciones|función|estructura|tipos|clasificación|origen|orígenes|importancia|historia|evolución|causas|consecuencias|ventajas|inconvenientes|desventajas|partes|composición|ejemplos|aplicaciones|usos|descripción|funcionamiento|objetivos|etapas|fases|reformas|organización|contenido|requisitos|competencias|principios|naturaleza|objeto|ámbito|duración|sede|miembros|elementos|antecedentes|contexto)$/i;
 const TERM_VERB = /^\p{L}{3,}(?:ó|ió|aron|ieron)$/u;
+const NOT_TERM = /^(?:y|e|o|u|ni|pero|aunque|porque|pues|que|qué|cómo|como|cuándo|cuando|dónde|donde|por\s+qué|para\s+qué|quién|cuál|si|no|sí)(?![\p{L}])/iu;
 // «Efecto de espaciado» → ¿Qué es el efecto de espaciado? · «Descubrió la **curva del olvido**» → ¿Qué es la curva del olvido?
 // · con un término genérico, de qué: «Estructura» → ¿Cuál es la estructura de la Constitución Española?
 // (los nombres propios de varias palabras, como «Hermann Ebbinghaus», se quedan tal cual)
@@ -365,9 +368,13 @@ export function termQuestion(term, ctx = '') {
   const bold = /\*\*([^*]+)\*\*/.exec(t), lead = bold ? plainText(t.slice(0, bold.index)).trim().split(/\s+/).filter(Boolean) : [];
   if (bold && lead.length && lead.length <= 2 && TERM_VERB.test(lead[0]) && (lead.length === 1 || /^(el|la|los|las|un|una)$/i.test(lead[1]))) t = `${lead[1] ? lead[1] + ' ' : ''}${bold[1]}`;
   t = plainText(t).replace(/[:.]$/, '').trim();
-  if (/^(qué|cuál|cómo|quién|por qué|cuándo|dónde)(?![\p{L}])/iu.test(t) || /\?$/.test(t)) return capFirst(t.replace(/^¿?/, '¿').replace(/\??$/, '?'));
+  if (/\?$/.test(t)) return capFirst(t.replace(/^¿?/, '¿'));
+  if (NOT_TERM.test(t.replace(/^¿/, ''))) return '';
+  if (/^(qué|cuál|cómo|quién|por qué|cuándo|dónde)(?![\p{L}])/iu.test(t)) return capFirst(t.replace(/^¿?/, '¿').replace(/\??$/, '?'));
   const art = (/^(el|la|los|las)\s/i.exec(t) || [])[1]?.toLowerCase(), bare = t.replace(ARTICLE, '');
   const ws = words(bare);
+  // Un título que no es un término («Y dormir», «Cómo lo usa Flaski», «Que cueste un poco…», «Recordar enseña más…»): sin pregunta
+  if (NOT_TERM.test(bare) || (ws.length >= 3 && /^\p{L}+(?:ar|er|ir)$/iu.test(ws[0]))) return '';
   if (!ws.length || ws.length > 6 || (ws.length > 1 && isProperName(bare))) return t;
   const head = ws[0], plural = /s$/i.test(head) && singular(head) !== head.toLocaleLowerCase(), fem = genderOf(head) === 'f';
   const a = art || (plural ? (fem ? 'las' : 'los') : (fem ? 'la' : 'el'));
@@ -375,6 +382,20 @@ export function termQuestion(term, ctx = '') {
   if (/^(definición|concepto)$/i.test(bare) && ctx) return termQuestion(ctx);
   if (GENERIC_TOPIC.test(bare) && ctx) return `¿${plural ? 'Cuáles son' : 'Cuál es'} ${a} ${low} ${dePrep(ctx)}?`;
   return fixGrammar(`¿Qué ${plural ? 'son' : 'es'} ${a} ${low}?`);
+}
+
+// Una lista con título como pregunta: «Algunas dificultades deseables» → ¿Cuáles son algunas dificultades deseables?
+// · los subpuntos de un punto: «Núcleo» → ¿Qué incluye el núcleo?
+const DETERMINER = /^(el|la|los|las|un|una|unos|unas|algun[oa]s?|sus?|mis?|tus?|estos?|estas?|esos?|esas?|otr[oa]s?|vari[oa]s|much[oa]s|pocos|pocas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s/i;
+export function listQuestion(head, what = 'cuáles') {
+  const t = plainText(head).replace(/:$/, '').trim(), ws = words(t);
+  if (!ws.length) return '';
+  if (/\?$/.test(t)) return t;
+  const low = /^\p{Lu}\p{Ll}/u.test(t) && !(ws.length > 1 && isProperName(t)) ? t.charAt(0).toLocaleLowerCase() + t.slice(1) : t;
+  const plural = /s$/i.test(ws[0]) && singular(ws[0]) !== ws[0].toLocaleLowerCase(), fem = genderOf(ws[0]) === 'f';
+  const np = DETERMINER.test(t) || (ws.length > 1 && isProperName(t)) ? low : `${plural ? (fem ? 'las' : 'los') : (fem ? 'la' : 'el')} ${low}`;
+  if (what === 'incluye') return `¿Qué ${DETERMINER.test(t) ? (/s\s/i.test(t.split(/\s+/).slice(0, 2).join(' ') + ' ') ? 'incluyen' : 'incluye') : plural ? 'incluyen' : 'incluye'} ${np}?`;
+  return `¿Cuáles son ${np}?`;
 }
 
 /* ---------------- Reglas ---------------- */
@@ -652,10 +673,11 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     // Huecos: en una frase corta y nunca en un verbo (las listas ya van cortas: «los demás a la vista»)
     if (typeId === 'cloze' && !extra.list) {
       if (verbHole(fields.x)) return false;
-      extra = { src: norm(fields.x), ...extra };
+      // (src: la frase ya recortada; dos huecos se juntan como un dato solo si quedan en la misma frase y uno delata al otro)
       const x = trimCloze(fields.x);
       if (!x) return false;
       fields = { ...fields, x };
+      extra = { src: norm(x), ...extra };
     }
     const note = asNote(typeId, fields, isLangDeck);
     const type = TYPE(note.typeId);
@@ -723,6 +745,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   // Una lista de 5 elementos o más: un hueco por elemento, con los demás a la vista (cortos y en su orden), y «¿Cuántos…?»,
   // que lleva plegada la lista entera (la pregunta de toda la lista va en el mismo grupo)
   const listClozes = (blockId, lead, items, countQ) => {
+    items = items.map(t => t.replace(/[.,;:]+$/, ''));
     const brief = t => { const w = words(t); if (w.length <= 4) return t; let s = w.slice(0, 4).join(' ').replace(/[,;:.]+$/, ''); while (DANGLING.test(s)) s = s.replace(DANGLING, '').trim(); return s + '…'; };
     items.forEach((it, k) => {
       const parts = items.map((x, j) => (j === k ? `{{${x}}}` : brief(x)));
@@ -848,7 +871,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     const ctx = nearestHeading(b.id), art = artRef(b.id);
     // «La Constitución garantiza:» → ¿Qué garantiza la Constitución?
     const vh = VERB_HEAD.exec(head);
-    const q = vh ? `¿Qué ${vh[2]} ${lowerSubject(vh[1])}${art ? ` (art. ${art})` : ''}?` : LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? `${head}: ¿cuáles son?` : `${head}: ¿qué incluye?`;
+    const q = vh ? `¿Qué ${vh[2]} ${lowerSubject(vh[1])}${art ? ` (art. ${art})` : ''}?` : listQuestion(head, LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? 'cuáles' : 'incluye');
     const item = k => plainText(k.text).replace(/[,;]$/, '').replace(/^(?:y|e)\s+/i, '');
     const long = kids.length >= 5;
     if (add('sub', b.id, 'basic', { q: q + (!vh && ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${item(k)}`).join('\n'), n: '' }, long ? 0.55 : 0.7, long ? { group: `list|${b.id}` } : {})) kids.forEach(k => subKids.add(k.id));
@@ -882,6 +905,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (r.items.length < 2 || r.items.length > 10 || !r.items.every(shortItem)) continue;
     const introText = r.intro ? (r.intro.type === 'p' ? sentences(plainText(r.intro.text)).at(-1) || '' : plainText(r.intro.text)) : '';
     if (/\?$/.test(introText) || EXERCISE.test(introText)) continue;
+    if (/^art(?:ículo|\.)\s*\d/i.test(introText) && r.type === 'ol') continue;   // los puntos de un artículo no son una lista
     const isSteps = r.type === 'ol' || STEPS_RE.test(introText);
     if (isSteps && r.items.length >= 3 && r.intro) {
       const q = introText.replace(/:$/, '');
@@ -898,8 +922,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (vh) q = `¿Qué ${vh[2]} ${lowerSubject(vh[1])}?`;
     else if (m1) q = /^(are|include)$/i.test(m1[2]) ? `What ${m1[2].toLowerCase()} ${m1[1]}?` : `¿Cuáles ${m1[2].toLowerCase() === 'son' ? 'son' : m1[2].toLowerCase()} ${lowerSubject(m1[1])}?`;
     else if (m2) q = `¿Cuáles son ${/^(tipos|clases|partes|ejemplos|elementos|componentes)/i.test(m2[1]) ? 'los' : 'las'} ${(m2[1] + m2[2]).toLocaleLowerCase().replace(/:$/, '')}?`;
-    else if (/^h[1-3]$/.test(r.intro.type)) q = `${introText}: ¿cuáles son?`;
-    else if (/:$/.test(introText)) q = introText.replace(/:$/, '') + ': ¿cuáles?';
+    else if (/^h[1-3]$/.test(r.intro.type) || /:$/.test(introText)) q = listQuestion(introText);
     else continue;
     if (r.intro.type === 'p' && !/:$/.test(introText)) continue;   // un párrafo cualquiera antes de la lista no la presenta
     // Con un título genérico («Causas»), el apartado del que cuelga da el contexto
@@ -1003,7 +1026,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         const subj = termP;
         const q = /^(qué|cuál|cómo|quién|por qué|cuándo|dónde|what|how|why|who|when|where)\b/i.test(subj) || /\?$/.test(subj)
           ? capFirst(subj.replace(/^¿?/, '¿').replace(/\??$/, '?'))
-          : pageEs ? termQuestion(def.term, ctx) : def.term.replace(/\*\*/g, '').trim();   // en otro idioma, el término tal cual
+          : (pageEs && termQuestion(def.term, ctx)) || def.term.replace(/\*\*/g, '').trim();   // en otro idioma, el término tal cual
         add('def', b.id, 'basic', { q, a: capFirst(cleanAnswer(defP)), n: '' }, 0.85);
         continue;
       }
@@ -1058,7 +1081,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       const sdef = s !== text && !bolds.length && splitDef(s);
       if (sdef && words(plainText(sdef.term)).length <= 5 && words(plainText(sdef.def)).length >= 2 && !/^(\d|[a-z])/.test(plainText(sdef.term))) {
         const tp = plainText(sdef.term);
-        if (add('def', b.id, 'basic', { q: pageEs ? termQuestion(sdef.term, ctx) : tp, a: capFirst(plainText(sdef.def).replace(/[.]$/, '')), n: '' }, 0.8)) continue;
+        if (add('def', b.id, 'basic', { q: (pageEs && termQuestion(sdef.term, ctx)) || tp, a: capFirst(plainText(sdef.def).replace(/[.]$/, '')), n: '' }, 0.8)) continue;
       }
       // Enunciados de ejercicios y frases que empiezan a medias (un trozo de otra) no dan tarjetas
       if (EXERCISE.test(sp) || /^\p{Ll}/u.test(sp) || /(?<![\p{L}])\p{Lu}{4,}\s+\p{Lu}{2,}(?![\p{L}])/u.test(sp)) continue;
@@ -1094,7 +1117,9 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (out.some(x => x.blockId === p.id && (norm(x.front).includes(norm(head)) || norm(first).includes(norm(x.back))))) continue;
     // Un título genérico («Definición», «Características») necesita saber de qué
     const ctx = GENERIC_TOPIC.test(head) ? (headOf.get(h.id)?.slice(0, -1).at(-1) || title) : '';
-    add('section', p.id, 'basic', { q: pageEs ? termQuestion(head, ctx) : ctx ? `${head} — ${ctx}` : head, a: cleanAnswer(first).replace(/\.$/, ''), n: '' }, first.length <= 180 && (words(head).length <= 2 || norm(first).includes(norm(head))) ? 0.66 : 0.55);
+    const sq = pageEs ? termQuestion(head, ctx) : ctx ? `${head} — ${ctx}` : head;
+    if (!sq) continue;
+    add('section', p.id, 'basic', { q: sq, a: cleanAnswer(first).replace(/\.$/, ''), n: '' }, first.length <= 180 && (words(head).length <= 2 || norm(first).includes(norm(head))) ? 0.66 : 0.55);
   }
 
   // Vocabulario suelto en mazos de idiomas: líneas tipo «ev (casa)»
@@ -1115,6 +1140,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
 }
 
 /* ---------------- Una sugerencia por dato ---------------- */
+// Un hueco que tapa el sujeto (en las dos primeras palabras de la frase): «La {{soberanía nacional}} reside en…»
+const subjectHole = s => s.typeId === 'cloze' && s.kind !== 'listitem' && /^\s*(?:[^\s{]+\s+)?\{\{/.test(String(s.fields?.x || ''));
 // Lo que responde una sugerencia: el hueco, la respuesta…
 const answerOf = s => {
   const f = s.fields || {};
@@ -1133,7 +1160,8 @@ export function onePerDatum(list, pos = new Map()) {
   list.forEach((s, i) => {
     const core = answerCore(answerOf(s)), keys = [];
     if (core) keys.push(`b|${s.blockId}|${core}`);
-    if (s.src && s.kind !== 'listitem') keys.push(`s|${s.blockId}|${s.src.slice(0, 40)}`);
+    // («¿Qué artículo establece…?» pregunta otro dato, el número del artículo: va aparte)
+    if (s.src && s.kind !== 'listitem' && s.kind !== 'art') keys.push(`s|${s.blockId}|${s.src.slice(0, 40)}`);
     if (s.group) keys.push(`g|${s.group}`);
     if (core.split(' ').length >= 2 && !/^[\d\s]+$/.test(core) && !['art', 'match', 'sort', 'steps', 'listitem'].includes(s.kind)) keys.push(`a|${core}`);
     for (const k of keys) { if (owner.has(k)) parent[find(i)] = find(owner.get(k)); else owner.set(k, i); }
@@ -1141,8 +1169,11 @@ export function onePerDatum(list, pos = new Map()) {
   const groups = new Map();
   list.forEach((s, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(s); });
   return [...groups.values()].map(g => {
+    // (y en una misma frase, antes el hueco en lo que se dice del sujeto que el que tapa el sujeto: «La soberanía nacional
+    // reside en el […]» antes que «La […] reside en el pueblo español»)
     const first = Math.min(...g.map(s => pos.get(s.blockId) ?? 0)), at = s => ((pos.get(s.blockId) ?? 0) === first ? 0 : 1);
-    const [best, ...rest] = [...g].sort((a, b) => at(a) - at(b) || b.score - a.score || list.indexOf(a) - list.indexOf(b));
+    const rank = s => s.score - (subjectHole(s) ? 0.1 : 0);
+    const [best, ...rest] = [...g].sort((a, b) => at(a) - at(b) || rank(b) - rank(a) || list.indexOf(a) - list.indexOf(b));
     return rest.length ? { ...best, alts: rest } : best;
   });
 }
@@ -1170,6 +1201,6 @@ export function writingTips(page, suggestions = []) {
   const defs = suggestions.filter(s => s.kind === 'def').length, paras = blocks.filter(b => b.type === 'p' && plainText(b.text)).length;
   if (!defs && paras >= 3) tips.push({ id: 'defs', text: 'Escribe las definiciones así: «Mitosis: división de una célula en dos células hijas». Es lo que mejor se convierte en pregunta.' });
   const lists = blocks.filter(b => ['li', 'ol'].includes(b.type));
-  if (lists.length >= 6 && !lists.some(b => b.indent)) tips.push({ id: 'indent', text: 'Usa la sangría (Tab) para los subpuntos: «Núcleo» con «ADN» y «Nucléolo» debajo da la pregunta «Núcleo: ¿qué incluye?».' });
+  if (lists.length >= 6 && !lists.some(b => b.indent)) tips.push({ id: 'indent', text: 'Usa la sangría (Tab) para los subpuntos: «Núcleo» con «ADN» y «Nucléolo» debajo da la pregunta «¿Qué incluye el núcleo?».' });
   return tips;
 }

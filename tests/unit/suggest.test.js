@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE, fixGrammar, grammarIssue, genderOf, useGender, trimCloze, verbHole } from '../../js/suggest.js';
+import { suggestCards, sentences, looksSpanish, plainText, isAcronymPair, acronymCard, CALLOUT_PRE, fixGrammar, grammarIssue, genderOf, useGender, trimCloze, verbHole, termQuestion } from '../../js/suggest.js';
 import { plainTextToPage } from '../../js/notesio.js';
 import genderEs from '../../js/vendor/gender-es.js';
 import { textToBlocks } from '../../js/pages.js';
@@ -221,7 +221,7 @@ test('lo resaltado, subrayado o en color cuenta como negrita; los subpuntos dan 
   const s = suggestCards(page);
   assert.ok(s.some(x => x.kind === 'bold' && x.fields.x.includes('{{membrana}}')), 'hueco del resaltado');
   const sub = s.find(x => x.kind === 'sub');
-  assert.equal(sub.front, 'Núcleo: ¿qué incluye?');
+  assert.equal(sub.front, '¿Qué incluye el núcleo?');
   assert.equal(sub.back, '- ADN\n- Nucléolo');
   assert.ok(s.every(x => x.id && x.id.includes('|')), 'cada sugerencia con un id estable');
   // Consejos según cómo está escrito
@@ -326,19 +326,42 @@ test('con un término genérico («Estructura», «Reformas»), el contexto: «�
   assert.deepEqual(run('Photosynthesis: the process by which plants make their food from light.').map(s => s.front), ['Photosynthesis']);
 });
 
-test('una sugerencia por dato: el hueco del texto se enseña y la tabla de repaso y «¿Qué artículo…?» quedan plegados; dos huecos de la misma frase, uno', () => {
+test('una sugerencia por dato: el hueco del texto se enseña y la tabla de repaso queda plegada; dos huecos de la misma frase, uno; «¿Qué artículo…?» va aparte', () => {
   const r = suggestCards({ title: 'Constitución', blocks: textToBlocks([
     '## Artículo 1 · El Estado', '1. La forma política del Estado español es la **Monarquía parlamentaria**.',
     '## Artículo 3 · Las lenguas', 'Todos los españoles tienen el **deber de conocerla** y el **derecho a usarla**.',
     '## Para no confundirse', '| Pregunta | Respuesta |\n|---|---|\n| ¿Cuál es la forma política del Estado? | La Monarquía parlamentaria (art. 1.3) |',
   ].join('\n\n')) });
-  const mon = r.filter(s => /Monarqu/.test(s.back + s.front + (s.fields.x || '')));
+  const mon = r.filter(s => /Monarqu/.test(s.back + (s.fields.x || '')) && s.kind !== 'art');
   assert.equal(mon.length, 1);
   assert.equal(mon[0].fields.x, 'La forma política del Estado español es la {{Monarquía parlamentaria}}.');
-  assert.deepEqual(mon[0].alts.map(a => a.front).sort(), ['¿Cuál es la forma política del Estado?', '¿Qué artículo establece que la forma política del Estado español es la Monarquía parlamentaria?']);
+  assert.deepEqual(mon[0].alts.map(a => a.front), ['¿Cuál es la forma política del Estado?']);
+  // El número del artículo es otro dato
+  assert.ok(r.some(s => s.front === '¿Qué artículo establece que la forma política del Estado español es la Monarquía parlamentaria?' && !s.selected));
   const deber = r.filter(s => /españoles tienen/.test(s.fields.x || ''));
   assert.equal(deber.length, 1);
-  assert.deepEqual(deber[0].alts.map(a => a.front), ['Todos los españoles tienen el deber de conocerla y el […].', '¿Qué artículo establece que todos los españoles tienen el deber de conocerla y el derecho a usarla?']);
+  assert.deepEqual(deber[0].alts.map(a => a.front), ['Todos los españoles tienen el deber de conocerla y el […].']);
+});
+
+test('una por dato: antes el hueco en lo que se dice del sujeto que el que tapa el sujeto («La soberanía nacional reside en el […]»)', () => {
+  const r = suggestCards({ title: 'Constitución', blocks: textToBlocks('## Artículo 1 · El Estado\n\n1. Uno.\n2. La **soberanía nacional** reside en el **pueblo español**, del que emanan los poderes del Estado.\n\n## Repaso\n\n| Pregunta | Respuesta |\n|---|---|\n| ¿Dónde reside la soberanía nacional? | En el pueblo español (art. 1.2) |') });
+  const sob = r.filter(s => /pueblo español/.test(s.back + (s.fields.x || '')) && s.kind !== 'art');
+  assert.equal(sob.length, 1);
+  assert.equal(sob[0].fields.x, 'La soberanía nacional reside en el {{pueblo español}}.');
+  assert.deepEqual(sob[0].alts.map(a => a.front), ['La […] reside en el pueblo español.', '¿Dónde reside la soberanía nacional?']);
+});
+
+test('remates: un título que no es un término no da «¿Qué es…?»; las listas con título, «¿Cuáles son…?»; sin dos puntos seguidos', () => {
+  assert.equal(termQuestion('Y dormir'), '');
+  assert.equal(termQuestion('Cómo lo usa Flaski'), '');
+  assert.equal(termQuestion('Recordar enseña más que releer'), '');
+  assert.equal(grammarIssue('¿Qué es el Y dormir?'), 'no es un término');
+  assert.equal(grammarIssue('…de los poderes públicos..'), 'dos puntos seguidos');
+  const r = run('## Y dormir\n\nMientras duermes, el cerebro consolida lo aprendido durante el día.\n\nAlgunas dificultades deseables:\n\n- Espaciar los repasos.\n- Intercalar temas.\n- Recordar en vez de releer.');
+  assert.ok(!r.some(s => /dormir/i.test(s.front)), r.map(s => s.front).join(' / '));
+  assert.ok(r.some(s => s.front === '¿Cuáles son algunas dificultades deseables?'), r.map(s => s.front).join(' / '));
+  const l = run('La Constitución garantiza:\n\n- el principio de legalidad,\n- la jerarquía normativa,\n- la publicidad de las normas,\n- la seguridad jurídica,\n- y la interdicción de la arbitrariedad de los poderes públicos.').filter(s => s.kind === 'listitem');
+  assert.equal(l.at(-1).fields.x, 'La Constitución garantiza: el principio de legalidad, la jerarquía normativa, la publicidad…, la seguridad jurídica y {{la interdicción de la arbitrariedad de los poderes públicos}}.');
 });
 
 test('huecos cortos: el trozo de la frase que tiene el hueco, con su sujeto, hasta 25 palabras', () => {
