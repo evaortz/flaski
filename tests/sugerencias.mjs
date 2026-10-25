@@ -106,7 +106,7 @@ export function medir() {
     const imp = expected.map((x, i) => i).filter(i => expected[i].prioridad === 'imprescindible');
     const rest = list.filter(s => !taken.has(all.indexOf(s)));
     const types = {};
-    for (const s of list) types[s.typeId] = (types[s.typeId] || 0) + 1;
+    for (const s of all) types[s.typeId] = (types[s.typeId] || 0) + 1;
     const marked = list.filter(s => s.selected);
     report.push({
       name, expected, list, all, hit, ms,
@@ -132,7 +132,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   for (const r of medir()) {
     console.log(`\n== ${r.name}: imprescindibles ${pct(r.imp)} · total ${pct(r.all_)} · sugerencias ${r.list.length} (${r.all.length} con las plegadas) · ruido ${r.noise} · sin pareja ${r.unmatched.length}`);
     console.log(`   solo visibles: imprescindibles ${pct(r.visImp)} · total ${pct(r.vis)} · repetidas visibles ${r.repeated.length} · mal escritas ${r.bad.length} · huecos de más de 25 palabras ${r.long.length}`);
-    console.log(`   marcadas de entrada ${r.marked.n} (ruido ${r.marked.noise}, sin pareja ${r.marked.unmatched}) · tipos: ${Object.entries(r.types).map(([t, n]) => `${t} ${n}`).join(', ')} · ${Math.round(r.ms)} ms`);
+    console.log(`   marcadas de entrada ${r.marked.n} (ruido ${r.marked.noise}, sin pareja ${r.marked.unmatched}) · tipos (con las plegadas): ${Object.entries(r.types).map(([t, n]) => `${t} ${n}`).join(', ')} · ${Math.round(r.ms)} ms`);
     for (const s of r.repeated) console.log(`  repetida: [${s.typeId}] ${s.front}`);
     for (const s of r.bad) console.log(`  mal escrita (${badWriting(s)}): [${s.typeId}] ${s.front}`);
     for (const s of r.long) console.log(`  hueco largo: ${plainText(s.fields.x)}`);

@@ -577,6 +577,9 @@ export function plainRules(sp, env = {}) {
     const np = unClitic(m[1], env.prevSubj), tail = m[4].replace(/^,.*$/, '').trim();
     basic('plazo', `¿Cuál es ${lowFirst(np)}${tail ? ' ' + tail : ''}?`, m[3], 0.78, { atype: 'plazo' });
     push('plazo', 'cloze', { x: `${capFirst(np)} ${m[2]} {{${m[3]}}}${m[4]}.`, e: '' }, 0.76, { atype: 'plazo' });
+    // La excepción negada: «…no podrá exceder de seis meses, salvo que…» → «…nunca podrá exceder de seis meses» (falso)
+    const salvo = /^,\s+((?:salvo|excepto)\s.+)$/iu.exec(m[4]);
+    if (salvo && /^no\s/i.test(m[2])) push('tf', 'truefalse', { s: `${capFirst(np)} ${m[2].replace(/^no\s+/i, 'nunca ')} ${m[3]}.`, v: 'F', n: `Falso: ${salvo[1]}.` }, 0.66, { link: `@${m[3]}` });
   }
   // «Cuando las normas no fijen el plazo máximo, este será de tres meses» → Cuando las normas no fijen el plazo máximo, ¿cuál es?
   if ((m = new RegExp(`^((?:Cuando|Si)\\s[^,]*?(el\\s+plazo[^,]*)),\\s+(?:este|ese|dicho\\s+plazo|el\\s+plazo)\\s+será\\s+de\\s+(${QTY}\\s+${TIME_UNIT})(.*)$`, 'iu').exec(body))) {
@@ -589,7 +592,11 @@ export function plainRules(sp, env = {}) {
   }
   // Excepción: «Contra la resolución de X no cabrá ningún otro recurso, salvo el Y» → ¿Qué recurso cabe contra la resolución de X?
   if ((m = /^(Contra\s.+?)\s+no\s+(cabrá|cabe|procederá|procede)\s+ning[uú]n(?:a)?\s+otr[oa]\s+(\p{L}+)[^,]*,\s+salvo\s+(.+)$/iu.exec(body))) {
-    basic('term', `¿Qué ${m[3]} ${m[2] === 'cabrá' ? 'cabe' : m[2]} ${lowFirst(m[1])}?`, m[4], 0.76, { except: { pre: m[1], verb: m[2], noun: m[3], ans: m[4] } });
+    basic('term', `¿Qué ${m[3]} ${m[2] === 'cabrá' ? 'cabe' : m[2]} ${lowFirst(m[1])}?`, m[4], 0.76);
+    // Falso: otro de los del apunte en lugar de la excepción («…cabe el recurso potestativo de reposición»)
+    const others = [...new Set((env.text || '').match(new RegExp(`(?<![\\p{L}])${m[3]}\\s+\\p{Ll}+(?:\\s+de\\s+\\p{Ll}+)?`, 'gu')) || [])]
+      .filter(o => !m[4].includes(o) && !m[1].includes(o) && words(o).length >= 3);
+    if (others[0]) push('tf', 'truefalse', { s: `${m[1]} ${m[2] === 'cabrá' ? 'cabe' : m[2]} el ${others[0]}.`, v: 'F', n: `Falso: solo ${m[2] === 'cabrá' ? 'cabe' : m[2]} ${m[4].replace(/^(?:El|La)\s/, w => w.toLowerCase())}.` }, 0.66, { link: `@${m[4]}` });
   }
   // «Tienen capacidad de obrar las personas físicas…» → ¿Quiénes tienen capacidad de obrar?
   if ((m = /^(Tienen|Tiene|Podrán|Pueden|Deberán|Deben)\s+([^,]{3,40}?)\s+((?:los|las|el|la)\s.{4,})$/u.exec(body)) && !/\s(?:de|del|a|en)$/.test(m[2])) {
@@ -598,6 +605,10 @@ export function plainRules(sp, env = {}) {
   // «Los interesados podrán actuar por medio de representante» → ¿Cómo podrán actuar los interesados?
   if ((m = /^((?:el|la|los|las)\s[^,]{2,40}?)\s+(podrán|pueden|podrá|puede|deberán|deben|deberá|debe)\s+(\p{L}+(?:ar|er|ir))\s+(por\s+medio\s+de|mediante|a\s+través\s+de)\s+(.+)$/iu.exec(body))) {
     basic('term', `¿Cómo ${m[2]} ${m[3]} ${lowerSubject(m[1])}?`, `${m[4]} ${m[5]}`, 0.74);
+  }
+  // «Los cloroplastos solo están en las células vegetales…» → «Los cloroplastos están en todas las células…» (falso)
+  if ((m = /^(.+?)\s+solo\s+(\p{L}+)\s+en\s+(las|los)\s+(\p{L}+)\s+(\p{L}+)(.*)$/iu.exec(body))) {
+    push('tf', 'truefalse', { s: `${m[1]} ${m[2]} en ${m[3].toLowerCase() === 'las' ? 'todas' : 'todos'} ${m[3]} ${m[4]}${m[6]}.`, v: 'F', n: `Falso: solo ${m[2]} en ${m[3]} ${m[4]} ${m[5]}.` }, 0.62);
   }
   // Enumeración con número: «El periodo se divide en tres etapas: a, b y c» · «La mitosis tiene cuatro fases: profase, …»
   if ((m = new RegExp(`^(.+?)\\s+(se\\s+divide\\s+en|se\\s+dividen\\s+en|tiene|tienen|consta\\s+de|comprende|incluye|distingue)\\s+${NUM}\\s+(\\p{L}+s)\\s*:\\s*(.+)$`, 'iu').exec(body))) {
@@ -635,14 +646,14 @@ export function plainRules(sp, env = {}) {
   if ((m = /^(.+?),\s+(tras|después\s+de|antes\s+de)\s+((?:el|la|los|las)\s+(\p{L}+).+)$/iu.exec(body)) && dates(m[1]).length === 1) {
     const when = whenSentence(m[1]);
     if (when) {
-      push('date', when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.76, { atype: when.year ? 'año' : 'fecha' });
+      push('date', when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.76, { atype: when.year ? 'año' : 'fecha', stmt: `${m[1]}.` });
       const vq = when.q.replace(/^¿Cuándo\s+/, '').replace(/\?$/, '');
       basic('term', `¿${capFirst(m[2].toLocaleLowerCase())} qué ${m[4].toLocaleLowerCase()} ${vq}?`, m[3], 0.74);
     }
   }
   // Una frase clave cualquiera: hueco en lo que se dice del sujeto («Las células eucariotas tienen {{un núcleo rodeado por
   // una membrana}}», «La mitocondria produce {{la energía de la célula}} mediante…») o en la enumeración que es el sujeto
-  if (env.score >= 2 && !out.length && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
+  if (env.score >= 2 && !out.some(r => r.kind !== 'tf') && !/:\s/.test(body) && !LEAD_PHRASE.test(body)) {
     let clauseSubj = '';
     for (const clause of body.split(/;\s+/)) {
       let c = clause.trim();
@@ -823,13 +834,17 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       fields = { ...fields, x };
       extra = { src: norm(x), ...extra };
     }
+    // (link «@respuesta»: va con lo que pregunta esa respuesta en este mismo bloque)
+    if (extra.link?.startsWith('@')) extra = { ...extra, link: `b|${blockId}|${answerCore(extra.link.slice(1))}` };
     const note = asNote(typeId, fields, isLangDeck);
     const type = TYPE(note.typeId);
     const active = activeTemplates(type, note.fields);
     if (!active.length) return false;
     const sum = summarize(type, active[0], note.fields);
     const key = norm(sum.front) + '|' + norm(sum.back);
-    if (!norm(sum.front) || seen.has(norm(sum.front)) || seen.has(normQ(sum.front)) || seen.has(key) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
+    // (una opción múltiple pregunta lo mismo que su pregunta: va con ella, no se descarta por repetida)
+    const again = kind !== 'mc' && (seen.has(norm(sum.front)) || seen.has(normQ(sum.front)));
+    if (!norm(sum.front) || again || (kind !== 'mc' && seen.has(key)) || fromBlock.has(blockId + '|' + norm(sum.back))) return false;
     seen.add(key); seen.add(norm(sum.front)); seen.add(normQ(sum.front));
     out.push({ key: `${kind}:${blockId}:${out.length}`, id: `${kind}|${blockId}|${norm(sum.front).slice(0, 60)}`, kind, label: KINDS[kind], blockId, section: sectionOf(blockId), typeId: note.typeId, fields: note.fields,
       front: sum.front, back: sum.back, cards: active.length, score: Math.min(1, score + (calloutIds.has(blockId) ? 0.15 : 0)),
@@ -1085,7 +1100,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
 
   /* 4) Bloque a bloque: vocabulario, definiciones, negritas, fechas, código */
-  const freq = wordFreq(blocks);
+  const freq = wordFreq(blocks), pagePlain = plainText(blocks.map(b => b.text).join(' \n '));
   let lastSent = '';   // la frase de antes (para «Por eso…», «interponerlo», «este será…»)
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -1202,7 +1217,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       if (!rel.some(r => r.kind === 'date')) {
         for (const part of whenParts(sp, prevSubj)) {
           const when = whenSentence(part);
-          if (when && add('date', b.id, when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.68)) done.add('date');
+          if (when && add('date', b.id, when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.68, { stmt: `${part.replace(/[.;:]+$/, '')}.` })) done.add('date');
         }
       }
       prevSubj = subjectOf(sp) || prevSubj;
@@ -1237,7 +1252,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       if (EXERCISE.test(sp) || /^\p{Ll}/u.test(sp) || /(?<![\p{L}])\p{Lu}{4,}\s+\p{Lu}{2,}(?![\p{L}])/u.test(sp)) continue;
       // Sin negritas: las frases clave (plazos, órganos, enumeraciones con número, quién hizo qué, para entender…)
       if (pageEs) {
-        const env = { ctx: cleanCtx(title), prev: lastSentHere, prevSubj: lastSentHere ? subjectOfClause(lastSentHere) : '', score: keyScore(sp, freq) };
+        const env = { ctx: cleanCtx(title), prev: lastSentHere, prevSubj: lastSentHere ? subjectOfClause(lastSentHere) : '', score: keyScore(sp, freq), text: pagePlain };
         for (const r of plainRules(sp, env)) add(r.kind, b.id, r.typeId, r.fields, r.score, r.extra);
       }
       const ac = acronymCard(sp);
@@ -1286,12 +1301,68 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     }
   }
 
+  if (pageEs) withChoices(out, add, plainText(blocks.map(b => b.text).join(' \n ')));
+
   // En el orden en que aparecen en los apuntes
   const pos = new Map(blocks.map((b, i) => [b.id, i]));
   const list = onePerDatum(out, pos).map((s, i) => ({ s, i })).sort((a, b) => (pos.get(a.s.blockId) ?? 0) - (pos.get(b.s.blockId) ?? 0) || (KIND_RANK[a.s.kind] ?? 1) - (KIND_RANK[b.s.kind] ?? 1) || a.i - b.i).map(({ s }) => s);
   // Marcadas de entrada: la mejor de cada dato con 0,75 o más, las de más puntuación primero, hasta MAX_PRESELECT
   const top = new Set(list.filter(s => s.score >= PRESELECT && !NEVER_PRESELECT.has(s.typeId)).sort((a, b) => b.score - a.score).slice(0, MAX_PRESELECT));
   return list.map(s => ({ ...s, selected: top.has(s), rec: top.has(s) }));
+}
+
+/* ---------------- Opción múltiple y verdadero o falso, con lo que dice el propio apunte ---------------- */
+// De qué tipo es una respuesta (para buscar otras del mismo tipo: fecha con fecha, plazo con plazo, artículo con artículo…)
+const ATYPES = [
+  ['fecha', a => new RegExp(`^\\d{1,2}\\s+de\\s+${MONTH}(?:\\s+(?:de|del)\\s+${YEAR})?$`, 'iu').test(a)],
+  ['año', a => new RegExp(`^${YEAR}$`).test(a)],
+  ['plazo', a => new RegExp(`^${QTY}\\s+${TIME_UNIT}$`, 'iu').test(a)],
+  ['art', a => /^art(?:ículo|\.)\s*\d+(?:\.\d+)?$/i.test(a)],
+  ['ley', a => /^ley\s+(?:orgánica\s+)?\d+\/\d{4}$/i.test(a)],
+  ['persona', a => words(a).length >= 2 && words(a).length <= 4 && words(a).every(w => /^\p{Lu}\p{Ll}/u.test(w) || /^(de|del|y)$/.test(w))],
+  ['cifra', a => /^\d+(?:[.,]\d+)?$/.test(a)],
+];
+export const answerType = a => (ATYPES.find(([, t]) => t(plainText(a).trim())) || [''])[0];
+// Una alternativa de opción múltiple por dato (con 2 o 3 incorrectas del mismo tipo sacadas de otras sugerencias del
+// apunte; si no hay 2, ninguna) y un verdadero o falso con una de ellas en su sitio. text: el apunte entero, sin formato
+function withChoices(out, add, text) {
+  const base = out.filter(s => !['listitem', 'match', 'sort', 'steps', 'mc', 'tf', 'why', 'diff', 'whatif'].includes(s.kind) && ['basic', 'number', 'cloze'].includes(s.typeId)
+    && (s.typeId !== 'cloze' || (String(s.fields.x).match(/\{\{/g) || []).length === 1));
+  const typed = base.map(s => ({ s, a: plainText(answerOf(s)).trim().replace(/[.]$/, '') })).map(x => ({ ...x, t: x.s.atype || answerType(x.a) })).filter(x => x.t);
+  const done = new Set();
+  for (const { s, a, t } of typed) {
+    const key = `${s.blockId}|${answerCore(a)}`;
+    if (done.has(key)) continue;
+    // (para un año, también los años de las fechas completas del apunte)
+    const cands = typed.filter(o => o.t === t).map(o => o.a).concat(t === 'año' ? typed.filter(o => o.t === 'fecha').map(o => (new RegExp(YEAR).exec(o.a) || [])[0]).filter(Boolean) : []);
+    const pool = [...new Map(cands.filter(o => answerCore(o) !== answerCore(a)).map(o => [answerCore(o), o])).values()];
+    if (!pool.length) continue;
+    done.add(key);
+    const link = `b|${s.blockId}|${answerCore(a)}`, same = w => (/^\p{Lu}/u.test(a) ? capFirst(w) : w.charAt(0).toLocaleLowerCase() + w.slice(1));
+    if (pool.length >= 2) {
+      const wrong = pool.slice(0, 3).map(same).join('; ');
+      if (s.typeId === 'cloze') add('mc', s.blockId, 'clozechoice', { x: s.fields.x, w: wrong, e: '' }, s.score - 0.08, { link, atype: t });
+      else add('mc', s.blockId, 'choice', { q: s.fields.q, a: capFirst(a), w: pool.slice(0, 3).map(capFirst).join('; '), n: '' }, s.score - 0.08, { link, atype: t });
+    }
+    // Verdadero o falso: la frase con otra respuesta del mismo tipo en su sitio (la explicación dice cuál es la buena)
+    const stmt = s.typeId === 'cloze' ? plainText(s.fields.x) : s.stmt;
+    if (stmt && plainText(stmt).includes(a)) {
+      const wrongStmt = plainText(stmt).replace(a, same(pool[0]));
+      add('tf', s.blockId, 'truefalse', { s: wrongStmt, v: 'F', n: `Falso: ${plainText(stmt)}` }, s.score - 0.1, { link });
+    }
+  }
+  // Una palabra cambiada por su pareja del apunte («procariotas» por «eucariotas»), en los huecos de las frases clave
+  const vocab = [...new Set(text.match(/\p{L}{7,}/gu) || [])];
+  for (const s of out.filter(x => x.kind === 'key')) {
+    const sent = plainText(s.fields.x);
+    for (const w of sent.match(/\p{L}{7,}/gu) || []) {
+      const end = w.slice(-6).toLocaleLowerCase(), lw = w.toLocaleLowerCase();
+      const twin = vocab.find(o => { const lo = o.toLocaleLowerCase(); return lo.endsWith(end) && lo !== lw && lo.slice(0, 3) !== lw.slice(0, 3); });
+      if (!twin) continue;
+      add('tf', s.blockId, 'truefalse', { s: sent.replace(w, twin.toLocaleLowerCase() === twin ? twin : twin.toLocaleLowerCase()), v: 'F', n: `Falso: ${sent}` }, 0.6, { link: `b|${s.blockId}|${answerCore(answerOf(s))}` });
+      break;
+    }
+  }
 }
 
 /* ---------------- Una sugerencia por dato ---------------- */
@@ -1318,6 +1389,7 @@ export function onePerDatum(list, pos = new Map()) {
     // («¿Qué artículo establece…?» pregunta otro dato, el número del artículo: va aparte)
     if (s.src && s.kind !== 'listitem' && s.kind !== 'art') keys.push(`s|${s.blockId}|${s.src.slice(0, 40)}`);
     if (s.group) keys.push(`g|${s.group}`);
+    if (s.link) keys.push(s.link);
     if (core.split(' ').length >= 2 && !/^[\d\s]+$/.test(core) && !['art', 'match', 'sort', 'steps', 'listitem'].includes(s.kind)) keys.push(`a|${core}`);
     for (const k of keys) { if (owner.has(k)) parent[find(i)] = find(owner.get(k)); else owner.set(k, i); }
   });
@@ -1327,7 +1399,8 @@ export function onePerDatum(list, pos = new Map()) {
     // (y en una misma frase, antes el hueco en lo que se dice del sujeto que el que tapa el sujeto: «La soberanía nacional
     // reside en el […]» antes que «La […] reside en el pueblo español»)
     const first = Math.min(...g.map(s => pos.get(s.blockId) ?? 0)), at = s => ((pos.get(s.blockId) ?? 0) === first ? 0 : 1);
-    const rank = s => s.score - (subjectHole(s) ? 0.1 : 0);
+    // (la opción múltiple y el verdadero o falso de un dato son otras formas de preguntarlo, nunca la que se enseña)
+    const rank = s => s.score - (subjectHole(s) ? 0.1 : 0) - (s.kind === 'mc' || s.kind === 'tf' ? 0.5 : 0);
     const [best, ...rest] = [...g].sort((a, b) => at(a) - at(b) || rank(b) - rank(a) || list.indexOf(a) - list.indexOf(b));
     return rest.length ? { ...best, alts: rest } : best;
   });

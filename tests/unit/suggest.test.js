@@ -448,3 +448,27 @@ test('el hueco de una frase clave no repite una cantidad que ya pregunta «¿Cu�
   const r = paste('Roma\n\nEl ejército tiene seis legiones.');
   assert.deepEqual(r.map(s => s.front), ['¿Cuántas legiones tiene el ejército?']);
 });
+
+test('opción múltiple: con 2 o 3 incorrectas del mismo tipo sacadas del apunte, como otra forma de preguntarlo; con menos de 2, no', () => {
+  const r = paste('Ley 39/2015\n\nEl plazo máximo para resolver y notificar no podrá exceder de seis meses.\nCuando las normas reguladoras no fijen el plazo máximo, este será de tres meses.\nEl recurso de alzada podrá interponerse ante el órgano que dictó el acto. El plazo para interponerlo será de un mes si el acto fuera expreso.');
+  const alts = r.flatMap(s => s.alts || []);
+  const mc = alts.find(s => s.typeId === 'choice' && s.fields.a === 'Un mes');
+  assert.ok(mc, alts.map(s => s.typeId + ' ' + s.front).join('\n'));
+  assert.deepEqual(mc.fields.w.split('; ').sort(), ['Seis meses', 'Tres meses']);
+  assert.ok(!r.some(s => s.typeId === 'choice'));   // nunca la que se enseña
+  // Una sola fecha más en el apunte: no hay opción múltiple de fechas
+  const h = paste('La Segunda República\n\nLa Segunda República se proclamó el 14 de abril de 1931.\nEl golpe de Estado del 18 de julio de 1936 provocó el inicio de la Guerra Civil.');
+  assert.ok(!h.flatMap(s => [s, ...(s.alts || [])]).some(s => s.typeId === 'choice'));
+});
+
+test('verdadero o falso: otra respuesta del mismo tipo en su sitio, la excepción negada («salvo», «solo») o la palabra cambiada por su pareja; la explicación dice la buena', () => {
+  const all = t => paste(t).flatMap(s => [s, ...(s.alts || [])]).filter(s => s.typeId === 'truefalse').map(s => [s.fields.s, s.fields.v, s.fields.n]);
+  const h = all('La Segunda República\n\nLa Segunda República se proclamó el 14 de abril de 1931.\nEl golpe de Estado del 18 de julio de 1936 provocó el inicio de la Guerra Civil.');
+  assert.ok(h.some(([s, v, n]) => s === 'La Segunda República se proclamó el 18 de julio de 1936.' && v === 'F' && n === 'Falso: La Segunda República se proclamó el 14 de abril de 1931.'), h.join('\n'));
+  const l = all('Ley 39/2015\n\nEl plazo máximo para resolver y notificar no podrá exceder de seis meses, salvo que una norma con rango de ley establezca uno mayor.\nEl recurso potestativo de reposición se interpone ante el mismo órgano. Contra la resolución de un recurso de alzada no cabrá ningún otro recurso administrativo, salvo el recurso extraordinario de revisión.');
+  assert.ok(l.some(([s]) => s === 'El plazo máximo para resolver y notificar nunca podrá exceder de seis meses.'), l.join('\n'));
+  assert.ok(l.some(([s, , n]) => s === 'Contra la resolución de un recurso de alzada cabe el recurso potestativo de reposición.' && n === 'Falso: solo cabe el recurso extraordinario de revisión.'), l.join('\n'));
+  const b = all('La célula\n\nLas células procariotas no tienen núcleo definido. Las bacterias son procariotas. Las células eucariotas tienen un núcleo rodeado por una membrana.\nLos cloroplastos solo están en las células vegetales y realizan la fotosíntesis.');
+  assert.ok(b.some(([s]) => s === 'Las bacterias son eucariotas.'), b.join('\n'));
+  assert.ok(b.some(([s, , n]) => s === 'Los cloroplastos están en todas las células y realizan la fotosíntesis.' && n === 'Falso: solo están en las células vegetales.'), b.join('\n'));
+});
