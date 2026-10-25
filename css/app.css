@@ -4048,3 +4048,9 @@ body.in-study .studyfoot .keys{color:rgba(255,255,255,.85)}
 body:not(.signed-out) .top{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);right:12px;z-index:45;pointer-events:none;margin:0;padding:0}
 body:not(.signed-out) .top .net{pointer-events:auto;box-shadow:0 2px 8px rgba(15,15,15,.12);font-size:12px;opacity:.92}
 @media (min-width:960px){body:not(.signed-out) .top{display:flex;top:16px;right:20px}}
+
+/* En pantallas táctiles, ningún campo de escritura por debajo de 16 px: con menos, Safari hace zoom al tocarlo y la página se mueve de lado */
+@media (pointer:coarse){
+  textarea.paste-box,input.ipick-own,.tl-rename input,.tfields input,input.prop-v,.num input[type=number],select.prop-select,.pg-props select,
+  .nb-table > .nb-input,.nb-img .nb-input,.nb.nb-code .nb-input,.tbl-grid .tc,.find-row input,.help-search input,.sort-inline select,.ex-search input{font-size:16px}
+}
