@@ -65,7 +65,7 @@ test('«Ahora no» no vuelve a preguntar en este dispositivo; Ajustes deja permi
   await page.locator('#pushAsk [data-act="push-later"]').click();
   await expect(page.locator('#pushAsk')).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('#pushAsk')).toHaveCount(0);
   await openSettings(page);

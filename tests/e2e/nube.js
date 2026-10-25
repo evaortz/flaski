@@ -101,7 +101,7 @@ export async function openCloud(page) {
   await page.goto('/');
   // Con muchas pruebas a la vez, arrancar puede tardar más de lo normal
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20000 });
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
 }
 
 export const sent = (srv, table) => srv.writes.filter(w => w[1] === table);

@@ -13,7 +13,7 @@ import { DRAWING_SVG } from '../dibujos.js';
 import { folderKey, normalizeWeights } from '../plan.js';
 import { maybeResumeSim } from './simulacro.js';
 import { temaSource } from '../primera-vez.js';
-import { markdownToPage, titleFromFile } from '../notesio.js';
+import { markdownToPage, plainTextToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
 import { openNews, NEWS_VERSION, NEWS_ALWAYS } from '../news.js';
@@ -44,19 +44,19 @@ export function renderAuth() {
   main.innerHTML = `
     <div class="panel">
       <h1>${reset ? 'Recuperar contraseña' : up ? 'Crea tu cuenta' : 'Entra en tu cuenta'}</h1>
-      <p class="muted">${reset ? 'Te enviaremos un email para elegir una contraseña nueva.' : 'Cada persona tiene sus propias listas y su propio progreso.'}</p>
+      <p class="muted">${reset ? 'Te enviaremos un correo para elegir una contraseña nueva.' : 'Cada persona tiene sus propias listas y su propio progreso.'}</p>
       ${reset ? '' : `<div class="seg" role="group" aria-label="Tipo de acceso">
         <button type="button" data-act="auth-mode" data-mode="signin" aria-pressed="${!up}">Entrar</button>
         <button type="button" data-act="auth-mode" data-mode="signup" aria-pressed="${up}">Crear cuenta</button></div>`}
       <form data-form="${reset ? 'reset' : up ? 'signup' : 'signin'}" novalidate>
         ${up ? '<label for="a-name">Tu nombre</label><input id="a-name" autocomplete="nickname" maxlength="40" required>' : ''}
-        <label for="a-email">Email</label>
+        <label for="a-email">Correo</label>
         <input id="a-email" type="email" autocomplete="email" inputmode="email" required>
         ${reset ? '' : `<label for="a-pass">Contraseña</label>
         <input id="a-pass" type="password" autocomplete="${up ? 'new-password' : 'current-password'}" minlength="6" required>
         ${up ? '<p class="hint">Mínimo 6 caracteres.</p>' : ''}`}
         <p class="error" id="a-error" hidden></p>
-        <button class="primary big" type="submit" style="margin-top:12px">${reset ? 'Enviar email' : up ? 'Crear cuenta' : 'Entrar'}</button>
+        <button class="primary big" type="submit" style="margin-top:12px">${reset ? 'Enviar correo' : up ? 'Crear cuenta' : 'Entrar'}</button>
       </form>
       ${reset ? '<button class="link" data-act="auth-mode" data-mode="signin">Volver</button>'
         : up ? '' : '<button class="link" data-act="auth-mode" data-mode="reset">He olvidado mi contraseña</button>'}
@@ -78,7 +78,7 @@ export async function submitAuth(kind, form) {
   btn.disabled = true;
   try {
     if (kind === 'signin') {
-      if (!email || !pass) return authError('Escribe tu email y tu contraseña.');
+      if (!email || !pass) return authError('Escribe tu correo y tu contraseña.');
       await api.auth.signIn(email, pass);
     } else if (kind === 'signup') {
       const name = $('#a-name').value.trim();
@@ -86,13 +86,13 @@ export async function submitAuth(kind, form) {
       if (pass.length < 6) return authError('La contraseña debe tener al menos 6 caracteres.');
       const res = await api.auth.signUp(email, pass, name);
       if (!res.session) {
-        main.innerHTML = `<div class="panel"><h2>Revisa tu email</h2><p>Te hemos enviado un enlace a <b>${esc(email)}</b> para confirmar la cuenta. Después vuelve aquí y entra.</p>
+        main.innerHTML = `<div class="panel"><h2>Revisa tu correo</h2><p>Te hemos enviado un enlace a <b>${esc(email)}</b> para confirmar la cuenta. Después vuelve aquí y entra.</p>
           <button class="primary" data-act="auth-mode" data-mode="signin">Ir a entrar</button></div>`;
       }
     } else if (kind === 'reset') {
-      if (!email) return authError('Escribe tu email.');
+      if (!email) return authError('Escribe tu correo.');
       await api.auth.sendReset(email);
-      main.innerHTML = `<div class="panel"><h2>Email enviado</h2><p>Si existe una cuenta con <b>${esc(email)}</b>, te llegará un enlace para elegir una contraseña nueva.</p>
+      main.innerHTML = `<div class="panel"><h2>Correo enviado</h2><p>Si existe una cuenta con <b>${esc(email)}</b>, te llegará un enlace para elegir una contraseña nueva.</p>
         <button class="primary" data-act="auth-mode" data-mode="signin">Volver</button></div>`;
     } else if (kind === 'newpass') {
       const np = $('#np').value;
@@ -313,7 +313,7 @@ export function showFirstRun() {
       const [p] = await fileToPages(file);
       return { ...p, title: p?.title || titleFromFile(file.name), name: file.name, kind };
     },
-    readText(text) { const p = markdownToPage(text); return { ...p, title: p.title || 'Mis apuntes', name: p.title || 'Texto pegado', kind: 'txt' }; },
+    readText(text) { const p = plainTextToPage(text); return { ...p, title: p.title || 'Mis apuntes', name: p.title || 'Texto pegado', kind: 'txt' }; },
     readExample: readTema,
     analyze: analyzePage,
     onFinish: firstRunChosen,

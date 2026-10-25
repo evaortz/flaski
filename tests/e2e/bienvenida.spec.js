@@ -12,17 +12,29 @@ test('oposición con tema de ejemplo: carpeta con examen, primera tanda y su fin
   await expect(page.locator('.fr h1')).toHaveText('Tu oposición');
   await page.locator('[data-fr-go="examen"]').click();                     // sin nombre no sigue
   await expect(page.locator('#frName')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#frNameErr')).toHaveText('Escribe el nombre de tu oposición');
   await page.locator('#frName').fill('Auxiliar Administrativo');
+  await expect(page.locator('#frNameErr')).toBeHidden();
   await expect(page.locator('#frHeroName')).toHaveText('Auxiliar Administrativo');
   await expect(page.locator('#frName')).toHaveAttribute('placeholder', 'Ej.: Auxiliar Administrativo del Estado');
-  await page.locator('#frExam').click();                                    // selector propio: año y mes
-  while (await page.locator('.fr-cal-h b').textContent() !== '2027') await page.locator('[data-fr-year="1"]').click();
+  await page.locator('#frExam').click();                                    // selector propio: 12 meses desde el actual
+  const now = new Date(), cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  await expect(page.locator('.fr-cal-m button')).toHaveCount(12);
+  await expect(page.locator('.fr-cal-m button').first()).toHaveAttribute('data-fr-month', cur);
+  await expect(page.locator('.fr-cal-m button:disabled')).toHaveCount(0);
+  await expect(page.locator('[data-fr-year="-1"]')).toBeDisabled();
+  // Las flechas pasan a los 12 siguientes (y vuelven)
+  await page.locator('[data-fr-year="1"]').click();
+  const next = `${now.getFullYear() + 1}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  await expect(page.locator('.fr-cal-m button').first()).toHaveAttribute('data-fr-month', next);
+  await page.locator('[data-fr-year="-1"]').click();
+  while (!(await page.locator('[data-fr-month="2027-05"]').count())) await page.locator('[data-fr-year="1"]').click();
   await page.locator('[data-fr-month="2027-05"]').click();
   await expect(page.locator('.fr-cal')).toHaveCount(0);
   await expect(page.locator('#frExam')).toHaveText('mayo de 2027');
   await expect(page.locator('#frHeroWhen')).toHaveText('examen en mayo de 2027');
   await page.locator('[data-fr-go="examen"]').click();
-  await expect(page.locator('.fr h1')).toHaveText('Trae tu tema 1');
+  await expect(page.locator('.fr h1')).toHaveText('Trae tu tema');
   await page.getByRole('button', { name: 'Prueba con un tema de ejemplo' }).click();
   await page.locator('[data-fr-tema="0"]').click();
   await expect(page.locator('.fr-file')).toContainText('La Constitución · Título Preliminar');
@@ -53,7 +65,7 @@ test('oposición con tema de ejemplo: carpeta con examen, primera tanda y su fin
 
   // No vuelve a salir
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('.ob:not(.news)')).toHaveCount(0);
 });
 

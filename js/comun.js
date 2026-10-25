@@ -75,9 +75,9 @@ export function toast(msg) {
 }
 export function errMsg(e) {
   const m = (e && (e.message || e.error_description)) || '';
-  if (/Invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
-  if (/Email not confirmed/i.test(m)) return 'Confirma tu email antes de entrar (revisa tu bandeja de entrada).';
-  if (/already registered/i.test(m)) return 'Ya existe una cuenta con ese email.';
+  if (/Invalid login credentials/i.test(m)) return 'Correo o contraseña incorrectos.';
+  if (/Email not confirmed/i.test(m)) return 'Confirma tu correo antes de entrar (revisa tu bandeja de entrada).';
+  if (/already registered/i.test(m)) return 'Ya existe una cuenta con ese correo.';
   if (/Password should be/i.test(m)) return 'La contraseña debe tener al menos 6 caracteres.';
   if (/rate limit/i.test(m)) return 'Demasiados intentos. Espera unos minutos.';
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión. Revisa tu internet.';

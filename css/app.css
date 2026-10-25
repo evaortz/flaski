@@ -3909,3 +3909,21 @@ body.in-study .studybar .sb-info .left{color:rgba(255,255,255,.85)}
   .nb-sugdot::after{inset:-11px}
   .nb-cards{overflow:visible}
 }
+.fr-cal-m button{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+.fr-cal-m button small{font-size:10.5px;color:var(--muted)}
+.fr-cal-m button[aria-pressed="true"] small{color:inherit}
+.fr-err{margin:-4px 0 0;font-size:13.5px;color:#C92F2F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fr-err{color:#FF8A80}}
+:root[data-theme="dark"] .fr-err{color:#FF8A80}
+
+/* Esqueleto de Hoy mientras carga la app */
+.skel{display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.sk{display:block;border-radius:12px;background:var(--soft);animation:sk-pulse 1.4s ease-in-out infinite}
+.sk-t{width:55%;height:36px}
+.sk-num{width:38%;height:88px;border-radius:18px}
+.sk-line{width:70%;height:16px}
+.sk-btn{width:100%;max-width:420px;height:60px;border-radius:30px;margin-top:6px}
+.sk-card{width:100%;height:110px;border-radius:18px;margin-top:10px}
+.sk-short{height:70px;width:80%}
+@keyframes sk-pulse{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}

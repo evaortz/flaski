@@ -17,7 +17,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
 
   await page.goto('/?local');
   await expect(page.locator('.testbar')).toContainText('Modo local de pruebas');
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('#banner')).toBeHidden();
   await expect(page.locator('#main')).toContainText('Todavía no tienes listas');
 

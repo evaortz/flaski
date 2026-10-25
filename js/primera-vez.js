@@ -58,12 +58,12 @@ export function openFirstRun(opts) {
   document.body.appendChild(root);
   document.body.classList.add('ob-open');
   // step: que · idioma · examen · tema · pegar · ejemplos · leyendo · listo
-  const st = { step: 'que', what: null, name: '', exam: '', noExam: false, cal: false, calYear: new Date().getFullYear(), how: 'notes', lang: opts.defaultLang || 'en-GB', page: null, info: null, error: '', status: '' };
+  const st = { step: 'que', what: null, name: '', exam: '', noExam: false, cal: false, calFrom: 0, how: 'notes', lang: opts.defaultLang || 'en-GB', page: null, info: null, error: '', status: '' };
   const trail = [];
   const drawing = id => opts.drawings?.[id] || '';
   const isExam = () => st.what === 'opo' || st.what === 'uni';
   const folder = () => (isExam() && st.name.trim() ? { name: st.name.trim().slice(0, 80), exam: st.noExam ? '' : st.exam, icon: st.what === 'opo' ? 'd:balanza' : 'd:economia' } : null);
-  const temaTitle = () => (st.what === 'opo' ? 'Trae tu tema 1' : 'Trae tus apuntes');
+  const temaTitle = () => (st.what === 'opo' ? 'Trae tu tema' : 'Trae tus apuntes');
   const heroName = () => st.name.trim() || (st.what === 'opo' ? 'Tu oposición' : 'Tu asignatura');
   const heroWhen = () => (st.noExam ? 'sin fecha de examen' : st.exam ? `examen en ${monthText(st.exam)}` : '');
 
@@ -72,13 +72,14 @@ export function openFirstRun(opts) {
   const top = k => `<div class="fr-top"><button type="button" class="fr-back" data-fr-back aria-label="Atrás">${icon('chevron-left', { size: 20 })}</button>${k ? dots(k) : ''}<span class="fr-top-end"></span></div>`;
   const card = (attrs, ic, title, text) => `<button type="button" class="fr-card" ${attrs}>${ic}<span class="fr-card-t"><b>${title}</b><small>${text}</small></span>${icon('chevron-right', { size: 18 })}</button>`;
 
-  // El mes del examen: año con flechas y los 12 meses (los ya pasados, apagados)
+  // El mes del examen: 12 meses seguidos desde el actual (sin los ya pasados) y flechas para los 12 siguientes
+  const nowIdx = () => { const d = new Date(); return d.getFullYear() * 12 + d.getMonth(); };
   const calendar = () => {
-    const now = new Date(), y = st.calYear, nowY = now.getFullYear();
-    const key = i => `${y}-${String(i + 1).padStart(2, '0')}`;
+    const from = Math.max(nowIdx(), st.calFrom || nowIdx()), months = Array.from({ length: 12 }, (_, i) => from + i);
+    const key = n => `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`, y0 = Math.floor(from / 12), y1 = Math.floor((from + 11) / 12);
     return `<div class="fr-cal" role="group" aria-label="Mes del examen">
-      <div class="fr-cal-h"><button type="button" class="fr-cal-y" data-fr-year="-1" aria-label="Año anterior" ${y <= nowY ? 'disabled' : ''}>${icon('chevron-left', { size: 18 })}</button><b>${y}</b><button type="button" class="fr-cal-y" data-fr-year="1" aria-label="Año siguiente" ${y >= nowY + 6 ? 'disabled' : ''}>${icon('chevron-right', { size: 18 })}</button></div>
-      <div class="fr-cal-m">${MONTHS.map((m, i) => `<button type="button" data-fr-month="${key(i)}" aria-label="${m} de ${y}" aria-pressed="${st.exam === key(i)}" ${y === nowY && i < now.getMonth() ? 'disabled' : ''}>${m.slice(0, 3)}</button>`).join('')}</div>
+      <div class="fr-cal-h"><button type="button" class="fr-cal-y" data-fr-year="-1" aria-label="Meses anteriores" ${from <= nowIdx() ? 'disabled' : ''}>${icon('chevron-left', { size: 18 })}</button><b>${y0 === y1 ? y0 : `${y0} – ${y1}`}</b><button type="button" class="fr-cal-y" data-fr-year="1" aria-label="Meses siguientes" ${from >= nowIdx() + 72 ? 'disabled' : ''}>${icon('chevron-right', { size: 18 })}</button></div>
+      <div class="fr-cal-m">${months.map(n => `<button type="button" data-fr-month="${key(n)}" aria-label="${MONTHS[n % 12]} de ${Math.floor(n / 12)}" aria-pressed="${st.exam === key(n)}">${MONTHS[n % 12].slice(0, 3)}${n % 12 === 0 && n !== from ? `<small>${Math.floor(n / 12)}</small>` : ''}</button>`).join('')}</div>
     </div>`;
   };
   const redraw = () => { const y = root.scrollTop; draw(); root.scrollTop = y; };
@@ -115,7 +116,8 @@ export function openFirstRun(opts) {
         <h1 class="fr-h">${opo ? 'Tu oposición' : 'Tu examen'}</h1>
         <div class="fr-hero"><span class="fr-hero-art" aria-hidden="true">${drawing(opo ? 'balanza-color' : 'economia')}</span><small>tu carpeta</small><b id="frHeroName">${esc(heroName())}</b><small id="frHeroWhen">${heroWhen()}</small></div>
         <label class="fr-label" for="frName">${opo ? '¿Cuál?' : '¿Qué estudias?'}</label>
-        <input id="frName" maxlength="80" value="${esc(st.name)}" placeholder="Ej.: ${opo ? 'Auxiliar Administrativo del Estado' : 'Historia del Arte'}" autocomplete="off">
+        <input id="frName" maxlength="80" value="${esc(st.name)}" placeholder="Ej.: ${opo ? 'Auxiliar Administrativo del Estado' : 'Historia del Arte'}" autocomplete="off" aria-describedby="frNameErr">
+        <p class="fr-err" id="frNameErr" role="alert" hidden>${opo ? 'Escribe el nombre de tu oposición' : 'Escribe qué estudias'}</p>
         <label class="fr-label" for="frExam">¿Cuándo es el examen?</label>
         <div class="fr-row"><div class="fr-month"><button type="button" id="frExam" class="fr-month-b${st.exam && !st.noExam ? '' : ' is-empty'}" data-fr-cal aria-expanded="${st.cal}" ${st.noExam ? 'disabled' : ''}><span>${st.exam && !st.noExam ? esc(monthText(st.exam)) : 'Elige el mes'}</span>${icon('chevron-down', { size: 18 })}</button>${st.cal && !st.noExam ? calendar() : ''}</div><button type="button" class="fr-pill" data-fr-noexam aria-pressed="${st.noExam}">Aún no lo sé</button></div>
         <p class="fr-label" id="frHowL">¿Cómo empiezas?</p>
@@ -164,7 +166,7 @@ export function openFirstRun(opts) {
           <p>Empezamos con ${n} del principio.${total > n ? ' Las demás te esperan en tu apunte y las revisas cuando quieras.' : ''}</p>`
           : '<h2>Sin preguntas a la vista</h2><p>No hemos encontrado preguntas en este texto. Ábrelo y crea las tuyas seleccionando lo importante.</p>'}</div>
       </div>
-      <div class="fr-cta">${n ? `<button type="button" class="primary big fr-go2" data-fr-go="tanda"><b>Hacer mi primera tanda</b><small>${n === 1 ? '1 pregunta' : `${n} preguntas`} · unos ${Math.max(1, Math.round(n / 3))} min</small></button>
+      <div class="fr-cta">${n ? `<button type="button" class="primary big fr-go2" data-fr-go="tanda"><b>Hacer mi primera tanda</b><small>${n === 1 ? '1 pregunta' : `${n} preguntas`} · ${Math.max(1, Math.round(n / 3)) === 1 ? '1 min' : `unos ${Math.round(n / 3)} min`}</small></button>
         <p class="fr-links"><button type="button" class="link" data-fr-go="review">Ver ${n === 1 ? 'la pregunta' : `las ${n}`} antes</button> · <button type="button" class="link" data-fr-back>cambiar de archivo</button></p>`
         : '<button type="button" class="primary big" data-fr-go="open">Abrir mi apunte</button><p class="fr-links"><button type="button" class="link" data-fr-back>cambiar de archivo</button></p>'}</div>`;
     },
@@ -226,14 +228,14 @@ export function openFirstRun(opts) {
     }
     if (d.frStep) return to(d.frStep);
     if (d.frNoexam !== undefined) { st.noExam = !st.noExam; st.cal = false; return redraw(); }
-    if (d.frCal !== undefined) { st.cal = !st.cal; if (st.exam) st.calYear = +st.exam.slice(0, 4); redraw(); return root.querySelector(st.cal ? '.fr-cal [aria-pressed="true"], .fr-cal-m button:not(:disabled)' : '#frExam')?.focus(); }
-    if (d.frYear) { st.calYear += +d.frYear; redraw(); return root.querySelector(`[data-fr-year="${d.frYear}"]:not(:disabled)`)?.focus() || root.querySelector('.fr-cal-m button:not(:disabled)')?.focus(); }
+    if (d.frCal !== undefined) { st.cal = !st.cal; if (st.exam) { const [ey, em] = st.exam.split('-').map(Number), n = ey * 12 + em - 1; st.calFrom = n - ((n - nowIdx()) % 12 + 12) % 12; } else st.calFrom = nowIdx(); redraw(); return root.querySelector(st.cal ? '.fr-cal [aria-pressed="true"], .fr-cal-m button:not(:disabled)' : '#frExam')?.focus(); }
+    if (d.frYear) { st.calFrom = Math.max(nowIdx(), (st.calFrom || nowIdx()) + 12 * +d.frYear); redraw(); return root.querySelector(`[data-fr-year="${d.frYear}"]:not(:disabled)`)?.focus() || root.querySelector('.fr-cal-m button:not(:disabled)')?.focus(); }
     if (d.frMonth) { st.exam = d.frMonth; st.cal = false; redraw(); return root.querySelector('#frExam')?.focus(); }
     if (d.frExample) return finish({ kind: 'example', file: d.frExample });
     if (d.frTema !== undefined) { const t = TEMAS[+d.frTema]; return load(() => opts.readExample(t), `Abriendo «${t.title}»…`); }
     if (d.frGo === 'lang') return finish({ kind: 'lang', lang: root.querySelector('#frLang').value });
     if (d.frGo === 'examen') {
-      if (!st.name.trim()) { const i = root.querySelector('#frName'); i.setAttribute('aria-invalid', 'true'); return i.focus(); }
+      if (!st.name.trim()) { const i = root.querySelector('#frName'); i.setAttribute('aria-invalid', 'true'); root.querySelector('#frNameErr').hidden = false; return i.focus(); }
       if (st.how === 'notes') return to('tema');
       return finish({ kind: st.how, folder: folder() });
     }
@@ -246,7 +248,7 @@ export function openFirstRun(opts) {
   });
   root.addEventListener('input', e => {
     const t = e.target;
-    if (t.id === 'frName') { st.name = t.value; t.removeAttribute('aria-invalid'); const h = root.querySelector('#frHeroName'); if (h) h.textContent = heroName(); }
+    if (t.id === 'frName') { st.name = t.value; t.removeAttribute('aria-invalid'); root.querySelector('#frNameErr').hidden = true; const h = root.querySelector('#frHeroName'); if (h) h.textContent = heroName(); }
   });
   root.addEventListener('change', e => {
     const t = e.target;

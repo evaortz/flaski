@@ -42,7 +42,7 @@ test('un ajuste de Hoy se guarda, se aplica y sobrevive a recargar', async ({ pa
   await expect(toggle).not.toBeChecked();
 
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Hoy');
   await expect(page.getByRole('heading', { name: 'Cómo va lo que sabes' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Tu actividad' })).toHaveCount(0);

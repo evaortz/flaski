@@ -20,7 +20,7 @@ test.describe('al entrar', () => {
     await expect(news).toHaveCount(0);
     // Ya vistas: no vuelven a salir al entrar
     await page.reload();
-    await expect(page.locator('#main .spin')).toHaveCount(0);
+    await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
     await page.waitForTimeout(300);
     await expect(news).toHaveCount(0);
   });

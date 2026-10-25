@@ -110,7 +110,7 @@ test('sangría con Tab en listas (numeración por niveles) y plegar un apartado'
   await page.locator('#pgBlocks .nb-h2 .nb-fold').click({ force: true });
   await expect(page.locator('#pgBlocks .nb:visible')).toHaveCount(1);
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByText('Sangría').first().click();
   await expect(page.locator('#pgBlocks .nb:visible')).toHaveCount(1);

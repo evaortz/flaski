@@ -377,6 +377,22 @@ export function markdownToPage(text, fileName = '') {
   const title = blocks[0]?.type === 'h1' ? blocks.shift().text : titleFromFile(fileName);
   return { title, blocks };
 }
+// Texto pegado sin formato: las mismas pistas que da un archivo. La primera línea corta y sin punto final es el
+// título, y «Etiqueta:» al principio de un párrafo va en negrita (como «**Estructura:** tiene…» de un Word)
+export function plainTextToPage(text) {
+  const p = markdownToPage(text);
+  if (!p.title && p.blocks[0]?.type === 'p') {
+    const t = p.blocks[0].text.trim();
+    if (t.length <= 90 && !/[.:;,]$/.test(t) && t.split(/\s+/).length <= 14 && p.blocks.length > 1) { p.title = t.replace(/\*\*/g, ''); p.blocks.shift(); }
+  }
+  p.blocks = boldLabels(p.blocks);
+  return p;
+}
+export const boldLabels = blocks => blocks.map(b => {
+  if (!['p', 'li', 'ol'].includes(b.type) || /^\*\*/.test(b.text)) return b;
+  const m = /^(\p{Lu}[^:.*\n]{0,40}?):\s+(\S[\s\S]*)$/u.exec(b.text);
+  return m && m[1].split(/\s+/).length <= 5 ? { ...b, text: `**${m[1]}:** ${m[2]}` } : b;
+});
 // «Mitosis 2b3c…f1.md» (Notion) o «mitosis.md» → «Mitosis»
 export const titleFromFile = name => String(name || '').split('/').pop().replace(/\.[^.]+$/, '').replace(/\s+[0-9a-f]{32}$/i, '').replace(/[-_]+/g, ' ').trim();
 // Las imágenes que un Markdown cita con rutas relativas ( ![](carpeta/foto.png) o ![[foto.png]] de Obsidian )

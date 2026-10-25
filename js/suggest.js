@@ -398,6 +398,30 @@ function whenSentence(sp) {
   const q = clitic ? `${ask} ${verb} ${tail} ${lowerSubject(subj)}?` : `${ask} ${verb} ${lowerSubject(subj)}${tail ? ' ' + tail : ''}?`;
   return { q: q.replace(/\s+/g, ' ').replace(/\s\?$/, '?'), a: capFirst(d.text), year: isYear(d.text) };
 }
+// Una frase con dos fechas unidas por «y»: «X fue aprobada… el A y ratificada… el B» → dos frases con una fecha cada una
+// («X fue aprobada… el A» y «X fue ratificada… el B»). Sin sujeto («Entró en vigor el…»), el de la frase anterior.
+const PARTICIPLE = /^\p{L}+(?:ad|id)[oa]s?$/u;
+function whenParts(sp, prevSubj = '') {
+  const ds = dates(sp);
+  if (ds.length === 2) {
+    const m = /^(.+?)\s+(fue|fueron|ha sido|han sido)\s+(.+?)\s+y\s+(\S+)\s+(.+)$/iu.exec(sp.replace(/[.;]+$/, ''));
+    if (m && PARTICIPLE.test(m[4]) && dates(m[3]).length === 1 && dates(m[5]).length === 1) return [`${m[1]} ${m[2]} ${m[3]}`, `${m[1]} ${m[2]} ${m[4]} ${m[5]}`];
+    return [];
+  }
+  if (ds.length !== 1) return [];
+  const first = sp.split(' ')[0];
+  if (prevSubj && FINITE.test(first.toLocaleLowerCase()) && !AUX.test(first) && /^\p{Lu}/u.test(first)) return [`${prevSubj} ${first.toLocaleLowerCase()}${sp.slice(first.length)}`];
+  return [sp];
+}
+// El sujeto de una frase («La Constitución fue aprobada…» → «La Constitución»), para la siguiente si no lo repite
+const subjectOf = sp => /^((?:El|La|Los|Las)\s+\p{Lu}[\p{L}]*(?:\s+(?:de|del)?\s*\p{Lu}[\p{L}]*)*)\s+(?:fue|fueron|es|son|se|ha|han|\p{L}+(?:ó|aron|ió|ieron))\b/u.exec(sp)?.[1] || '';
+// Una frase «X es / reside en / se constituye en / corresponde a Y» → hueco en Y (si es corto)
+const PRED = /^(.{3,140}?\s(?:es|son|reside en|residen en|se constituye en|se constituyen en|corresponde a|recae en|está formad[oa] por))\s+(.{3,70}?)[.;]?$/iu;
+function predicateCloze(sp) {
+  const m = PRED.exec(sp.trim());
+  if (!m || words(m[2]).length > 8) return null;
+  return `${m[1]} {{${m[2]}}}.`;
+}
 // Cifras: «**169 artículos**», «Reformas: tres.»
 const NUM_WORDS = { uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, quince: 15, veinte: 20, cien: 100 };
 const NUM = `(\\d+|${Object.keys(NUM_WORDS).join('|')})`;
@@ -517,7 +541,8 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   // De qué habla un bloque (para «¿Cuántos artículos tiene…?»): su apartado, o el título del apunte si el apartado
   // es genérico («Datos clave») o un artículo; sin lo que va tras « · » ni entre paréntesis
   const ARTICLE_HEAD = /^art(?:ículo|\.)\s*(\d+)/i;
-  const cleanCtx = t => plainText(t).split(/\s+[·|]\s+/)[0].replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  // Sin «Tema 1.» delante («Tema 1. La Constitución Española» → «La Constitución Española»)
+  const cleanCtx = t => plainText(t).split(/\s+[·|]\s+/)[0].replace(/^(?:tema|unidad|lecci[oó]n|cap[ií]tulo|bloque)\s+\d+\s*[.:–—-]\s*/i, '').replace(/\s*\([^)]*\)\s*/g, ' ').trim();
   const subjectCtx = id => {
     const h = nearestHeading(id);
     if (h && h !== title && !GENERIC_HEAD.test(h) && !/^(datos(\s+clave)?|ideas\s+clave|lo\s+esencial|en\s+resumen|para\s+no\s+confundirse)$/i.test(h) && !ARTICLE_HEAD.test(h)) return cleanCtx(h);
@@ -748,6 +773,10 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     for (const [, n, unit] of text.matchAll(new RegExp(`\\*\\*${NUM}\\s+(\\p{L}{4,}s)\\*\\*`, 'giu'))) {
       if (ctx && toNumber(n)) add('num', b.id, 'number', { q: `${howMany(unit)} tiene ${lowerSubject(ctx)}?`, a: toNumber(n), t: '', u: '', n: '' }, 0.72);
     }
+    // Cifras sin negrita: «tiene 169 artículos», «consta de diez títulos»
+    for (const [, n, unit] of plainText(text).matchAll(new RegExp(`\\b(?:tiene|tienen|consta de|constan de|cuenta con|contiene)\\s+${NUM}\\s+(\\p{L}{4,}s)\\b`, 'giu'))) {
+      if (ctx && toNumber(n)) add('num', b.id, 'number', { q: `${howMany(unit)} tiene ${lowerSubject(ctx)}?`, a: toNumber(n), t: '', u: '', n: '' }, 0.72);
+    }
     const lab = def || (/^\*\*([^*]{1,60}?)\s*:?\*\*\s*:?\s+(\S.*)$/s.exec(text) || []).slice(1).reduce((o, v, k) => ({ ...o, [k ? 'def' : 'term']: v }), null);
     if (lab) {
       const termP = plainText(lab.term).replace(/[:.]$/, ''), defP = plainText(lab.def);
@@ -775,6 +804,13 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         else add('vocab', b.id, 'vocab', { w, t: tr, p: '', e: '', n: '' }, 0.9);
         continue;
       }
+      // Una definición de varias frases («Artículo 1: España se constituye… La soberanía reside… »): un hueco por frase
+      const defSents = sentences(defP);
+      if (tw <= 6 && defSents.length >= 2) {
+        let n = 0;
+        for (const ds2 of defSents) { const x = predicateCloze(ds2); if (x && add('def', b.id, 'cloze', { x, e: termP }, 0.7)) n++; }
+        if (n) continue;
+      }
       if (tw <= 6 && dw >= 2) {
         const subj = termP;
         const q = /^(qué|cuál|cómo|quién|por qué|cuándo|dónde|what|how|why|who|when|where)\b/i.test(subj) || /\?$/.test(subj)
@@ -786,6 +822,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     }
 
     // Frase a frase: concepto con verbo, negritas y fechas
+    let prevSubj = '';
     for (const rawSentence of sentences(text)) {
       const s = rawSentence.replace(CALLOUT_PRE, '').trim();
       const sp = plainText(s);
@@ -801,8 +838,13 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
         }
       }
       // Fechas: «¿Cuándo…?» con la fecha como respuesta (una por frase; en el mismo párrafo, todas las frases)
-      const when = whenSentence(sp);
-      if (when && !rel.some(r => r.kind === 'date') && add('date', b.id, when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.68)) done.add('date');
+      if (!rel.some(r => r.kind === 'date')) {
+        for (const part of whenParts(sp, prevSubj)) {
+          const when = whenSentence(part);
+          if (when && add('date', b.id, when.year ? 'number' : 'basic', when.year ? { q: when.q, a: when.a, t: '', u: '', n: '' } : { q: when.q, a: when.a, n: '' }, 0.68)) done.add('date');
+        }
+      }
+      prevSubj = subjectOf(sp) || prevSubj;
       // Negritas: un hueco por cada una (lo que el autor marcó como importante); una enumeración, un solo hueco
       let src = s;
       const en = ENUM_RX.exec(s);
@@ -841,7 +883,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
       // Fechas: un solo año, detrás de «en / desde / hacia / año…» (no cualquier número de cuatro cifras)
       if (sp.length > 230) continue;
       const years = [...sp.matchAll(/(?<![\d.,^])(1[0-9]{3}|20[0-9]{2})(?![\d.,]\d)/g)];
-      if (years.length === 1 && !when) {
+      if (years.length === 1 && !done.has('date')) {
         const y = years[0][1];
         const ctx = new RegExp(`(?:\\b(?:en|desde|hasta|entre|hacia|año|años|in|since|until|im|seit)\\s+(?:el\\s+|the\\s+)?(?:año\\s+|year\\s+)?|^)${y}(?![\\d])`, 'i');
         if (ctx.test(sp)) add('date', b.id, 'number', { q: sp.replace(new RegExp(`(?<![\\d.,])${y}(?![\\d.,]\\d)`), '____'), a: y, t: '', u: '', n: '' }, 0.6);

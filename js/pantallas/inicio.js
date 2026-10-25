@@ -41,7 +41,7 @@ export function renderHome() {
       <div class="hero-row">
         <div class="hero-num">${avail}</div>
         <div class="hero-side">
-          <span class="hero-word">${avail === 1 ? 'pregunta!' : 'preguntas!'}</span>
+          <span class="hero-word">${avail === 1 ? 'pregunta' : 'preguntas'}</span>
           <span class="hero-band">para hoy</span>
           <span>${q.due} por repasar</span><span>${newLine(q, folders, b)}</span>
           ${lateHTML}

@@ -40,7 +40,7 @@ export function openOnboarding(opts) {
   const welcome = () => `
     <div class="ob-hero"><div class="ob-mark" aria-hidden="true">F</div>
       <h1>${opts.name ? `Hola, ${esc(opts.name)}` : 'Te damos la bienvenida a Flaski'}</h1>
-      <p class="ob-lead">Aprende cualquier cosa y no la olvides: flashcards con repaso espaciado, apuntes unidos a tus preguntas y listas para cualquier tema.</p>
+      <p class="ob-lead">Aprende cualquier cosa y no la olvides: preguntas con repaso espaciado, apuntes unidos a tus preguntas y listas para cualquier tema.</p>
       <ul class="ob-feats">
         <li>${icon('brain', { size: 20 })}<span><b>Recuerda más estudiando menos.</b> Cada pregunta vuelve justo cuando la ibas a olvidar.</span></li>
         <li>${icon('notebook-text', { size: 20 })}<span><b>De tus apuntes a tus preguntas.</b> Y de cada pregunta, de vuelta a su apunte.</span></li>

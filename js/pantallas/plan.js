@@ -138,8 +138,8 @@ function summaryHTML(fc) {
   const undo = S.planUndo ? ' <button class="link" data-pl="undo">Deshacer</button>' : '';
   if (late.length) {
     const e = late[0], st = problemStage(e), rk = rootKey(e.key);
-    const why = st ? `En la etapa ${stageNum(st.id)} ${esc(keyName(rk))} está en «${levelLabel(levelIn(st, rk))}»: al ${shortDate(e.exam)} te faltarían unas ${e.left} preguntas nuevas por ver.`
-      : `Al ${shortDate(e.exam)} te faltarían unas ${e.left} preguntas nuevas por ver.`;
+    const why = st ? `En la etapa ${stageNum(st.id)} ${esc(keyName(rk))} está en «${levelLabel(levelIn(st, rk))}»: al ${shortDate(e.exam)} ${missing(e.left)}.`
+      : `Al ${shortDate(e.exam)} ${missing(e.left)}.`;
     return `<div class="pl-sum late" id="plSum"><h2>Así no llegas al examen de ${esc(keyName(e.key))}</h2><p>${why}${undo}</p></div>`;
   }
   const title = !n ? 'Sin exámenes a la vista' : n === 1 ? 'Vas bien: llegas al examen' : n === 2 ? 'Vas bien: llegas a los dos exámenes' : `Vas bien: llegas a los ${n} exámenes`;
@@ -147,12 +147,14 @@ function summaryHTML(fc) {
 }
 
 /* ---------------- cuando no llegas ---------------- */
+// «te faltarían unas 40 preguntas nuevas» (con una, «te faltaría 1 pregunta nueva»)
+const missing = n => (n === 1 ? 'te faltaría 1 pregunta nueva' : `te faltarían unas ${n} preguntas nuevas`);
 const RAISE = { paused: 'low', reviews: 'low', low: 'normal', normal: 'high' };
 // Tres arreglos para el primer examen al que no llegas, cada uno con lo que pasaría
 export function planFixes(ex) {
   const plan = P(), rk = rootKey(ex.key), name = keyName(rk), st = problemStage(ex), out = [];
   const result = (p2, npd = S.newPerDay) => { const f = forecast(p2, npd), e = f.exams.find(x => x.key === ex.key); return { f, e }; };
-  const tail = e => (!e ? '' : e.late ? `aún te faltarían ${e.left}` : e.finish ? `acabas el ${shortDate(e.finish)}${e.margin >= 14 ? `, con ${Math.floor(e.margin / 7)} semanas para repasar` : e.margin > 1 ? `, con ${e.margin} días para repasar` : ''}` : 'acabas a tiempo');
+  const tail = e => (!e ? '' : e.late ? (e.left === 1 ? 'aún te faltaría 1' : `aún te faltarían ${e.left}`) : e.finish ? `acabas el ${shortDate(e.finish)}${e.margin >= 14 ? `, con ${Math.floor(e.margin / 7)} semanas para repasar` : e.margin > 1 ? `, con ${e.margin} días para repasar` : ''}` : 'acabas a tiempo');
   // 1 · Subir el nivel (en la etapa del problema o, sin etapas, el de siempre)
   const cur = st ? levelIn(st, rk) : baseLevel(rk), up = RAISE[cur];
   if (up) {
@@ -498,7 +500,7 @@ function stageVerdict(s, fc) {
   const ex = fc.exams.filter(e => keys.includes(rootKey(e.key)) && e.exam >= s.from);
   if (ex.length) {
     const e = ex[0];
-    return e.late ? `<div class="st-verdict bad"><b>ojo</b><p>Con estas fechas no acabas ${esc(shortName(keyName(e.key)))} antes del examen: te faltarían unas ${e.left} nuevas.</p></div>`
+    return e.late ? `<div class="st-verdict bad"><b>ojo</b><p>Con estas fechas no acabas ${esc(shortName(keyName(e.key)))} antes del examen: ${missing(e.left)}.</p></div>`
       : `<div class="st-verdict"><b>bien</b><p>Con estas fechas acabas ${esc(shortName(keyName(e.key)))} el ${shortDate(e.finish || today())}${e.margin > 0 ? `, ${plural(e.margin, 'día', 'días')} antes del examen` : ''}.</p></div>`;
   }
   const high = keys.find(k => s.levels[k] === 'high');
@@ -787,7 +789,7 @@ export function renderExam() {
   const per = sum(ids, newPlan('all', { steady: true }));
   const status = days < 0 ? `<div class="pl-sum"><h2>El examen ya pasó</h2><p>Si lo terminaste, ${esc(keyName(key))} ${AFTER[n.after || '']}.</p></div>`
     : !e?.start ? '<div class="pl-sum ok"><h2>Ya has visto todo el temario</h2><p>Hasta el examen, a repasar.</p></div>'
-    : e.late ? `<div class="pl-sum late"><h2>Así no llegas</h2><p>Te quedan ${plural(e.start, 'pregunta nueva', 'preguntas nuevas')}: al ${shortDate(n.exam)} te faltarían unas ${e.left}. <button class="link" data-nav="plan">Ver cómo arreglarlo</button></p></div>`
+    : e.late ? `<div class="pl-sum late"><h2>Así no llegas</h2><p>Te quedan ${plural(e.start, 'pregunta nueva', 'preguntas nuevas')}: al ${shortDate(n.exam)} ${missing(e.left)}. <button class="link" data-nav="plan">Ver cómo arreglarlo</button></p></div>`
     : `<div class="pl-sum"><h2>Vas bien: acabas el temario el ${shortDate(e.finish)}</h2><p>Te quedan ${plural(e.start, 'pregunta nueva', 'preguntas nuevas')}. Con ${per || 'unas pocas'} al día llegas${e.margin > 0 ? ` con ${plural(e.margin, 'día', 'días')} de margen para repasar` : ''}.</p></div>`;
   // Lo que más se te resiste (del mapa)
   const m = mapModel(mapScope(key));

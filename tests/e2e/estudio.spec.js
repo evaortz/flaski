@@ -17,7 +17,7 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await expect(page.locator('.tally .g3')).toHaveText(/2\s*Bien/);
 
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('.hero-done')).toHaveText(/^Hola.*, estás al día$/);
   await expect(page.locator('.hero-num')).toHaveCount(0);
   await expect(page.locator('.hero-band')).toHaveCount(0);
@@ -68,7 +68,7 @@ test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía co
 
   // Lo pedido sigue valiendo hoy aunque se recargue
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('5');
 });
 

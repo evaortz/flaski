@@ -50,7 +50,7 @@ test('escribir apuntes por bloques: títulos, listas, Enter y Retroceso', async 
 
   // Se guarda: al volver a la lista y abrirlo sigue igual
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByRole('button', { name: /Casos del turco/ }).click();
   await expect(page.locator('#pgBlocks .nb')).toHaveCount(4);
@@ -111,7 +111,7 @@ test('tablas: se escriben celda a celda (Tab, Enter, filas y columnas, pegar de 
   await expect(cell(1, 1)).toBeFocused();
   await page.keyboard.press('Escape');
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByText('Tabla').first().click();
   await expect(page.locator('#pgBlocks table tbody tr').nth(1).locator('td')).toHaveText(['Ablativo', '-den', 'evden']);
@@ -497,7 +497,7 @@ test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al reca
   await expect(fig.locator('figcaption')).toHaveText('Mapa de Turquía');
 
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByText('Mapas').first().click();
   const img = page.locator('#pgBlocks .nb-img img.media');
@@ -548,7 +548,7 @@ test('más tipos de bloque: atajos, menú /, casillas, destacado, código y sepa
 
   // Se guarda y vuelve igual al recargar
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByText('Bloques').first().click();
   await expect(page.locator('#pgBlocks .nb-todo')).toHaveClass(/is-done/);

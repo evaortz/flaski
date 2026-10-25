@@ -7,7 +7,7 @@ import { storeImage, imageType, newImageId, flushUploads, imageBlob } from '../m
 import { toHTML, toLiveHTML, toPlain, toggleMark, marksAt, COLORS as TEXT_COLORS, COLOR_LABEL } from '../inline.js';
 import { makeLive, liveSet, selOffsets, textOffset } from '../liveedit.js';
 import { htmlToBlocks } from '../paste.js';
-import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, titleFromFile, markdownImageRefs } from '../notesio.js';
+import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, plainTextToPage, boldLabels, titleFromFile, markdownImageRefs } from '../notesio.js';
 import { readZip } from '../zip.js';
 import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, parseTable, isTableText, tableToMarkdown, cardsStatus, sectionIds, STATUS, pageToMarkdown } from '../pages.js';
 import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, algo } from '../comun.js';
@@ -1316,8 +1316,14 @@ document.addEventListener('paste', e => {
       ed.setRangeText(text, ed.selectionStart, ed.selectionEnd, 'end');
       return;
     }
-    // Varias líneas pegadas: se convierten en bloques (títulos, listas y párrafos)
-    blocks = textToBlocks(text);
+    // Varias líneas pegadas: se convierten en bloques (títulos, listas y párrafos), con «Etiqueta:» en negrita;
+    // en un apunte aún vacío y sin título, la primera línea corta y sin punto es el título
+    const empty = !p.title?.trim() && p.blocks.every(x => !String(x.text || '').trim());
+    if (empty) {
+      const pp = plainTextToPage(text);
+      if (pp.title) { p.title = pp.title; const t = $('#pgTitle'); if (t) { t.value = pp.title; t.dispatchEvent(new Event('input', { bubbles: true })); } }
+      blocks = pp.blocks;
+    } else blocks = boldLabels(textToBlocks(text));
   }
   if (!blocks.length) return;
   e.preventDefault();

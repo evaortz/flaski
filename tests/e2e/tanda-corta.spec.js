@@ -23,7 +23,7 @@ async function seed(page, { due = 40, fresh = 10, study = {}, events = [] } = {}
   };
   await page.addInitScript(data => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', data); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
   await page.goto('/');
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
 }
 const left = page => page.locator('.studybar .left');
 

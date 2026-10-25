@@ -62,7 +62,7 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await wipeLocal(page);
   await restore(page, backup);
   await page.waitForEvent('load');
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await expect(page.locator('.hero-num')).toHaveText('1');          // 1 nueva pendiente, la otra ya estudiada
   await nav(page, 'Perfil');
   await expect(page.locator('.pf-num').nth(0)).toHaveText('2preguntas');

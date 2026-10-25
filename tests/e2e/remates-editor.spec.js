@@ -80,7 +80,7 @@ test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no 
     localStorage.setItem('flaski-local-v1', JSON.stringify(db));
   });
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Hoy');
   await expect(page.locator('.hoy-last')).toContainText('Revolución');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.title))).toEqual(['Revolución']);

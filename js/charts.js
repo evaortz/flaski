@@ -283,7 +283,8 @@ export function nextLine(cards, progress, now = Date.now()) {
   return parts.join(' · ');
 }
 
-const known = d => d.m2 + d.m3;
+// «Te las sabes»: solo las consolidadas, como en Estadísticas
+const known = d => d.m3;
 const delta = n => `<span class="${n < 0 ? 'lv-dn' : 'lv-up'}">${n < 0 ? '↓' : '↑'} ${nf.format(Math.abs(n))}</span>`;
 // La frase de debajo de la cifra: lo de todo el periodo, o lo del día por el que se pasa
 function pgSub(s, i) {
@@ -292,7 +293,7 @@ function pgSub(s, i) {
     if (!last.total) return '';
     if (!d) return `Igual que el ${shortDate(first.t, yr)}`;
     const perWeek = Math.round(d / (s.length / 7));
-    return `${delta(d)} desde el ${shortDate(first.t, yr)}${s.length >= 21 && perWeek >= 1 ? ` · unas ${nf.format(perWeek)} más por semana` : ''}`;
+    return `${delta(d)} desde el ${shortDate(first.t, yr)}${s.length >= 21 && perWeek >= 1 ? (perWeek === 1 ? ' · una más por semana' : ` · unas ${nf.format(perWeek)} más por semana`) : ''}`;
   }
   const x = s[i], w = known(x) - known(s[Math.max(0, i - 7)]);
   const parts = [x.m3 && `${nf.format(x.m3)} consolidadas`, x.m2 && `${nf.format(x.m2)} jóvenes`, x.m1 && `${nf.format(x.m1)} aprendiendo`].filter(Boolean);

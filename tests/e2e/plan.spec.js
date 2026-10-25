@@ -39,7 +39,7 @@ test('pausa: sale de lo de hoy y de las tandas de «Todo», y se recuerda', asyn
   }
   await page.locator('.studybar [data-act="exit"]').click();
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await openPlan(page);
   await expect(row(page, JA).locator('.pill')).toHaveText('Pausa');
 });

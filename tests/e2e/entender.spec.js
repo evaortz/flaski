@@ -68,7 +68,7 @@ test('las básicas del tema de ejemplo pasan a «Explícalo» sin perder el prog
   const want = { cards: [['c1', 'explain', 'Antes es perder el tiempo\nDespués hay que volver a aprenderlo'], ['c2', 'basic', '']], progress: [['c1', 5]] };
   await expect.poll(read).toEqual(want);
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await page.waitForTimeout(300);
   expect(await read()).toEqual(want);
 });

@@ -81,7 +81,8 @@ export function render() {
   $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
-  if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
+  // Mientras cargan los datos, un esqueleto de Hoy (no una caja vacía con un círculo)
+  if (S.loading) { if (!main.querySelector('.skel')) main.innerHTML = '<div class="skel" role="status" aria-busy="true" aria-label="Cargando"><span class="sk sk-t"></span><span class="sk sk-num"></span><span class="sk sk-line"></span><span class="sk sk-btn"></span><span class="sk sk-card"></span><span class="sk sk-card sk-short"></span></div>'; return; }
   ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, sim: renderSim }[S.view] || renderHome)();
 }
 

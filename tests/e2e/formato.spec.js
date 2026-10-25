@@ -63,7 +63,7 @@ test('formato: negrita, color y fondo con la barra; se guarda en Markdown y las 
   // Se guarda: al recargar sigue ahí
   await page.keyboard.press('Escape');
   await page.reload();
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await nav(page, 'Biblioteca');
   await page.getByText('Formato').first().click();
   await expect(page.locator('#pgBlocks .nb').first().locator('b')).toHaveText('locativo');

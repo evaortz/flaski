@@ -28,7 +28,7 @@ export { expect };
 // Abre la app y espera a que termine de cargar
 export async function openApp(page) {
   await page.goto('/');
-  await expect(page.locator('#main .spin')).toHaveCount(0);
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
 }
 
 // Cambia de sección con la barra de abajo (durante una sesión de estudio está oculta: se sale antes)
