@@ -507,6 +507,7 @@ function predicateCloze(sp) {
 const NUM_WORDS = { uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, quince: 15, veinte: 20, cien: 100 };
 const NUM = `(\\d+|${Object.keys(NUM_WORDS).join('|')})`;
 const toNumber = s => (/^\d+$/.test(s) ? s : String(NUM_WORDS[s.toLowerCase()] ?? ''));
+const pluralOf = w => (/[aeiouáéó]$/i.test(w) ? w + 's' : /ión$/.test(w) ? w.replace(/ión$/, 'iones') : /z$/.test(w) ? w.slice(0, -1) + 'ces' : w + 'es');
 const howMany = unit => `¿${genderOf(unit) === 'f' ? 'Cuántas' : 'Cuántos'} ${unit.toLocaleLowerCase()}`;
 
 /* ---------------- Frases que dicen quién hace qué ---------------- */
@@ -716,6 +717,18 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
   const shortItem = b => plainText(b.text).length > 0 && plainText(b.text).length <= 120;
 
+  // Una lista de 5 elementos o más: un hueco por elemento, con los demás a la vista (cortos y en su orden), y «¿Cuántos…?»,
+  // que lleva plegada la lista entera (la pregunta de toda la lista va en el mismo grupo)
+  const listClozes = (blockId, lead, items, countQ) => {
+    const brief = t => { const w = words(t); if (w.length <= 4) return t; let s = w.slice(0, 4).join(' ').replace(/[,;:.]+$/, ''); while (DANGLING.test(s)) s = s.replace(DANGLING, '').trim(); return s + '…'; };
+    items.forEach((it, k) => {
+      const parts = items.map((x, j) => (j === k ? `{{${x}}}` : brief(x)));
+      const last = parts.pop();
+      add('listitem', blockId, 'cloze', { x: `${lead} ${parts.join(', ')} ${/^\{?\{?h?i(?!e)/i.test(last) ? 'e' : 'y'} ${last}${/…$/.test(last) ? '' : '.'}`, e: '' }, 0.74, { list: true });
+    });
+    if (countQ) add('num', blockId, 'number', { q: countQ, a: String(items.length), t: '', u: '', n: '' }, 0.72, { group: `list|${blockId}` });
+  };
+
   /* 1) Tablas */
   const tables = blocks.filter(x => x.type === 'table').map(b => ({ b, t: parseTable(b.text) })).filter(x => x.t);
   const headSig = x => norm(x.t.head.join(' '));
@@ -817,6 +830,7 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
   }
 
   /* 3) Un punto con subpuntos (sangría): «Núcleo» → ADN, nucléolo… */
+  const VERB_HEAD = /^((?:el|la|los|las)\s.{2,60}?)\s+(garantiza|garantizan|incluye|incluyen|comprende|comprenden|recoge|recogen|establece|establecen|reconoce|reconocen|regula|regulan|protege|protegen|contiene|contienen|abarca|abarcan|prohíbe|prohíben)$/iu;
   const LIST_WORDS = /^(tipos|clases|partes|características|funciones|causas|consecuencias|ventajas|inconvenientes|desventajas|ejemplos|elementos|componentes|fases|etapas)(?![\p{L}])/iu;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -830,10 +844,16 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (kids.filter(k => splitDef(k.text) || boldLead(k.text)).length >= kids.length * 0.5) continue;
     const ctx = nearestHeading(b.id), art = artRef(b.id);
     // «La Constitución garantiza:» → ¿Qué garantiza la Constitución?
-    const vh = /^((?:el|la|los|las)\s.{2,60}?)\s+(garantiza|garantizan|incluye|incluyen|comprende|comprenden|recoge|recogen|establece|establecen|reconoce|reconocen|regula|regulan|protege|protegen|contiene|contienen|abarca|abarcan|prohíbe|prohíben)$/iu.exec(head);
+    const vh = VERB_HEAD.exec(head);
     const q = vh ? `¿Qué ${vh[2]} ${lowerSubject(vh[1])}${art ? ` (art. ${art})` : ''}?` : LIST_WORDS.test(head) || /:$/.test(plainText(b.text)) ? `${head}: ¿cuáles son?` : `${head}: ¿qué incluye?`;
     const item = k => plainText(k.text).replace(/[,;]$/, '').replace(/^(?:y|e)\s+/i, '');
-    if (add('sub', b.id, 'basic', { q: q + (!vh && ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${item(k)}`).join('\n'), n: '' }, kids.length <= 6 ? 0.7 : 0.55)) kids.forEach(k => subKids.add(k.id));
+    const long = kids.length >= 5;
+    if (add('sub', b.id, 'basic', { q: q + (!vh && ctx && words(head).length <= 2 && !norm(head).includes(norm(ctx)) ? ` — ${ctx}` : ''), a: kids.map(k => `- ${item(k)}`).join('\n'), n: '' }, long ? 0.55 : 0.7, long ? { group: `list|${b.id}` } : {})) kids.forEach(k => subKids.add(k.id));
+    if (long) {
+      const noun = /^(?:el|la|los|las)\s+(\p{L}+)\s+(?:de|del)\s/iu.exec(item(kids[0]))?.[1];
+      listClozes(b.id, `${vh ? `${vh[1]} ${vh[2]}${art ? ` (art. ${art})` : ''}` : head}:`, kids.map(item),
+        noun && vh ? `¿${genderOf(noun) === 'f' ? 'Cuántas' : 'Cuántos'} ${pluralOf(noun)} ${vh[2]} ${lowerSubject(vh[1])}${art ? ` (art. ${art})` : ''}?` : '');
+    }
     used.add(b.id);
   }
 
@@ -871,7 +891,9 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     let q;
     const m1 = /^(.+?)\s+(son|eran|fueron|incluyen|are|include)\s*:$/i.exec(introText);
     const m2 = /^(tipos|clases|partes|características|funciones|causas|consecuencias|ventajas|inconvenientes|desventajas|ejemplos|elementos|componentes|tipos de .+|partes de .+)(.*?):?$/i.exec(introText);
-    if (m1) q = /^(are|include)$/i.test(m1[2]) ? `What ${m1[2].toLowerCase()} ${m1[1]}?` : `¿Cuáles ${m1[2].toLowerCase() === 'son' ? 'son' : m1[2].toLowerCase()} ${lowerSubject(m1[1])}?`;
+    const vh = VERB_HEAD.exec(introText.replace(/:$/, ''));
+    if (vh) q = `¿Qué ${vh[2]} ${lowerSubject(vh[1])}?`;
+    else if (m1) q = /^(are|include)$/i.test(m1[2]) ? `What ${m1[2].toLowerCase()} ${m1[1]}?` : `¿Cuáles ${m1[2].toLowerCase() === 'son' ? 'son' : m1[2].toLowerCase()} ${lowerSubject(m1[1])}?`;
     else if (m2) q = `¿Cuáles son ${/^(tipos|clases|partes|ejemplos|elementos|componentes)/i.test(m2[1]) ? 'los' : 'las'} ${(m2[1] + m2[2]).toLocaleLowerCase().replace(/:$/, '')}?`;
     else if (/^h[1-3]$/.test(r.intro.type)) q = `${introText}: ¿cuáles son?`;
     else if (/:$/.test(introText)) q = introText.replace(/:$/, '') + ': ¿cuáles?';
@@ -879,7 +901,17 @@ export function suggestCards(page, { lang = '', native = 'es-ES', existing = [] 
     if (r.intro.type === 'p' && !/:$/.test(introText)) continue;   // un párrafo cualquiera antes de la lista no la presenta
     // Con un título genérico («Causas»), el apartado del que cuelga da el contexto
     const ctx = /^h[1-3]$/.test(r.intro.type) && m2 ? headOf.get(r.intro.id)?.slice(0, -1).at(-1) || title : '';
-    if (add('list', r.items[0].id, 'basic', { q: capFirst(q) + (ctx ? ` — ${ctx}` : ''), a: r.items.map(x => `- ${plainText(x.text)}`).join('\n'), n: '' }, r.items.length <= 6 ? 0.55 : 0.45)) r.items.forEach(x => listed.add(x.id));
+    const long = r.items.length >= 5;
+    if (add('list', r.items[0].id, 'basic', { q: capFirst(q) + (ctx ? ` — ${ctx}` : ''), a: r.items.map(x => `- ${plainText(x.text)}`).join('\n'), n: '' }, long ? 0.45 : 0.55, long ? { group: `list|${r.items[0].id}` } : {})) r.items.forEach(x => listed.add(x.id));
+    if (long) {
+      // «Las funciones del hígado son:» → ¿Cuántas funciones del hígado hay?
+      const items = r.items.map(x => plainText(x.text).replace(/[,;.]$/, '').replace(/^(?:y|e)\s+/i, ''));
+      const np = (m1 ? m1[1] : m2 ? m2[1] + m2[2] : '').replace(ARTICLE, '').replace(/:$/, '').trim(), noun = np.split(/\s+/)[0];
+      const itemNoun = vh && /^(?:el|la|los|las)\s+(\p{L}+)\s+(?:de|del)\s/iu.exec(items[0])?.[1];
+      listClozes(r.items[0].id, introText.replace(/:?$/, ':'), items,
+        itemNoun ? `¿${genderOf(itemNoun) === 'f' ? 'Cuántas' : 'Cuántos'} ${pluralOf(itemNoun)} ${vh[2]} ${lowerSubject(vh[1])}?`
+          : np && /s$/i.test(noun) ? `¿${genderOf(noun) === 'f' ? 'Cuántas' : 'Cuántos'} ${np.charAt(0).toLocaleLowerCase() + np.slice(1)} hay${ctx ? ` — ${ctx}` : ''}?` : '');
+    }
   }
 
   /* 4) Bloque a bloque: vocabulario, definiciones, negritas, fechas, código */
@@ -1096,6 +1128,7 @@ export function onePerDatum(list, pos = new Map()) {
     const core = answerCore(answerOf(s)), keys = [];
     if (core) keys.push(`b|${s.blockId}|${core}`);
     if (s.src && s.kind !== 'listitem') keys.push(`s|${s.blockId}|${s.src.slice(0, 40)}`);
+    if (s.group) keys.push(`g|${s.group}`);
     if (core.split(' ').length >= 2 && !/^[\d\s]+$/.test(core) && !['art', 'match', 'sort', 'steps', 'listitem'].includes(s.kind)) keys.push(`a|${core}`);
     for (const k of keys) { if (owner.has(k)) parent[find(i)] = find(owner.get(k)); else owner.set(k, i); }
   });

@@ -93,3 +93,13 @@ test('huecos cortos: la hoja enseña solo el trozo de la frase con el hueco, y n
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug .f')).toHaveText(['La Constitución reconoce y garantiza el […] de las nacionalidades y regiones.']);
 });
+
+test('una lista de 5 o más: un hueco por elemento y «¿Cuántos…?», con la lista entera plegada debajo', async ({ page, seed }) => {
+  await withPage(page, seed, '# Principios\n\nLa Constitución garantiza:\n\n- el principio de legalidad\n- la jerarquía normativa\n- la publicidad de las normas\n- la seguridad jurídica\n- la responsabilidad');
+  await page.locator('.pg-suggest').click();
+  await expect(page.locator('.sug .f').filter({ hasText: '¿Cuántos principios garantiza la Constitución?' })).toHaveCount(1);
+  await expect(page.locator('.sug .f').filter({ hasText: 'La Constitución garantiza: el principio de legalidad, la jerarquía normativa, […]' })).toHaveCount(1);
+  const count = page.locator('.sug').filter({ hasText: '¿Cuántos principios' });
+  await count.locator('.sug-alts summary').click();
+  await expect(count.locator('.sug-alt')).toContainText('¿Qué garantiza la Constitución?');
+});

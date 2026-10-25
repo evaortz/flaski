@@ -359,3 +359,14 @@ test('nunca un hueco en un verbo', () => {
   assert.ok(!verbHole('El {{castellano}} es la lengua oficial.'));
   assert.ok(!run('Mientras duermes, el cerebro **consolida** lo que has aprendido durante el día.').some(s => s.typeId === 'cloze'));
 });
+
+test('listas de 5 o más: un hueco por elemento con los demás a la vista y en su orden, «¿Cuántos…?» y la lista entera plegada', () => {
+  const r = suggestCards({ title: 'Constitución', blocks: textToBlocks('## Artículo 9 · Principios\n\n1. Uno.\n2. Dos.\n3. La Constitución garantiza:\n   - el principio de **legalidad**,\n   - la **jerarquía normativa**,\n   - la **publicidad** de las normas,\n   - la **seguridad jurídica**,\n   - la **responsabilidad**\n   - y la **interdicción de la arbitrariedad** de los poderes públicos.') });
+  const holes = r.filter(s => s.kind === 'listitem');
+  assert.equal(holes.length, 6);
+  assert.equal(holes[2].fields.x, 'La Constitución garantiza (art. 9.3): el principio de legalidad, la jerarquía normativa, {{la publicidad de las normas}}, la seguridad jurídica, la responsabilidad y la interdicción…');
+  const count = r.find(s => s.typeId === 'number');
+  assert.equal(count.front, '¿Cuántos principios garantiza la Constitución (art. 9.3)?');
+  assert.equal(count.fields.a, '6');
+  assert.equal(count.alts?.[0]?.front, '¿Qué garantiza la Constitución (art. 9.3)?');
+});
