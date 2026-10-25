@@ -10,7 +10,9 @@ import { isRetryable } from '../outbox.js';
 import { openOnboarding } from '../onboarding.js';
 import { openFirstRun, TEMAS, fileKind, temaCards } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
-import { folderKey, normalizeWeights } from '../plan.js';
+import { dayKey, daysBetween } from '../plan.js';
+import { migrateLoaded, editPlan2 } from '../plan2-app.js';
+import { examIdFor } from '../plan2-migrar.js';
 import { maybeResumeSim } from './simulacro.js';
 import { temaSource } from '../primera-vez.js';
 import { markdownToPage, plainTextToPage, titleFromFile } from '../notesio.js';
@@ -156,8 +158,8 @@ export async function onSignedIn(session) {
     if (!S.fromCache) dropEmptyPages();
     if (!S.fromCache) purgeExpired();   // lo que lleva más de 30 días en la papelera se borra del todo
     if (!S.fromCache) migrateEntender().then(() => migrateTemas()).then(n => { if (n && ['home', 'page', 'deck'].includes(S.view)) render(); }).catch(() => {});
-    // Los pesos de foco de antes (porcentajes) pasan a Poco · Normal · Mucho
-    if (!S.fromCache && normalizeWeights(S.decks, S.folders, S.prefs.plan.nodes)) savePrefsSoon();
+    // El plan de antes pasa al nuevo (v: 2), con su copia; con la copia de este navegador, solo en memoria
+    if (migrateLoaded() && !S.fromCache) savePrefsSoon();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
     restoredNotice();
@@ -386,7 +388,11 @@ async function firstRunChosen(choice) {
       const f = await api.createFolder({ name: choice.folder.name, owner: S.uid, color: '', icon: choice.folder.icon || '', parent_id: null });
       S.folders.set(f.id, f);
       folderId = f.id;
-      if (choice.folder.exam) { S.prefs.plan.nodes[folderKey(f.id)] = { ...(S.prefs.plan.nodes[folderKey(f.id)] || {}), exam: choice.folder.exam + '-01' }; savePrefsSoon(); }
+      if (choice.folder.exam) {
+        const date = choice.folder.exam + '-01', id = examIdFor('f:' + f.id);
+        editPlan2().exams.push({ id, name: f.name, scope: { folders: [f.id], decks: [], pages: [] }, date, approx: true, order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [], boost: {}, lastWeek: daysBetween(dayKey(), date) > 21, retention: 0.9, retentionLast: 0.95, after: 'pause', updated_at: Date.now() });
+        savePrefsSoon();
+      }
     }
     if (kind === 'anki') return go('decks', { folderId });
     if (kind === 'ia') { go('decks', { folderId }); return pasteSheet(); }

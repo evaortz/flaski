@@ -4,20 +4,17 @@ import { heatmapView, progressSeries, progressView, innerW, streaks, scrollChart
 import { icon } from '../icons.js';
 import { folderPath } from '../org.js';
 import { pageTitle, STATUS, isEmptyPage } from '../pages.js';
-import { examStatus, nextExam, decksUnder, EXAM_NEAR } from '../plan.js';
 import { daysLeft } from '../atrasos.js';
 import { weekDays } from '../friends.js';
-import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN, backlog, backlogNoNew, nearDecks, daysAway, todayMinutes } from '../comun.js';
+import { $, main, S, esc, plain, cardList, counts, weakSections, WEAK_SHOWN, backlog, nearDecks, daysAway } from '../comun.js';
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortInfo, tandaFit, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
+import { shortSize, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
 import { openSheet } from './editor.js';
-import { TANDA_MINUTES, tandaSize } from '../tanda.js';
-import { P2 } from '../plan2-app.js';
+import { TANDA_MINUTES } from '../tanda.js';
 import { heroHTML as p2Hero, examCardHTML as p2Exam } from './plan-tiempo.js';
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /* ===================== Hoy ===================== */
 export function renderHome() {
@@ -28,42 +25,19 @@ export function renderHome() {
       <div class="btnrow"><button class="primary" data-nav="explore">Ver listas para empezar</button><button class="ghost" data-act="new-deck">Crear una lista</button></div></div>`;
     return;
   }
-  // Lo que sale hoy, contado con las mismas reglas que la tanda (límites, hermanas…): como Biblioteca
-  const all = counts('all'), q = todayQueue('all');
-  const avail = q.ids.length;
-  const H = S.prefs.home;
-  const folders = pendingFolders(), b = backlog(), late = b ? all.dueAll - all.due : 0;
+  // Lo de hoy, con las cuentas del plan (plan2.js): la tanda, «Hecho por hoy», el día libre o la pausa
+  const q = todayQueue('all'), H = S.prefs.home;
   const back = daysAway() >= 3, hi = `Hola${back ? ' de nuevo' : ''}${S.name ? (back ? ', ' : ' ') + esc(S.name) : ''}`;
-  const lateHTML = late > 0 ? `<span class="hero-late"><button class="link" data-act="atrasos">+${plural(late, 'atrasada', 'atrasadas')}</button>, ${daysLeft(b.until) > 2 ? 'repartidas esta semana' : 'para mañana'}</span>` : '';
-  const fresh = avail ? 0 : Math.min(10, freshLeft('all'));
+  const fresh = q.ids.length ? 0 : Math.min(10, freshLeft('all'));
   const done = dayDone();
   main.innerHTML = `
     <div class="home-l">
     <section class="hero" aria-label="Hoy">
-      ${done ? doneHTML(done, q)
-      // Plan nuevo (interruptor «plan2»): la tanda de hoy con las cuentas del motor
-      : P2 ? p2Hero({ hi, back })
-      : todayMinutes() === 0 ? freeHTML(q)
-      : avail ? `<h1 class="hero-hi">${hi}${back ? '. Hoy tienes' : ', hoy tienes'}</h1>
-      <div class="hero-row">
-        <div class="hero-num">${avail}</div>
-        <div class="hero-side">
-          <span class="hero-word">${avail === 1 ? 'pregunta' : 'preguntas'}</span>
-          <span class="hero-band">para hoy</span>
-          <span>${q.due} por repasar</span><span>${newLine(q, folders, b)}</span>
-          ${lateHTML}
-        </div>
-      </div>
-      ${shortHTML(avail)}${capNote(all)}`
-      // Sin nada pendiente: sin número ni banda, «Hola, estás al día» y las nuevas que quedan
-      : `<h1 class="hero-hi hero-done">${hi}, estás al día</h1>
-      ${lateHTML ? `<p class="hero-side">${lateHTML}</p>` : ''}
-      <p class="muted">${late > 0 ? 'Hecho lo de hoy. Lo atrasado que queda sigue mañana.' : all.dueAll > all.due ? 'Has llegado al límite de repasos de hoy.' : fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Vuelve mañana: hoy no queda nada.'}</p>${capNote(all)}
-      ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : ''}`}
-      ${lastPageHTML()}
+      ${done ? doneHTML(done, q) : p2Hero({ hi, back, fresh })}
+    ${lastPageHTML()}
     </section>
     ${weakHTML()}
-    ${P2 ? p2Exam() : examHTML()}
+    ${p2Exam()}
     ${H.activity ? activityHTML() : ''}
     </div>
     <div class="home-r">
@@ -79,28 +53,6 @@ export function renderHome() {
 const doneHTML = (done, q) => `<h1 class="hero-hi hero-done">Hecho por hoy</h1>
       <p class="day-done">${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min</p>
       ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
-// Día libre (tu semana): sin «Empezar una tanda» como botón principal; la tanda, como opción
-function freeHTML(q) {
-  const more = q.ids.length ? 0 : Math.min(10, freshLeft('all'));
-  const opt = q.ids.length ? `Hoy tocarían ${plural(q.ids.length, 'pregunta', 'preguntas')}: lo que quede pasa a mañana. <button class="link day-rest" data-act="tanda-short">Estudiar igualmente · ${tandaFit(q.ids.length).mins} min</button>`
-    : more ? `<button class="link day-rest" data-act="more-today" data-more="${more}">Si te apetece, ${more === 1 ? '1 nueva' : `${more} nuevas`}</button>` : '';
-  return `<h1 class="hero-hi hero-done">Hoy es tu día libre</h1>${opt ? `<p class="day-next">${opt}</p>` : ''}`;
-}
-// La línea de las nuevas: cuántas y de dónde (el examen cercano o cuántas carpetas); sin nuevas mientras se reparte lo atrasado
-function newLine(q, folders, b) {
-  const n = q.fresh;
-  if (!n && b) return 'sin nuevas hasta ponerte al día';
-  if (!n && backlogNoNew()) return 'sin nuevas por hoy';
-  const ex = nextExam(planNodes(), S.decks, S.folders);
-  let k = 0;
-  if (n && ex && ex.days <= EXAM_NEAR) { const ids = examDeckIds(ex.key); k = q.ids.filter(id => !S.progress.get(id) && ids.has(S.cards.get(id)?.deck_id)).length; }
-  // Las del examen, las mismas que le da el plan: «15 nuevas · 6 de Alemán · A2» (todas: «6 nuevas · Alemán · A2»)
-  const from = k ? ` · ${k < n ? `${k} de ` : ''}${esc(examName(ex.key))}` : folders ? ` · ${plural(folders, 'carpeta', 'carpetas')}` : '';
-  return `${plural(n, 'nueva', 'nuevas')}${from}`;
-}
-// Las listas de un examen (de una lista o de todas las de una carpeta)
-const examDeckIds = key => new Set(key.startsWith('f:') ? decksUnder(key.slice(2), S.decks, S.folders).map(x => x.id) : [key]);
-const examName = key => (key.startsWith('f:') ? S.folders.get(key.slice(2)).name : S.decks.get(key).name);
 // Hoja de «+N atrasadas»: por qué se reparten y, si quieres, hacerlas todas hoy
 export function backlogSheet() {
   const b = backlog();
@@ -112,43 +64,16 @@ export function backlogSheet() {
     <div class="btnrow"><button class="primary" data-act="close-sheet">Vale</button><button class="ghost" data-act="atrasos-all">Hacerlas todas hoy</button></div></div>`);
 }
 
-// «Empezar una tanda · N min · M preguntas», la tanda de siempre («las X de hoy») y cambiar la duración
-function shortHTML(avail) {
-  const { minutes, mins, m } = tandaFit(avail);
-  return `<button class="primary big hero-go" data-act="tanda-short"><span class="hero-go-t">Empezar una tanda<small>${mins} min · ${plural(m, 'pregunta', 'preguntas')}</small></span></button>
-    <div class="hero-more">${avail > m ? `<button class="hero-all" data-start="all"><span class="hero-m">o hacer las ${avail} de hoy</span><span class="hero-d">Hacer las ${avail} de hoy</span></button>` : ''}
-      ${todayMinutes() == null ? `<button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button>`
-        : `<button class="link hero-min" data-nav="plan">${icon('pencil', { size: 15 })} ${todayMinutes() ? `Hoy, ${todayMinutes()} min` : `Hoy es libre · ${minutes} min`}<span class="hero-d"> · tu semana</span></button>`}</div>
-    ${spareHTML(avail)}`;
-}
-// Si lo de hoy se hace en bastante menos de tu rato y quedan nuevas: «Te sobra tiempo: ¿aprendes 10 nuevas más?»
-function spareHTML(avail) {
-  const { minutes, mins, m, n } = tandaFit(avail);
-  const more = Math.min(10, freshLeft('all') - todayQueue('all').fresh);
-  if (m >= n || minutes - mins < 2 || more <= 0) return '';
-  return `<p class="hero-spare">Te sobra tiempo: <button class="link" data-act="more-today" data-more="${more}">¿aprendes ${more === 1 ? '1 nueva más' : `${more} nuevas más`}?</button></p>`;
-}
-
 // Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»
 const TANDA_LABELS = { 5: 'una parada o dos', 10: 'un trayecto corto', 15: 'un trayecto medio', 20: 'un trayecto largo' };
 export function tandaSheet() {
-  const cur = S.prefs.study.tandaMin, { secs } = shortInfo();
+  const cur = S.prefs.study.tandaMin;
   openSheet(`<div class="tanda-dur"><h2>¿Cuánto suele durar tu rato de estudio?</h2>
     <p class="muted">Haremos tandas que quepan justo. Se ajustan solas a tu ritmo.</p>
     <div class="tanda-opts" role="group" aria-label="Duración de la tanda">${TANDA_MINUTES.map(m => `<button type="button" class="tanda-opt" data-tanda-min="${m}" aria-pressed="${m === cur}">
-      <b>${m} min</b><span>${TANDA_LABELS[m]}</span><small>unas ${tandaSize(m, secs)} preguntas</small></button>`).join('')}</div>
+      <b>${m} min</b><span>${TANDA_LABELS[m]}</span><small>unas ${shortSize(m)} preguntas</small></button>`).join('')}</div>
     <p class="muted small tanda-note">Lo cambias cuando quieras en Ajustes.</p>
     <button class="primary big" data-act="tanda-go">Empezar · ${cur} min</button></div>`);
-}
-
-// Carpetas (de primer nivel) con algo que estudiar hoy
-function pendingFolders() {
-  const live = scopeDecks('all'), now = Date.now(), decks = new Set();
-  for (const [id, n] of newPlan('all')) if (n > 0) decks.add(id);
-  for (const c of S.cards.values()) { const p = S.progress.get(c.id); if (p && p.due <= now && live.has(c.deck_id)) decks.add(c.deck_id); }
-  const roots = new Set();
-  for (const id of decks) { const top = folderPath(S.folders, S.decks.get(id)?.folder_id)[0]; if (top) roots.add(top.id); }
-  return roots.size;
 }
 
 // «Lo dejaste aquí»: el último apunte que editaste, para seguir con él
@@ -185,30 +110,6 @@ function weakHTML() {
     <ul class="hoy-weak-list">${items}</ul>
     ${n ? `<button class="pill-tint hoy-weak-go" data-start="weak">Repasar solo lo que flojea · ${n}</button>` : ''}
   </section>`;
-}
-
-// El examen más cercano del plan de estudio. Cerca (a 14 días o menos), cuántas necesitas al día
-function examHTML() {
-  const N = planNodes(), now = Date.now();
-  const next = nextExam(N, S.decks, S.folders, now);
-  if (!next) return '';
-  const perDay = newPlan('all', { steady: true }), remaining = freshByDeck(c => S.decks.get(c.deck_id) && !S.decks.get(c.deck_id).archived);
-  const ex = examStatus(next.key, { decks: S.decks, folders: S.folders, nodes: N, remaining, perDay, now });
-  const d = new Date(next.exam + 'T12:00:00');
-  const left = ex.days === 0 ? 'es hoy' : ex.days === 1 ? 'falta 1 día' : `faltan ${ex.days} días`;
-  // Al día: las nuevas que pide el examen y los repasos de sus listas que tocan hoy.
-  const ids = examDeckIds(next.key);
-  const dueNow = [...S.cards.values()].filter(c => ids.has(c.deck_id) && S.progress.get(c.id)?.due <= now).length;
-  // Si se reparte lo atrasado, sus repasos también van repartidos
-  const b = backlog(), reviews = b ? Math.ceil(dueNow / daysLeft(b.until, now)) : dueNow;
-  const need = ex.days >= 1 && ex.days <= EXAM_NEAR ? ex.need + reviews : 0;
-  const [cls, say] = ex.late ? ['hoy-late', 'así no te da tiempo'] : need ? ['hoy-tight', `necesitas ${need === 1 ? '' : 'unas '}${need} al día`] : ex.tight ? ['hoy-tight', 'vas con el tiempo justo'] : ['hoy-ok', 'vas a buen ritmo'];
-  return `<button class="hoy-exam" data-nav="plan">
-    <span class="hoy-cal" aria-hidden="true"><i></i><b>${d.getDate()}</b></span>
-    <span class="hoy-exam-t"><small>Examen de ${esc(examName(next.key))} · ${d.getDate()} ${MONTHS[d.getMonth()]}</small><b>${left}</b>
-      <span class="${cls}">${say} · ver el plan</span></span>
-    ${icon('chevron-right', { size: 18 })}</button>
-    ${ex.days >= 0 && ex.days < 30 ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(next.key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
 }
 
 // «mar 14» a partir de una clave AAAA-MM-DD

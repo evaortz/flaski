@@ -202,11 +202,19 @@ export async function pasteNotes(page, text) {
 
 // Empieza una tanda desde Hoy; la primera vez sale la hoja de duración y se acepta la que viene marcada
 export async function startTanda(page) {
-  await page.locator('#main .hero-go').click();
+  await page.locator('#main :is(.hero-go, .p2-go)').click();
   const go = page.locator('#sheetBody [data-act="tanda-go"]');
   await expect(go.or(page.locator('.studybar'))).toBeVisible();
   if (await go.isVisible()) await go.click();
   await expect(page.locator('.studybar')).toBeVisible();
+}
+
+// Lo que dice Hoy para hoy (la tarjeta de la tanda): { new, reviews, total }; 0 si no hay tanda (hecho, libre…)
+export async function hoyCount(page) {
+  const txt = (await page.locator('#main .p2-legend span').allTextContents()).join(' · ');
+  const n = re => [...txt.matchAll(re)].reduce((a, m) => a + Number(m[1]), 0);
+  const reviews = n(/(\d+) repasos?/g), all = n(/(\d+)/g);
+  return { new: all - reviews, reviews, total: all };
 }
 
 // Editor de una pregunta en el móvil: Borrar, Duplicar y Reiniciar progreso van en «⋯ Más»

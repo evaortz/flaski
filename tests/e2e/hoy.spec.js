@@ -1,5 +1,5 @@
 // Hoy: preguntas para hoy, «Lo dejaste aquí», lo que flojea, el examen, lo que sabes y la actividad con la meta
-import { test, expect, openApp, startTanda, nav } from './fixtures.js';
+import { test, expect, openApp, startTanda, nav, hoyCount } from './fixtures.js';
 import { makeHistory } from './historial.js';
 
 // El historial de prueba, con una carpeta, un apunte con apartados vinculados a preguntas y un examen
@@ -31,11 +31,10 @@ function seedHoy(page) {
 test('Hoy: cada bloque con sus datos reales @ambos', async ({ page }, info) => {
   await seedHoy(page);
   await openApp(page);
-  await expect(page.locator('.hero-hi')).toHaveText('Hola Eva, hoy tienes');
-  const n = Number(await page.locator('.hero-num').textContent());
-  expect(n).toBeGreaterThan(0);
-  await expect(page.locator('.hero-side')).toContainText('1 carpeta');
-  await expect(page.locator('.hero-go')).toContainText('Empezar una tanda');
+  // La tanda de hoy (del plan): cuántas de cada examen y los repasos, y «Empezar · N min»
+  await expect(page.locator('#main .p2-tanda')).toContainText('Tu tanda de hoy');
+  expect((await hoyCount(page)).total).toBeGreaterThan(0);
+  await expect(page.locator('#main .p2-go')).toContainText(/^Empezar · \d+ min$/);
   // Lo dejaste aquí: el último apunte editado
   await expect(page.locator('.hoy-last')).toContainText('Política monetaria');
   // Lo que flojea: primero lo que te cuesta, con su ruta y su estado
@@ -49,8 +48,8 @@ test('Hoy: cada bloque con sus datos reales @ambos', async ({ page }, info) => {
   const pills = (await rows.locator('.hoy-pill').allTextContents()).reduce((n, t) => n + parseInt(t, 10), 0);
   await expect(page.locator('.hoy-weak-go')).toHaveText(`Repasar solo lo que flojea · ${pills}`);
   // Examen de la carpeta
-  await expect(page.locator('.hoy-exam')).toContainText('Examen de Macroeconomía');
-  await expect(page.locator('.hoy-exam')).toContainText('faltan 50 días');
+  await expect(page.locator('#main .p2-exam')).toContainText('Macroeconomía');
+  await expect(page.locator('#main .p2-exam')).toContainText('faltan 50 días');
   // Cómo va lo que sabes: sin «Aprendiendo» (cuenta como por aprender)
   await expect(page.locator('#pgHost .lv-k')).toContainText('Cómo va lo que sabes');
   await expect(page.locator('#pgHost .pg-lab-m1')).toHaveCount(0);
@@ -104,40 +103,36 @@ function seedDb(page, db) {
   return page.addInitScript(d => { if (!sessionStorage.getItem('seeded')) { localStorage.setItem('flaski-local-v1', d); sessionStorage.setItem('seeded', '1'); } }, JSON.stringify(db));
 }
 
-test('Atrasos: al volver tras unos días, lo atrasado se reparte en la semana y no entran nuevas', async ({ page }) => {
+test('al volver tras unos días: lo atrasado no cabe, Hoy dice cuántos repasos caben y no entran nuevas', async ({ page }) => {
   // El historial acaba hace 20 días: lo que tocaba desde entonces está atrasado
   const db = makeHistory({ now: Date.now() - 20 * 864e5 });
   db.profile.display_name = 'Eva';
   for (let k = 0; k < 10; k++) db.cards.push({ ...db.cards[0], id: `nueva-${k}`, front: `Nueva ${k}`, position: 1000 + k });
-  const t0 = new Date().setHours(0, 0, 0, 0), due = db.progress.map(p => Date.parse(p.due));
-  const late = due.filter(t => t < t0).length, onTime = due.filter(t => t >= t0 && t <= Date.now()).length;
+  const t0 = new Date().setHours(0, 0, 0, 0), late = db.progress.filter(p => Date.parse(p.due) < t0).length;
   expect(late).toBeGreaterThanOrEqual(30);
   await seedDb(page, db);
   await openApp(page);
-  await expect(page.locator('.hero-hi')).toHaveText('Hola de nuevo, Eva. Hoy tienes');
+  await expect(page.locator('#main .p2-tanda small')).toContainText('Hola de nuevo, Eva');
   // Sin racha no se habla del comodín
   await expect(page.locator('.hoy-streak')).toContainText('Racha de 0 días');
   await expect(page.locator('.hoy-streak .st-freeze')).toHaveCount(0);
-  const side = page.locator('.hero-side');
-  await expect(side).toContainText('sin nuevas hasta ponerte al día');
-  await expect(side.locator('.hero-late')).toContainText(/^\+\d+ atrasadas, repartidas esta semana$/);
-  // Hoy: las que tocan hoy y una séptima parte de las atrasadas; el resto, en «+N atrasadas»
-  const n = Number(await page.locator('.hero-num').textContent());
-  const rest = parseInt((await side.locator('.hero-late button').textContent()).slice(1), 10);
-  expect(n).toBe(onTime + Math.ceil(late / 7));
-  expect(n + rest).toBe(late + onTime);
-  // La tanda sigue siendo corta y sin nuevas
+  // Todos los repasos que tocan hoy (hasta medianoche)
+  const dueToday = await page.evaluate(async () => { const { S } = await import('/js/comun.js'); const end = new Date(); end.setHours(24, 0, 0, 0); return [...S.progress.values()].filter(p => p.due < end.getTime()).length; });
+  expect(dueToday).toBeGreaterThanOrEqual(late);
+  expect((await hoyCount(page)).reviews).toBe(dueToday);
+  // Con 2 min al día no caben: Hoy lo dice, no entran nuevas y lo que quede pasa a mañana
+  await page.evaluate(async () => {
+    const { editPlan2 } = await import('/js/plan2-app.js'); const { go } = await import('/js/app.js');
+    editPlan2().time.week = { mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 2, sun: 2 };
+    go('home');
+  });
+  const c = await hoyCount(page);
+  expect(c.new).toBe(0);
+  expect(c.reviews).toBe(dueToday);
+  await expect(page.locator('#main .p2-short')).toHaveText(new RegExp(String.raw`^Hoy tienes ${dueToday} repasos y 2 min: caben \d+\. Lo que quede pasa a mañana\.$`));
+  // La tanda, sin nuevas
   await startTanda(page);
   await expect(page.locator('.studybar')).not.toContainText('nueva');
-  await page.locator('.studybar [data-act="exit"]').click();
-  // «Hacerlas todas hoy» deja de repartir
-  await side.locator('.hero-late button').click();
-  await expect(page.locator('#sheetBody')).toContainText('Lo atrasado, poco a poco');
-  await page.locator('#sheetBody [data-act="atrasos-all"]').click();
-  await expect(page.locator('.hero-late')).toHaveCount(0);
-  // Ese día tampoco entran nuevas
-  await expect(side).toContainText('sin nuevas por hoy');
-  expect(Number(await page.locator('.hero-num').textContent())).toBeGreaterThanOrEqual(late);
 });
 
 test('Examen cerca: Hoy lo dice y sus preguntas van primero', async ({ page }) => {
@@ -152,22 +147,21 @@ test('Examen cerca: Hoy lo dice y sus preguntas van primero', async ({ page }) =
   db.settings.prefs = { plan: { nodes: { 'f:f-macro': { exam: dayKey(9) } } } };
   await seedDb(page, db);
   await openApp(page);
-  const exam = page.locator('.hoy-exam');
-  await expect(exam).toContainText('Examen de Macroeconomía');
+  // El plan de antes se migra al entrar: la carpeta pasa a ser un examen
+  const exam = page.locator('#main .p2-exam');
+  await expect(exam).toContainText('Macroeconomía');
   await expect(exam).toContainText('faltan 9 días');
-  await expect(exam.locator('.hoy-tight, .hoy-late')).toContainText(/necesitas unas \d+ al día|así no te da tiempo/);
+  await expect(exam).toContainText(/llegas|no llegas/);
   // Va justo después de «Lo que flojea» (o de lo de arriba, si no hay)
   expect(await exam.evaluate(el => el.previousElementSibling?.className)).toMatch(/hoy-flojea|hero/);
-  // Las nuevas del examen: las mismas que le da el plan
-  const line = await page.locator('.hero-side').textContent();
-  const m = line.match(/(\d+) nuevas · (?:(\d+) de )?Macroeconomía/);
-  expect(m).not.toBeNull();
-  const k = Number(m[2] || m[1]);
+  // Las nuevas del examen: las de la tarjeta de la tanda, como en el plan
+  const line = await page.locator('#main .p2-legend').textContent();
+  expect(line).toMatch(/\d+ nuevas? de Macroeconomía/);
   // La tanda empieza por las preguntas del examen (Biología)
   await startTanda(page);
   await expect(page.locator('.studybar .where')).toHaveText('Biología');
   await page.locator('.studybar [data-act="exit"]').click();
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await expect(page.locator('.pf-row').filter({ has: page.locator('.pl-name', { hasText: 'Macroeconomía' }) }).locator('.pl-meta')).toContainText(`≈ ${k} nuevas al día`);
+  await expect(page.locator('#main .p2-now').first()).toContainText('Macroeconomía');
 });

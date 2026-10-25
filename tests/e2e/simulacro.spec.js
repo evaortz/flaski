@@ -13,14 +13,15 @@ async function setup(page) {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const deck = [...S.decks.values()][0], now = Date.now();
     for (const c of S.cards.values()) S.progress.set(c.id, { reps: 2, interval: 10, ease: 2.5, lapses: 0, due: now + 9 * 864e5, last: now - 864e5, first_seen: now - 5 * 864e5 });
-    S.prefs.plan.nodes[deck.id] = { exam: addDays(dayKey(), 20), lastWeek: true, after: 'reviews' };
+    const { editPlan2 } = await import('/js/plan2-app.js');
+    editPlan2().exams.push({ id: 'ex-' + deck.id, name: deck.name, scope: { folders: [], decks: [deck.id], pages: [] }, date: addDays(dayKey(), 20), lastWeek: true, after: 'keep', order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [] });
     return deck.id;
   });
 }
 async function openExam(page) {
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await page.locator('.pe-row').first().click();
+  await page.locator('#main .p2-exrow').first().click();
   await expect(page.locator('.sm-block')).toBeVisible();
 }
 

@@ -1,6 +1,6 @@
 // Modo local de pruebas: en localhost con «?local», backend local aunque Supabase esté configurado,
 // con sus datos aparte de la copia de la cuenta real
-import { test, expect, nav, startTanda } from './fixtures.js';
+import { test, expect, nav, startTanda, hoyCount } from './fixtures.js';
 import { mockCloud, openCloud, UID } from './nube.js';
 
 test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar la cuenta real', async ({ page }) => {
@@ -23,7 +23,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
 
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
   await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas y 2 apuntes');
-  await expect(page.locator('.hero-num')).toBeVisible();
+  await expect(page.locator('#main .p2-legend')).toBeVisible();
   await expect(page.locator('#pgHost .lv-n')).not.toHaveText('0');      // «Cómo va lo que sabes» con progreso
   await expect(page.locator('.hoy-act .hm.l1, .hoy-act .hm.l2, .hoy-act .hm.l3, .hoy-act .hm.l4').first()).toBeAttached();
   await nav(page, 'Biblioteca');
@@ -61,7 +61,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
   // Sin ?local, la cuenta de siempre (y su cola pendiente se envía)
   await openCloud(page);
   await expect(page.locator('.testbar')).toHaveCount(0);
-  await expect(page.locator('.hero-num')).toHaveText('3');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(3);
   await expect.poll(() => srv.writes.filter(w => w[1] === 'settings').length).toBe(1);
 });
 
@@ -74,7 +74,7 @@ test.describe('con la bienvenida a la vista', () => {
     await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados: 3 listas y 2 apuntes');
     await expect(page.locator('.ob')).toHaveCount(0);          // ni la bienvenida ni Novedades
     await expect(page.locator('body')).toHaveAttribute('data-view', 'home');
-    await expect(page.locator('.hero-num')).toBeVisible();
+    await expect(page.locator('#main .p2-legend')).toBeVisible();
     // En la tanda, la cabecera queda debajo del aviso y la pregunta cabe sin scroll
     await startTanda(page);
     const bar = await page.locator('.testbar').boundingBox(), head = await page.locator('.studybar').boundingBox();

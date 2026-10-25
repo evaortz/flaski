@@ -556,3 +556,19 @@ test('Ajustes del plan: sin goteo, el examen más cercano se lleva el 100 %; «s
   assert.equal(forecast(noCap).days[1].new, 36);
   assert.equal(forecast(state945()).days[1].new, 20);
 });
+
+test('today(): lo hecho hoy gasta del tope y del tiempo una sola vez; las «N nuevas más» van por encima', () => {
+  // 2 nuevas, aprendida una: queda la otra (antes salía 0)
+  const two = three([2, 0, 0]);
+  two.cards = two.cards.slice(1);                 // la aprendida ya no es nueva
+  assert.equal(today({ ...two, done: { new: 1, reviews: 0, n: 1, ms: 30000 } }).new, 1);
+  // Tope de 20: hechas 20, no quedan; con 10 más, 10; hechas 25 de ellas, quedan 5
+  const S = three([100, 0, 0]);
+  assert.equal(today({ ...S, done: { new: 20, reviews: 0, n: 20, ms: 0 } }).new, 0);
+  assert.equal(today({ ...S, done: { new: 20, reviews: 0, n: 20, ms: 0 }, extraNew: 10 }).new, 10);
+  assert.equal(today({ ...S, done: { new: 25, reviews: 0, n: 25, ms: 0 }, extraNew: 10 }).new, 5);
+  // «Hecho por hoy» no es «no queda nada»: 2 de 2 en 10 min es «estás al día», no hecho
+  const t = today({ ...two, cards: [], done: { new: 2, reviews: 0, n: 2, ms: 60000 } });
+  assert.equal(t.done, true);
+  assert.equal(t.dayDone, null);
+});

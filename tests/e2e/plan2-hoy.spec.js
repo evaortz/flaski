@@ -1,4 +1,4 @@
-// Plan nuevo (paso B, interruptor de pruebas «plan2»): Hoy, el Plan y la tanda leen today() del motor.
+// Plan de estudio (paso B): Hoy, el Plan y la tanda leen today() del motor.
 // «Hecho por hoy» desde Hoy, el Plan y una lista; «Hoy solo tengo…»; pausa y vuelta; Tu tiempo; por qué esta pregunta
 import { test, expect, openApp, nav, answer, openDeck } from './fixtures.js';
 
@@ -6,9 +6,6 @@ const DAY = 864e5;
 const qs = (n, p = 'p') => Array.from({ length: n }, (_, i) => [`${p}${i}`, `r${i}`]);
 const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { try { localStorage.setItem('flaski-plan2', '1'); } catch {} });
-});
 // Cambia el plan nuevo (S.prefs.plan2), lo guarda y vuelve a abrir la app
 async function setPlan(page, week, extra = {}) {
   await page.evaluate(async ([week, extra]) => {
@@ -22,7 +19,7 @@ async function setPlan(page, week, extra = {}) {
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
 }
 const every = m => Object.fromEntries(WEEK.map(d => [d, m]));
-const toPlan = async page => { await nav(page, 'Perfil'); await page.locator('#main [data-nav="plan"]').click(); await expect(page.getByRole('heading', { name: 'Plan de estudio' })).toBeVisible(); };
+const toPlan = async page => { await nav(page, 'Perfil'); await page.locator('#main [data-nav="plan"]').click(); await expect(page.getByRole('heading', { name: 'Plan', exact: true })).toBeVisible(); };
 
 test('40 repasos y 5 min: caben 25; tras la tanda de Hoy, «Hecho por hoy» en Hoy y en el Plan, y lo que sobra, como enlace', async ({ page, seed }) => {
   await seed({ decks: [{ name: 'Repaso', cards: qs(40), studied: { due: 0, interval: 10 } }] });
@@ -52,9 +49,8 @@ test('«Hecho por hoy» tras la tanda del Plan y tras estudiar desde una lista',
   await setPlan(page, every(5));
   // Desde el Plan: «Hoy toca» con los mismos números que Hoy
   await toPlan(page);
-  await expect(page.locator('#main .section-h:has(#h-today) .sec-note')).toContainText('40 preguntas');
-  await expect(page.locator('#main .ht-why')).toHaveText('Hoy 0 nuevas: tienes 5 min y 40 repasos, y caben 25.');
-  await page.locator('#main [data-act="tanda-short"]').click();
+  await expect(page.locator('#main .p2-today')).toHaveText('Hoy, 5 min: 0 nuevas y 40 repasos; caben 25 repasos. Empezar la tanda');
+  await page.locator('#main .p2-today [data-act="tanda-short"]').click();
   for (let i = 0; i < 12; i++) await answer(page, 3);
   // …y el resto desde la lista
   await openDeck(page, 'Repaso');
@@ -72,8 +68,7 @@ test('el domingo libre, Hoy y el Plan dicen el mismo número de repasos', async 
   await expect(page.locator('#main .hero h1')).toHaveText('Hoy es tu día libre');
   await expect(page.locator('#main .hero .p2-n')).toHaveText('48 repasos');
   await toPlan(page);
-  await expect(page.locator('#main .section-h:has(#h-today) .sec-note')).toContainText('48 preguntas');
-  await expect(page.locator('#main .ht-legend')).toContainText('repasos · 48');
+  await expect(page.locator('#main .p2-today')).toHaveText('Hoy es tu día libre: tocarían 48 repasos, que pasan a mañana si no los haces.');
 });
 
 test('«Hoy solo tengo 10 min» cambia solo hoy: menos nuevas, y se vuelve a lo de siempre', async ({ page, seed }) => {
@@ -107,7 +102,7 @@ test('pausa de 3 días y vuelta: en pausa no toca nada; al volver, el plan sigue
   await setPlan(page, every(30));
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await page.locator('#main [data-p2="time"]').click();
+  await page.locator('#main [data-p2="time"]').first().click();
   await expect(page.getByRole('heading', { name: 'Tu tiempo' })).toBeVisible();
   await page.locator('#main [data-p2="pause"]').click();
   const to = await page.evaluate(() => import('/js/plan.js').then(m => m.addDays(m.dayKey(), 2)));
@@ -130,7 +125,7 @@ test('Tu tiempo: más minutos el día de hoy dan más nuevas en Hoy, y «Cuánto
   await expect(page.locator('#main .p2-legend')).toHaveText('7 nuevas');
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await page.locator('#main [data-p2="time"]').click();
+  await page.locator('#main [data-p2="time"]').first().click();
   await expect(page.locator('#main .p2-cunde')).toContainText('40 s');
   await expect(page.locator('#main .p2-cunde')).toContainText('Aún tienes pocas respuestas');
   await expect(page.locator('#p2Cunde')).toHaveText(/Un día de 5 min da para unos \d+ repasos? y \d+ nuevas/);
@@ -157,13 +152,6 @@ test('en la tanda, al mantener pulsada la pregunta, dice por qué sale', async (
   await expect(page.locator('.p2-why')).toHaveText('Es nueva de T3 · Cortes Generales');
 });
 
-test('sin el interruptor, Hoy sigue como antes', async ({ page, seed }) => {
-  await page.addInitScript(() => { try { localStorage.removeItem('flaski-plan2'); } catch {} });
-  await seed({ decks: [{ name: 'Temario', cards: qs(30) }] });
-  await openApp(page);
-  await expect(page.locator('#main .hero-num')).toBeVisible();
-  await expect(page.locator('#main .p2-tanda')).toHaveCount(0);
-});
 
 // El estado de 945 preguntas (dos exámenes, 16 ene y 20 mar) el lunes 26 oct a las 10:00
 async function open945(page) {
@@ -179,7 +167,7 @@ test('945 preguntas, lunes 26 oct: la tanda de Hoy y «Cuánto te cunde» dan la
   await expect(page.locator('#main .p2-tanda')).toContainText('Tu tanda de hoy · 45 min');
   await expect(page.locator('#main .p2-legend')).toHaveText('16 nuevas de Auxiliar4 de Inglés100 repasos');
   await toPlan(page);
-  await page.locator('#main [data-p2="time"]').click();
+  await page.locator('#main [data-p2="time"]').first().click();
   await expect(page.locator('#p2Cunde')).toContainText('Un día de 45 min da para unos 100 repasos y 20 nuevas.');
 });
 
@@ -201,6 +189,5 @@ test('945 preguntas: hechos todos los repasos, Hoy sigue ofreciendo las nuevas q
   await expect(page.locator('#main .p2-legend')).toHaveText('16 nuevas de Auxiliar4 de Inglés');
   await expect(page.locator('#main .p2-go')).toContainText('Empezar');
   await toPlan(page);
-  await expect(page.locator('#main .section-h:has(#h-today) .sec-note')).toContainText('20 preguntas');
-  await expect(page.locator('#main .ht-why')).toHaveText('Hoy 20 nuevas: tienes 45 min y 0 repasos.');
+  await expect(page.locator('#main .p2-today')).toHaveText('Hoy, 45 min: 20 nuevas y 0 repasos. Empezar la tanda');
 });

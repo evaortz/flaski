@@ -364,12 +364,15 @@ export function forecast(state, opts = {}) {
   const start = new Map(P.ex.map(x => [x.id, x.study.reduce((a, id) => a + (rem.get(id) || 0), 0)]));
   const exFinish = new Map(), exLeft = new Map(), days = [];
   let backlog = 0;
+  const done0 = { new: Math.max(0, state.done?.new || 0), reviews: Math.max(0, state.done?.reviews || 0) }, spent0 = done0.reviews * sR + done0.new * sN;
+  const extra0 = Math.max(0, state.extraNew || 0);
   const live = [...deckInfo].filter(([id]) => st.base.has(id));
   for (let i = 0; i <= H; i++) {
     let due = backlog;
     for (const [id, d] of live) if (i < d.stop) due += st.base.get(id)[i];
     for (const [id, a] of extra) if (i < deckInfo.get(id).stop) due += a[i];
-    const m = mins[i], fitRev = Math.floor((m * 60) / sR);
+    // Hoy cuenta lo ya hecho (state.done): el tiempo gastado y las nuevas ya vistas, que gastan del tope
+    const m = mins[i], spent = i === 0 ? spent0 : 0, fitRev = Math.max(0, Math.floor((m * 60 - spent) / sR));
     const reviews = Math.min(Math.round(due), fitRev, capRev);
     backlog = Math.max(0, due - reviews);
     // «No caben los repasos» es solo cuando no caben en tus minutos; el tope de repasos de Ajustes deja tiempo a las nuevas
@@ -377,6 +380,9 @@ export function forecast(state, opts = {}) {
     let cap = Math.max(0, Math.floor((m * 60 - reviews * sR) / sN));
     if (short) cap = 0;
     cap = Math.min(cap, capNew);
+    // Hoy: en total, las que caben en tus minutos (con los repasos, también los hechos) y en el tope, más las que
+    // pides de más («N nuevas más»), menos las que ya has visto
+    if (i === 0) cap = Math.max(0, (short ? 0 : Math.min(capNew, Math.max(0, Math.floor((m * 60 - (reviews + done0.reviews) * sR) / sN)))) + extra0 - done0.new);
     const gs = cap > 0 ? groupsOn(P, i, rem) : [];
     let got = new Map();
     if (gs.length) {
@@ -415,7 +421,7 @@ export function forecast(state, opts = {}) {
       if (!exFinish.has(x.id) && start.get(x.id) > 0 && x.study.every(id => !(rem.get(id) > 0))) exFinish.set(x.id, i);
       if (i === x.newEnd) exLeft.set(x.id, x.study.reduce((a, id) => a + (rem.get(id) || 0), 0));
     }
-    if (!opts.light) days.push({ day: keys[i], minutes: m, reviewsDue: Math.round(due), reviews, backlog: Math.round(backlog), short, new: nNew, newBy: Object.fromEntries(got), secs: reviews * sR + nNew * sN });
+    if (!opts.light) days.push({ day: keys[i], minutes: m, reviewsDue: Math.round(due), reviews, backlog: Math.round(backlog), short, cap, new: nNew, newBy: Object.fromEntries(got), secs: reviews * sR + nNew * sN });
   }
   const exams = P.ex.map(x => examResult(x, P, start, exFinish, exLeft, rem, firstDay, finish));
   return { today: state.today, horizon: H, pace, retention: P.r, exams, days, short: days.filter(d => d.short).map(d => d.day) };
@@ -461,13 +467,12 @@ function examResult(x, P, start, exFinish, exLeft, rem, firstDay, finish) {
 // de verdad), o no queda nada. Lo que quede pasa a mañana.
 export function today(state) {
   const d = state.done || {}, done = { new: Math.max(0, d.new || 0), reviews: Math.max(0, d.reviews || 0), n: Math.max(0, d.n || 0), ms: Math.max(0, d.ms || 0) };
+  // El día 0 del forecast ya es «lo que queda de hoy»: los repasos que faltan y las nuevas que caben en el tiempo que
+  // te queda (los minutos menos lo gastado) y en lo que queda del tope
   const fc = forecast(state), d0 = fc.days[0], { secNew: sN, secReview: sR } = fc.pace;
-  const reviews = d0.reviewsDue;
-  // Las nuevas de hoy con el tiempo que queda: los minutos, menos los repasos que faltan (los hechos ya no tocan)
-  // y menos lo ya gastado (repasos y nuevas hechos)
-  const minutes = d0.minutes, spent = done.reviews * sR + done.new * sN, room = minutes * 60 - reviews * sR - spent;
-  const planned = Math.min(d0.new, Math.max(0, Math.floor(room / sN) + done.new));
-  let left = Math.max(0, planned + Math.max(0, state.extraNew || 0) - done.new);
+  const reviews = d0.reviewsDue, minutes = d0.minutes, spent = done.reviews * sR + done.new * sN;
+  // Lo que el reparto no ha podido dar de lo que pides de más sale de cualquier lista con nuevas
+  let left = d0.new + Math.min(Math.max(0, state.extraNew || 0), Math.max(0, d0.cap - d0.new));
   const newBy = {}, give = (id, n) => { const q = Math.min(n, left); if (q > 0) { newBy[id] = (newBy[id] || 0) + q; left -= q; } };
   const plan = Object.entries(d0.newBy).sort((a, b) => b[1] - a[1]);
   for (const [id, n] of plan) give(id, n);
@@ -478,7 +483,9 @@ export function today(state) {
     for (const [id, n] of fresh) give(id, n - (newBy[id] || 0));
   }
   const nNew = Object.values(newBy).reduce((a, b) => a + b, 0);
-  const finished = done.n > 0 && minutes > 0 && (spent >= minutes * 60 || done.ms >= minutes * 60e3 || (reviews === 0 && nNew === 0));
+  // Hecho por hoy: has cumplido tus minutos (lo hecho a tu ritmo, o el tiempo de verdad); casi, si no cabe ni una nueva más
+  // (si has pedido «N nuevas más» y quedan, no: Hoy te las ofrece)
+  const finished = done.n > 0 && minutes > 0 && (spent + sN > minutes * 60 || done.ms >= minutes * 60e3) && !(state.extraNew > 0 && nNew > 0);
   return {
     day: d0.day, minutes, rest: minutes === 0, reviews, reviewsFit: d0.reviews, new: nNew, newBy, total: reviews + nNew,
     secs: reviews * sR + nNew * sN, fits: reviews * sR <= Math.max(0, minutes * 60 - spent),

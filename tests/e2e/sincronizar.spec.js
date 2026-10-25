@@ -5,7 +5,7 @@ import { mockCloud, openCloud } from './nube.js';
 test('la pregunta de la tanda no cambia de sitio mientras sincroniza @ambos', async ({ page }) => {
   const srv = await mockCloud(page);
   await openCloud(page);
-  await page.locator('#main .hero-go').click();
+  await page.locator('#main :is(.hero-go, .p2-go)').click();
   const go = page.locator('#sheetBody [data-act="tanda-go"]');
   if (await go.isVisible().catch(() => false)) await go.click();
   const bar = page.locator('.studybar');

@@ -342,7 +342,7 @@ export const reviewsLeft = () => {
   return cap === Infinity ? Infinity : Math.max(0, cap - reviewsToday());
 };
 // Las listas de los exámenes cercanos: van primero en la tanda
-export const nearDecks = () => nearExamDecks(dayNodes(), S.decks, S.folders);
+export const nearDecks = () => (hooks.plan2 ? hooks.plan2.near() : nearExamDecks(dayNodes(), S.decks, S.folders));
 // Las que ya has visto hoy y vuelven (las que fallaste) no gastan del tope de repasos
 export const seenToday = p => p.last >= startOfDay();
 export const algo = deckId => algoFor(S.prefs, S.decks.get(deckId));
@@ -373,11 +373,11 @@ export function counts(scope = 'all') {
 // Estado (activo, solo repasos, en pausa), foco y examen de cada mazo y carpeta: ver plan.js
 // planNodes: los que guardas (para editarlos); dayNodes: los que mandan hoy (con la etapa vigente y las
 // reglas de los exámenes encima, ver nodesOn en plan.js)
-// El plan nuevo (plan2-app.js), con el interruptor de pruebas «plan2»: lo que aquí se le pregunta
+// El plan de estudio (plan2-app.js): lo que aquí se le pregunta
 export const hooks = { plan2: null };
-export const planNodes = () => S.prefs.plan.nodes;
+export const planNodes = () => S.prefs.plan.nodes || {};
 export const dayNodes = (k = dayKey()) => nodesOn(S.prefs.plan, k);
-export const stateOf = d => (d ? deckState(d, S.folders, dayNodes()) : 'active');
+export const stateOf = d => (!d ? 'active' : hooks.plan2 ? hooks.plan2.state(d) : deckState(d, S.folders, dayNodes()));
 // Las listas que hoy no dan nuevas por el orden de temas de la etapa vigente
 export const topicBlocked = (fresh = freshByDeck()) => topicOrder(stageOn(S.prefs.plan.stages, dayKey()), S.decks, S.folders, fresh).blocked;
 // Minutos de la tanda de hoy: los de tu semana (o el día especial); sin semana o si hoy es libre, los de Ajustes

@@ -1,6 +1,6 @@
 // Buscar sin tildes ni diéresis (la ñ cuenta) en Biblioteca, en una lista, en el apunte y en los tipos; y qué pasa al
 // borrar una lista, un apunte o una carpeta (sus preguntas y Hoy)
-import { test, expect, openApp, openPage, nav, deckMenu, newCard } from './fixtures.js';
+import { test, expect, openApp, openPage, nav, deckMenu, newCard, hoyCount } from './fixtures.js';
 
 test('buscar ignora tildes, diéresis y mayúsculas (no la ñ)', async ({ page, seed }) => {
   await seed({
@@ -66,7 +66,7 @@ test('borrar una lista: sus preguntas se van también de Hoy', async ({ page, se
   await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París'], ['Italia', 'Roma']] }] });
   await openApp(page);
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-num')).toHaveText('2');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(2);
   await nav(page, 'Biblioteca');
   await page.locator('#main .lt-list').filter({ hasText: 'Capitales' }).click();
   await deckMenu(page, '[data-act="ask-delete-deck"]');
@@ -74,13 +74,13 @@ test('borrar una lista: sus preguntas se van también de Hoy', async ({ page, se
   await expect(page.locator('#toast')).toContainText('Lista en la papelera');
   expect(await page.evaluate(async () => { const { S } = await import('/js/comun.js'); return S.cards.size; })).toBe(0);
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-num')).toHaveCount(0);
+  await expect(page.locator('#main .p2-legend')).toHaveCount(0);
 });
 
 test('borrar una carpeta: va a la papelera con sus listas y sus preguntas salen de Hoy', async ({ page, seed }) => {
   await seed({ folders: ['Tema 1'], decks: [{ name: 'Capitales', folder: 'Tema 1', cards: [['Francia', 'París']] }] });
   await openApp(page);
-  await expect(page.locator('.hero-num')).toHaveText('1');
+  await expect.poll(() => hoyCount(page).then(c => c.total)).toBe(1);
   await nav(page, 'Biblioteca');
   await page.locator('#main .lfold').filter({ hasText: 'Tema 1' }).click();
   await page.locator('#main [data-act="edit-folder"], #main .fhero [data-act*="folder"]').first().click();
@@ -92,5 +92,5 @@ test('borrar una carpeta: va a la papelera con sus listas y sus preguntas salen 
   await expect(page.locator('#main .lfold')).toHaveCount(0);
   await expect(page.locator('#main')).not.toContainText('Capitales');
   await nav(page, 'Hoy');
-  await expect(page.locator('.hero-num')).toHaveCount(0);
+  await expect(page.locator('#main .p2-legend')).toHaveCount(0);
 });

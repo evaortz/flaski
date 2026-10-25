@@ -5,6 +5,7 @@ import { WEEK, WEEK_NAMES, dayKey, addDays, isDay, live, daysBetween, weekdayOf 
 import { main, S, esc, toast } from '../comun.js';
 import { plan2, editPlan2, todayPlan, forecastNow, minutesToday } from '../plan2-app.js';
 import { plural } from './mazos.js';
+import { liveExams } from '../plan2.js';
 import { openSheet, closeSheet } from './editor.js';
 import { savePrefsSoon } from './perfil.js';
 import { render, go } from '../app.js';
@@ -50,7 +51,7 @@ export function renderPlanTime() {
     <section class="pl-sec" aria-labelledby="h-p2cunde">${cundeHTML()}</section></div>`;
 }
 // «Cuánto te cunde»: tu ritmo y lo que da de sí un día normal, con las cuentas del motor
-function cundeHTML() {
+export function cundeHTML() {
   const fc = forecastNow(), { secNew, secReview, measured } = fc.pace;
   // El mismo cálculo que la tanda de Hoy: el día de hoy si tiene minutos (lo que da el día entero, como al empezarlo);
   // si es libre, el próximo con tiempo
@@ -151,7 +152,7 @@ export function p2Click(b) {
 
 /* ===================== Hoy con el plan nuevo ===================== */
 // La tanda de hoy: el tema principal, la barra (nuevas de cada examen y repasos) y «Empezar · N min»
-export function heroHTML({ hi, back }) {
+export function heroHTML({ hi, back, fresh = 0 }) {
   const t = todayPlan(), fc = forecastNow(), k = dayKey(), pause = pauseOn(k);
   const examOf = id => fc.exams.filter(e => e.date >= k).find(e => e.topics.some(x => x.id === id && x.state === 'study'));
   const groups = new Map();
@@ -167,7 +168,8 @@ export function heroHTML({ hi, back }) {
       <button class="link p2-min" data-p2="today-min">${icon('pencil', { size: 15 })} Hoy sí tengo un rato</button>`;
   }
   if (!t.total) {
-    return `<h1 class="hero-hi hero-done">${hi}, estás al día</h1><p class="muted">Hoy no te queda nada. Vuelve mañana.</p>`;
+    return `<h1 class="hero-hi hero-done">${hi}, estás al día</h1><p class="muted">${fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Vuelve mañana: hoy no queda nada.'}</p>
+      ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : ''}`;
   }
   const total = Math.max(1, t.total), mins = Math.max(1, Math.min(t.minutes, Math.ceil(Math.min(t.secs, t.minutes * 60) / 60)));
   const segs = [...groups].map(([, n], i) => `<i class="p2-seg p2-s${Math.min(i, 2)}" style="width:${(100 * n) / total}%"></i>`).join('') + (t.reviews ? `<i class="p2-seg p2-sr" style="width:${(100 * t.reviews) / total}%"></i>` : '');
@@ -190,8 +192,10 @@ export function examCardHTML() {
   if (!e) return '';
   const d = dd(e.date), days = daysBetween(k, e.date);
   const say = e.verdict === 'no' ? `así no llegas · te faltarían ${e.left}` : e.finish ? `acabas el temario el ${shortDay(e.finish)}` : 'ya lo has visto todo: a repasar';
-  return `<button class="p2-exam" data-nav="plan"><span class="hoy-cal" aria-hidden="true"><i></i><b>${d.d}</b></span>
-    <span><b>${esc(shortName(e.name))} · ${e.verdict === 'no' ? 'no llegas' : e.verdict === 'justo' ? 'llegas justo' : 'llegas'}</b><small>${say} · ${days === 0 ? 'es hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`}</small></span>${icon('chevron-right', { size: 18 })}</button>`;
+  const sim = liveExams(plan2()).find(x => x.id === e.id), key = sim?.scope?.folders?.[0] ? 'f:' + sim.scope.folders[0] : sim?.scope?.decks?.[0];
+  return `<button class="p2-exam" data-p2="exam" data-id="${esc(e.id)}"><span class="hoy-cal" aria-hidden="true"><i></i><b>${d.d}</b></span>
+    <span><b>${esc(shortName(e.name))} · ${e.verdict === 'no' ? 'no llegas' : e.verdict === 'justo' ? 'llegas justo' : 'llegas'}</b><small>${say} · ${days === 0 ? 'es hoy' : days === 1 ? 'falta 1 día' : `faltan ${days} días`}</small></span>${icon('chevron-right', { size: 18 })}</button>
+    ${days < 30 && key ? `<button class="ghost hoy-sim" data-sim="prep" data-exam="${esc(key)}">${icon('timer', { size: 16 })} Simulacro de la semana</button>` : ''}`;
 }
 // «Por qué esta pregunta» (al mantenerla pulsada en la tanda)
 export function whyCard(c) {

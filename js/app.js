@@ -36,9 +36,12 @@ import { askTrash, trashItem, renderTrash } from './pantallas/papelera.js';
 import { renderBye, renderByeDone } from './pantallas/borrar-cuenta.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
-import { renderPlan, renderExam, renderPlanStart, planClick, removeExam } from './pantallas/plan.js';
 import './plan2-app.js';
-import { renderPlanTime, p2Click, p2Input } from './pantallas/plan-tiempo.js';
+import { renderPlanTime } from './pantallas/plan-tiempo.js';
+import { renderPlanHome } from './pantallas/plan-inicio.js';
+import { renderPlanExam } from './pantallas/plan-examen.js';
+import { renderPlanSettings } from './pantallas/plan-ajustes.js';
+import { planAction } from './pantallas/plan-acciones.js';
 import { simClick, renderSim, simKey } from './pantallas/simulacro.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
@@ -79,7 +82,7 @@ export function render() {
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page', 'trash'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'planTime', 'sim', 'bye'].includes(S.view));
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page', 'trash'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planSettings', 'planTime', 'sim', 'bye'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
@@ -88,7 +91,7 @@ export function render() {
   if (!S.uid) return renderAuth();
   // Mientras cargan los datos, un esqueleto de Hoy (no una caja vacía con un círculo)
   if (S.loading) { if (!main.querySelector('.skel')) main.innerHTML = '<div class="skel" role="status" aria-busy="true" aria-label="Cargando"><span class="sk sk-t"></span><span class="sk sk-num"></span><span class="sk sk-line"></span><span class="sk sk-btn"></span><span class="sk sk-card"></span><span class="sk sk-card sk-short"></span></div>'; return; }
-  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, planTime: renderPlanTime, sim: renderSim, trash: renderTrash, bye: renderBye }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlanHome, exam: renderPlanExam, planSettings: renderPlanSettings, planTime: renderPlanTime, sim: renderSim, trash: renderTrash, bye: renderBye }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -154,9 +157,8 @@ document.addEventListener('click', async e => {
   }
   const ds = b.dataset;
   // Plan de estudio, exámenes y simulacros: sus botones llevan data-pl o data-sim
-  if (ds.pl) return planClick(b);
   if (ds.sim) return simClick(b, e);
-  if (ds.p2) return p2Click(b);   // el plan nuevo (interruptor «plan2»): Tu tiempo y «Hoy solo tengo…»
+  if (ds.p2) return planAction(b);   // el plan de estudio (pantallas/plan-*.js)
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
@@ -554,6 +556,7 @@ document.addEventListener('click', async e => {
       <ul class="list linklist">
         <li><button class="row-link" data-act="suggest-cards">${icon('sugerencia', { size: 20 })}<span><b>Sugerir preguntas</b><small>Propone preguntas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
         <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
+        <li><button class="row-link" data-p2="entuplan" data-key="page:${curPage().id}">${icon('target', { size: 20 })}<span><b>En tu plan</b><small>Examen, fechas y cuánto entra</small></span></button></li>
         <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
         <li><button class="row-link" data-act="page-copy-md">${icon('copy', { size: 20 })}<span><b>Copiar como texto</b><small>Con títulos, listas y tablas en Markdown</small></span></button></li>
         <li><button class="row-link danger" data-act="ask-delete-page">${icon('trash-2', { size: 20 })}<span><b>Borrar apunte</b><small>Sus preguntas no se borran: solo dejan de estar unidas a él</small></span></button></li>
@@ -613,7 +616,6 @@ document.addEventListener('click', async e => {
       ta.focus(); ta.selectionStart = ta.selectionEnd = z + 4; readEditor(); return drawPreview();
     }
     case 'save-tags': return saveTagsSheet();
-    case 'exam-del-ok': return removeExam();
     case 'toggle-archived': S.org.archived = !S.org.archived; return renderLibrary();
     case 'clear-filters': Object.assign(S.org, { query: '', tagIds: [], archived: false }); return renderLibrary();
     case 'add-tag-inline': {
@@ -844,7 +846,7 @@ document.addEventListener('submit', async e => {
 });
 
 document.addEventListener('input', e => {
-  if (e.target.dataset?.p2) return p2Input(e.target);
+  if (e.target.dataset?.p2) return planAction(e.target, 'input');
   if (e.target.id === 'f-newtag') return filterTagPicker();
   if (e.target.id === 'exText' && S.session?.st?.ex) { S.session.st.ex.text = e.target.value; return; }
   if (e.target.id === 'typeSearch' && S.pick) { S.pick.q = e.target.value; return drawTypePicker(); }
@@ -899,8 +901,7 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', async e => {
-  if (e.target.dataset.pl) return planClick(e.target);
-  if (e.target.dataset.p2) return p2Click(e.target);
+  if (e.target.dataset.p2) return planAction(e.target, 'change');
   if (e.target.id === 'cardSort') { S.cardSort = e.target.value; return renderDeck(); }
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);

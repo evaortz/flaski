@@ -4,7 +4,9 @@
 import { icon } from '../icons.js';
 import { SORTS, folderPath, descendants, sortDecks, matchesDeck, folderColor } from '../org.js';
 import { pageTitle, pageSearchText, cardsStatus } from '../pages.js';
-import { main, S, esc, norm, plain, cardList, tagChips, tagSticker, counts, planNodes, folderIcon, folderArt } from '../comun.js';
+import { main, S, esc, norm, plain, cardList, tagChips, tagSticker, counts, folderIcon, folderArt } from '../comun.js';
+import { plan2 } from '../plan2-app.js';
+import { liveExams } from '../plan2.js';
 import { plural } from './mazos.js';
 import { todayQueue } from './estudio.js';
 import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
@@ -34,7 +36,7 @@ function folderInfo(id) {
 }
 // «examen el 12 dic» (y «faltan N días» si se pide)
 function examText(id, long = false) {
-  const ex = planNodes()?.['f:' + id]?.exam;
+  const ex = liveExams(plan2()).filter(e => (e.scope?.folders || []).includes(id) && e.date).map(e => e.date).sort()[0];
   if (!ex) return '';
   const d = new Date(ex + 'T00:00:00');
   if (isNaN(d)) return '';
@@ -197,6 +199,7 @@ function renderFolder(folder) {
       <button class="back-round" data-folder="${parentOf(folder) || ''}" aria-label="Volver">${icon('chevron-left', { size: 20 })}</button>
       <nav class="crumbs" aria-label="Ruta">${crumbs.join('<span class="sep" aria-hidden="true">›</span>')}</nav>
       <span class="spacer"></span>
+      <button class="iconbtn" data-p2="entuplan" data-key="f:${folder.id}" aria-label="En tu plan" title="En tu plan">${icon('target', { size: 20 })}</button>
       <button class="iconbtn" data-act="edit-folder" aria-label="Editar carpeta" title="Editar carpeta">${icon('ellipsis', { size: 20 })}</button>
       <button class="add-round" data-act="create-menu" aria-label="Crear">${icon('plus', { size: 20 })}</button>
     </div>

@@ -99,3 +99,23 @@ test('se puede ejecutar varias veces sin estropear nada, y la copia v1 se quita 
   // Sin plan (prefs viejas o vacías): uno vacío
   assert.deepEqual(migrate(undefined, ctx(D)).exams, []);
 });
+
+test('al juntar dos dispositivos, cada examen, tu tiempo y el reparto: el más reciente; días especiales y etapas, por id', async () => {
+  const { mergeSynced, loadPrefs } = await import('../../js/prefs.js');
+  const base = { v: 2, time: { week: { mon: 30 }, special: [{ id: 'n', from: '2026-12-24', to: '2026-12-26', minutes: 0, at: 1 }], updated_at: 1 }, exams: [], split: { mode: 'auto', shares: {}, updated_at: 1 }, stages: [], free: {}, caps: {}, history: [] };
+  const a = { plan: { ...base, exams: [{ id: 'ex-a', name: 'A', date: '2027-01-16', updated_at: 5 }, { id: 'ex-b', name: 'B viejo', updated_at: 1 }], time: { ...base.time, week: { mon: 60 }, updated_at: 9 } } };
+  const b = { plan: { ...base, exams: [{ id: 'ex-a', name: 'A', date: '2027-01-20', updated_at: 3 }, { id: 'ex-b', name: 'B nuevo', updated_at: 4 }, { id: 'ex-c', name: 'C', updated_at: 4 }], time: { ...base.time, special: [{ id: 'v', from: '2027-03-01', to: '2027-03-05', minutes: 10, at: 2 }], updated_at: 2 }, split: { mode: 'manual', shares: { 'ex-a': 70 }, updated_at: 7 } } };
+  const m = mergeSynced(a, b).plan;
+  assert.deepEqual(m.exams.map(e => [e.id, e.date || e.name]).sort(), [['ex-a', '2027-01-16'], ['ex-b', 'B nuevo'], ['ex-c', 'C']]);
+  assert.deepEqual(m.time.week, { mon: 60 });
+  assert.deepEqual(m.time.special.map(s => s.id).sort(), ['n', 'v']);
+  assert.equal(m.split.mode, 'manual');
+  // Uno migrado y otro no: el migrado
+  assert.equal(mergeSynced({ plan: { nodes: { x: { exam: '2027-01-01' } } } }, b).plan.v, 2);
+  assert.equal(mergeSynced(b, { plan: { nodes: {} } }).plan.v, 2);
+  // Las preferencias cargadas conservan el plan nuevo tal cual (con lo que le falte)
+  const p = loadPrefs({ plan: { v: 2, exams: [{ id: 'ex-a' }] } });
+  assert.deepEqual(p.plan.exams, [{ id: 'ex-a' }]);
+  assert.deepEqual(p.plan.time.special, []);
+  assert.equal(p.plan.split.mode, 'auto');
+});

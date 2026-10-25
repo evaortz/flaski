@@ -50,8 +50,9 @@ test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const d = [...S.decks.values()][0], t = dayKey();
-    S.prefs.plan.special = [{ id: 'p1', label: 'Puente', name: 'Puente', from: addDays(t, 3), to: addDays(t, 5), minutes: 0, at: 1 }];
-    S.prefs.plan.stages = [{ id: 'e1', name: 'Etapa', from: t, to: addDays(t, 40), levels: { [d.id]: 'normal' }, order: {}, at: 1 }];
+    const { editPlan2 } = await import('/js/plan2-app.js'), p = editPlan2();
+    p.time.special = [{ id: 'p1', label: 'Puente', from: addDays(t, 3), to: addDays(t, 5), minutes: 0, at: 1 }];
+    p.exams.push({ id: 'ex-d', name: 'Turco', scope: { folders: [], decks: [d.id], pages: [] }, date: addDays(t, 40), lastWeek: true, after: null });
     // Respuestas de hace unas semanas para que «Tu progreso» tenga «↑ N»
     const now = Date.now(), ids = [...S.cards.keys()];
     const ev = (id, days, ivl) => ({ card_id: id, deck_id: d.id, t: now - days * 864e5, ts: new Date(now - days * 864e5).toISOString(), grade: 3, state: 'review', ivl, last_ivl: 0, ease: 2.5, ms: 9000 });
@@ -70,10 +71,12 @@ test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «
   for (const theme of ['light', 'dark']) {
     await page.evaluate(async th => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.theme = th; applyLook(S.prefs.look); }, theme);
     await page.evaluate(() => import('/js/app.js').then(({ go }) => go('plan')));
-    await expect(page.getByRole('heading', { level: 1, name: 'Plan de estudio' })).toBeVisible();
-    await check('.ps-sp em', `día especial (${theme})`, true);
-    await check('.tp-sp, .pw-sp', `día especial (${theme})`);
-    await check('.tp-bar.lv-normal span, .tp-bar.lv-normal, .ps-strip .lv-normal, .pill.lv-normal', `«Normal» (${theme})`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Plan', exact: true })).toBeVisible();
+    await check('.p2-pill', `veredicto del examen (${theme})`);
+    await check('.p2-day small, .p2-day b, .p2-wnote b', `la semana (${theme})`);
+    await page.evaluate(() => import('/js/app.js').then(({ go }) => go('planTime')));
+    await expect(page.getByRole('heading', { level: 1, name: 'Tu tiempo' })).toBeVisible();
+    await check('.p2-sp b, .p2-sp small', `día especial (${theme})`);
     await page.evaluate(() => import('/js/app.js').then(({ go }) => go('stats')));
     await expect(page.locator('#main .lv-up').first()).toBeVisible();
     await check('#main .lv-up, #main .lv-dn', `↑ en Estadísticas (${theme})`);

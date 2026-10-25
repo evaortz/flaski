@@ -4,34 +4,35 @@ import { test, expect, openApp, nav } from './fixtures.js';
 
 test.skip(!process.env.SHOT, 'solo con SHOT=1');
 
-const JA = 'Japonés · Demo de Flaski', TR = 'Turco · Armonía vocálica', DE = 'Alemán · A2';
-test('plan, etapa, examen y primera vez @ambos', async ({ page, seed }, info) => {
+import { readFileSync } from 'node:fs';
+const D945 = readFileSync(new URL('../fixtures/oposicion-945.json', import.meta.url), 'utf8');
+// El estado de 945 preguntas (dos exámenes) el lunes 26 oct: Hoy, el Plan, un examen, el reparto, nuevo examen,
+// Tu tiempo, Ajustes del plan y «En tu plan»
+test('plan, examen, reparto, nuevo examen, tu tiempo, ajustes y en tu plan @ambos', async ({ page }, info) => {
   const dir = `test-results/plan/${info.project.name}-`;
-  await seed({ builtin: [JA, TR, DE] });
+  await page.clock.install({ time: new Date('2026-10-26T10:00:00') });
+  await page.addInitScript(d => { if (!sessionStorage.getItem('c945')) { sessionStorage.setItem('c945', '1'); localStorage.setItem('flaski-local-v1', d); } }, D945);
   await openApp(page);
-  await page.evaluate(async () => {
-    const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
-    const id = n => [...S.decks.values()].find(d => d.name.startsWith(n)).id, t = dayKey();
-    S.prefs.plan.nodes[id('Turco')] = { exam: addDays(t, 30), lastWeek: true, after: 'reviews' };
-    S.prefs.plan.nodes[id('Japonés')] = { exam: addDays(t, 120), lastWeek: true, after: 'reviews' };
-    S.prefs.plan.week = { mon: 30, tue: 30, wed: 0, thu: 30, fri: 15, sat: 45, sun: 0 };
-    S.prefs.plan.special = [{ id: 's1', from: addDays(t, 40), to: addDays(t, 55), minutes: 15, label: 'vacaciones', at: 1 }];
-  });
+  await page.screenshot({ path: dir + '1-hoy.png', fullPage: true });
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await page.screenshot({ path: dir + '1-primera.png', fullPage: true });
-  await page.locator('#main .pl-start').click();
-  await expect(page.getByRole('heading', { name: 'Hagamos tu plan' })).toBeVisible();
-  await page.screenshot({ path: dir + '2-hagamos.png', fullPage: true });
-  await page.locator('[data-pl="start-ok"]').click();
-  await page.screenshot({ path: dir + '3-plan.png', fullPage: true });
-  await page.locator('.ps-card').first().click();
-  await page.screenshot({ path: dir + '4-etapa.png', fullPage: true });
+  await page.screenshot({ path: dir + '2-plan.png', fullPage: true });
+  await page.locator('#main .p2-exrow').first().click();
+  await page.screenshot({ path: dir + '3-examen.png', fullPage: true });
+  await page.locator('#main [data-p2="mode"][data-v="parallel"]').click();
+  await page.screenshot({ path: dir + '4-reparto.png' });
   await page.keyboard.press('Escape');
-  await page.locator('.pe-row').first().click();
-  await page.screenshot({ path: dir + '5-examen.png', fullPage: true });
-  await page.locator('[data-pl="exam-edit"]').click();
-  await page.screenshot({ path: dir + '6-nuevo-examen.png', fullPage: true });
+  await page.locator('#main [data-p2="exam-edit"]').click();
+  await page.screenshot({ path: dir + '5-nuevo-examen.png' });
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => import('/js/app.js').then(({ go }) => go('planTime')));
+  await page.screenshot({ path: dir + '6-tu-tiempo.png', fullPage: true });
+  await page.evaluate(() => import('/js/app.js').then(({ go }) => go('planSettings')));
+  await page.screenshot({ path: dir + '7-ajustes.png', fullPage: true });
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-folder]').first().click();
+  await page.locator('#main [data-p2="entuplan"]').click();
+  await page.screenshot({ path: dir + '8-en-tu-plan.png' });
 });
 
 test('explorar @ambos', async ({ page, seed }, info) => {
@@ -52,13 +53,14 @@ test('simulacro @ambos', async ({ page }, info) => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const deck = [...S.decks.values()][0], now = Date.now();
     for (const c of S.cards.values()) S.progress.set(c.id, { reps: 2, interval: 10, ease: 2.5, lapses: 0, due: now + 9 * 864e5, last: now - 864e5 });
-    S.prefs.plan.nodes[deck.id] = { exam: addDays(dayKey(), 20), lastWeek: true, after: 'reviews' };
+    const { editPlan2 } = await import('/js/plan2-app.js');
+    editPlan2().exams.push({ id: 'ex-' + deck.id, name: deck.name, scope: { folders: [], decks: [deck.id], pages: [] }, date: addDays(dayKey(), 20), lastWeek: true, after: 'keep' });
     const t = dayKey();
     S.prefs.sims = [5.9, 6.1, 5.8].map((v, i) => ({ id: 'old' + i, exam: deck.id, at: i, done: i, date: addDays(t, -21 + i * 7), name: 'Constitución', settings: { n: 20, time: 30, pen: 3 }, n: 20, min: 19, score: v, ok: 14, bad: 4, blank: 2, topics: [], qs: null }));
   });
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await page.locator('.pe-row').first().click();
+  await page.locator('#main .p2-exrow').first().click();
   await page.screenshot({ path: dir + '1-ficha.png', fullPage: true });
   await page.locator('[data-sim="prep"]').click();
   await page.screenshot({ path: dir + '2-preparar.png', fullPage: true });

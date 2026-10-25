@@ -295,3 +295,94 @@ fallaría sin motivo), después de tocar el motor (`js/plan2.js`) y antes de jun
 
 En la batería normal queda solo una comprobación holgada (`plan2.test.js › rendimiento holgado`: fixes < 2 s), para
 pillar algo roto de verdad.
+
+## Paso C · Las pantallas nuevas del Plan (25 oct 2026)
+
+**El plan nuevo ya es el de todo el mundo**: sin interruptor. Al entrar (con las listas cargadas), el plan de antes
+pasa al nuevo (`migrateLoaded()` en `plan2-app.js`) y queda en `S.prefs.plan` (v: 2), con la copia `plan.v1` 60 días.
+Quien lo probó con el interruptor (`prefs.plan2`) se queda con el suyo. Hoy, la tanda y la Biblioteca leen el motor.
+
+### Pantallas (iguales que las imágenes del lienzo)
+
+- `plan-ui.js`: piezas compartidas. La barra del examen (temario por ver rayado, repaso, última semana y la marca
+  «acabas el…»), la fila de la semana (7 días desde hoy, con sus minutos y el tema que toca), los deslizadores que
+  suman 100 (`rebalance`: los demás se reparten lo que sobra en proporción; con teclado, de 5 en 5), la franja «Así
+  quedaría» (whatIf 150 ms después del último cambio) y la tarjeta de arreglo (título, explicación y «Llegas: acabas
+  el…»).
+- `plan-inicio.js` (vista `plan`): el veredicto («Llegas a los dos exámenes» o «Así no llegas a Auxiliar» con lo que
+  quedaría y cuántas harían falta), «Para llegar» (los arreglos se calculan al abrir, sin bloquear; «Aplicar la
+  primera / segunda…», «Lo dejo así»; si ninguno llega, qué temas dejar para después), los exámenes con su barra,
+  «Añadir un examen», Esta semana, Qué toca ahora (con una línea de lo de hoy, la misma que Hoy, o «Hecho por hoy»)
+  y Ajustes del plan. En el ordenador (≥ 1024 px): «Ajustes del plan» y «+ Examen» arriba, dos columnas, «Hasta los
+  exámenes» (una fila por examen con goteo, temario, repaso, última semana y su calendario sobre los meses) y
+  «Cuánto te cunde».
+- `plan-examen.js` (vista `exam`): cómo va («Llegas con 7 semanas de repaso», la barra y el ritmo), el camino (cada
+  tema con su marca, sus fechas y sus nuevas; Repaso, Última semana y Examen), «Un tema tras otro | Varios a la vez»,
+  «Cambiar el orden» (arrastrando por el asa o con flechas), «Fijar una fecha» (con «Así quedaría»), la recta final
+  (última semana, después del examen en pausa), los simulacros y «Cambiar la fecha · Quitar el examen».
+- `plan-nuevo.js`: la hoja de nuevo examen (y de cambiarlo): qué entra (una carpeta, una lista o varias, con «8 temas
+  · 525 preguntas · 100 vistas»), cuándo (fecha exacta), cuánto tiempo («Mi semana · 4 h 45», 30 min/día, 1 h/día,
+  Otro), el resultado en vivo y los dos interruptores.
+- `plan-reparto.js`: entre exámenes (Automático | A mi manera) y dentro de un examen (Un tema tras otro | Varios a la
+  vez, «Añadir otro tema a la vez»), con «Así sigues llegando».
+- `plan-hojas.js`: «En tu plan» desde la Biblioteca (botón en la cabecera de una carpeta y entrada en el menú de una
+  lista y de un apunte): con examen (su barra, «Se lleva el 80 % de tus nuevas», «Ahora: T3…», «Ver el camino»),
+  en un tema (los tres datos, Ya me lo sé, Estudiarlo a la vez que…, Fijar una fecha, Este tema no cae) y sin examen
+  (Activo | Solo repasar | Pausa y «Ponerle examen»).
+- `plan-ajustes.js` (vista `planSettings`): el reparto, lo que no tiene examen («· por gusto»), **las etapas a mano**
+  (que pasan aquí: nombre, fechas y el nivel de cada carpeta o lista), «Un goteo al examen siguiente» (`split.drip`),
+  «Nuevas al día, como mucho» (las de Ajustes, un número o «Sin tope»: `caps.noCap`) y Tu tiempo.
+- `plan-guardar.js`: cada cambio del plan se guarda con su entrada en `history` (los 20 últimos, con lo de antes),
+  su `updated_at` (examen, tiempo, reparto) y un aviso con «Deshacer».
+- `plan-acciones.js`: a dónde va cada `data-p2` (clic, input y change). `pantallas/plan.js` se queda en unos ayudantes
+  para Simulacro; las pantallas viejas (resumen, tu semana, temporada, etapas, foco, «Hagamos tu plan») se han ido.
+
+### Lo que cambia por debajo
+
+- `prefs.js`: el plan por defecto es el nuevo; el guardado se conserva tal cual (`normalizePlan`). Al juntar dos
+  dispositivos (`mergePlan`): cada examen, tu tiempo y el reparto, el más reciente (`updated_at`); los días especiales
+  y las etapas, por id; dos planes de antes, como antes; si uno ya está migrado, ese.
+- `comun.js`: `stateOf` (lo que está en pausa o solo repasos: lo que no tiene examen, la etapa de hoy y los exámenes
+  pasados en pausa) y `nearDecks` (los temas de los exámenes a 14 días o menos) salen del plan nuevo.
+- `cuenta.js`: la migración al entrar, y el examen de la oposición de la primera vez, en el plan nuevo.
+- Hoy (`inicio.js`): siempre la tarjeta de la tanda del motor; fuera el número grande, «Empezar una tanda · N min ·
+  M preguntas» y los atrasos (lo que no cabe pasa solo a mañana). La hoja «¿Cuánto suele durar tu rato?» cuenta las
+  preguntas con el motor.
+- El motor (`plan2.js`): el día de hoy ya cuenta lo hecho (el tiempo gastado y las nuevas vistas gastan del tope una
+  sola vez; antes, tras aprender una nueva, Hoy ofrecía 0) y las «N nuevas más»; «Hecho por hoy» solo al cumplir
+  los minutos (si no queda nada antes, «estás al día»); `split.drip` y `caps.noCap`. Hoy descuenta las hermanas que
+  esperan (una por nota, como la tanda), para que Hoy, el Plan, la Biblioteca y la tanda digan lo mismo.
+- Biblioteca: «examen el 12 dic» de una carpeta sale de los exámenes nuevos.
+- Iconos nuevos en `icons.js` (de Lucide): star, ban, zap, target y chart-pie.
+- `sw.js`: los nueve archivos nuevos en `SHELL` (VERSION sigue en 206: nada se ha subido desde que se subió a 206).
+
+### Para cuando lo juntéis
+
+- **`css/app.css` tiene las reglas del plan de antes, que ya no se usan** (`.pl-*`, `.pw-*`, `.ps-*`, `.psx*`, `.tp-*`,
+  `.pe-*`, `.ex-*` de la ficha y del calendario, `.pf-*`, `.ord-*`, `.ht-*`, `.fix-*`, `.lv-seg`, `.hero-num`,
+  `.hero-side`, `.hero-go`, `.hero-more`, `.hero-spare`…). No las he quitado para no chocar con la otra
+  conversación: se pueden borrar al juntar (comprobando con un grep que nada las pinta).
+- `js/plan.js` (las cuentas de antes) sigue: lo usan el motor (días, etapas, `allocate`), la migración y sus pruebas.
+  `simulate`, `nodesOn`, `examFloors` y compañía ya no los usa la app; se pueden quitar con sus pruebas más adelante.
+
+### Lo que queda para el paso D (Novedades incluidas)
+
+- «Ya me lo sé» marca el tema como sabido directamente; la prueba de 10 preguntas es del paso D.
+- «Refuerza este tema» no sale todavía (el motor aún no hace nada con `boost`).
+- Las Novedades del plan nuevo, con sus capturas, van con el paso D (como dice el documento).
+
+### Pruebas del paso C
+
+- e2e nuevas, `plan-c.spec.js` (12): crear un examen; reparto 70/30 viendo «Así quedaría» y deshacerlo; varios temas a
+  la vez; fijar una fecha; cambiar el orden con flechas y arrastrando (`@ambos`); las tres hojas de «En tu plan»;
+  migración de un plan de antes con etapas; lo que no tiene examen (pausa y solo repasar); un día especial; y «Así no
+  llegas» con «Para llegar»: aplicar, deshacer, «Lo dejo así» y quitar el examen.
+- Quitadas (probaban el plan de antes, y lo suyo lo cubren las nuevas): `plan.spec.js`, `dia-libre.spec.js`,
+  `hecho-por-hoy.spec.js`, `minutos-de-verdad.spec.js` y las seis del plan de `remates-plan.spec.js` (quedan sus tres
+  de Explorar); dos de `repaso-25oct.spec.js` (el Plan en oscuro y el planificador).
+- Cambiadas para la Hoy nueva: el número de Hoy pasa a `hoyCount(page)` (fixtures: lo que dice la leyenda de la
+  tanda), `startTanda` pulsa «Empezar · N min», y simulacro, perfil, hoy, contraste, tanda-corta y capturas-plan
+  ponen los exámenes en el plan nuevo. «Atrasos» pasa a ser «al volver tras unos días: lo atrasado no cabe…».
+- `tests/rapida.mjs`: «plan» = plan-c, plan2-hoy y simulacro; «hoy» con tanda-corta; remates-plan, en «explorar».
+- Unitarias: **280 de 280**. Batería completa (`PORT=8124`): **375 pasan, 2 fallan, 13 saltadas** (4,9 min). Las dos que
+  fallan son las de siempre, `lista.spec.js:65` «Desde un apunte…» (móvil y escritorio), de la otra conversación.
