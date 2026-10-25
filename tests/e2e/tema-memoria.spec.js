@@ -100,3 +100,30 @@ for (const v of [0, 1]) test(`quien tenía la versión ${v + 1}: se quitan las d
   // Otra vez: no cambia nada
   expect(await page.evaluate(() => import('/js/pantallas/cuenta.js').then(m => m.migrateTemas()))).toBe(0);
 });
+
+test('en el móvil, las tablas del apunte no parten palabras: si no caben, se desplazan de lado en su caja', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async () => {
+    const { addTema } = await import('/js/pantallas/pruebas.js'); const { TEMAS } = await import('/js/primera-vez.js');
+    const { go } = await import('/js/app.js');
+    const r = await addTema(TEMAS.find(t => t.old));
+    go('page', { pageId: r.page.id });
+  });
+  await expect(page.locator('#main .nb-tbl')).toHaveCount(3);
+  const r = await page.locator('#main .nb-tbl').evaluateAll(tbls => {
+    const broken = [];
+    for (const t of tbls) for (const cell of t.querySelectorAll('th, td')) {
+      const walk = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) for (const m of n.data.matchAll(/\S+/g)) {
+        const range = document.createRange(); range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
+        const lines = new Set([...range.getClientRects()].filter(x => x.width > 0).map(x => Math.round(x.top)));
+        if (lines.size > 1) broken.push(m[0]);
+      }
+    }
+    // La página no se desplaza de lado: lo hace la caja de la tabla
+    return { broken, page: document.documentElement.scrollWidth <= innerWidth + 1, wraps: tbls.map(t => getComputedStyle(t.closest('.nb-tablewrap')).overflowX) };
+  });
+  expect(r.broken).toEqual([]);
+  expect(r.page).toBe(true);
+  expect(r.wraps.every(x => x === 'auto')).toBe(true);
+});

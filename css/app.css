@@ -4166,3 +4166,5 @@ body.in-study:has(#net:not([hidden])) .studybar .sb-info .where{visibility:hidde
 .wi-b.is-wrong{background:#FF9F92;border-color:#FF9F92}
 /* Doble sentido: «¿Qué significa?» / «¿Cómo se llama?» encima de la cara */
 .rev-ask{margin:0 0 6px;font-size:14px;color:var(--muted)}
+/* Tablas del apunte: las celdas no parten palabras; si la tabla no cabe, se desplaza de lado dentro de su caja */
+.nb-tbl th,.nb-tbl td{overflow-wrap:normal;word-break:normal;hyphens:manual}
