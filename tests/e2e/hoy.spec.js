@@ -169,5 +169,5 @@ test('Examen cerca: Hoy lo dice y sus preguntas van primero', async ({ page }) =
   await page.locator('.studybar [data-act="exit"]').click();
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
-  await expect(page.locator('.pl-row').filter({ has: page.locator('.pl-name', { hasText: 'Macroeconomía' }) }).first().locator('.pl-meta').first()).toContainText(`≈ ${k} nuevas al día`);
+  await expect(page.locator('.pf-row').filter({ has: page.locator('.pl-name', { hasText: 'Macroeconomía' }) }).locator('.pl-meta')).toContainText(`≈ ${k} nuevas al día`);
 });

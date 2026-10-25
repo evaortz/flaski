@@ -10,7 +10,7 @@ import { ideasOf, ideaHit, parseEffects, suggestGrade, verdictText } from '../en
 import { speak, stopSpeaking, ttsAvailable, voiceMissing } from '../tts.js';
 import { charsOf, canQuiz, startQuiz, startCanvas, animateChars } from '../handwriting.js';
 import { buzz, swipeable, chime } from '../feel.js';
-import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, newPlan, nearDecks, seenToday } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, cardList, toast, fail, tagChips, scopeTest, scopeName, deckName, reviewsLeft, algo, capNote, counts, planNodes, dayNodes, newPlan, nearDecks, seenToday, tandaMinutes } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
@@ -399,7 +399,7 @@ function buildSession(scope, size = 0) {
   if (capped.length > cap) {
     const byDeck = new Map();
     for (const c of capped) byDeck.set(c.deck_id, (byDeck.get(c.deck_id) || 0) + 1);
-    const sh = shares(S.decks, S.folders, planNodes(), d => byDeck.has(d.id));
+    const sh = shares(S.decks, S.folders, dayNodes(), d => byDeck.has(d.id));
     for (const id of byDeck.keys()) if (!sh.has(id)) sh.set(id, 1);
     const floors = new Map([...byDeck].filter(([id]) => near.has(id)));
     const q = allocate(cap, sh, byDeck, floors), used = new Map();
@@ -479,8 +479,8 @@ export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids
   go('study');
 }
 // Preguntas que caben en una tanda de N minutos, a tu ritmo
-export const shortSize = (minutes = S.prefs.study.tandaMin) => tandaSize(minutes, pace(S.events));
-export function shortInfo() { const minutes = S.prefs.study.tandaMin, secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
+export const shortSize = (minutes = tandaMinutes()) => tandaSize(minutes, pace(S.events));
+export function shortInfo() { const minutes = tandaMinutes(), secs = pace(S.events); return { minutes, secs, n: tandaSize(minutes, secs) }; }
 export function shuffleTokens(o) {
   const a = o.tokens;
   for (let k = 0; k < 8; k++) {

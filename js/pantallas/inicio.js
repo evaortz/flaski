@@ -7,7 +7,7 @@ import { pageTitle, STATUS, isEmptyPage } from '../pages.js';
 import { examStatus, nextExam, decksUnder, EXAM_NEAR } from '../plan.js';
 import { daysLeft } from '../atrasos.js';
 import { weekDays } from '../friends.js';
-import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN, backlog, backlogNoNew, nearDecks, daysAway } from '../comun.js';
+import { $, main, S, esc, plain, cardList, capNote, counts, newPlan, freshByDeck, planNodes, scopeDecks, weakSections, WEAK_SHOWN, backlog, backlogNoNew, nearDecks, daysAway, todayMinutes } from '../comun.js';
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
@@ -100,7 +100,8 @@ function shortHTML(avail) {
   const mins = m < n ? Math.max(1, Math.round((m * secs) / 60)) : minutes;
   return `<button class="primary big hero-go" data-act="tanda-short"><span class="hero-go-t">Empezar una tanda<small>${mins} min · ${plural(m, 'pregunta', 'preguntas')}</small></span></button>
     <div class="hero-more">${avail > m ? `<button class="hero-all" data-start="all"><span class="hero-m">o hacer las ${avail} de hoy</span><span class="hero-d">Hacer las ${avail} de hoy</span></button>` : ''}
-      <button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button></div>`;
+      ${todayMinutes() == null ? `<button class="link hero-min" data-act="tanda-min">${icon('pencil', { size: 15 })} Tanda de ${minutes} min<span class="hero-d"> · cambiar</span></button>`
+        : `<button class="link hero-min" data-nav="plan">${icon('pencil', { size: 15 })} ${todayMinutes() ? `Hoy, ${todayMinutes()} min` : `Hoy es libre · ${minutes} min`}<span class="hero-d"> · tu semana</span></button>`}</div>`;
 }
 
 // Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»

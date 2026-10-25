@@ -35,7 +35,10 @@ export const DEFAULT_PREFS = {
     density: 'comfy',       // 'comfy' | 'compact'
     cardAlign: 'center',    // 'center' | 'left'
   },
-  plan: { nodes: {} },     // plan de estudio: estado, foco y examen de cada lista y carpeta (ver plan.js)
+  // plan de estudio (ver plan.js): estado, foco y examen de cada lista y carpeta; tu semana (minutos de cada día,
+  // null = sin semana), días especiales y etapas; objetivo de nota y últimos ajustes del simulacro de cada examen
+  plan: { nodes: {}, week: null, special: [], stages: [], simGoal: {}, sim: {} },
+  sims: [],                 // simulacros hechos (ver SYNCED y trimSims)
   remind: { on: true, time: '20:00', cheers: true },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },
 };
@@ -84,10 +87,54 @@ export const loadPrefs = saved => {
   if (saved && Object.keys(saved).length && !saved.algo?.preset) p.algo.preset = 'standard';
   p.look.accent = accentId(p.look.accent);
   // Las claves del plan son ids de mazos y carpetas: mergePrefs solo conserva las que ya existen
-  const nodes = saved?.plan?.nodes;
-  p.plan.nodes = nodes && typeof nodes === 'object' && !Array.isArray(nodes) ? { ...nodes } : {};
+  for (const k of ['nodes', 'simGoal', 'sim']) {
+    const v = saved?.plan?.[k];
+    p.plan[k] = isObj(v) ? { ...v } : {};
+  }
+  if (!isObj(p.plan.week)) p.plan.week = null;
+  for (const path of SYNCED) { const [a, b] = path; const v = b ? p[a][b] : p[a]; if (!Array.isArray(v)) { if (b) p[a][b] = []; else p[a] = []; } }
   return p;
 };
+
+// Listas que se juntan por id al sincronizar (en vez de que la copia nueva machaque a la vieja): lo creado
+// en otro dispositivo no se pierde. Cada elemento lleva «at» (cuándo cambió); con el mismo id gana el más
+// reciente, y lo borrado queda como { id, deleted: true, at }.
+export const SYNCED = [['sims'], ['plan', 'special'], ['plan', 'stages']];
+export function unionById(a = [], b = []) {
+  const m = new Map();
+  for (const x of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+    if (!x || x.id == null) continue;
+    const o = m.get(x.id);
+    if (!o || (x.at || 0) >= (o.at || 0)) m.set(x.id, x);
+  }
+  return [...m.values()];
+}
+// Junta las preferencias guardadas en la nube (older) con las de este dispositivo (newer): todo lo demás,
+// lo de este dispositivo
+export function mergeSynced(older, newer) {
+  if (!isObj(older)) return newer;
+  if (!isObj(newer)) return older;
+  const out = { ...newer, plan: { ...(newer.plan || {}) } };
+  for (const [a, b] of SYNCED) {
+    if (b) out[a][b] = unionById(older[a]?.[b], newer[a]?.[b]);
+    else out[a] = unionById(older[a], newer[a]);
+  }
+  out.sims = trimSims(out.sims);
+  return out;
+}
+// Simulacros: de cada examen, el detalle (pregunta a pregunta) solo de los 10 últimos; de los demás, el resumen
+export const SIM_DETAIL = 10;
+export function trimSims(sims) {
+  const byExam = new Map();
+  for (const s of Array.isArray(sims) ? sims : []) {
+    if (!s || s.deleted || !s.qs) continue;
+    if (!byExam.has(s.exam)) byExam.set(s.exam, []);
+    byExam.get(s.exam).push(s);
+  }
+  const drop = new Set();
+  for (const list of byExam.values()) list.sort((x, y) => (y.done || 0) - (x.done || 0)).slice(SIM_DETAIL).forEach(s => drop.add(s.id));
+  return (Array.isArray(sims) ? sims : []).map(s => (s && drop.has(s.id) ? { ...s, qs: null } : s));
+}
 
 // Parámetros del algoritmo para un mazo: los del mazo si tiene un preajuste propio; si no, los globales.
 export function algoFor(prefs, deck) {

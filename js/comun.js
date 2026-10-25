@@ -1,7 +1,7 @@
 // Flaski · estado compartido (S) y utilidades comunes de la interfaz (sale de app.js)
 import { DAY, startOfDay, dateKey } from './srs.js';
 import { loadPrefs, algoFor } from './prefs.js';
-import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder } from './plan.js';
+import { deckState, shares, allocate, examFloors, nearExamDecks, daysTo, decksUnder, nodesOn, dayKey, newOn, minutesOn, stageOn, topicOrder } from './plan.js';
 import { backlogPlan, backlogActive, BACKLOG_DAYS } from './atrasos.js';
 import { icon } from './icons.js';
 import { colorVar, folderColor, tagColor, tagTilt, decksInFolder, drawingOf, drawingSVG, imageOf, iconText } from './org.js';
@@ -217,7 +217,9 @@ export function addExtraNew(n) {
   S.extra = { uid: S.uid, day: dateKey(Date.now()), n: extraNew() + n };
   try { localStorage.setItem('flaski-extra', JSON.stringify(S.extra)); } catch {}
 }
-const newLeft = () => Math.max(0, S.newPerDay + extraNew() - newSeenToday());
+// Nuevas de hoy: las de Ajustes, según los minutos de hoy en tu semana (sin semana, las de siempre)
+export const newPerDayToday = () => newOn(S.prefs.plan, dayKey(), S.newPerDay, S.prefs.study.tandaMin);
+const newLeft = () => Math.max(0, newPerDayToday() + extraNew() - newSeenToday());
 // Límite propio del mazo (Opciones del mazo); Infinity si usa el global
 function deckNewLeft(deckId) {
   const n = S.decks.get(deckId)?.options?.newPerDay;
@@ -280,7 +282,7 @@ export const reviewsLeft = () => {
   return cap === Infinity ? Infinity : Math.max(0, cap - reviewsToday());
 };
 // Las listas de los exámenes cercanos: van primero en la tanda
-export const nearDecks = () => nearExamDecks(planNodes(), S.decks, S.folders);
+export const nearDecks = () => nearExamDecks(dayNodes(), S.decks, S.folders);
 // Las que ya has visto hoy y vuelven (las que fallaste) no gastan del tope de repasos
 export const seenToday = p => p.last >= startOfDay();
 export const algo = deckId => algoFor(S.prefs, S.decks.get(deckId));
@@ -309,8 +311,16 @@ export function counts(scope = 'all') {
 
 /* ===================== plan de estudio ===================== */
 // Estado (activo, solo repasos, en pausa), foco y examen de cada mazo y carpeta: ver plan.js
+// planNodes: los que guardas (para editarlos); dayNodes: los que mandan hoy (con la etapa vigente y las
+// reglas de los exámenes encima, ver nodesOn en plan.js)
 export const planNodes = () => S.prefs.plan.nodes;
-export const stateOf = d => (d ? deckState(d, S.folders, planNodes()) : 'active');
+export const dayNodes = (k = dayKey()) => nodesOn(S.prefs.plan, k);
+export const stateOf = d => (d ? deckState(d, S.folders, dayNodes()) : 'active');
+// Las listas que hoy no dan nuevas por el orden de temas de la etapa vigente
+export const topicBlocked = (fresh = freshByDeck()) => topicOrder(stageOn(S.prefs.plan.stages, dayKey()), S.decks, S.folders, fresh).blocked;
+// Minutos de la tanda de hoy: los de tu semana (o el día especial); sin semana o si hoy es libre, los de Ajustes
+export const todayMinutes = () => minutesOn(S.prefs.plan, dayKey());
+export const tandaMinutes = () => todayMinutes() || S.prefs.study.tandaMin;
 const STATE_META = { reviews: ' · solo repasos', paused: ' · en pausa' };
 export const planMeta = d => STATE_META[stateOf(d)] || '';
 // Nuevas que le quedan a cada mazo (las que aún no has visto)
@@ -324,19 +334,20 @@ export function freshByDeck(test = () => true) {
 // primero el ritmo que piden los exámenes.
 export function newPlan(scope = 'all', { steady = false } = {}) {
   const inScope = scopeTest(scope), fresh = freshByDeck(inScope), avail = new Map(), remaining = new Map();
+  const nodes = dayNodes(), blocked = topicBlocked();
   for (const [id, n] of fresh) {
     const d = S.decks.get(id);
-    if (!d || stateOf(d) !== 'active') continue;
+    if (!d || blocked.has(id) || deckState(d, S.folders, nodes) !== 'active') continue;
     const own = d.options?.newPerDay;
     const lim = steady ? (own === null || own === undefined || own === '' ? Infinity : Number(own)) : deckNewLeft(id);
     remaining.set(id, n); avail.set(id, Math.min(n, lim));
   }
   const ok = d => (avail.get(d.id) || 0) > 0;
-  const sh = shares(S.decks, S.folders, planNodes(), ok);
+  const sh = shares(S.decks, S.folders, nodes, ok);
   for (const id of avail.keys()) if (!sh.has(id) && avail.get(id)) sh.set(id, 1);   // p. ej. una lista archivada que estudias a propósito
   const floors = new Map();
-  for (const [id, f] of examFloors(S.decks, S.folders, planNodes(), remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
-  let total = steady ? S.newPerDay : newLeft();
+  for (const [id, f] of examFloors(S.decks, S.folders, nodes, remaining, Date.now(), ok)) floors.set(id, Math.max(0, Math.ceil(f) - (steady ? 0 : newSeenToday(id))));
+  let total = steady ? newPerDayToday() : newLeft();
   // Mientras se reparte lo atrasado no entran nuevas: solo el ritmo de los exámenes y las «10 nuevas más»
   if (!steady && backlogNoNew()) total = Math.min(total, [...floors.values()].reduce((a, n) => a + n, 0) + Math.max(0, extraNew() - newSeenToday()));
   return allocate(total, sh, avail, floors);

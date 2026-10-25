@@ -155,3 +155,153 @@ export function nearExamDecks(nodes, decks, folders, now = Date.now()) {
   }
   return out;
 }
+
+/* ===================== temporada: semana, días especiales y etapas ===================== */
+// Las fechas son días de calendario «AAAA-MM-DD» en hora local (nunca marcas de tiempo): así el cambio de
+// hora no mueve nada. plan.week = { mon..sun: minutos } (null = sin semana: la tanda de Ajustes),
+// plan.special = [{ id, from, to, minutes, label, at }], plan.stages = [{ id, name, from, to, levels, order, at }].
+// Lo borrado se queda como { id, deleted: true, at } para que otro dispositivo no lo resucite al juntar.
+export const WEEK = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+export const WEEK_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+export const WEEK_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const pad = n => String(n).padStart(2, '0');
+export const dayKey = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+export const isDay = k => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k);
+// El día como fecha a mediodía (lejos de cualquier cambio de hora)
+export const dayDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+export const addDays = (k, n) => { const d = dayDate(k); d.setDate(d.getDate() + n); return dayKey(d); };
+export const daysBetween = (a, b) => Math.round((dayDate(b) - dayDate(a)) / DAY);
+export const weekdayOf = k => (dayDate(k).getDay() + 6) % 7;   // 0 = lunes … 6 = domingo
+export const live = list => (Array.isArray(list) ? list : []).filter(x => x && !x.deleted);
+
+// El día especial que cubre una fecha (si se pisan, el último creado)
+export function specialOn(special, k) {
+  return live(special).filter(s => isDay(s.from) && isDay(s.to) && s.from <= k && k <= s.to).sort((a, b) => (b.at || 0) - (a.at || 0))[0] || null;
+}
+// Minutos de un día: el día especial; si no, el de tu semana; null si no hay semana (se usa la tanda de Ajustes)
+export function minutesOn(plan, k) {
+  const s = specialOn(plan?.special, k);
+  if (s) return Math.max(0, Number(s.minutes) || 0);
+  const w = plan?.week;
+  if (!w) return null;
+  return Math.max(0, Number(w[WEEK[weekdayOf(k)]]) || 0);
+}
+// Minutos de un día normal (media de los días que no son libres); sin semana, los de la tanda
+export function weekAverage(week, fallback = 10) {
+  if (!week) return fallback;
+  const on = WEEK.map(d => Number(week[d]) || 0).filter(m => m > 0);
+  return on.length ? on.reduce((a, b) => a + b, 0) / on.length : fallback;
+}
+export const weekTotal = week => (week ? WEEK.reduce((a, d) => a + (Number(week[d]) || 0), 0) : 0);
+// Nuevas de un día: las de Ajustes según sus minutos frente a un día normal, entre la mitad y el doble.
+// Un día libre no da nuevas. Sin semana ni día especial, las de siempre.
+export function newOn(plan, k, newPerDay, fallbackMin = 10) {
+  const m = minutesOn(plan, k);
+  if (m == null) return newPerDay;
+  if (m === 0) return 0;
+  const f = Math.min(2, Math.max(0.5, m / weekAverage(plan?.week, fallbackMin)));
+  return Math.round(newPerDay * f);
+}
+
+// Etapas: cada una con su rango de fechas; la que cubre un día manda ese día (la primera por fecha)
+export const LEVELS = [
+  { id: 'paused', label: 'Pausa' }, { id: 'reviews', label: 'Repasar' }, { id: 'low', label: 'Poco' },
+  { id: 'normal', label: 'Normal' }, { id: 'high', label: 'Mucho' },
+];
+// Poco, Normal y Mucho reparten 1 : 2 : 4 (Normal = el peso de siempre, 1)
+const LEVEL_NODE = { paused: { state: 'paused' }, reviews: { state: 'reviews' }, low: { state: 'active', weight: 0.5 }, normal: { state: 'active', weight: 1 }, high: { state: 'active', weight: 2 } };
+export const levelNode = id => LEVEL_NODE[id] || null;
+export const levelLabel = id => LEVELS.find(l => l.id === id)?.label || '';
+// El nivel que corresponde a un nodo de siempre (estado y peso)
+export function levelOf(node) {
+  const st = node?.state || 'active';
+  if (st !== 'active') return st;
+  const w = Number.isFinite(node?.weight) ? node.weight : 1;
+  return w >= 1.5 ? 'high' : w <= 0.75 ? 'low' : 'normal';
+}
+// Los pesos de antes (porcentajes del deslizador de foco) pasan a niveles: en cada grupo de hermanos, según
+// lo que se aparta de la media. Devuelve true si ha cambiado algo.
+export function normalizeWeights(decks, folders, nodes) {
+  const groups = new Map();
+  const add = (parent, key) => { if (!groups.has(parent)) groups.set(parent, []); groups.get(parent).push(key); };
+  for (const f of folders.values()) add(f.parent_id && folders.has(f.parent_id) ? f.parent_id : null, folderKey(f.id));
+  for (const d of decks.values()) if (!d.archived) add(d.folder_id && folders.has(d.folder_id) ? d.folder_id : null, d.id);
+  let changed = false;
+  for (const keys of groups.values()) {
+    if (!keys.some(k => Number.isFinite(nodes[k]?.weight) && ![0.5, 1, 2].includes(nodes[k].weight))) continue;
+    const mean = keys.reduce((a, k) => a + weightOf(nodes, k), 0) / keys.length || 1;
+    for (const k of keys) {
+      const r = weightOf(nodes, k) / mean, n = nodes[k] || (nodes[k] = {});
+      n.weight = r >= 1.5 ? 2 : r <= 0.67 ? 0.5 : 1;
+      if (n.weight === 1) delete n.weight;
+      if (!Object.keys(n).length) delete nodes[k];
+      changed = true;
+    }
+  }
+  return changed;
+}
+export const sortStages = stages => live(stages).filter(s => isDay(s.from) && isDay(s.to)).sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+export function stageOn(stages, k) {
+  return sortStages(stages).find(s => s.from <= k && k <= s.to) || null;
+}
+// Los nodos que mandan un día: los de siempre, con la etapa vigente encima y las reglas de los exámenes
+// («la última semana, solo repasos» y lo que pasa después del examen)
+export function nodesOn(plan, k) {
+  const out = {};
+  for (const [key, n] of Object.entries(plan?.nodes || {})) out[key] = { ...n };
+  const st = stageOn(plan?.stages, k);
+  if (st) for (const [key, lvl] of Object.entries(st.levels || {})) if (LEVEL_NODE[lvl]) out[key] = { ...(out[key] || {}), ...LEVEL_NODE[lvl] };
+  for (const n of Object.values(out)) {
+    if (!isDay(n.exam)) continue;
+    const d = daysBetween(k, n.exam);
+    if (d < 0 && n.after && LEVEL_NODE[n.after]) Object.assign(n, LEVEL_NODE[n.after]);
+    else if (d >= 1 && d <= 7 && n.lastWeek && (n.state || 'active') === 'active') n.state = 'reviews';
+  }
+  return out;
+}
+
+// Orden de temas: en cada carpeta con orden, las nuevas salen solo de la primera lista que no está
+// terminada (las listas de la carpeta que no están en el orden van al final). Devuelve el Set de listas
+// que ese día no dan nuevas y, por carpeta, la lista que toca.
+export function topicOrder(stage, decks, folders, fresh) {
+  const blocked = new Set(), current = new Map();
+  for (const [fid, list] of Object.entries(stage?.order || {})) {
+    if (!folders.has(fid)) continue;
+    const ids = orderedTopics(list, fid, decks, folders);
+    const cur = ids.find(id => (fresh.get(id) || 0) > 0);
+    if (cur) current.set(fid, cur);
+    for (const id of ids) if (id !== cur) blocked.add(id);
+  }
+  return { blocked, current };
+}
+// Las listas de una carpeta en el orden de la etapa (las que no están en el orden, al final)
+export function orderedTopics(list, fid, decks, folders) {
+  const under = decksUnder(fid, decks, folders).map(d => d.id);
+  const own = (list || []).map(x => x.deck).filter(id => under.includes(id));
+  return [...own, ...under.filter(id => !own.includes(id))];
+}
+
+// Proyección día a día (solo nuevas: los repasos no se cuentan) desde «from» hasta «to», con la etapa,
+// los minutos y las reglas de cada día. remaining: Map lista → nuevas por ver; limit(lista): tope propio al día.
+// Devuelve { finish: Map lista → día en que la acabas, left(día): Map lista → nuevas que quedan al empezar ese día }.
+export function simulate({ decks, folders, plan, newPerDay, fallbackMin = 10, remaining, from, to, limit = () => Infinity }) {
+  const rem = new Map(remaining), finish = new Map(), snaps = new Map();
+  for (const [id, n] of rem) if (!n) finish.set(id, addDays(from, -1));
+  for (let k = from, i = 0; k <= to && i < 1500; k = addDays(k, 1), i++) {
+    snaps.set(k, new Map(rem));
+    const nodes = nodesOn(plan, k), { blocked } = topicOrder(stageOn(plan?.stages, k), decks, folders, rem);
+    const avail = new Map();
+    for (const [id, n] of rem) {
+      const d = decks.get(id);
+      if (!d || d.archived || !n || blocked.has(id) || deckState(d, folders, nodes) !== 'active') continue;
+      avail.set(id, Math.min(n, limit(id)));
+    }
+    if (!avail.size) continue;
+    const ok = d => (avail.get(d.id) || 0) > 0;
+    const sh = shares(decks, folders, nodes, ok);
+    const floors = new Map([...examFloors(decks, folders, nodes, rem, dayDate(k).getTime(), ok)].map(([id, f]) => [id, Math.ceil(f)]));
+    const got = allocate(newOn(plan, k, newPerDay, fallbackMin), sh, avail, floors);
+    for (const [id, n] of got) { const r = (rem.get(id) || 0) - n; rem.set(id, r); if (r <= 0 && !finish.has(id)) finish.set(id, k); }
+  }
+  return { finish, left: k => snaps.get(k) || (k > to ? rem : remaining) };
+}

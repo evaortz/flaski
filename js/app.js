@@ -17,7 +17,7 @@ import { setRemote as setImageRemote } from './media.js';
 import { selOffsets } from './liveedit.js';
 import { newBlock, blockId, shortcut, pageTitle, TABLE_TEMPLATE, pageToMarkdown, isEmptyPage } from './pages.js';
 import { chime } from './feel.js';
-import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff } from './comun.js';
+import { $, main, S, esc, fmt, plain, cardList, toast, fail, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, backlogOff, tandaMinutes, todayMinutes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
@@ -28,12 +28,14 @@ import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, 
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
-import { renderProfile, renderStats, setPlanNode, setPlanWeight, planUrgent, renderPlan, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
+import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm } from './pantallas/perfil.js';
 import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
 import { focusPageBlock } from './pantallas/apuntes.js';
 import { setMapView, cellClick, practiceResist, practiceCell, openFicha, practiceSel, clearMapSel } from './pantallas/mapa.js';
 import { openSheet, closeSheet, requestClose, iconPicker, setIcon, showIconTab, pickFolderImage, tagPicker, redrawTagPicker, filterTagPicker, updateTagFields, deckForm, folderForm, tagsSheet, drawTypePicker, openTypePicker, openEditorPicker, openQuickPicker, setQuickType, markPickedType, useType, edDeck, cardForm, autoGrow, setEditorType, redrawEditorFields, applyFormat, pickImage, rubyLine, rubyApply, rubyClose, occFields, occRedraw, occSetImage, occDelete, readEditor, drawPreview, confirmSheet, shareSheet, readIcon, saveDeckForm, saveFolderForm, addTag, saveTagsSheet, tagName, moveSheet, addDecksSheet, moveDecks, deleteFolder, saveCardForm, quickSheet, drawQuick, saveQuick, typeUsage, typesSheet, typeEditor, drawTypeEditor, readTypeEditor, saveTypeEditor, deckTypes } from './pantallas/editor.js';
 import { mountTestBar, loadSampleData } from './pantallas/pruebas.js';
+import { renderPlan, renderExam, renderPlanStart, planClick, removeExam } from './pantallas/plan.js';
+import { simClick, renderSim } from './pantallas/simulacro.js';
 import { friendsChanged, markCheered, renderFriends, friendAction, addFriend, friendMenu } from './pantallas/amigos.js';
 
 /* ===================== navegación ===================== */
@@ -71,14 +73,14 @@ export function render() {
   document.body.dataset.view = S.view;
   if (authed && !S.loading) navMe();
   for (const b of document.querySelectorAll('[data-nav]:not(#navMe)')) {
-    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan'].includes(S.view));
+    const cur = b.dataset.nav === S.view || (b.dataset.nav === 'library' && ['decks', 'deck', 'notes', 'page'].includes(S.view)) || (b.dataset.nav === 'profile' && ['settings', 'friends', 'stats', 'plan', 'exam', 'planStart', 'sim'].includes(S.view));
     if (cur) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   $('#banner').hidden = !(api.mode === 'local' && !api.testMode && S.view === 'home');
   if (S.recovery) return renderNewPassword();
   if (!S.uid) return renderAuth();
   if (S.loading) { main.innerHTML = '<div class="empty"><div class="spin" aria-label="Cargando"></div><p class="muted">Cargando tus preguntas…</p></div>'; return; }
-  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan }[S.view] || renderHome)();
+  ({ home: renderHome, study: renderStudy, library: renderLibrary, decks: renderLibrary, deck: renderDeck, explore: renderExplore, notes: renderLibrary, page: renderPage, profile: renderProfile, friends: renderFriends, stats: renderStats, settings: renderSettings, plan: renderPlan, exam: renderExam, planStart: renderPlanStart, sim: renderSim }[S.view] || renderHome)();
 }
 
 // Abajo de la barra lateral (en el ordenador): tu inicial, tu nombre y tu racha
@@ -133,8 +135,9 @@ document.addEventListener('click', async e => {
     return;
   }
   const ds = b.dataset;
-  if (b.parentElement?.dataset.plstate && ds.v) return setPlanNode(b.parentElement.dataset.plstate, { state: ds.v });
-  if (ds.plclear) return setPlanNode(ds.plclear, { exam: '' });
+  // Plan de estudio, exámenes y simulacros: sus botones llevan data-pl o data-sim
+  if (ds.pl) return planClick(b);
+  if (ds.sim) return simClick(b, e);
   if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
@@ -406,7 +409,7 @@ document.addEventListener('click', async e => {
     }
     case 'more': { addExtraNew(Number(b.dataset.more) || 10); return startSession(S.session?.scope || 'all'); }
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
-    case 'tanda-short': return S.prefs.study.tandaAsked ? startSession('all', { minutes: S.prefs.study.tandaMin }) : tandaSheet();
+    case 'tanda-short': return S.prefs.study.tandaAsked || todayMinutes() ? startSession('all', { minutes: tandaMinutes() }) : tandaSheet();
     case 'tanda-min': return tandaSheet();
     case 'first-done': S.session = null; return go('home');
     case 'remind-other': {
@@ -419,8 +422,8 @@ document.addEventListener('click', async e => {
     case 'remind-pick': { const t = $('#firstTime')?.value; if (t) { b.dataset.remindAt = t; b.click(); } return; }
     case 'atrasos': return backlogSheet();
     case 'atrasos-all': { backlogOff(); closeSheet(); return render(); }
-    case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: S.prefs.study.tandaMin }); }
-    case 'tanda-again': return startSession('all', { minutes: S.session?.minutes || S.prefs.study.tandaMin });
+    case 'tanda-go': { S.prefs.study.tandaAsked = true; savePrefsSoon(); closeSheet(); return startSession('all', { minutes: tandaMinutes() }); }
+    case 'tanda-again': return startSession('all', { minutes: S.session?.minutes || tandaMinutes() });
     case 'close-sheet': return requestClose();
     case 'discard-edit': S.edit.dirty = false; return closeSheet();
     case 'keep-edit': $('#edDiscard').hidden = true; return;
@@ -579,11 +582,7 @@ document.addEventListener('click', async e => {
       ta.focus(); ta.selectionStart = ta.selectionEnd = z + 4; readEditor(); return drawPreview();
     }
     case 'save-tags': return saveTagsSheet();
-    case 'plan-equal': {
-      for (const n of Object.values(planNodes())) delete n.weight;
-      savePrefsSoon(); toast('Foco repartido por igual'); return renderPlan();
-    }
-    case 'plan-urgent': return planUrgent();
+    case 'exam-del-ok': return removeExam();
     case 'toggle-archived': S.org.archived = !S.org.archived; return renderLibrary();
     case 'clear-filters': Object.assign(S.org, { query: '', tagIds: [], archived: false }); return renderLibrary();
     case 'add-tag-inline': {
@@ -864,8 +863,7 @@ document.addEventListener('input', e => {
   }
 });
 document.addEventListener('change', async e => {
-  if (e.target.dataset.plw) return setPlanWeight(e.target.dataset.plw, Number(e.target.value));
-  if (e.target.dataset.plexam !== undefined && e.target.dataset.plexam) return setPlanNode(e.target.dataset.plexam, { exam: e.target.value || '' });
+  if (e.target.dataset.pl) return planClick(e.target);
   if (e.target.id === 'cardSort') { S.cardSort = e.target.value; return renderDeck(); }
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);

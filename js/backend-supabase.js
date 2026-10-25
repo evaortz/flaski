@@ -5,6 +5,7 @@ import { createClient } from './vendor/supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { toRow, progressCols } from './rows.js';
 import { createOutbox } from './outbox.js';
+import { mergeSynced } from './prefs.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
@@ -25,9 +26,14 @@ const send = {
   savePage: page => sb.from('pages').upsert({ ...page, updated_at: new Date().toISOString() }).then(check),
   // Borrar una imagen que ya no usa nada (p. ej. la anterior de una carpeta)
   removeImage: async (uid, id) => { const { error } = await sb.storage.from('media').remove([`${uid}/${id}`]); if (error) throw error; },
-  saveSettings: (uid, new_per_day, prefs) => {
+  // Las listas que se juntan por id (simulacros, días especiales, etapas) se unen con lo que ya hay en la
+  // nube, para no perder lo creado en otro dispositivo
+  saveSettings: async (uid, new_per_day, prefs) => {
     const row = { user_id: uid, new_per_day };
-    if (prefs) row.prefs = prefs;
+    if (prefs) {
+      const cur = await sb.from('settings').select('prefs').eq('user_id', uid).maybeSingle().then(check);
+      row.prefs = mergeSynced(cur?.prefs, prefs);
+    }
     return sb.from('settings').upsert(row).then(check);
   },
 };

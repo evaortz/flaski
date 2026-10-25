@@ -5,16 +5,14 @@ import { schedule, ALGO_PRESETS } from '../srs.js';
 import { loadPrefs, algoFor, applyLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from '../prefs.js';
 import { statsView, drawStats } from '../stats.js';
 import { pushBlocker, BLOCKER_TEXT, syncPush } from '../push.js';
-import { STATES, folderState, examStatus, childrenOf, weightOf, folderKey, urgencyWeight } from '../plan.js';
 import { PG_PERIODS, streaks, scrollChartsToEnd } from '../charts.js';
 import { icon } from '../icons.js';
 import { MODES, LANGS } from '../cardtypes.js';
 import { setBaseRate } from '../tts.js';
-import { decksInFolder } from '../org.js';
 import { imageIdsOf, exportImages, importImages } from '../media.js';
 import { BLOCK_TYPES } from '../pages.js';
 import { canVibrate, canAudio } from '../feel.js';
-import { $, main, S, esc, fmt, cardList, toast, errMsg, fail, deckIcon, folderIcon, scopeDecks, scopeName, deckName, algo, counts, planNodes, stateOf, freshByDeck, newPlan } from '../comun.js';
+import { $, main, S, esc, fmt, cardList, toast, errMsg, fail, deckIcon, scopeDecks, scopeName, deckName, algo } from '../comun.js';
 import { onSignedIn } from './cuenta.js';
 import { drawHeatmap, drawProgress } from './inicio.js';
 import { nativeLang, cardModel, grade } from './estudio.js';
@@ -37,7 +35,7 @@ export function renderProfile() {
     <div class="pf-nums">${num(total, total === 1 ? 'pregunta' : 'preguntas')}${num(S.decks.size, S.decks.size === 1 ? 'lista' : 'listas')}${num(S.progress.size, 'empezadas')}${num(learned, 'consolidadas')}</div>
     <ul class="list linklist">
       <li><button class="row-link" data-nav="friends">${icon('users', { size: 20 })}<span><b>Amigos</b><small>Invita a tus amigos y mira cómo van sus rachas</small></span><span class="fr-badge" id="frBadge" ${incoming().length ? '' : 'hidden'}>${incoming().length}</span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
-      <li><button class="row-link" data-nav="plan">${icon('list-checks', { size: 20 })}<span><b>Plan de estudio</b><small>Qué estudias ahora, el foco de cada lista y tus fechas de examen</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
+      <li><button class="row-link" data-nav="plan">${icon('list-checks', { size: 20 })}<span><b>Plan de estudio</b><small>Tu semana, tus etapas y tus fechas de examen</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="settings">${icon('settings', { size: 20 })}<span><b>Ajustes</b><small>Estudio, ritmo de repaso, apariencia, inicio y copias de seguridad</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-nav="stats">${icon('chart-column', { size: 20 })}<span><b>Estadísticas</b><small>Gráficos con filtros por periodo, lista y tipo de pregunta</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
       <li><button class="row-link" data-act="news">${icon('sugerencia', { size: 20 })}<span><b>Novedades</b><small>Lo nuevo de la última versión</small></span>${icon('chevron-right', { size: 18, cls: 'chev' })}</button></li>
@@ -85,103 +83,6 @@ export function renderStats() {
   main.innerHTML = html;
   drawStats(main, data, { animate: true });
   scrollChartsToEnd(main);
-}
-
-/* ===================== plan de estudio (pantalla) ===================== */
-// Un árbol con tus carpetas y mazos: de cada uno, su estado, su foco (el % frente a sus hermanos), las
-// nuevas al día que le tocan y su fecha de examen, con un aviso si a ese ritmo no llegas.
-const planOpen = new Set();   // filas desplegadas (se conservan al repintar)
-const planNode = key => planNodes()[key] || (planNodes()[key] = {});
-export function setPlanNode(key, fields) {
-  const n = planNode(key);
-  for (const [k, v] of Object.entries(fields)) { if (v === '' || v === 'active') delete n[k]; else n[k] = v; }
-  if (!Object.keys(n).length) delete planNodes()[key];
-  savePrefsSoon();
-  renderPlan();
-}
-// Hermanos de una fila (las claves de su grupo): para que los % sumen 100 al mover uno
-function planSiblings(key) {
-  const N = planNodes(), S2 = S.folders;
-  const parent = key.startsWith('f:') ? (S2.get(key.slice(2))?.parent_id || null) : (S.decks.get(key)?.folder_id || null);
-  const fid = parent && S2.has(parent) ? parent : null;
-  const k = childrenOf(fid, S.decks, S2);
-  return [...k.folders.map(f => folderKey(f.id)), ...k.decks.map(d => d.id)];
-}
-export function setPlanWeight(key, pct) {
-  const sib = planSiblings(key), others = sib.filter(k => k !== key);
-  const sum = others.reduce((a, k) => a + weightOf(planNodes(), k), 0);
-  const rest = Math.max(0, 100 - pct);
-  for (const k of others) planNode(k).weight = sum ? (weightOf(planNodes(), k) / sum) * rest : rest / others.length;
-  planNode(key).weight = pct;
-  savePrefsSoon();
-  renderPlan();
-}
-export function planUrgent() {
-  const N = planNodes();
-  const exams = new Map();   // clave → examen más cercano (el suyo o el de algo de dentro)
-  const near = (a, b) => (!a ? b : !b ? a : a < b ? a : b);
-  for (const d of S.decks.values()) {
-    if (d.archived) continue;
-    let e = N[d.id]?.exam || '';
-    exams.set(d.id, near(exams.get(d.id), e));
-    let f = d.folder_id; const seen = new Set();
-    while (f && S.folders.has(f) && !seen.has(f)) { seen.add(f); e = near(e, N[folderKey(f)]?.exam || ''); exams.set(folderKey(f), near(exams.get(folderKey(f)), e)); f = S.folders.get(f).parent_id; }
-  }
-  for (const f of S.folders.values()) if (N[folderKey(f.id)]?.exam) exams.set(folderKey(f.id), near(exams.get(folderKey(f.id)), N[folderKey(f.id)].exam));
-  let any = false;
-  for (const [k, e] of exams) { const w = urgencyWeight(e); if (w > 1) any = true; planNode(k).weight = w; }
-  if (!any) { for (const n of Object.values(N)) delete n.weight; toast('Pon alguna fecha de examen para priorizar lo urgente'); }
-  else toast('Más foco para lo que tiene el examen más cerca');
-  savePrefsSoon();
-  renderPlan();
-}
-export function renderPlan() {
-  const N = planNodes(), now = Date.now();
-  const perDay = newPlan('all', { steady: true }), remaining = freshByDeck(c => S.decks.get(c.deck_id) && !S.decks.get(c.deck_id).archived);
-  const today = counts('all').newToday;
-  const sumIn = (fid, m) => decksInFolder(S.decks, S.folders, fid).filter(d => !d.archived).reduce((a, d) => a + (m.get(d.id) || 0), 0);
-  const examText = d => (d == null ? '' : d < 0 ? 'el examen ya pasó' : d === 0 ? 'examen hoy' : d === 1 ? 'examen mañana' : `examen en ${d} días`);
-  function row(key, depth) {
-    const isF = key.startsWith('f:'), f = isF ? S.folders.get(key.slice(2)) : null, d = isF ? null : S.decks.get(key);
-    const own = N[key] || {}, eff = isF ? folderState(f.id, S.folders, N) : stateOf(d);
-    const inherited = eff !== (own.state || 'active');
-    const sib = planSiblings(key), sw = sib.reduce((a, k) => a + weightOf(N, k), 0);
-    const pct = sw ? Math.round((weightOf(N, key) / sw) * 100) : 0;
-    const daily = isF ? sumIn(f.id, perDay) : perDay.get(key) || 0;
-    const left = isF ? sumIn(f.id, remaining) : remaining.get(key) || 0;
-    const ex = examStatus(key, { decks: S.decks, folders: S.folders, nodes: N, remaining, perDay, now });
-    const label = STATES.find(s => s.id === eff).label;
-    const meta = [label, sib.length > 1 ? `${pct} %` : '', eff === 'active' ? (daily ? `≈ ${plural(daily, 'nueva', 'nuevas')} al día` : left ? 'hoy sin nuevas' : 'sin nuevas pendientes') : '', examText(ex?.days)].filter(Boolean).join(' · ');
-    const warn = ex && ex.late && eff !== 'paused' ? (ex.days <= 0
-      ? `<p class="pl-warn">${icon('alert-triangle', { size: 14 })} El examen ya pasó. Si lo terminaste, ponlo en «Solo repasos» para no olvidarlo.</p>`
-      : `<p class="pl-warn">${icon('alert-triangle', { size: 14 })} Así no te da tiempo: quedan ${plural(ex.left, 'nueva', 'nuevas')} y harían falta unas ${ex.need} al día (ahora le tocan ${ex.per}). Súbele el foco o el número de nuevas al día en Ajustes.</p>`) : '';
-    const name = isF ? `${folderIcon(f)}<span class="pl-name">${esc(f.name)}</span>` : `${deckIcon(d)}<span class="pl-name">${esc(d.name)}</span>`;
-    const kids = isF ? (() => { const k = childrenOf(f.id, S.decks, S.folders); return [...k.folders.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(x => folderKey(x.id)), ...k.decks.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(x => x.id)]; })() : [];
-    return `<details class="pl-row${isF ? ' pl-folder' : ''}${eff !== 'active' ? ' pl-' + eff : ''}" data-plkey="${key}" ${planOpen.has(key) ? 'open' : ''}>
-      <summary><span class="pl-head">${name}<span class="pl-meta">${meta}</span></span>${icon('chevron-down', { size: 16, cls: 'pl-chev' })}</summary>
-      <div class="pl-body">
-        <div class="pl-field"><span class="pl-lab">Estado</span><div class="seg seg-sm" role="group" aria-label="Estado de ${esc(isF ? f.name : d.name)}" data-plstate="${key}">${STATES.map(s => `<button type="button" class="seg-b" data-v="${s.id}" aria-pressed="${(own.state || 'active') === s.id}" title="${s.hint}">${s.label}</button>`).join('')}</div>
-          ${inherited ? `<p class="hint">Ahora manda su carpeta: está ${eff === 'paused' ? 'en pausa' : 'en «solo repasos»'}.</p>` : `<p class="hint">${STATES.find(s => s.id === (own.state || 'active')).hint}</p>`}</div>
-        <div class="pl-field"><span class="pl-lab">Foco</span>${sib.length > 1
-          ? `<span class="range"><input type="range" min="0" max="100" step="5" value="${pct}" data-plw="${key}" aria-label="Foco de ${esc(isF ? f.name : d.name)}"><output>${pct} %</output></span>
-             <p class="hint">${depth ? (isF ? 'De las nuevas de su carpeta, la parte para esta subcarpeta' : 'De las nuevas de su carpeta, la parte para esta lista') : (isF ? 'De las nuevas de cada día, la parte para esta carpeta' : 'De las nuevas de cada día, la parte para esta lista')}${eff === 'active' ? `: ≈ ${plural(daily, 'nueva', 'nuevas')} al día.` : '.'}</p>`
-          : `<p class="hint">Es lo único a su nivel: se lleva todo el foco${eff === 'active' ? ` (≈ ${plural(daily, 'nueva', 'nuevas')} al día)` : ''}.</p>`}</div>
-        <div class="pl-field"><span class="pl-lab">Examen</span><span class="btnrow"><input type="date" data-plexam="${key}" value="${own.exam || ''}" aria-label="Fecha de examen">${own.exam ? `<button type="button" class="link small" data-plclear="${key}">Quitar</button>` : ''}</span>
-          <p class="hint">${ex ? `${examText(ex.days).replace(/^./, c => c.toUpperCase())}${ex.days > 0 ? ` · quedan ${plural(ex.left, 'nueva', 'nuevas')}` : ''}.` : 'Con fecha, le damos el ritmo justo para verlo todo antes.'}</p>${warn}</div>
-      </div>
-      ${kids.length ? `<div class="pl-kids">${kids.map(k => row(k, depth + 1)).join('')}</div>` : ''}
-    </details>`;
-  }
-  const top = childrenOf(null, S.decks, S.folders);
-  const keys = [...top.folders.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(f => folderKey(f.id)), ...top.decks.sort((a, b) => a.name.localeCompare(b.name, 'es')).map(d => d.id)];
-  const y = scrollY;
-  main.innerHTML = `<div class="section-h"><h1>Plan de estudio</h1></div>
-    <p class="muted pl-lead">Decide qué estudias ahora y cuánto foco le das a cada cosa. Con tu plan, hoy te ${today === 1 ? 'toca' : 'tocan'} <b>${plural(today, 'nueva', 'nuevas')}</b> de las ${S.newPerDay} al día que tienes en Ajustes. Los repasos de todo lo que no está en pausa salen siempre, para que no se te olvide lo que ya sabes.</p>
-    <div class="btnrow"><button type="button" class="ghost" data-act="plan-equal">Repartir por igual</button><button type="button" class="ghost" data-act="plan-urgent">Prioridad a lo urgente</button></div>
-    ${keys.length ? `<div class="pl-tree">${keys.map(k => row(k, 0)).join('')}</div>` : '<div class="empty"><p class="muted">Aún no tienes listas. Crea una o busca alguna en Explorar.</p></div>'}`;
-  for (const el of main.querySelectorAll('.pl-row')) el.addEventListener('toggle', () => { el.open ? planOpen.add(el.dataset.plkey) : planOpen.delete(el.dataset.plkey); });
-  for (const r of main.querySelectorAll('[data-plw]')) r.addEventListener('input', () => { r.nextElementSibling.textContent = r.value + ' %'; });
-  if (S.view === 'plan') scrollTo(0, y);
 }
 
 /* ===================== ajustes ===================== */
@@ -320,7 +221,7 @@ export function renderSettings() {
       <div class="look-pv" aria-label="Vista previa de una pregunta"><article class="card"><div class="front"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Merhaba</span></div></div></div>
         <div class="answer"><div class="fld fld-main"><div class="fld-v"><span class="fld-t">Hola</span></div></div><div class="fld fld-sub"><div class="fld-v"><span class="fld-t">Saludo informal en turco</span></div></div></div></article></div>`, 's-look')}
     ${setSec('gauge', 'Estudio diario', `
-      ${setRow('Plan de estudio', 'Qué listas estudias ahora, cuánto foco le das a cada una y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
+      ${setRow('Plan de estudio', 'Tu semana, tus etapas, cuánto entra de cada cosa y tus fechas de examen.', '<button type="button" class="ghost small-btn" data-nav="plan">Abrir el plan</button>')}
       ${setRow('Duración de la tanda', 'La de «Empezar una tanda», en Hoy. Cuántas preguntas caben se ajusta solo a tu ritmo.', seg('study.tandaMin', [[5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min']]))}
       ${setRow('Preguntas nuevas al día', 'Entre 10 y 20 va bien. Cada lista puede tener su propio límite.', `<span class="num"><input type="number" id="set-new" data-num min="0" max="500" inputmode="numeric" value="${S.newPerDay}"></span>`)}
       ${setRow('Repasos máximos al día', '0 = sin límite. Si un día se acumulan, el resto queda para mañana.', numIn('study.maxReviews', { max: 9999 }))}

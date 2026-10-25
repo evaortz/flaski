@@ -77,7 +77,7 @@ export function setMapView(scope, on) {
 
 // «fallada ayer», «fallada 3 veces»: lo que más ayuda a saber por qué se resiste
 const DAY = 864e5;
-function failNote(cell) {
+export function failNote(cell) {
   const fails = cell.events.filter(e => e.grade === 1);
   if (!fails.length) return '';
   const last5 = cell.events.slice(-5).filter(e => e.grade === 1).length;
@@ -174,7 +174,7 @@ export function practiceSel() {
   practice(scope, [...new Set([...S.mapSel.keys].flatMap(k => m.cells.get(k)?.ids || []))]);
 }
 // Lo que sale en «Practicar lo que se resiste»: de las casillas que se resisten, sus preguntas que no sabes (sin repetir)
-const resistIds = m => [...new Set([...m.cells.values()].filter(c => c.state === 'resiste').flatMap(c => c.ids.filter(id => m.cardState.get(id) !== 'sabes')))];
+export const resistIds = m => [...new Set([...m.cells.values()].filter(c => c.state === 'resiste').flatMap(c => c.ids.filter(id => m.cardState.get(id) !== 'sabes')))];
 export function practiceResist(scope) {
   const m = mapModel(scope);
   if (m) practice(scope, resistIds(m));

@@ -1,7 +1,7 @@
 // Flaski · acceso, carga de datos, bienvenida y modo sin conexión (sale de app.js)
 import * as api from '../api.js';
 import { toRow } from '../rows.js';
-import { loadPrefs, applyLook } from '../prefs.js';
+import { loadPrefs, applyLook, mergeSynced } from '../prefs.js';
 import { icon } from '../icons.js';
 import { LANGS, summarize } from '../cardtypes.js';
 import { setBaseRate } from '../tts.js';
@@ -10,7 +10,7 @@ import { isRetryable } from '../outbox.js';
 import { openOnboarding } from '../onboarding.js';
 import { openFirstRun, TEMAS, fileKind, temaCards } from '../primera-vez.js';
 import { DRAWING_SVG } from '../dibujos.js';
-import { folderKey } from '../plan.js';
+import { folderKey, normalizeWeights } from '../plan.js';
 import { markdownToPage, titleFromFile } from '../notesio.js';
 import { isEmptyPage } from '../pages.js';
 import { suggestCards } from '../suggest.js';
@@ -148,6 +148,8 @@ export async function onSignedIn(session) {
     dedupeTypes();
     if (!S.fromCache) dropEmptyPages();
     if (!S.fromCache) migrateEntender();
+    // Los pesos de foco de antes (porcentajes) pasan a Poco · Normal · Mucho
+    if (!S.fromCache && normalizeWeights(S.decks, S.folders, S.prefs.plan.nodes)) savePrefsSoon();
     if (!S.fromCache) saveSnap();
     loadFriends(true);
     restoredNotice();
@@ -382,7 +384,7 @@ function withPending(d, before = []) {
     else if (op === 'deleteEvent') evs.delete(args[0]);
     // bumpLog(uid, día, +1, total local de ese momento): el total ya incluye la respuesta
     else if (op === 'bumpLog' && args[2] > 0) log.set(args[1], Math.max(log.get(args[1]) || 0, args[3] || 0));
-    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ?? settings?.prefs };
+    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ? mergeSynced(settings?.prefs, args[2]) : settings?.prefs };
   }
   return {
     ...d, settings, progress: [...prog.values()], pages: [...pages.values()],
