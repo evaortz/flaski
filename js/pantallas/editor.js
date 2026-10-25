@@ -56,16 +56,15 @@ export function requestClose() {
   }
   closeSheet();
 }
-const CHARS = ['ç', 'ğ', 'ı', 'İ', 'ö', 'ş', 'ü', 'ñ', 'á', 'é'];
-// Letras especiales según el idioma del campo (en japonés, chino, coreano… se usa el teclado del sistema)
+// Letras especiales según el idioma del campo (en japonés, chino, coreano… se usa el teclado del sistema); sin idioma,
+// las del idioma de la app (español)
 const CHARS_BY_LANG = {
   tr: ['ç', 'ğ', 'ı', 'İ', 'ö', 'ş', 'ü', 'â'], es: ['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡'],
   fr: ['é', 'è', 'ê', 'à', 'ç', 'ô', 'û', 'î', 'ë', 'œ'], de: ['ä', 'ö', 'ü', 'ß'], pt: ['ã', 'õ', 'ç', 'á', 'é', 'ê', 'ó', 'ô', 'à'],
   it: ['à', 'è', 'é', 'ì', 'ò', 'ù'], ca: ['à', 'è', 'é', 'í', 'ï', 'ò', 'ó', 'ú', 'ü', 'ç', 'l·l'], nl: ['ë', 'ï', 'é', 'ü'], gl: ['ñ', 'á', 'é', 'í', 'ó', 'ú'], eu: ['ñ'],
 };
 export function charsFor(lang) {
-  if (!lang) return CHARS;
-  return CHARS_BY_LANG[lang.split('-')[0]] || [];
+  return CHARS_BY_LANG[(lang || 'es').split('-')[0]] || [];
 }
 
 // El icono elegido: un emoji o, en las carpetas, uno de los dibujos de Flaski o una imagen propia

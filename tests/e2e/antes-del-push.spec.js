@@ -28,3 +28,8 @@ test('respuesta numérica: al verla sin contestar, el número va en el recuadro 
   // y no suelto debajo de la pregunta
   await expect(page.locator('article.card > :not(.answer)').filter({ hasText: '1885' })).toHaveCount(0);
 });
+
+test('escribir la respuesta en una lista sin idioma: la fila de letras especiales es la del español', async ({ page }) => {
+  await tanda(page, [['typing', 't1', { q: '¿Cómo se llama el efecto por el que se recuerda mejor lo repartido?', a: 'Efecto de espaciado', n: '' }]]);
+  await expect(page.locator('.chars-study button')).toHaveText(['ñ', 'á', 'é', 'í', 'ó', 'ú', 'ü', '¿', '¡']);
+});
