@@ -41,8 +41,9 @@ npx playwright test                       # movil + escritorio
 
 - Añade o ajusta pruebas e2e para lo nuevo (con `fixtures.js`; para el modo nube, `nube.js`).
 - Mientras trabajas, pasa solo las pruebas relacionadas con lo que tocas. La batería completa, **una sola vez al final
-  de la fase** y con todos los workers (`npx playwright test --workers=100%`). Si una falla, repite solo esa; si falla
-  a veces sin motivo, arréglala.
+  de la fase** (`npx playwright test`; los workers los fija `playwright.config.js`, la mitad de los núcleos). Tiene que
+  salir en verde de una vez: si una falla solo con carga, arréglala para que espere a un estado de la página (no a un
+  tiempo fijo ni a un evento que puede haber pasado ya).
 - Para probar con datos sin tocar la cuenta: `http://localhost:8000/?local` (modo local de pruebas, botón «Cargar datos de ejemplo»).
 - Informa de los recuentos (p. ej. «unitarias: N ok; e2e: M ok, 0 fallos»). Si algo falla y no es tuyo, dilo.
 - Para ver la app: `$env:PORT = '8000'; node tests/serve.mjs` y `http://localhost:8000`. Si el navegador muestra la

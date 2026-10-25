@@ -145,7 +145,8 @@ test('una pregunta borrada en el editor no va a la papelera: «Deshacer» la dev
   expect((await S(page)).cards).toBe(0);
   await page.locator('#toast .ta-btn').click();
   expect((await S(page)).cards).toBe(1);
-  await page.waitForTimeout(6500);
+  // A los 6 s no se borra (se deshizo): sigue guardada
+  await expect(page.locator('#toast')).toBeHidden({ timeout: 10000 });
   expect((await db(page)).cards).toHaveLength(1);
 });
 

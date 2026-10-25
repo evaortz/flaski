@@ -73,11 +73,13 @@ test('Hoy: «te las sabes» cuenta solo las consolidadas, y el número de hoy va
 
 test('al abrir, mientras carga, un esqueleto de Hoy y no un círculo girando', async ({ page }) => {
   const srv = await mockCloud(page);
-  // La nube tarda: las listas llegan al cabo de un rato
-  await page.route('https://test.supabase.co/rest/v1/decks**', async r => { await new Promise(res => setTimeout(res, 1500)); return r.fallback(); });
+  // La nube no responde a las listas hasta que la prueba ha visto el esqueleto (sin depender de cuánto tarde en cargar)
+  let release; const seen = new Promise(r => { release = r; });
+  await page.route('https://test.supabase.co/rest/v1/decks**', async r => { await seen; return r.fallback(); });
   await page.goto('/');
   await expect(page.locator('#main .skel')).toBeVisible();
   await expect(page.locator('#main .spin')).toHaveCount(0);
+  release();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20000 });
   await expect(page.locator('#main .skel')).toHaveCount(0);
   expect(srv).toBeTruthy();

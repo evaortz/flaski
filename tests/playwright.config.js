@@ -6,6 +6,11 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   retries: 0,
+  // La mitad de los núcleos: con todos a la vez, las recargas y la carga de la app tardan tanto que las esperas
+  // se quedan cortas. Las pruebas esperan a un estado de la página (no a un tiempo), con estos márgenes
+  workers: '50%',
+  timeout: 60000,
+  expect: { timeout: 10000 },
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${PORT}`,

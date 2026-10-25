@@ -12,16 +12,15 @@ test('tras restaurar una copia, al recargar dice cuánto ha entrado (o que ya lo
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act="backup"]').click()]);
   const backup = JSON.parse(await readFile(await dl.path(), 'utf8'));
   // Sin cambiar nada: ya lo tenías todo
-  await page.locator('#backupFile').setInputFiles({ name: 'copia.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
-  await page.waitForEvent('load');
+  // (la copia recarga la página: se espera la recarga junto con lo que la provoca)
+  await Promise.all([page.waitForEvent('load'), page.locator('#backupFile').setInputFiles({ name: 'copia.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })]);
   await expect(page.locator('#toast')).toHaveText('Copia restaurada: ya lo tenías todo');
   // Tras borrarlo todo: 1 lista y 2 preguntas
   await nav(page, 'Perfil');
   await page.locator('[data-act="ask-reset-local"]').click();
   await page.locator('[data-act="reset-local"]').click();
   await page.locator('[data-nav="settings"]').click();
-  await page.locator('#backupFile').setInputFiles({ name: 'copia.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
-  await page.waitForEvent('load');
+  await Promise.all([page.waitForEvent('load'), page.locator('#backupFile').setInputFiles({ name: 'copia.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })]);
   await expect(page.locator('#toast')).toHaveText('Copia restaurada: 3 cosas añadidas');
 });
 
