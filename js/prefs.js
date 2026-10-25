@@ -37,7 +37,7 @@ export const DEFAULT_PREFS = {
   },
   // plan de estudio (ver plan.js): estado, foco y examen de cada lista y carpeta; tu semana (minutos de cada día,
   // null = sin semana), días especiales y etapas; objetivo de nota y últimos ajustes del simulacro de cada examen
-  plan: { nodes: {}, week: null, special: [], stages: [], simGoal: {}, sim: {} },
+  plan: { nodes: {}, week: null, special: [], stages: [], simGoal: {}, sim: {}, startDone: false, lateOk: '' },
   sims: [],                 // simulacros hechos (ver SYNCED y trimSims)
   remind: { on: true, time: '20:00', cheers: true },   // avisos con notificaciones: recordatorio diario y ánimos (en este dispositivo)
   home: { goal: 0, activity: true, activityPeriod: 'y1', forecast: true, progressPeriod: 'm3', decks: true, friends: true },

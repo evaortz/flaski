@@ -33,3 +33,10 @@ test('plan, etapa, examen y primera vez', async ({ page }, info) => {
   await page.locator('[data-pl="exam-edit"]').click();
   await page.screenshot({ path: dir + '6-nuevo-examen.png', fullPage: true });
 });
+
+test('explorar', async ({ page }, info) => {
+  await openApp(page);
+  await addBuiltinDeck(page, 'Alemán · A2');
+  await nav(page, 'Explorar');
+  await page.screenshot({ path: `test-results/plan/${info.project.name}-7-explorar.png`, fullPage: true });
+});

@@ -23,7 +23,7 @@ import { renderHome, tandaSheet, backlogSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
-import { renderExplore, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
+import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview } from './pantallas/explorar.js';
 import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
@@ -337,6 +337,7 @@ document.addEventListener('click', async e => {
   if (ds.renameTag) return tagsSheet(ds.renameTag);
   if (ds.tagColor) { try { await updateTagFields(ds.tagColor, { color: ds.color }); } catch (err) { fail(err); } return; }
   if (ds.card) return cardForm(S.cards.get(ds.card));
+  if (ds.ex) return exploreClick(b);
   if (ds.pub) return openPublicPreview(ds.pub);
   if (ds.builtin) return openBuiltinPreview(ds.builtin);
   if (ds.char) {

@@ -5,10 +5,13 @@ import { icon } from '../icons.js';
 import { isNotesDeck, notesToDeck } from '../notes.js';
 import { importImages } from '../media.js';
 import { $, main, S, esc, fmt, norm, toast, fail } from '../comun.js';
-import { langLabel } from './estudio.js';
 import { plural, parseDeckFile, download } from './mazos.js';
 import { openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
+import { TEMAS } from '../primera-vez.js';
+import { addTema } from './pruebas.js';
+import { readTema } from './cuenta.js';
+import { startSession, langLabel } from './estudio.js';
 
 /* ===================== explorar ===================== */
 async function loadExplore(force) {
@@ -20,31 +23,113 @@ async function loadExplore(force) {
   }
   if (S.view === 'explore') renderExplore();
 }
+// Filtros por objetivo (los que tienen algo) y lo que sale en cada uno
+const GOALS = [['all', 'Todo'], ['idiomas', 'Idiomas'], ['oposiciones', 'Oposiciones'], ['carrera', 'Carrera'], ['amigos', 'De tus amigos']];
+const GOAL_TITLE = { idiomas: 'Idiomas', oposiciones: 'Oposiciones', carrera: 'Carrera' };
+const ownTema = t => [...S.pages.values()].find(p => p.title === t.title || p.title?.startsWith(t.title + ' ('));
+const friendIds = () => new Set((S.friends?.list || []).map(f => f.id));
 export function renderExplore() {
   if (!S.pub || !S.builtin) {
     main.innerHTML = '<h1>Explorar</h1><div class="empty"><div class="spin" aria-label="Cargando"></div></div>';
     loadExplore();
     return;
   }
-  const q = norm(S.exploreQuery.trim());
-  const match = d => !q || norm(d.name).includes(q) || norm(d.description).includes(q) || norm(d.author).includes(q);
-  const bi = S.builtin.filter(match), pb = S.pub.filter(match);
+  const q = norm(S.exploreQuery.trim()), local = api.mode === 'local', goal = S.exploreGoal || 'all';
+  const match = d => !q || norm(d.name || d.title).includes(q) || norm(d.description || d.text).includes(q) || norm(d.author).includes(q);
+  const fr = friendIds();
+  const lists = S.builtin.map(d => ({ ...d, goal: d.objetivo || 'idiomas' }));
+  const temas = TEMAS.map((t, i) => ({ ...t, i, goal: t.objetivo }));
+  // De tus amigos: lo que comparten tus amigos (en el modo local, lo que has compartido tú)
+  const friends = local ? S.pub : S.pub.filter(d => fr.has(d.owner) && d.owner !== S.uid);
+  const others = local ? [] : S.pub.filter(d => !fr.has(d.owner));
   // Si ya la tienes: «La tienes» en vez de «Ver» y «48 preguntas · tú tienes 56»
-  const meta = (d, src, by) => { const own = ownedDeck(src); return `${d.count} preguntas${own ? ` · tú tienes ${ownCount(own)}` : ` · ${by}`}`; };
-  const go = src => ownedDeck(src) ? '<span class="go go-own">La tienes</span>' : '<span class="go">Ver</span>';
-  const builtin = bi.map(d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="dot" style="background:var(--d2)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'incluido:' + d.file, 'incluida en la app')}</span></span>${go('incluido:' + d.file)}</button></li>`).join('');
-  const pub = pb.map(d => `<li><button class="deck" data-pub="${d.id}"><span class="dot" style="background:var(--d4)"></span>
-    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'compartido:' + d.id, `de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}`)}</span></span>${go('compartido:' + d.id)}</button></li>`).join('');
-  const local = api.mode === 'local';
-  // Buscando sin nada que encaje: un solo mensaje, no uno por sección
-  const none = q && !bi.length && !pb.length;
-  main.innerHTML = `<div class="section-h"><h1>Explorar</h1><button class="link" data-act="refresh-explore">Actualizar</button></div>
-    <div class="toolbar"><input id="exploreSearch" type="search" placeholder="Buscar listas" aria-label="Buscar listas" value="${esc(S.exploreQuery)}"></div>
-    ${none ? `<div class="empty ex-none"><p class="muted">Ninguna lista con «${esc(S.exploreQuery.trim())}»</p></div>` : `
-    ${builtin || !q ? `<div class="section-h"><h2>Para empezar</h2></div><ul class="list">${builtin}</ul>` : ''}
-    ${pub || !q ? `<div class="section-h"><h2>${local ? 'Tus listas compartidas' : 'Compartidas por la comunidad'}</h2></div>
-    ${pub ? `<ul class="list">${pub}</ul>` : `<div class="empty"><p class="muted">${local ? 'Aún no has compartido ninguna. Abre una lista y pulsa «Compartir».' : 'Todavía nadie ha compartido listas. Abre una de tus listas y pulsa «Compartir».'}</p></div>`}` : ''}`}`;
+  const meta = (d, src, by) => { const own = ownedDeck(src); return `${d.count} preguntas${own ? ` · tú tienes ${ownCount(own)}` : by ? ` · ${by}` : ''}`; };
+  const go = src => (ownedDeck(src) ? `<span class="go go-own">La tienes</span>` : '<span class="go">Ver</span>');
+  const listRow = d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="ex-ic" aria-hidden="true">${esc(d.icono || '')}</span>
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'incluido:' + d.file, 'incluida en la app')}</span></span>${go('incluido:' + d.file)}</button></li>`;
+  const pubRow = d => `<li><button class="deck" data-pub="${d.id}"><span class="ex-ic" aria-hidden="true">${icon('users', { size: 18 })}</span>
+    <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'compartido:' + d.id, `de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}`)}</span></span>${go('compartido:' + d.id)}</button></li>`;
+  const temaRow = t => { const own = ownTema(t); return `<li class="ex-row"><span class="ex-ic" aria-hidden="true">${icon('file-text', { size: 20 })}</span><button class="ex-row-t" data-ex="see-tema" data-i="${t.i}"><b>${esc(t.title)}</b><small>apunte y ${t.count} preguntas</small></button>
+    ${own ? `<button class="soft-pill" data-ex="open-tema" data-i="${t.i}">La tienes</button>` : `<button class="soft-pill" data-ex="add-tema" data-i="${t.i}">${icon('plus', { size: 16 })} Añadir</button>`}</li>`; };
+  // Buscando: una sola lista con todo lo que encaja
+  if (q) {
+    const rows = [...temas.filter(match).map(temaRow), ...lists.filter(match).map(listRow), ...[...friends, ...others].filter(match).map(pubRow)];
+    main.innerHTML = `${headHTML()}${rows.length ? `<ul class="list ex-results">${rows.join('')}</ul>` : `<div class="empty ex-none"><p class="muted">Ninguna lista con «${esc(S.exploreQuery.trim())}»</p></div>`}`;
+    return;
+  }
+  const show = g => goal === 'all' || goal === g;
+  const featured = temas.find(t => t.goal === 'destacado');
+  const sec = (g, body) => `<section class="ex-sec ex-${g}" aria-labelledby="ex-h-${g}"><div class="section-h"><h2 id="ex-h-${g}">${GOAL_TITLE[g]}</h2>${goal === 'all' ? `<button class="link" data-ex="goal" data-g="${g}">ver todo</button>` : ''}</div>${body}</section>`;
+  const langCards = lists.filter(d => d.goal === 'idiomas').map(d => {
+    const own = ownedDeck('incluido:' + d.file);
+    return `<li class="ex-card"><button class="ex-card-b" data-builtin="${esc(d.file)}"><span class="ex-card-ic" aria-hidden="true">${esc(d.icono || '')}</span><b>${esc(d.name)}</b><span class="meta">${own ? meta(d, 'incluido:' + d.file) : `${d.count} preg.`}</span>${own ? '<span class="go go-own">La tienes</span>' : ''}</button>
+      ${own ? '' : `<button class="ex-add" data-ex="add-builtin" data-file="${esc(d.file)}" aria-label="Añadir ${esc(d.name)}">${icon('plus', { size: 20 })}</button>`}</li>`;
+  }).join('');
+  const opos = temas.filter(t => t.goal === 'oposiciones').map(temaRow).join('') + lists.filter(d => d.goal === 'oposiciones').map(listRow).join('');
+  const career = temas.filter(t => t.goal === 'carrera').map(temaRow).join('') + lists.filter(d => d.goal === 'carrera').map(listRow).join('');
+  const friendsBody = friends.length ? `<ul class="list">${friends.map(pubRow).join('')}</ul>`
+    : `<div class="empty"><p class="muted">${local ? 'Aún no has compartido ninguna. Abre una lista y pulsa «Compartir».' : 'Tus amigos aún no han compartido ninguna lista.'}</p></div>`;
+  const has = { idiomas: !!langCards, oposiciones: !!opos, carrera: !!career, amigos: true };
+  main.innerHTML = `${headHTML(has)}
+    <div class="ex-grid">
+      ${goal === 'all' && featured ? `<div class="ex-hero"><span class="ex-sticker">¡en 5 min!</span><small>tema de ejemplo · para probar Flaski</small><h2>${esc(featured.title)}</h2>
+        <p>Un apunte corto sobre la memoria, con ${featured.count} preguntas ya hechas.</p>
+        <div class="btnrow">${ownTema(featured) ? `<button class="ex-hero-go" data-ex="open-tema" data-i="${featured.i}">Abrir el tema</button>` : `<button class="ex-hero-go" data-ex="start-tema" data-i="${featured.i}">Añadir y empezar</button>`}<button class="link" data-ex="see-tema" data-i="${featured.i}">Ver el tema</button></div>
+        <svg class="ex-curve" viewBox="0 0 160 90" aria-hidden="true"><path d="M4 20 C40 70 90 82 156 84" fill="none" stroke="#FF9F92" stroke-width="5" stroke-linecap="round"/><path d="M4 8 C20 40 30 52 40 50 C50 30 56 18 70 30 C80 48 90 52 100 50 C116 30 130 26 156 30" fill="none" stroke="#8EE3B5" stroke-width="5" stroke-linecap="round"/><circle cx="40" cy="50" r="6" fill="#FFFFFF"/><circle cx="100" cy="50" r="6" fill="#FFFFFF"/></svg></div>` : ''}
+      ${show('amigos') ? `<section class="ex-sec ex-amigos" aria-labelledby="ex-h-amigos"><div class="section-h"><h2 id="ex-h-amigos">${local ? 'Tus listas compartidas' : 'De tus amigos'}</h2></div>${friendsBody}
+        ${goal === 'all' ? `<button class="ex-import" data-act="import-menu">${icon('download', { size: 22 })}<span><b>¿Ya tienes preguntas en otra app?</b><small>Importa un mazo de Anki o un CSV</small></span></button>` : ''}</section>` : ''}
+      ${show('idiomas') && langCards ? sec('idiomas', `<ul class="ex-cards">${langCards}</ul>`) : ''}
+      ${show('oposiciones') && opos ? sec('oposiciones', `<ul class="ex-rows">${opos}</ul>`) : ''}
+      ${show('carrera') && career ? sec('carrera', `<ul class="ex-rows">${career}</ul>`) : ''}
+      ${goal === 'all' && others.length ? `<section class="ex-sec ex-comunidad"><div class="section-h"><h2>De la comunidad</h2></div><ul class="list">${others.map(pubRow).join('')}</ul></section>` : ''}
+    </div>`;
+}
+function headHTML(has = {}) {
+  const goal = S.exploreGoal || 'all';
+  const chips = GOALS.filter(([g]) => g === 'all' || has[g] || g === goal).map(([g, l]) => `<button type="button" class="ex-chip" data-ex="goal" data-g="${g}" aria-pressed="${goal === g}">${l}</button>`).join('');
+  return `<div class="ex-top"><div class="ex-title"><h1>Explorar</h1><span class="ex-note">¿qué te apetece aprender hoy?</span></div>
+    <label class="lib-search ex-search">${icon('search', { size: 18 })}<input id="exploreSearch" type="search" placeholder="Buscar listas y temas" aria-label="Buscar listas y temas" value="${esc(S.exploreQuery)}"></label></div>
+    ${S.exploreQuery.trim() ? '' : `<div class="ex-chips" role="group" aria-label="Objetivo">${chips}</div>`}`;
+}
+// Los botones de Explorar (data-ex)
+export async function exploreClick(b) {
+  const ds = b.dataset;
+  switch (ds.ex) {
+    case 'goal': S.exploreGoal = ds.g === S.exploreGoal ? 'all' : ds.g; return renderExplore();
+    case 'add-builtin': {
+      b.disabled = true;
+      try { const p = { ...await readBuiltin(ds.file), source: 'incluido:' + ds.file }; const { deck } = await importParsed(p); toast(`«${deck.name}» añadida`); renderExplore(); }
+      catch (e) { b.disabled = false; fail(e); }
+      return;
+    }
+    case 'add-tema': case 'start-tema': {
+      b.disabled = true;
+      const t = TEMAS[Number(ds.i)];
+      try {
+        const r = await addTema(t);
+        const p = r?.page || ownTema(t);
+        closeSheet();
+        if (ds.ex === 'start-tema' && p?.deck_id) return startSession(p.deck_id, { minutes: 5 });
+        toast(`«${t.title}» añadido`); renderExplore();
+      } catch (e) { b.disabled = false; fail(e); }
+      return;
+    }
+    case 'open-tema': { const p = ownTema(TEMAS[Number(ds.i)]); closeSheet(); return p && go('page', { pageId: p.id }); }
+    case 'see-tema': return temaPreview(Number(ds.i));
+  }
+}
+// «Ver el tema»: el principio del apunte y algunas de sus preguntas
+async function temaPreview(i) {
+  const t = TEMAS[i];
+  openSheet('<div class="spin" aria-label="Cargando"></div>');
+  try {
+    const [{ blocks }, qs] = await Promise.all([readTema(t), fetch(t.cards, { cache: 'no-cache' }).then(r => r.json())]);
+    const text = blocks.filter(b => b.type === 'p').slice(0, 2).map(b => `<p>${fmt(b.text)}</p>`).join('');
+    const own = ownTema(t);
+    openSheet(`<h2 class="sheet-hand">${esc(t.title)}</h2><p class="muted small">tema de ejemplo · apunte y ${t.count} preguntas</p>${text}
+      <ul class="preview">${qs.slice(0, 5).map(x => `<li><span>${esc(x.pregunta)}</span><b>${esc(String(x.respuesta))}</b></li>`).join('')}</ul>
+      <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button>${own ? `<button class="primary" data-ex="open-tema" data-i="${i}">Abrir</button>` : `<button class="primary" data-ex="start-tema" data-i="${i}">Añadir y empezar</button>`}</div>`);
+  } catch (e) { closeSheet(); fail(e); }
 }
 // La lista tuya que salió de una incluida o compartida (source «incluido:…» o «compartido:…»)
 export const ownedDeck = src => [...S.decks.values()].find(d => d.source === src && !d.archived) || [...S.decks.values()].find(d => d.source === src);

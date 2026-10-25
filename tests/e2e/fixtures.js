@@ -80,7 +80,7 @@ export async function addBasicCards(page, pairs) {
 // Añade un mazo de los incluidos en la app desde Explorar
 export async function addBuiltinDeck(page, name) {
   await nav(page, 'Explorar');
-  await page.getByRole('button', { name: new RegExp(name) }).click();
+  await page.locator('#main [data-builtin]').filter({ hasText: name }).first().click();
   await page.getByRole('button', { name: 'Añadir a mis listas' }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }

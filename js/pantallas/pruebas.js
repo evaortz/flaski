@@ -64,6 +64,23 @@ export function inventProgress(uid, deckId, cardIds, { share = 0.6, seed = 1, no
   return { progress, events };
 }
 
+// Un tema de ejemplo como apunte, con sus preguntas en una lista con su nombre. Si ya estaba con preguntas,
+// no hace nada y devuelve null; si no, { page, deck }.
+export async function addTema(t) {
+  const { title, blocks } = await readTema(t);
+  let p = [...S.pages.values()].find(x => x.title === title);
+  if (p && cardList().some(c => c.page_id === p.id)) return null;
+  if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
+  if (!p.deck_id || !S.decks.has(p.deck_id)) {
+    const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: 'apuntes', folder_id: p.folder_id || null });
+    S.decks.set(deck.id, { tags: [], ...deck });
+    p = await api.savePage({ ...p, deck_id: deck.id }); S.pages.set(p.id, p);
+  }
+  const picks = temaCards(await (await fetch(t.cards, { cache: 'no-cache' })).json())
+    .map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
+  await makeSuggested(p, picks, p.deck_id);
+  return { page: p, deck: S.decks.get(p.deck_id) };
+}
 // Las listas incluidas en la app, con progreso inventado en casi todas, y los temas de ejemplo como apuntes.
 // Lo que ya esté no se repite.
 export async function loadSampleData(btn) {
@@ -95,22 +112,7 @@ export async function loadSampleData(btn) {
     const grey = [...S.tags.values()].filter(t => tagColor(t.color) === 'gris');
     for (const [i, t] of grey.entries()) await api.updateTag(t.id, { color: TAG_COLORS[i % (TAG_COLORS.length - 1)].id });
     let notes = 0;
-    for (const t of TEMAS) {
-      const { title, blocks } = await readTema(t);
-      // El apunte (si no estaba) y, si aún no tiene preguntas, las suyas en una lista con su nombre
-      let p = [...S.pages.values()].find(x => x.title === title);
-      if (p && cardList().some(c => c.page_id === p.id)) continue;
-      if (!p) { p = await api.createPage({ owner: S.uid, title, icon: '', deck_id: null, folder_id: null, tags: [], blocks }); S.pages.set(p.id, p); }
-      if (!p.deck_id || !S.decks.has(p.deck_id)) {
-        const deck = await api.createDeck({ owner: S.uid, name: title.slice(0, 80), description: '', source: 'apuntes', folder_id: p.folder_id || null });
-        S.decks.set(deck.id, { tags: [], ...deck });
-        p = await api.savePage({ ...p, deck_id: deck.id }); S.pages.set(p.id, p);
-      }
-      const picks = temaCards(await (await fetch(t.cards, { cache: 'no-cache' })).json())
-        .map(x => ({ ...x, blockId: blockFor(p, x.answer) }));
-      await makeSuggested(p, picks, p.deck_id);
-      notes++;
-    }
+    for (const t of TEMAS) if (await addTema(t)) notes++;
     // Se vuelve a cargar todo, como al entrar, y se abre Hoy (sin la bienvenida, que ya no hace falta)
     document.querySelector('.ob')?.dispatchEvent(new Event('ob-close'));
     closeSheet();
