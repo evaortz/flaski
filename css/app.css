@@ -1005,9 +1005,14 @@ select.prop-select:hover,.pg-props select:hover{background-color:var(--hover)}
 .st-new{--st:var(--muted);--st-bg:var(--tag-gray-bg)}
 .nb-cards[class*="st-"]{background:var(--st-bg);color:var(--st)}
 .nb:has(.nb-sec){padding-right:150px}
-.nb-sec{position:absolute;right:34px;top:50%;transform:translateY(-50%);height:26px;padding:0 10px;border:0;border-radius:99px;background:var(--st-bg,var(--soft));color:var(--st,var(--muted));font-size:12.5px;font-weight:600;white-space:nowrap}
-.nb-sec:disabled{cursor:default}
-.nb-sec:not(:disabled):hover{filter:brightness(.96)}
+/* «Estudiar N» del apartado: botón secundario (borde y fondo de la página), separado de la insignia */
+.nb-sec{position:absolute;right:34px;top:50%;transform:translateY(-50%);height:28px;padding:0 12px;border:1px solid var(--line-strong);border-radius:99px;background:var(--bg);color:var(--fg);font-size:12.5px;font-weight:600;white-space:nowrap}
+.nb-sec:disabled{cursor:default;border-color:transparent;background:var(--st-bg,var(--soft));color:var(--st,var(--muted))}
+.nb-sec:not(:disabled):hover{background:var(--hover)}
+/* La insignia con el número de preguntas: hueco a la derecha del texto para que no lo toque */
+.nb:has(> .nb-cards){padding-right:60px}
+.nb:has(> .nb-cards):has(.nb-sec){padding-right:176px}
+.nb:has(> .nb-cards) .nb-sec{right:60px}
 .pg-status{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0;margin-top:2px;border-bottom:1px solid var(--line)}
 .st-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--fg);padding:2px 6px}
 .st-chip i{width:8px;height:8px;border-radius:50%;background:var(--st)}
