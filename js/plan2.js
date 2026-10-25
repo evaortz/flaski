@@ -298,8 +298,10 @@ function splitShares(P, gs) {
   } else {
     const exams = gs.filter(g => g.x?.date != null).sort((a, b) => a.x.date - b.x.date);
     const near = exams[0] || gs.find(g => g.x) || gs[0], others = gs.filter(g => g !== near);
-    sh.set(near.id, others.length ? AUTO_NEAR : 100);
-    for (const g of others) sh.set(g.id, (100 - AUTO_NEAR) / others.length);
+    // Sin «goteo al examen siguiente» (split.drip: false), el más cercano se lo lleva todo hasta acabar su temario
+    const nearPct = split.drip === false ? 100 : AUTO_NEAR;
+    sh.set(near.id, others.length ? nearPct : 100);
+    for (const g of others) sh.set(g.id, (100 - nearPct) / others.length);
   }
   return toPercent(sh);
 }
@@ -345,6 +347,7 @@ function stageDay(P, stage, gs, budget, i, rem) {
 // El tope de nuevas al día: el de Ajustes del plan; si no, las nuevas al día de Ajustes; sin ninguno, sin tope
 const isCount = v => v !== null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0;
 export function newCap(state) {
+  if (state.plan?.caps?.noCap) return Infinity;                          // «Sin tope» en Ajustes del plan
   const c = state.plan?.caps?.newPerDay;
   return isCount(c) ? Number(c) : isCount(state.newPerDay) ? Number(state.newPerDay) : Infinity;
 }

@@ -283,3 +283,15 @@ el código de antes y pasa con el arreglo.
 - La tabla de comparación (`node fixtures/comparar.mjs`) sale igual que antes: los arreglos no cambian estos dos
   estados. El lunes 26 oct sale con 105 repasos en la tabla y 100 en la e2e: la tabla calcula desde el domingo y
   cuenta de media las que se fallarán (0,1 por repaso), la e2e mira el lunes por la mañana.
+
+### La prueba de rendimiento, aparte
+
+La medida de verdad (5.000 preguntas, 3 exámenes y un año: forecast < 50 ms y fixes < 500 ms, con la mediana) está
+en `tests/unit/rendimiento.perf.js`, fuera de la batería normal (el patrón `unit/*.test.js` no la recoge).
+**Cuándo lanzarla:** con el ordenador libre, sin otra batería de Playwright a la vez (con otra, fixes pasa de 1 s y
+fallaría sin motivo), después de tocar el motor (`js/plan2.js`) y antes de juntar. Desde `tests/`:
+
+    npm run rendimiento
+
+En la batería normal queda solo una comprobación holgada (`plan2.test.js › rendimiento holgado`: fixes < 2 s), para
+pillar algo roto de verdad.

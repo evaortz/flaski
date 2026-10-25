@@ -5,6 +5,7 @@
   "scripts": {
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "node --test \"unit/*.test.js\"",
+    "rendimiento": "node --test unit/rendimiento.perf.js",
     "test:e2e": "playwright test",
     "capturas": "playwright test --config capturas.config.js",
     "e2e:rapida": "node rapida.mjs"
