@@ -572,3 +572,9 @@ test('today(): lo hecho hoy gasta del tope y del tiempo una sola vez; las «N nu
   assert.equal(t.done, true);
   assert.equal(t.dayDone, null);
 });
+
+test('D2 · un examen ya pasado no cuenta para la retención', () => {
+  const S = three([10, 0, 0], { retention: 0.95, date: addDays(TODAY, -2) });
+  assert.equal(forecast(S).retention, 0.9);
+  assert.equal(forecast({ ...S, plan: { ...S.plan, exams: [{ ...S.plan.exams[0], date: addDays(TODAY, 20) }] } }).retention, 0.95);
+});

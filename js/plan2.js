@@ -189,7 +189,9 @@ function prepare(state) {
   const ctx = { decks, folders, pages };
   const exams = liveExams(plan);
   // La retención: la más alta que pide un examen (90 % si no lo dice), entre el 70 y el 99 %
-  const r = Math.max(0.7, Math.min(0.99, exams.length ? Math.max(...exams.map(e => Number(e.retention) || 0.9)) : 0.9));
+  // (los exámenes ya pasados no cuentan)
+  const ahead = exams.filter(e => !isDay(e.date) || e.date >= state.today);
+  const r = Math.max(0.7, Math.min(0.99, ahead.length ? Math.max(...ahead.map(e => Number(e.retention) || 0.9)) : 0.9));
   const st = stock(state, r), pace = state.pace || medirRitmo(state.events);
   const t = state.today;
   const ex = exams.map(e => {

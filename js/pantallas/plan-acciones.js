@@ -3,7 +3,7 @@
 import { S } from '../comun.js';
 import { p2Click, p2Input } from './plan-tiempo.js';
 import { pickFix, applyFix, lateOk } from './plan-inicio.js';
-import { setMode, setFlag, moveTopic, fixDateSheet, fixDateInput, fixDateSave, removeExam, removeExamOk } from './plan-examen.js';
+import { setMode, setFlag, moveTopic, fixDateSheet, fixDateInput, fixDateSave, removeExam, removeExamOk, setAfter } from './plan-examen.js';
 import { newExamSheet, newExamClick, newExamInput } from './plan-nuevo.js';
 import { repartoSheet, repartoClick, shareInput, repartoAdd } from './plan-reparto.js';
 import { enTuPlanSheet, sheetClick } from './plan-hojas.js';
@@ -55,5 +55,6 @@ export function planAction(el, kind = 'click') {
     case 'exam-del-ok': return removeExamOk();
     case 'entuplan': return enTuPlanSheet(ds.key);
     case 'reparto': return repartoSheet({ examId: ds.id || '' });
+    case 'after-set': return setAfter(ds.id, ds.v);
   }
 }

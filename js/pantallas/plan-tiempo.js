@@ -5,6 +5,7 @@ import { WEEK, WEEK_NAMES, dayKey, addDays, isDay, live, daysBetween, weekdayOf 
 import { main, S, esc, toast } from '../comun.js';
 import { plan2, editPlan2, todayPlan, forecastNow, minutesToday, lateNow, setLateAllToday, oldestLate } from '../plan2-app.js';
 import { startSession } from './estudio.js';
+import { afterQuestionHTML } from './plan-examen.js';
 import { plural } from './mazos.js';
 import { newGroups, deckName } from './plan-ui.js';
 import { liveExams } from '../plan2.js';
@@ -190,6 +191,9 @@ export function heroHTML({ hi, back, fresh = 0 }) {
 const shortName = s => s.replace(/\s*[·(].*$/, '').replace(/\s+[A-C][12]$|\s+N[1-5]$/, '').split(' ')[0] || s;
 // El examen más cercano, con lo que dice el motor: «Auxiliar · llegas · acabas el temario el 23 nov · faltan 80 días»
 export function examCardHTML() {
+  // Un examen que ya pasó, sin decidir qué hacer: la pregunta va antes
+  const after = afterQuestionHTML();
+  if (after) return after;
   const k = dayKey(), e = forecastNow().exams.filter(x => x.date && x.date >= k).sort((a, b) => a.date.localeCompare(b.date))[0];
   if (!e) return '';
   const d = dd(e.date), days = daysBetween(k, e.date);

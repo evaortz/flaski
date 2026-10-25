@@ -289,3 +289,5 @@ button.p2-step-b{cursor:pointer}
 .p2-now-list{list-style:none;margin:0;padding:0 16px 12px 70px}
 .p2-now-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:14.5px}
 .p2-now-list b{font-weight:600;white-space:nowrap}
+.p2-after{display:flex;flex-direction:column;gap:6px;margin-top:14px;padding:18px 18px 8px;border-radius:22px;background:var(--soft)}
+.p2-after .p2-row:last-child{border-bottom:0}

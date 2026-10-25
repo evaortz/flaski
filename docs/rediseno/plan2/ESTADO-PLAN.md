@@ -450,3 +450,13 @@ tercera» con «Deshacer», «Lo dejo así» y, si ninguna llega, qué temas dej
 `plan-d.spec.js` con el caso del diseño: las 945 preguntas con Auxiliar a 26 días (tres opciones, la primera «Subir a
 35 nuevas al día», cada una con «Llegas…: acabas el…»; aplicar la segunda, que el veredicto diga su fecha, y
 deshacer) y un examen a 7 días donde ninguna llega (dejar temas para después).
+
+### 2 · Después del examen
+
+Al pasar la fecha de un examen sin decidir qué hacer (`after: null`), Hoy (en el sitio de la tarjeta del examen) y
+el Plan (arriba) preguntan: «Pausarlo» (`pause`: ni nuevas ni repasos), «Archivarlo» (`archive`: fuera del plan),
+«Mantenerlo con repasos» (`keep`: sin nuevas; los repasos siguen, cada vez más espaciados por FSRS) y «Preparar otra
+convocatoria» (`next`: lo que quede sigue entrando, y se abre la hoja para poner la fecha nueva). Mientras no se
+contesta, solo repasos (el motor ya lo hacía). Cada respuesta se guarda en el historial y se puede deshacer. Un
+examen ya pasado deja de contar para la retención del plan. Pruebas: unitaria de la retención y e2e en
+`plan-d.spec.js` (la pregunta en Hoy y en el Plan, solo repasos, pausar, deshacer y otra convocatoria).

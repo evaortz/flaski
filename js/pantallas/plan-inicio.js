@@ -12,6 +12,7 @@ import { plural } from './mazos.js';
 import { cundeHTML, lateRowHTML } from './plan-tiempo.js';
 import { examBarHTML, legendHTML, weekRowHTML, weekTotalText, fixCardHTML, shortDay, shortName, topicTag, topicName, deckName, calIcon, daysLeft, VERDICT, MONTHS, newGroups } from './plan-ui.js';
 import { commitPlan } from './plan-guardar.js';
+import { afterQuestionHTML } from './plan-examen.js';
 
 const upcoming = fc => fc.exams.filter(e => e.date && e.date >= dayKey()).sort((a, b) => a.date.localeCompare(b.date));
 const weeks = n => (n >= 14 ? plural(Math.round(n / 7), 'semana', 'semanas') : plural(n, 'día', 'días'));
@@ -25,6 +26,7 @@ export function renderPlanHome() {
       <h1 class="p2-h1">Plan</h1>
       <div class="p2-head-btns"><button class="ghost" data-nav="planSettings">${icon('sliders-horizontal', { size: 18 })} Ajustes del plan</button><button class="primary" data-p2="exam-new">${icon('plus', { size: 18 })} Examen</button></div></header>
     <div class="p2-cols"><div class="p2-col-l">
+      ${afterQuestionHTML()}
       ${verdictHTML(fc, exams, late)}
       ${late && plan2().lateOk !== lateKey(late) ? `<section class="p2-sec" aria-labelledby="h-llegar" id="p2Fixes"><h2 class="p2-h2" id="h-llegar">Para llegar</h2><p class="muted">Calculando cómo llegar…</p></section>` : ''}
       ${exams.length ? `<ul class="p2-exams">${exams.map(examRowHTML).join('')}</ul>` : ''}

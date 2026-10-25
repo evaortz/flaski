@@ -52,3 +52,38 @@ test('si ningún arreglo llega, propone qué temas dejar para después del exame
   expect(p.exams[0].later.length).toBeGreaterThan(0);
   await expect(page.locator('#toast')).toContainText('Temas para después del examen');
 });
+
+test('después del examen: una pregunta (pausar, archivar, mantener u otra convocatoria); mientras, solo repasos', async ({ page, seed }) => {
+  await seed({ folders: ['Opo'], decks: [{ name: 'T1', folder: 'Opo', cards: Array.from({ length: 20 }, (_, i) => [`q${i}`, `a${i}`]) }, { name: 'T2', folder: 'Opo', cards: [['x', 'y']], studied: { due: 0, interval: 5 } }] });
+  await openApp(page);
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js'); const { S } = await import('/js/comun.js'); const { editPlan2 } = await import('/js/plan2-app.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    const f = [...S.folders.values()][0].id, p = editPlan2();
+    p.time.week = { mon: 30, tue: 30, wed: 30, thu: 30, fri: 30, sat: 30, sun: 30 };
+    p.exams.push({ id: 'ex-opo', name: 'Opo', scope: { folders: [f], decks: [], pages: [] }, date: addDays(dayKey(), -1), lastWeek: false, after: null });
+    await api.saveSettings(S.uid, S.newPerDay, S.prefs);
+  });
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  // Hoy pregunta; mientras tanto, solo el repaso
+  const q = page.locator('#main .p2-after');
+  await expect(q).toContainText('El examen de Opo ya pasó');
+  await expect(q.locator('[data-p2="after-set"]')).toHaveText([/Pausarlo/, /Archivarlo/, /Mantenerlo con repasos/, /Preparar otra convocatoria/]);
+  await expect(page.locator('#main .p2-legend')).toHaveText('1 repaso');
+  // El Plan pregunta lo mismo
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  await expect(page.locator('#main .p2-after')).toContainText('El examen de Opo ya pasó');
+  // «Pausarlo»: ya no sale nada suyo, ni la pregunta
+  await page.locator('#main [data-p2="after-set"][data-v="pause"]').click();
+  await expect(page.locator('#main .p2-after')).toHaveCount(0);
+  await nav(page, 'Hoy');
+  await expect(page.locator('#main .p2-after')).toHaveCount(0);
+  await expect(page.locator('#main .p2-tanda')).toHaveCount(0);
+  // Deshacer y «Preparar otra convocatoria»: lo que queda vuelve a entrar y se pide la fecha nueva
+  await page.evaluate(async () => { const { plan2 } = await import('/js/plan2-app.js'); const { undoTo } = await import('/js/pantallas/plan-guardar.js'); undoTo(plan2().history[0].at); });
+  await page.locator('#main [data-p2="after-set"][data-v="next"]').click();
+  await expect(page.locator('#sheetBody h2')).toHaveText('Cambiar el examen');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#main .p2-legend span').first()).toHaveText(/nuevas? de T1/);
+});

@@ -169,3 +169,23 @@ export function removeExamOk() {
   commitPlan('Examen quitado', p => { const i = p.exams.findIndex(x => x.id === id); if (i >= 0) p.exams[i] = { id, deleted: true }; }, { redraw: false });
   go('plan');
 }
+
+/* ---------------- después del examen ---------------- */
+// Al pasar la fecha, si no se decidió al crearlo: ¿y ahora? Mientras no se contesta, solo repasos
+const AFTER_OPTS = [
+  ['pause', 'Pausarlo', 'Ya no te salen sus preguntas. Si vuelves, lo reanudas.'],
+  ['archive', 'Archivarlo', 'Se acabó: fuera del plan, ni nuevas ni repasos.'],
+  ['keep', 'Mantenerlo con repasos', 'Sin nuevas; los repasos siguen, cada vez más espaciados.'],
+  ['next', 'Preparar otra convocatoria', 'Lo que te quede sigue entrando; pon la fecha nueva cuando la sepas.'],
+];
+export const pendingAfter = () => forecastNow().exams.filter(e => e.date && e.date < dayKey() && !liveExams(plan2()).find(x => x.id === e.id)?.after);
+export function afterQuestionHTML() {
+  return pendingAfter().map(e => `<section class="p2-after" aria-labelledby="h-after-${esc(e.id)}"><h2 class="p2-h2" id="h-after-${esc(e.id)}">El examen de ${esc(shortName(e.name))} ya pasó</h2>
+    <p class="muted">¿Y ahora? Mientras no lo decidas, solo te salen sus repasos.</p>
+    <div class="p2-after-opts">${AFTER_OPTS.map(([v, l, h]) => `<button type="button" class="p2-row" data-p2="after-set" data-id="${esc(e.id)}" data-v="${v}"><span><b>${l}</b><small>${h}</small></span>${icon('chevron-right', { size: 18 })}</button>`).join('')}</div></section>`).join('');
+}
+export function setAfter(id, v) {
+  const name = shortName(liveExams(plan2()).find(e => e.id === id)?.name || '');
+  commitPlan(`${name}: ${AFTER_OPTS.find(o => o[0] === v)[1].toLowerCase()}`, p => { p.exams.find(e => e.id === id).after = v; });
+  if (v === 'next') import('./plan-nuevo.js').then(m => m.newExamSheet({ id }));
+}
