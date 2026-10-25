@@ -358,13 +358,21 @@ export function forecast(state, opts = {}) {
       const stage = stageOn(plan.stages, keys[i]);
       if (stage) got = stageDay(P, stage, gs, cap, i, rem);
       else {
+        // Un tema puede estar en dos exámenes (una carpeta y su subcarpeta): cada grupo ve lo que han dejado los
+        // de antes, y lo que un grupo no puede usar pasa a los demás en una segunda vuelta
         const sh = splitShares(P, gs), per = spread(cap, sh, new Map(gs.map(g => [g.id, g.avail])));
-        for (const g of gs) {
-          const n = per.get(g.id) || 0;
-          if (!n) continue;
-          const part = g.x ? withinExam(g.x, n, i, rem, P, new Set(g.ids)) : spread(n, new Map(g.ids.map(id => [id, 1])), new Map(g.ids.map(id => [id, rem.get(id)])));
-          for (const [id, q] of part) add(got, id, q);
-        }
+        const left = new Map(rem);
+        const take = (g, n) => {
+          if (n <= 0) return 0;
+          const ids = new Set(g.ids.filter(id => left.get(id) > 0));
+          const part = g.x ? withinExam(g.x, n, i, left, P, ids) : spread(n, new Map([...ids].map(id => [id, 1])), new Map([...ids].map(id => [id, left.get(id)])));
+          let k = 0;
+          for (const [id, q] of part) { add(got, id, q); left.set(id, left.get(id) - q); k += q; }
+          return k;
+        };
+        let given = 0;
+        for (const g of gs) given += take(g, per.get(g.id) || 0);
+        for (const g of gs) { if (given >= cap) break; given += take(g, cap - given); }
       }
     }
     let nNew = 0;

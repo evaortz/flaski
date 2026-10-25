@@ -269,6 +269,8 @@ function randomState(r, seed) {
     if (r() < 0.3) { e.mode = 'parallel'; e.shares = { [`${e.scope.folders[0].replace('f', 'd')}-0`]: 60, [`${e.scope.folders[0].replace('f', 'd')}-1`]: 40 }; }
   }
   if (r() < 0.3) S.plan.caps.newPerDay = 5 + Math.floor(r() * 30);
+  // A veces un tema está en dos exámenes (el segundo examen incluye una lista del primero)
+  if (S.plan.exams.length > 1 && r() < 0.3) S.plan.exams[1].scope.decks = ['d0-0'];
   if (r() < 0.2) S.plan.time.special = [{ id: 's', from: addDays(TODAY, 3), to: addDays(TODAY, 9), minutes: 0 }];
   return S;
 }
@@ -364,4 +366,19 @@ test('today(): las «N nuevas más» que pides se suman a las del plan', () => {
   assert.equal(Object.values(t.newBy).reduce((a, b) => a + b, 0), 30);
   // Ya hechas las 20 del plan, quedan las 10 de más
   assert.equal(today({ ...S, extraNew: 10, done: { new: 20, reviews: 0, n: 20, ms: 0 } }).new, 10);
+});
+
+/* ---------------- revisión del paso A ---------------- */
+// Un tema en el alcance de dos exámenes (un examen en una carpeta y otro en una de sus listas)
+function shared(n = 47) {
+  const S = invent({ seed: 4, n: 0, nExams: 2, nTopics: 2, seen: 0, days: [40, 90] });
+  for (let i = 0; i < n; i++) S.cards.push({ id: 's' + i, deck_id: 'd0-0' });
+  S.plan.exams[1].scope = { folders: ['f1'], decks: ['d0-0'], pages: [] };
+  S.plan.time.week = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => [d, 120]));
+  return S;
+}
+test('1 · un tema de dos exámenes no se reparte dos veces', () => {
+  const fc = forecast(shared());
+  assert.equal(fc.days[0].newBy['d0-0'], 47);                       // 47, no 60
+  assert.equal(fc.days.reduce((s, d) => s + (d.newBy['d0-0'] || 0), 0), 47);
 });
