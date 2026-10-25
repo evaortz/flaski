@@ -1,4 +1,4 @@
-import { test, expect, openApp, nav, createDeck, addBasicCards, addBuiltinDeck, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, createDeck, addBasicCards, newCard } from './fixtures.js';
 
 test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a recargar', async ({ page }) => {
   await openApp(page);
@@ -23,10 +23,10 @@ test('crear un mazo con tarjetas, estudiarlas y que el progreso sobreviva a reca
   await expect(page.locator('.hero-band')).toHaveCount(0);
 });
 
-test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» la recupera', async ({ page }) => {
+test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» la recupera', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Repaso', cards: [['bir', 'uno']] }] });
   await openApp(page);
-  await createDeck(page, 'Repaso');
-  await addBasicCards(page, [['bir', 'uno']]);
+  await openDeck(page, 'Repaso');
   await page.locator('#main [data-start]').click();
 
   await page.getByRole('button', { name: 'Ver respuesta' }).click();
@@ -42,9 +42,9 @@ test('«Otra vez» vuelve a sacar la tarjeta en la misma sesión y «Deshacer» 
   await expect(page.locator('[data-grade="3"]')).toBeVisible();
 });
 
-test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía con las que quedan', async ({ page }) => {
+test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía con las que quedan', async ({ page, seed }) => {
+  await seed({ builtin: ['Turco · Armonía vocálica'] });   // 20 tarjetas, límite de 15 nuevas al día
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');   // 20 tarjetas, límite de 15 nuevas al día
   await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveText('15');
 
@@ -72,9 +72,10 @@ test('el límite de nuevas por día se respeta y «N nuevas más» lo amplía co
   await expect(page.locator('.hero-num')).toHaveText('5');
 });
 
-test('tarjeta de escribir la respuesta: corrige y sugiere la nota @ambos', async ({ page }) => {
+test('tarjeta de escribir la respuesta: corrige y sugiere la nota @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Escribir' }] });
   await openApp(page);
-  await createDeck(page, 'Escribir');
+  await openDeck(page, 'Escribir');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="typing"]').click(); await page.locator('[data-act="use-type"]').click();

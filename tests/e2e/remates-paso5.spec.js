@@ -1,6 +1,6 @@
 // Remates del paso 5: texto pegado con las reglas de un archivo, «1 min», «te las sabes» solo con las consolidadas,
 // el esqueleto de Hoy al cargar y los textos («correo», «preguntas con repaso espaciado», sin «!» suelto)
-import { test, expect, openApp, nav, createDeck, addBasicCards, answer, startTanda } from './fixtures.js';
+import { test, expect, openApp, nav, answer, startTanda } from './fixtures.js';
 import { mockCloud, openCloud } from './nube.js';
 
 const TEMA = `Tema 1. La Constitución Española de 1978
@@ -57,11 +57,9 @@ test('pegado en un apunte vacío: la primera línea es el título y «Etiqueta:�
   expect(blocks.some(t => t.startsWith('**Estructura:** tiene 169'))).toBe(true);
 });
 
-test('Hoy: «te las sabes» cuenta solo las consolidadas, y el número de hoy va sin «!»', async ({ page }) => {
+test('Hoy: «te las sabes» cuenta solo las consolidadas, y el número de hoy va sin «!»', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: [['ev', 'casa'], ['su', 'agua'], ['kapı', 'puerta'], ['el', 'mano']] }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
-  await addBasicCards(page, [['ev', 'casa'], ['su', 'agua'], ['kapı', 'puerta'], ['el', 'mano']]);
-  await nav(page, 'Hoy');
   await expect(page.locator('.hero-word')).toHaveText('preguntas');
   await startTanda(page);
   for (let i = 0; i < 3; i++) await answer(page, 3);

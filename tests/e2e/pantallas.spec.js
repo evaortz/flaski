@@ -1,4 +1,4 @@
-import { test, expect, openApp, nav, answer, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, answer, addBuiltinDeck } from './fixtures.js';
 
 test('todas las pantallas cargan sin errores con la app vacía', async ({ page }) => {
   await openApp(page);
@@ -11,9 +11,10 @@ test('todas las pantallas cargan sin errores con la app vacía', async ({ page }
   await expect(page.getByRole('heading', { level: 1, name: 'Ajustes' })).toBeVisible();
 });
 
-test('estadísticas con datos: los filtros de periodo funcionan', async ({ page }) => {
+test('estadísticas con datos: los filtros de periodo funcionan', async ({ page, seed }) => {
+  await seed({ builtin: ['Turco · Armonía vocálica'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
+  await openDeck(page, 'Turco · Armonía vocálica');
   await page.locator('#main [data-start]').click();
   for (let i = 0; i < 3; i++) {
     await page.locator('[data-act="reveal"]').click();
@@ -28,9 +29,9 @@ test('estadísticas con datos: los filtros de periodo funcionan', async ({ page 
   }
 });
 
-test('un ajuste de Hoy se guarda, se aplica y sobrevive a recargar', async ({ page }) => {
+test('un ajuste de Hoy se guarda, se aplica y sobrevive a recargar', async ({ page, seed }) => {
+  await seed({ builtin: ['Turco · Armonía vocálica'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await nav(page, 'Hoy');
   await expect(page.getByRole('heading', { name: 'Tu actividad' })).toBeVisible();
 
@@ -56,10 +57,10 @@ test('el mazo de demostración de japonés se añade y se puede abrir una sesió
   await expect(page.locator('.card')).toBeVisible();
 });
 
-test('en móvil ninguna pantalla tiene scroll horizontal', async ({ page }, info) => {
+test('en móvil ninguna pantalla tiene scroll horizontal', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'movil', 'solo en móvil');
+  await seed({ builtin: ['Turco · Armonía vocálica'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   const screens = [['Hoy'], ['Biblioteca'], ['Explorar'], ['Perfil'], ['Perfil', 'stats'], ['Perfil', 'settings']];
   for (const [tab, sub] of screens) {
     await nav(page, tab);

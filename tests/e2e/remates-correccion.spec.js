@@ -1,5 +1,5 @@
 // Remates de la corrección: «casi» con letras especiales y con el artículo; títulos largos con letra más pequeña
-import { test, expect, openApp, nav, createDeck, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 
 async function typingCard(page, q, a) {
   await newCard(page);
@@ -12,9 +12,10 @@ async function typingCard(page, q, a) {
   await expect(page.locator('#sheet')).toBeHidden();
 }
 
-test('escribir la respuesta: tildes y artículo valen «casi» (Difícil), no mal', async ({ page }) => {
+test('escribir la respuesta: tildes y artículo valen «casi» (Difícil), no mal', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Vocabulario');
+  await openDeck(page, 'Historia');
   await typingCard(page, 'Estación de tren', 'estación');
   await page.locator('#main [data-start]').first().click();
   await page.locator('#typed').fill('estacion');
@@ -23,9 +24,10 @@ test('escribir la respuesta: tildes y artículo valen «casi» (Difícil), no ma
   await expect(page.locator('[data-grade="2"]')).toHaveClass(/suggested/);
 });
 
-test('escribir la respuesta: sin el artículo, «casi · Te falta el artículo»', async ({ page }) => {
+test('escribir la respuesta: sin el artículo, «casi · Te falta el artículo»', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Casa');
+  await openDeck(page, 'Historia');
   await typingCard(page, 'Vivienda', 'el piso');
   await page.locator('#main [data-start]').first().click();
   await page.locator('#typed').fill('piso');
@@ -33,11 +35,12 @@ test('escribir la respuesta: sin el artículo, «casi · Te falta el artículo»
   await expect(page.locator('.vnear')).toHaveText('Casi · Te falta el artículo');
 });
 
-test('títulos largos de lista y de apunte: letra más pequeña y no más de 3 líneas en el móvil @ambos', async ({ page }) => {
+test('títulos largos de lista y de apunte: letra más pequeña y no más de 3 líneas en el móvil @ambos', async ({ page, seed }) => {
+  const long = 'Constitución Española de 1978: Título Preliminar y derechos fundamentales';
+  await seed({ decks: [{ name: long }] });
   await page.setViewportSize({ width: 375, height: 800 });
   await openApp(page);
-  const long = 'Constitución Española de 1978: Título Preliminar y derechos fundamentales';
-  await createDeck(page, long);
+  await openDeck(page, long);
   const h = page.locator('.dk-title');
   await expect(h).toHaveClass(/is-longer/);
   const lines = async loc => loc.evaluate(el => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));

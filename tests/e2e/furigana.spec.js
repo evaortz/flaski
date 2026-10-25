@@ -1,13 +1,9 @@
-import { test, expect, openApp, nav, addBuiltinDeck, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, newCard } from './fixtures.js';
 
-test('furigana en el editor: añadir, ver la vista previa y cambiarla @ambos', async ({ page }) => {
+test('furigana en el editor: añadir, ver la vista previa y cambiarla @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Japonés', lang: 'ja-JP' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-deck"]').click();
-  await page.locator('#d-name').fill('Japonés');
-  await page.locator('[data-kind="lang"]').click();
-  await page.locator('#d-lang').selectOption('ja-JP');
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await openDeck(page, 'Japonés');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator('[data-pick-type="vocab"]').click(); await page.locator('[data-act="use-type"]').click();
@@ -49,9 +45,10 @@ test('furigana en el editor: añadir, ver la vista previa y cambiarla @ambos', a
   await expect(page.locator('#fld-w')).toHaveValue('学校[がっこう]');
 });
 
-test('furigana oculta al estudiar: se destapa tocando el kanji', async ({ page }) => {
+test('furigana oculta al estudiar: se destapa tocando el kanji', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
+  await openDeck(page, 'Japonés · Demo de Flaski');
   await page.locator('#main [data-start]').click();
   // Avanza hasta una tarjeta con la furigana oculta en el anverso
   for (let i = 0; i < 30 && !(await page.locator('.ruby-hide').count()); i++) {

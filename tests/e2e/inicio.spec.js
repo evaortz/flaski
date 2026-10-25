@@ -1,9 +1,10 @@
 // «Tu actividad» en Hoy: 6 meses, colores del diseño (día sin estudio en blanco con borde, hoy con anillo) y la meta
-import { test, expect, openApp, nav, addBuiltinDeck, answer } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, answer } from './fixtures.js';
 
-test('tu actividad: los últimos 6 meses con los colores del diseño y la meta diaria', async ({ page }) => {
+test('tu actividad: los últimos 6 meses con los colores del diseño y la meta diaria', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
+  await openDeck(page, 'Japonés · Demo de Flaski');
   await page.locator('#main [data-start]').click();
   for (let i = 0; i < 3; i++) await answer(page, 3);
   await page.locator('.studybar [data-act="exit"]').click();

@@ -1,11 +1,11 @@
 // Iconos propios a color (en línea, dibujos.js): racha encendida o apagada, comodín y sugerencias; sin emojis
-import { test, expect, openApp, nav, addBuiltinDeck, answer, pasteNotes, startTanda } from './fixtures.js';
+import { test, expect, openApp, openPage, nav, answer, startTanda } from './fixtures.js';
 
 const loaded = loc => loc.evaluate(i => i.getBoundingClientRect().width > 0);
 
-test('racha apagada y encendida, comodín y sugerencias con los iconos de la app @ambos', async ({ page }, info) => {
+test('racha apagada y encendida, comodín y sugerencias con los iconos de la app @ambos', async ({ page, seed }, info) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'], pages: [{ md: '# Biología\n\nLa **mitocondria** es el orgánulo que produce energía.' }] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
   await nav(page, 'Perfil');
   const off = page.locator('.pf-who svg.ic-own');
   await expect(off).toHaveAttribute('data-ic', 'racha-apagada');
@@ -24,8 +24,7 @@ test('racha apagada y encendida, comodín y sugerencias con los iconos de la app
   await nav(page, 'Perfil');
   await expect(page.locator('.pf-who svg.ic-own')).toHaveAttribute('data-ic', 'racha');
   // «Sugerir preguntas» en un apunte
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Biología\n\nLa **mitocondria** es el orgánulo que produce energía.');
+  await openPage(page, 'Biología');
   const sug = page.locator('.pg-suggest svg.ic-own');
   await expect(sug).toHaveAttribute('data-ic', 'sugerencia');
   expect(await loaded(sug)).toBe(true);

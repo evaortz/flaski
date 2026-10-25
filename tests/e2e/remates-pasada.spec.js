@@ -1,6 +1,6 @@
 // Remates de la pasada completa: mover juntos lista y apunte, reiniciar con confirmación, Explorar «Ya la tienes»,
 // apunte vacío descartado, texto de etiquetas y «Hueco» con solo la frase
-import { test, expect, openApp, nav, createDeck, deckMenu, addBasicCards, addBuiltinDeck, pasteNotes, edExtra } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, nav, deckMenu, edExtra } from './fixtures.js';
 
 const ed = page => page.locator('[data-block-input]');
 async function select(page, i, w) {
@@ -9,28 +9,20 @@ async function select(page, i, w) {
   await expect(page.locator('#selBar')).toBeVisible();
 }
 
-test('mover una lista lleva también su apunte a la carpeta', async ({ page }) => {
+test('mover una lista lleva también su apunte a la carpeta', async ({ page, seed }) => {
+  await seed({ folders: ['Macro'], decks: [{ name: 'Economía' }], pages: [{ md: '# Inflación\n\nLos precios suben.', deck: 'Economía' }] });
   await openApp(page);
-  await createDeck(page, 'Economía');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Inflación\n\nLos precios suben.');
-  await page.locator('#pgDeck').selectOption({ label: 'Economía' });
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-folder"]').first().click();
-  await page.locator('#fo-name').fill('Macro');
-  await page.locator('#sheetBody button[type="submit"]').click();
-  await nav(page, 'Biblioteca');
-  await page.evaluate(async () => { const { S } = await import('/js/comun.js'); const { go } = await import('/js/app.js'); go('deck', { deckId: [...S.decks.values()].find(d => d.name === 'Economía').id }); });
+  await openDeck(page, 'Economía');
   await deckMenu(page, '[data-act="move-deck"]');
   await page.locator('#sheetBody [data-move-to]').filter({ hasText: 'Macro' }).click();
   const folderOf = await page.evaluate(async () => { const { S } = await import('/js/comun.js'); const p = [...S.pages.values()].find(x => x.title === 'Inflación'); return S.folders.get(p.folder_id)?.name || null; });
   expect(folderOf).toBe('Macro');
 });
 
-test('«Reiniciar progreso» pide confirmación', async ({ page }) => {
+test('«Reiniciar progreso» pide confirmación', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París']] }] });
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París']]);
+  await openDeck(page, 'Capitales');
   // Con progreso (como si ya la hubieras estudiado), el editor ofrece «Reiniciar progreso»
   await page.evaluate(async () => { const { S } = await import('/js/comun.js'); const { cardForm } = await import('/js/pantallas/editor.js'); const c = [...S.cards.values()][0]; S.progress.set(c.id, { interval: 3, ease: 2.5, due: Date.now() + 864e5, reps: 1, lapses: 0 }); cardForm(c); });
   await edExtra(page);
@@ -40,9 +32,9 @@ test('«Reiniciar progreso» pide confirmación', async ({ page }) => {
   await expect(page.locator('#sheet')).toBeHidden();
 });
 
-test('Explorar: si ya tienes la lista, «Ya la tienes · Abrir»', async ({ page }) => {
+test('Explorar: si ya tienes la lista, «Ya la tienes · Abrir»', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
   await nav(page, 'Explorar');
   await page.getByRole('button', { name: /Japonés · Demo de Flaski/ }).click();
   await expect(page.locator('#sheetBody')).toContainText('Ya la tienes');
@@ -67,12 +59,10 @@ test('un apunte nuevo que se deja vacío y sin título se descarta al salir; eti
   await expect(page.locator('#main')).toContainText('Con título');
 });
 
-test('«Hueco» desde una selección: solo la frase y el hueco resaltado', async ({ page }) => {
+test('«Hueco» desde una selección: solo la frase y el hueco resaltado', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }], pages: [{ md: '# Francia\n\nLa Revolución empezó en 1789. El Terror lo dirigió Robespierre entre 1793 y 1794.', deck: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Francia\n\nLa Revolución empezó en 1789. El Terror lo dirigió Robespierre entre 1793 y 1794.');
-  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await openPage(page, 'Francia');
   await select(page, 0, 'Robespierre');
   await page.locator('#selBar [data-act="sel-cloze"]').click();
   await expect(page.locator('#fld-x')).toHaveValue('El Terror lo dirigió {{Robespierre}} entre 1793 y 1794.');

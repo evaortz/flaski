@@ -1,6 +1,6 @@
 // Contraste: el texto pequeño de la cabecera de la tanda («pregunta N de M · repaso») pasa 4,5:1 sobre el azul
 // (o el color) de la tanda con los 9 acentos, en claro y en oscuro
-import { test, expect, openApp, nav, addBuiltinDeck, startTanda } from './fixtures.js';
+import { test, expect, openApp, startTanda } from './fixtures.js';
 
 const ACCENTS = ['cobalto', 'violeta', 'ciruela', 'frambuesa', 'teja', 'oliva', 'bosque', 'laguna', 'tinta'];
 
@@ -14,10 +14,9 @@ const ratio = el => {
   return (l1 + 0.05) / (l2 + 0.05);
 };
 
-test('cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acentos, en claro y en oscuro @ambos', async ({ page }) => {
+test('cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acentos, en claro y en oscuro @ambos', async ({ page, seed }) => {
+  await seed({ builtin: ['Turco · Armonía vocálica'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
-  await nav(page, 'Hoy');
   await startTanda(page);
   const left = page.locator('.studybar .sb-info .left');
   await expect(left).toContainText('pregunta 1 de');
@@ -45,9 +44,9 @@ const ratioBg = (el, page = false) => {
   return Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100;
 };
 
-test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «↑ N» y «Borrar mi cuenta…» con 4,5:1, en claro y en oscuro @ambos', async ({ page }, info) => {
+test('Plan, Estadísticas y Ajustes: día especial, «Normal» en las barras, «↑ N» y «Borrar mi cuenta…» con 4,5:1, en claro y en oscuro @ambos', async ({ page, seed }, info) => {
+  await seed({ builtin: ['Turco · Armonía vocálica'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const d = [...S.decks.values()][0], t = dayKey();

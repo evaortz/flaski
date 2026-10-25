@@ -1,5 +1,5 @@
 // Editor de apuntes: barra de lo seleccionado (cobalto), panel «Nueva pregunta» y estado en el margen
-import { test, expect, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openPage } from './fixtures.js';
 
 const NOTES = '# Política monetaria\n\n## La cadena\n\nSi suben los tipos, el crédito sale más caro.\n\n## Otra parte\n\nNada que preguntar aquí.';
 const ed = page => page.locator('[data-block-input]');
@@ -10,16 +10,14 @@ async function select(page, i, w) {
   await ed(page).evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, w);
   await expect(page.locator('#selBar')).toBeVisible();
 }
-async function setup(page) {
+async function setup(page, seed) {
+  await seed({ decks: [{ name: 'Economía' }], pages: [{ md: NOTES, deck: 'Economía' }] });
   await openApp(page);
-  await createDeck(page, 'Economía');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, NOTES);
-  await page.locator('#pgDeck').selectOption({ label: 'Economía' });
+  await openPage(page, 'Política monetaria');
 }
 
-test('barra de lo seleccionado: cobalto; pulsarla no quita la selección y se puede deshacer @ambos', async ({ page }, info) => {
-  await setup(page);
+test('barra de lo seleccionado: cobalto; pulsarla no quita la selección y se puede deshacer @ambos', async ({ page, seed }, info) => {
+  await setup(page, seed);
   await select(page, 1, 'crédito');
   const bar = page.locator('#selBar');
   await expect(bar).toHaveCSS('background-color', 'rgb(47, 61, 181)');
@@ -56,8 +54,8 @@ test('barra de lo seleccionado: cobalto; pulsarla no quita la selección y se pu
   await expect(ed(page)).toHaveJSProperty('value', 'Si suben los tipos, el crédito sale más caro.');
 });
 
-test('crear pregunta: panel a la derecha en el ordenador, hoja desde abajo en el móvil; el apunte sigue a la vista @ambos', async ({ page }, info) => {
-  await setup(page);
+test('crear pregunta: panel a la derecha en el ordenador, hoja desde abajo en el móvil; el apunte sigue a la vista @ambos', async ({ page, seed }, info) => {
+  await setup(page, seed);
   await select(page, 1, 'crédito');
   await page.locator('#selBar [data-act="sel-cloze"]').click();
   // «Hueco» hace lo de siempre: el hueco en el texto del bloque
@@ -91,8 +89,8 @@ test('crear pregunta: panel a la derecha en el ordenador, hoja desde abajo en el
   await expect(block(page, 1)).not.toHaveClass(/is-src/);
 });
 
-test('margen: cada bloque lleva el estado de las preguntas de su apartado', async ({ page }) => {
-  await setup(page);
+test('margen: cada bloque lleva el estado de las preguntas de su apartado', async ({ page, seed }) => {
+  await setup(page, seed);
   await select(page, 1, 'crédito');
   await page.locator('#selBar [data-act="sel-cloze"]').click();
   await page.locator('.ed-foot button[type="submit"]').click();
@@ -105,10 +103,10 @@ test('margen: cada bloque lleva el estado de las preguntas de su apartado', asyn
   await expect(block(page, 1).locator('.nb-cards i')).toHaveCount(1);
 });
 
-test('móvil: si el navegador no dice dónde está el teclado, la barra se queda abajo a la vista', async ({ page }, info) => {
+test('móvil: si el navegador no dice dónde está el teclado, la barra se queda abajo a la vista', async ({ page, seed }, info) => {
   test.skip(info.project.name === 'escritorio', 'solo en el móvil');
   await page.addInitScript(() => { Object.defineProperty(window, 'visualViewport', { configurable: true, get() { throw new Error('sin visualViewport'); } }); });
-  await setup(page);
+  await setup(page, seed);
   await select(page, 1, 'crédito');
   const vh = page.viewportSize().height, box = await page.locator('#selBar').boundingBox();
   expect(box.y + box.height).toBeLessThanOrEqual(vh);
@@ -118,10 +116,10 @@ test('móvil: si el navegador no dice dónde está el teclado, la barra se queda
   await expect(page.locator('#selBar')).toBeHidden();
 });
 
-test('entre 700 y 960 px, «Nueva pregunta» sale como hoja desde abajo @ambos', async ({ page }, info) => {
+test('entre 700 y 960 px, «Nueva pregunta» sale como hoja desde abajo @ambos', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'escritorio', 'solo con ratón y pantalla mediana');
   await page.setViewportSize({ width: 820, height: 900 });
-  await setup(page);
+  await setup(page, seed);
   await select(page, 1, 'crédito');
   await page.locator('#selBar [data-act="sel-card"]').click();
   const box = await page.locator('#sheetBody').boundingBox();

@@ -1,17 +1,16 @@
 // Apunte: modo «Repasar» (tapa negritas y huecos; 1–4 como en la tanda) y atajo «a >> b» / «a <> b» al escribir
-import { test, expect, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openPage, nav } from './fixtures.js';
 
 const stored = page => page.evaluate(() => { const db = JSON.parse(localStorage.getItem('flaski-local-v1')); return { cards: db.cards, progress: db.progress }; });
-async function notes(page, text) {
+// Un apunte (el primer «# » es su título) unido a la lista «Macro», ya abierto
+async function notes(page, seed, text) {
+  await seed({ decks: [{ name: 'Macro' }], pages: [{ md: text, deck: 'Macro' }] });
   await openApp(page);
-  await createDeck(page, 'Macro');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, text);
-  await page.locator('#pgDeck').selectOption({ label: 'Macro' });
+  await openPage(page, /^# (.+)/.exec(text)[1]);
 }
 
-test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con lo que falla @ambos', async ({ page }) => {
-  await notes(page, '# Política monetaria\n\nEl BCE sube los **tipos de interés** y así baja la **inflación**.');
+test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con lo que falla @ambos', async ({ page, seed }) => {
+  await notes(page, seed, '# Política monetaria\n\nEl BCE sube los **tipos de interés** y así baja la **inflación**.');
   // «tipos de interés» ya es pregunta
   await page.locator('#pgBlocks .nb', { hasText: 'BCE' }).locator('.nb-text').click();
   await page.locator('[data-block-input]').evaluate(t => { const w = 'tipos de interés', k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); });
@@ -48,9 +47,9 @@ test('Repasar: tapa las negritas, 1–4 como en la tanda y propone «Hueco» con
   await expect(page.locator('#pgBlocks [data-edit-block]').first()).toBeAttached();
 });
 
-test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escribir @ambos', async ({ page }, info) => {
+test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escribir @ambos', async ({ page, seed }, info) => {
   test.skip(info.project.name === 'movil', 'teclado en el ordenador');
-  await notes(page, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
+  await notes(page, seed, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
   await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
   await page.keyboard.press('Space');
   await expect(page.locator('.rv-gap').first()).toHaveText('Madrid');
@@ -61,8 +60,8 @@ test('Repasar con el teclado: Espacio destapa, 1–4 valoran y Esc vuelve a escr
   await expect(page.locator('.rv-gap')).toHaveCount(0);
 });
 
-test('atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea las dos; Esc lo deja como texto @ambos', async ({ page }) => {
-  await notes(page, '# En la ciudad\n\nSitios');
+test('atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea las dos; Esc lo deja como texto @ambos', async ({ page, seed }) => {
+  await notes(page, seed, '# En la ciudad\n\nSitios');
   const line = async text => {
     await page.locator('#pgBlocks .nb').last().locator('.nb-text, [data-block-input]').first().click();
     await page.keyboard.press('End');
@@ -95,8 +94,8 @@ test('atajo «a >> b»: Enter crea la pregunta unida a su línea; «<>» crea la
   await expect.poll(async () => (await stored(page)).cards.filter(c => c.type_id === 'basic').map(c => c.back)).toEqual(['libros']);
 });
 
-test('móvil: el botón «pregunta» de la barra sobre el teclado escribe « >> »', async ({ page }) => {
-  await notes(page, '# Ciudad\n\nokul');
+test('móvil: el botón «pregunta» de la barra sobre el teclado escribe « >> »', async ({ page, seed }) => {
+  await notes(page, seed, '# Ciudad\n\nokul');
   await page.locator('#pgBlocks .nb', { hasText: 'okul' }).locator('.nb-text').click();
   await page.keyboard.press('End');
   await page.evaluate(() => document.querySelector('[data-act="qs-insert"]').click());
@@ -105,8 +104,8 @@ test('móvil: el botón «pregunta» de la barra sobre el teclado escribe « >> 
   await expect(page.locator('#qsHint')).toContainText('okul → escuela');
 });
 
-test('Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no lleva los «:» del final', async ({ page }) => {
-  await notes(page, '# Tema\n\n**Referéndum:** se aprobó en **1978**.\n\nEstructura: tres poderes.');
+test('Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no lleva los «:» del final', async ({ page, seed }) => {
+  await notes(page, seed, '# Tema\n\n**Referéndum:** se aprobó en **1978**.\n\nEstructura: tres poderes.');
   // Un hueco que acaba en «:» (como los de los temas de ejemplo)
   await page.locator('#pgBlocks .nb', { hasText: 'tres poderes' }).locator('.nb-text').click();
   await page.locator('[data-block-input]').evaluate(t => { const w = 'Estructura:', k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); });
@@ -121,8 +120,8 @@ test('Repasar no tapa las negritas que acaban en «:» y la pregunta de abajo no
   await expect(page.locator('#rvFoot .rv-ask')).toHaveText('¿Cómo te ha salido «Estructura»?');
 });
 
-test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco» @ambos', async ({ page }) => {
-  await notes(page, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
+test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como «Hueco» @ambos', async ({ page, seed }) => {
+  await notes(page, seed, '# Tema\n\nLa capital es **Madrid** y el río es el **Manzanares**.');
   await page.locator('[data-act="pg-mode"][data-mode="review"]').click();
   await page.locator('.rv-gap').first().click();
   await page.locator('[data-rv-grade="1"]:visible').click();
@@ -139,9 +138,9 @@ test('salir de Repasar a mitad con fallos que no son pregunta: se proponen como 
   await expect(page.locator('#sheetBody')).toContainText('«Manzanares»');
 });
 
-test('Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar @ambos', async ({ page }) => {
+test('Repasar: se sale con «✕ Salir de repasar», con el botón atrás y la barra «Escribir | Repasar» sigue a la vista al bajar @ambos', async ({ page, seed }) => {
   const long = Array.from({ length: 40 }, (_, i) => `Frase ${i + 1} con **dato ${i + 1}** para repasar.`).join('\n\n');
-  await notes(page, `# Largo\n\n${long}`);
+  await notes(page, seed, `# Largo\n\n${long}`);
   const write = page.locator('.pg-top [data-act="pg-mode"][data-mode="write"]');
   // ✕ Salir de repasar (en el panel de «Destapar» en el móvil; en el panel de al lado en el ordenador)
   await page.locator('[data-act="pg-mode"][data-mode="review"]').click();

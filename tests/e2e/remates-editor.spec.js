@@ -1,20 +1,17 @@
 // Remates del editor de una pregunta, de las etiquetas y de los apuntes vacíos: cada uno con su prueba
-import { test, expect, openApp, nav, createDeck, addBasicCards, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 
-async function cardWithProgress(page) {
+// Una pregunta ya estudiada (con progreso) y su editor abierto
+async function cardWithProgress(page, seed) {
+  await seed({ decks: [{ name: 'Historia', cards: [['¿Quién dirigió el Terror durante la Revolución francesa?', 'Robespierre']], studied: { due: 1, interval: 1 } }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await addBasicCards(page, [['¿Quién dirigió el Terror durante la Revolución francesa?', 'Robespierre']]);
-  await page.locator('#main [data-start]').first().click();
-  await page.locator('[data-act="reveal"]').click();
-  await page.locator('[data-grade="3"]').click();
-  await page.locator('.studybar [data-act="exit"]').click();
+  await openDeck(page, 'Historia');
   await page.locator('#cardRows [data-card]').first().click();
   await expect(page.locator('.ed-save')).toBeVisible();
 }
 
-test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ Más» @ambos', async ({ page }, info) => {
-  await cardWithProgress(page);
+test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ Más» @ambos', async ({ page, seed }, info) => {
+  await cardWithProgress(page, seed);
   const save = await page.locator('.ed-save').boundingBox();
   const vw = page.viewportSize().width;
   expect(save.x + save.width).toBeLessThanOrEqual(vw);
@@ -38,9 +35,10 @@ test('móvil: al editar, «Guardar» cabe a la derecha y lo demás va en «⋯ M
   }
 });
 
-test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras @ambos', async ({ page }) => {
+test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   const pick = page.locator('#tagPick');
   await pick.locator('[data-act="tagpick-open"]').click();
@@ -57,18 +55,19 @@ test('etiquetas: «#verbos» crea «verbos» y como mucho 24 letras @ambos', asy
   expect(names[1].replace('#', '').length).toBeLessThanOrEqual(24);
 });
 
-test('«Pista · opcional» va encima de su campo y el ejemplo se lee entero @ambos', async ({ page }) => {
+test('«Pista · opcional» va encima de su campo y el ejemplo se lee entero @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   const [k, i] = await page.evaluate(() => { const i = document.querySelector('#c-hint'), k = i.closest('.prop').querySelector('.prop-k'); return [k.getBoundingClientRect().toJSON(), i.getBoundingClientRect().toJSON()]; });
   expect(k.bottom).toBeLessThanOrEqual(i.top + 1);
   expect(await page.locator('#c-hint').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
 
-test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no lleva a ellos', async ({ page }) => {
+test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no lleva a ellos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
   // Un apunte con texto y, más reciente, uno vacío sin título (como los que quedaban antes)
   await page.evaluate(() => {
     const db = JSON.parse(localStorage.getItem('flaski-local-v1'));
@@ -86,21 +85,10 @@ test('apuntes vacíos de antes: se borran al arrancar y «Lo dejaste aquí» no 
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).pages.map(p => p.title))).toEqual(['Revolución']);
 });
 
-test('dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás @ambos', async ({ page }) => {
+test('dos listas con el mismo nombre: en Estadísticas y en «Varias de golpe» llevan su carpeta detrás @ambos', async ({ page, seed }) => {
+  await seed({ folders: ['Oposición'], decks: [{ name: 'Título Preliminar' }, { name: 'Título Preliminar', folder: 'Oposición' }] });
   await openApp(page);
-  await createDeck(page, 'Título Preliminar');
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-folder"]').click();
-  await page.locator('#fo-name').fill('Oposición');
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await expect(page.locator('#sheet')).toBeHidden();
-  await expect(page.getByRole('heading', { level: 1, name: 'Oposición' })).toBeVisible();   // ya dentro de la carpeta
-  const direct = page.locator('#main .fhero-add [data-act="new-deck"]:visible');
-  if (await direct.count()) await direct.click();
-  else { await page.locator('#main [data-act="create-menu"]').click(); await page.locator('#sheetBody [data-act="new-deck"]').click(); }
-  await page.locator('#d-name').fill('Título Preliminar');
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Título Preliminar' })).toBeVisible();
+  await openDeck(page, 'Título Preliminar');
   // «Varias de golpe»
   await page.locator('#main [data-act="add-menu"]').click();
   await page.locator('#sheetBody [data-act="quick-add"], #dkPop:not([hidden]) [data-act="quick-add"]').click();

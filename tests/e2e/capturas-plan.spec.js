@@ -1,14 +1,14 @@
 // Capturas del plan de estudio para revisarlo a ojo: SHOT=1 npx playwright test e2e/capturas-plan.spec.js
 // (se guardan en tests/test-results/plan/)
-import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav } from './fixtures.js';
 
 test.skip(!process.env.SHOT, 'solo con SHOT=1');
 
 const JA = 'Japonés · Demo de Flaski', TR = 'Turco · Armonía vocálica', DE = 'Alemán · A2';
-test('plan, etapa, examen y primera vez @ambos', async ({ page }, info) => {
+test('plan, etapa, examen y primera vez @ambos', async ({ page, seed }, info) => {
   const dir = `test-results/plan/${info.project.name}-`;
+  await seed({ builtin: [JA, TR, DE] });
   await openApp(page);
-  for (const n of [JA, TR, DE]) await addBuiltinDeck(page, n);
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const id = n => [...S.decks.values()].find(d => d.name.startsWith(n)).id, t = dayKey();
@@ -34,9 +34,9 @@ test('plan, etapa, examen y primera vez @ambos', async ({ page }, info) => {
   await page.screenshot({ path: dir + '6-nuevo-examen.png', fullPage: true });
 });
 
-test('explorar @ambos', async ({ page }, info) => {
+test('explorar @ambos', async ({ page, seed }, info) => {
+  await seed({ builtin: ['Alemán · A2'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
   await nav(page, 'Explorar');
   await page.screenshot({ path: `test-results/plan/${info.project.name}-7-explorar.png`, fullPage: true });
 });

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, openApp, nav, answer, createDeck, addBasicCards, pasteNotes, deckMenu } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, nav, answer, deckMenu } from './fixtures.js';
 
 const CSV = '﻿pregunta;respuesta;nota\nçiçek;flor;"con ""comillas"""\nkapı;puerta;\nsolo;;\n';
 
@@ -20,10 +20,10 @@ test('importar un CSV, revisar la vista previa y volver a exportarlo igual', asy
   expect(out).toBe('﻿pregunta;respuesta;nota\r\nçiçek;flor;"con ""comillas"""\r\nkapı;puerta;\r\n');
 });
 
-test('buscar dentro de un mazo', async ({ page }) => {
+test('buscar dentro de un mazo', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Buscar', cards: [['ev', 'casa'], ['kapı', 'puerta'], ['evet', 'sí']] }] });
   await openApp(page);
-  await createDeck(page, 'Buscar');
-  await addBasicCards(page, [['ev', 'casa'], ['kapı', 'puerta'], ['evet', 'sí']]);
+  await openDeck(page, 'Buscar');
   await page.locator('#cardSearch').fill('ev');
   await expect(page.locator('#cardCount')).toHaveText('2 de 3 preguntas');
 });
@@ -46,10 +46,10 @@ async function restore(page, data) {
   await page.locator('#backupFile').setInputFiles({ name: 'copia.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
 }
 
-test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso como estaban', async ({ page }) => {
+test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso como estaban', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Copia', cards: [['su', 'agua'], ['ekmek', 'pan']] }] });
   await openApp(page);
-  await createDeck(page, 'Copia');
-  await addBasicCards(page, [['su', 'agua'], ['ekmek', 'pan']]);
+  await openDeck(page, 'Copia');
   await page.locator('#main [data-start]').click();
   await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
@@ -69,10 +69,10 @@ test('copia de seguridad local: borrar todo y restaurar deja mazos y progreso co
   await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
-test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir', async ({ page }) => {
+test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'De la nube', cards: [['göz', 'ojo']] }] });
   await openApp(page);
-  await createDeck(page, 'De la nube');
-  await addBasicCards(page, [['göz', 'ojo']]);
+  await openDeck(page, 'De la nube');
   await page.locator('#main [data-start]').click();
   await page.getByRole('button', { name: 'Ver respuesta' }).click();
   await page.locator('[data-grade="3"]').click();
@@ -93,12 +93,10 @@ test('restaurar una copia de cuenta: añade lo que falta y no duplica al repetir
   await expect(page.locator('.pf-num').nth(2)).toHaveText('1empezadas');
 });
 
-test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', async ({ page }) => {
+test('la copia de seguridad incluye los apuntes y el vínculo de sus tarjetas', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Con apuntes' }], pages: [{ md: '# Mis apuntes\n\nEl agua es su.', deck: 'Con apuntes' }] });
   await openApp(page);
-  await createDeck(page, 'Con apuntes');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Mis apuntes\n\nEl agua es su.');
-  await page.locator('#pgDeck').selectOption({ label: 'Con apuntes' });
+  await openPage(page, 'Mis apuntes');
   await page.locator('#pgBlocks .nb-text').first().click();
   await page.locator('[data-block-input]').evaluate(t => { const k = t.value.indexOf('su'); t.setSelectionRange(k, k + 2); document.dispatchEvent(new Event('selectionchange')); });
   await page.locator('[data-act="sel-card"]').click();

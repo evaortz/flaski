@@ -1,12 +1,13 @@
 // A 375 px nada se sale de lado: la lista, el mapa, la ficha de una casilla y el editor de una pregunta de alemán
-import { test, expect, openApp, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, openDeck } from './fixtures.js';
 
 const fits = page => page.evaluate(() => ({ doc: document.documentElement.scrollWidth <= document.documentElement.clientWidth, body: document.body.scrollWidth <= document.body.clientWidth }));
 
-test('375 px: lista, mapa, ficha y editor de alemán sin desbordar @ambos', async ({ page }) => {
+test('375 px: lista, mapa, ficha y editor de alemán sin desbordar @ambos', async ({ page, seed }) => {
   await page.setViewportSize({ width: 375, height: 800 });
+  await seed({ builtin: ['Alemán · A2'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
+  await openDeck(page, 'Alemán · A2');
   expect(await fits(page)).toEqual({ doc: true, body: true });                        // la lista
   const seg = await page.locator('.dk-qh .mp-seg').boundingBox();
   expect(seg.x + seg.width).toBeLessThanOrEqual(375);

@@ -1,17 +1,13 @@
 // Buscar sin tildes ni diéresis (la ñ cuenta) en Biblioteca, en una lista, en el apunte y en los tipos; y qué pasa al
 // borrar una lista, un apunte o una carpeta (sus preguntas y Hoy)
-import { test, expect, openApp, nav, createDeck, addBasicCards, addBuiltinDeck, pasteNotes, deckMenu, newCard } from './fixtures.js';
+import { test, expect, openApp, openPage, nav, deckMenu, newCard } from './fixtures.js';
 
-test('buscar ignora tildes, diéresis y mayúsculas (no la ñ)', async ({ page }) => {
+test('buscar ignora tildes, diéresis y mayúsculas (no la ñ)', async ({ page, seed }) => {
+  await seed({
+    builtin: ['Alemán · A2'],
+    decks: [{ name: 'Historia · La Revolución', cards: [['La estación del norte', 'Bahnhof'], ['Küche', 'cocina'], ['España', 'país']] }],
+  });
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-deck"]').click();
-  await page.locator('#d-name').fill('Historia · La Revolución');
-  await page.locator('[data-kind="other"]').click();
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Historia · La Revolución' })).toBeVisible();
-  await addBasicCards(page, [['La estación del norte', 'Bahnhof'], ['Küche', 'cocina'], ['España', 'país']]);
   await nav(page, 'Biblioteca');
   for (const [q, has] of [['revolucion', 'Revolución'], ['aleman', 'Alemán'], ['ALEMÁN', 'Alemán']]) {
     await page.locator('#libSearch').fill(q);
@@ -39,21 +35,19 @@ test('buscar ignora tildes, diéresis y mayúsculas (no la ñ)', async ({ page }
   await expect(page.locator('#typePicker [data-pick-type="number"]')).toHaveCount(1);
 });
 
-test('buscar en el apunte sin tildes', async ({ page }) => {
+test('buscar en el apunte sin tildes', async ({ page, seed }) => {
+  await seed({ pages: [{ md: '# Historia\n\nLa Revolución francesa empezó en 1789.' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Historia\n\nLa Revolución francesa empezó en 1789.');
+  await openPage(page, 'Historia');
   await page.locator('[data-act="find"]').click();
   await page.locator('#findQ, .find-bar input').first().fill('revolucion');
   await expect(page.locator('.find-count, #findCount').first()).toContainText('1');
 });
 
-test('borrar un apunte con preguntas: las preguntas siguen en su lista', async ({ page }) => {
+test('borrar un apunte con preguntas: las preguntas siguen en su lista', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }], pages: [{ md: '# Francia\n\nLa **Bastilla** cayó en 1789.', deck: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Francia\n\nLa **Bastilla** cayó en 1789.');
-  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await openPage(page, 'Francia');
   await page.locator('.pg-top [data-act="suggest-cards"]').click();
   await page.locator('#sheetBody [data-act="create-suggested"], #sheetBody button.primary').last().click();
   await expect(page.locator('#sheet')).toBeHidden();
@@ -68,10 +62,9 @@ test('borrar un apunte con preguntas: las preguntas siguen en su lista', async (
   await expect(page.locator('.dk-meta')).toContainText(before === 1 ? '1 pregunta' : `${before} preguntas`);
 });
 
-test('borrar una lista: sus preguntas se van también de Hoy', async ({ page }) => {
+test('borrar una lista: sus preguntas se van también de Hoy', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París'], ['Italia', 'Roma']] }] });
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París'], ['Italia', 'Roma']]);
   await nav(page, 'Hoy');
   await expect(page.locator('.hero-num')).toHaveText('2');
   await nav(page, 'Biblioteca');
@@ -84,18 +77,10 @@ test('borrar una lista: sus preguntas se van también de Hoy', async ({ page }) 
   await expect(page.locator('.hero-num')).toHaveCount(0);
 });
 
-test('borrar una carpeta: va a la papelera con sus listas y sus preguntas salen de Hoy', async ({ page }) => {
+test('borrar una carpeta: va a la papelera con sus listas y sus preguntas salen de Hoy', async ({ page, seed }) => {
+  await seed({ folders: ['Tema 1'], decks: [{ name: 'Capitales', folder: 'Tema 1', cards: [['Francia', 'París']] }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-folder"]').first().click();
-  await page.locator('#fo-name').fill('Tema 1');
-  await page.locator('#sheetBody button[type="submit"]').click();
-  await page.locator('#main [data-act="create-menu"]').click();
-  await page.locator('#sheetBody [data-act="new-deck"]').click();
-  await page.locator('#d-name').fill('Capitales');
-  await page.locator('[data-kind="other"]').click();
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await addBasicCards(page, [['Francia', 'París']]);
+  await expect(page.locator('.hero-num')).toHaveText('1');
   await nav(page, 'Biblioteca');
   await page.locator('#main .lfold').filter({ hasText: 'Tema 1' }).click();
   await page.locator('#main [data-act="edit-folder"], #main .fhero [data-act*="folder"]').first().click();

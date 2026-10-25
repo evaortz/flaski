@@ -1,13 +1,13 @@
 // Remates de la tanda: contador tras «Otra vez», volver a donde empezó, «No lo sé» en las de elegir y la hoja de editar
-import { test, expect, openApp, nav, createDeck, newCard, addBasicCards, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 
 const left = page => page.locator('.studybar .left');
 const study = page => page.locator('#main [data-start]').first().click();
 
-test('tras «Otra vez» el contador avanza y la que vuelve se suma al total; al salir se vuelve a la lista', async ({ page }) => {
+test('tras «Otra vez» el contador avanza y la que vuelve se suma al total; al salir se vuelve a la lista', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París'], ['Italia', 'Roma'], ['Portugal', 'Lisboa']] }] });
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París'], ['Italia', 'Roma'], ['Portugal', 'Lisboa']]);
+  await openDeck(page, 'Capitales');
   await study(page);
   await expect(left(page)).toContainText('pregunta 1 de 3');
   await page.locator('[data-act="reveal"]').click();
@@ -20,9 +20,10 @@ test('tras «Otra vez» el contador avanza y la que vuelve se suma al total; al 
   await expect(page.getByRole('heading', { level: 1, name: 'Capitales' })).toBeVisible();
 });
 
-test('«No lo sé, ver respuesta» en una de elegir deja «Otra vez» marcado', async ({ page }) => {
+test('«No lo sé, ver respuesta» en una de elegir deja «Otra vez» marcado', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Capitales');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('[data-set-type="choice"]').click();
   await page.locator('#fld-q').fill('¿Capital de Francia?');
@@ -35,10 +36,10 @@ test('«No lo sé, ver respuesta» en una de elegir deja «Otra vez» marcado', 
   await expect(page.locator('.grade.g1')).toHaveClass(/suggested/);
 });
 
-test('editar una pregunta dentro de la tanda: colores de siempre, título a la vista y los tipos caben @ambos', async ({ page }) => {
+test('editar una pregunta dentro de la tanda: colores de siempre, título a la vista y los tipos caben @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París']] }] });
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París']]);
+  await openDeck(page, 'Capitales');
   await study(page);
   await page.locator('[data-card]').click();
   await expect(page.locator('body')).not.toHaveClass(/in-study/);
@@ -57,11 +58,11 @@ test('editar una pregunta dentro de la tanda: colores de siempre, título a la v
   await expect(page.locator('body')).toHaveClass(/in-study/);
 });
 
-test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho @ambos', async ({ page }) => {
+test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Capitales', cards: [['Francia', 'París']] }] });
   await openApp(page);
   await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.prefs.study.buttons = 2; });
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París']]);
+  await openDeck(page, 'Capitales');
   await study(page);
   await page.locator('[data-act="reveal"]').click();
   const [row, a, b] = await Promise.all(['.grades', '.grade.g1', '.grade.g3'].map(s => page.locator(s).boundingBox()));
@@ -69,9 +70,9 @@ test('con «2 botones», «Otra vez» y «Bien» se reparten el ancho @ambos', a
   expect(a.width + b.width).toBeGreaterThan(row.width * 0.9);
 });
 
-test('Biblioteca cuenta las nuevas como «Estudiar» (una por nota)', async ({ page }) => {
+test('Biblioteca cuenta las nuevas como «Estudiar» (una por nota)', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
   await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.newPerDay = 0; });   // hoy no toca ninguna: la ficha dice «N nuevas»
   await nav(page, 'Biblioteca');
   const hand = await page.locator('#main .lt-list').filter({ hasText: 'Japonés' }).locator('.lt-hand').textContent();
@@ -82,9 +83,10 @@ test('Biblioteca cuenta las nuevas como «Estudiar» (una por nota)', async ({ p
   await expect(left(page)).toContainText(`de ${n}`);
 });
 
-test('huecos: la puntuación de detrás va pegada al hueco', async ({ page }) => {
+test('huecos: la puntuación de detrás va pegada al hueco', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('[data-set-type="cloze"]').click();
   await page.locator('#fld-x').fill('El Terror lo dirigió {{Robespierre}}.');

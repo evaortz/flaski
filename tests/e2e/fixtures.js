@@ -28,6 +28,9 @@ async function buildSeed(recipe) {
   const { readBuiltin, importParsed } = await import('/js/pantallas/explorar.js');
   const { boldLabels } = await import('/js/notesio.js');
   const { textToBlocks, newBlock } = await import('/js/pages.js');
+  // Cada receta empieza de cero, en la misma página (sin recargar)
+  api.resetLocal();
+  for (const k of ['decks', 'cards', 'progress', 'folders', 'tags', 'types', 'pages']) S[k]?.clear?.();
   const folders = new Map(), decks = new Map(), now = Date.now(), DAY = 864e5;
   for (const name of recipe.folders || []) {
     const f = await api.createFolder({ owner: S.uid, name, parent_id: null });
@@ -70,11 +73,15 @@ export const test = base.extend({
     await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     await page.route('https://cdn.jsdelivr.net/**', route => route.abort());
     const built = new Map();
+    let open = false;
     await use(async recipe => {
       const key = JSON.stringify(recipe);
       if (!built.has(key)) {
-        await page.goto('/');
-        await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+        if (!open) {
+          await page.goto('/');
+          await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+          open = true;
+        }
         built.set(key, await page.evaluate(buildSeed, recipe));
       }
       return built.get(key);

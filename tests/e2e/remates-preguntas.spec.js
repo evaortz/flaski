@@ -1,7 +1,10 @@
 // Remates del editor de una pregunta (fase 8) y de la barra del apunte: cada uno con su prueba para que no vuelva
-import { test, expect, openApp, nav, createDeck, newCard, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, newCard } from './fixtures.js';
 
 const NOTES = '# Por qué se te olvidan las cosas (y cómo evitarlo)\n\n## La Revolución\n\nEl Terror lo dirigió Robespierre entre 1793 y 1794.';
+// Lo mismo para casi todas: así se construye una sola vez por proceso
+const HISTORIA = { decks: [{ name: 'Historia' }], pages: [{ md: NOTES, deck: 'Historia' }] };
+const TITLE = 'Por qué se te olvidan las cosas (y cómo evitarlo)';
 const ed = page => page.locator('[data-block-input]');
 async function select(page, w) {
   if (!(await ed(page).count())) await page.locator('#pgBlocks .nb').nth(1).locator('.nb-text').click();
@@ -18,9 +21,10 @@ async function fits(page, sel) {
   });
 }
 
-test('tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la fila no se mueve al cambiar @ambos', async ({ page }) => {
+test('tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la fila no se mueve al cambiar @ambos', async ({ page, seed }) => {
+  await seed(HISTORIA);
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   expect(await fits(page, '.ed-segs')).toEqual({ inside: true, overlap: false, scroll: false });
   expect(await fits(page, '#typeBar')).toEqual({ inside: true, overlap: false, scroll: false });
@@ -30,9 +34,10 @@ test('tipo de pregunta: los segmentos caben sin pisarse con «Más tipos» y la 
   expect(await page.locator('[data-set-type="basic"]').boundingBox()).toEqual(before);
 });
 
-test('«Más tipos» sustituye el contenido de la hoja, con «‹» para volver', async ({ page }) => {
+test('«Más tipos» sustituye el contenido de la hoja, con «‹» para volver', async ({ page, seed }) => {
+  await seed(HISTORIA);
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await expect(page.locator('.ed-top')).toBeHidden();
@@ -42,9 +47,10 @@ test('«Más tipos» sustituye el contenido de la hoja, con «‹» para volver'
   await expect(page.locator('.ed-top')).toBeVisible();
 });
 
-test('campos: en Básica la respuesta no es opcional; en Opción múltiple «opcional» sale una vez', async ({ page }) => {
+test('campos: en Básica la respuesta no es opcional; en Opción múltiple «opcional» sale una vez', async ({ page, seed }) => {
+  await seed(HISTORIA);
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('[data-set-type="basic"]').click();
   await expect(page.locator('[data-ef="a"] .ef-name')).toHaveText('Respuesta');
@@ -53,12 +59,11 @@ test('campos: en Básica la respuesta no es opcional; en Opción múltiple «opc
   await expect(page.locator('#fld-w')).toHaveAttribute('placeholder', '');
 });
 
-test('crear desde una selección: la pregunta es la frase con el hueco', async ({ page }) => {
+test('crear desde una selección: la pregunta es la frase con el hueco', async ({ page, seed }) => {
+  await seed(HISTORIA);
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, NOTES);
-  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await openPage(page, TITLE);
+  await expect(page.locator('#pgDeck option:checked')).toHaveText('Historia');
   await select(page, 'Robespierre');
   await page.locator('#selBar [data-act="sel-card"]').click();
   await page.locator('[data-set-type="basic"]').click();
@@ -66,22 +71,22 @@ test('crear desde una selección: la pregunta es la frase con el hueco', async (
   await expect(page.locator('#fld-a')).toHaveValue('Robespierre');
 });
 
-test('móvil: en la barra de lo seleccionado cabe «Hecho»', async ({ page }, info) => {
+test('móvil: en la barra de lo seleccionado cabe «Hecho»', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'movil', 'solo en el móvil');
+  await seed({ pages: [{ md: NOTES }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, NOTES);
+  await openPage(page, TITLE);
   await select(page, 'Robespierre');
   // «Hecho» sale mientras escribes con el teclado abierto: aquí se fuerza para medir que cabe todo
   await page.locator('#selBar .sb-done').evaluate(b => { b.style.display = 'inline-flex'; });
   expect(await fits(page, '#selBar')).toEqual({ inside: true, overlap: false, scroll: false });
 });
 
-test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en palabra entera @ambos', async ({ page }) => {
+test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en palabra entera @ambos', async ({ page, seed }) => {
   await page.setViewportSize({ width: 800, height: 900 });
+  await seed({ pages: [{ md: NOTES }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, NOTES);
+  await openPage(page, TITLE);
   const sug = page.locator('.pg-top .pg-suggest');
   await expect(sug).toHaveAttribute('aria-label', 'Sugerir preguntas');
   await expect(sug.locator('span')).toBeHidden();
@@ -95,9 +100,10 @@ test('apunte a 800 px: «Sugerir preguntas» solo con icono y la ruta cortada en
   if (text.endsWith('…')) await expect(cur).toHaveAttribute('title', 'Por qué se te olvidan las cosas (y cómo evitarlo)');
 });
 
-test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera @ambos', async ({ page }) => {
+test('etiquetas del editor: pegatinas con ✕ y «+ etiqueta» para buscar o crear, sin la lista entera @ambos', async ({ page, seed }) => {
+  await seed(HISTORIA);
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   const pick = page.locator('#tagPick');
   await expect(pick.locator('#f-newtag')).toBeHidden();

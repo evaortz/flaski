@@ -1,6 +1,6 @@
 // Tipos de tarjeta: verdadero o falso, emparejar y tapar partes de una imagen
 import { deflateSync } from 'node:zlib';
-import { test, expect, openApp, createDeck, nav, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, newCard } from './fixtures.js';
 
 // PNG de 400×300 de un solo color (como un mapa de verdad, para poder dibujar encima)
 function png(w, h) {
@@ -20,9 +20,10 @@ async function newCardOfType(page, type) {
 const save = async page => { await page.locator('.ed-foot button[type="submit"]').click(); await expect(page.locator('#sheet')).toBeHidden(); };
 const study = page => page.locator('#main [data-start]').first().click();
 
-test('verdadero o falso: se escribe V o F y se responde con dos botones @ambos', async ({ page }) => {
+test('verdadero o falso: se escribe V o F y se responde con dos botones @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'truefalse');
   await page.locator('#fld-s').fill('Colón llegó a América en 1492');
   await page.locator('#fld-v').fill('v');
@@ -39,9 +40,10 @@ test('verdadero o falso: se escribe V o F y se responde con dos botones @ambos',
   await expect(page.locator('.grade.suggested')).toHaveText(/Otra vez/);
 });
 
-test('emparejar: se une cada elemento con su pareja; los fallos bajan la nota sugerida', async ({ page }) => {
+test('emparejar: se une cada elemento con su pareja; los fallos bajan la nota sugerida', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'match');
   await page.locator('#fld-p').fill('ev = casa\nokul = escuela\nsu = agua');
   await save(page);
@@ -57,9 +59,10 @@ test('emparejar: se une cada elemento con su pareja; los fallos bajan la nota su
   await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
 });
 
-test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta @ambos', async ({ page }) => {
+test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Geografía');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'occlusion');
   const chooser = page.waitForEvent('filechooser');
   await page.locator('#occEd [data-act="occ-pick"]').click();
@@ -93,14 +96,10 @@ test('tapar partes de una imagen: se dibujan recuadros y cada uno es una tarjeta
   await expect(page.locator('.card .occ .occ-m.cur.open')).toHaveCount(1);
 });
 
-test('conjugación: se escriben todas las formas y se corrige cada una (en alemán, con mayúsculas y ß)', async ({ page }) => {
+test('conjugación: se escriben todas las formas y se corrige cada una (en alemán, con mayúsculas y ß)', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Alemán', lang: 'de-DE' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-deck"]').click();
-  await page.locator('#d-name').fill('Alemán');
-  await page.locator('[data-kind="lang"]').click();
-  await page.locator('#d-lang').selectOption('de-DE');
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
+  await openDeck(page, 'Alemán');
   await newCardOfType(page, 'conj');
   await page.locator('#fld-v').fill('gehen');
   await page.locator('#fld-k').fill('Präsens');
@@ -118,18 +117,20 @@ test('conjugación: se escriben todas las formas y se corrige cada una (en alem�
   await expect(page.locator('.grade.suggested')).toHaveText(/Otra vez/);
 });
 
-test('«Escribir a mano» solo sale en mazos de idiomas con otro alfabeto', async ({ page }) => {
+test('«Escribir a mano» solo sale en mazos de idiomas con otro alfabeto', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await expect(page.locator('[data-pick-type="truefalse"]')).toHaveCount(1);
   await expect(page.locator('[data-pick-type="handwrite"]')).toHaveCount(0);
 });
 
-test('clasificar: cada elemento a su grupo; los mal colocados se marcan', async ({ page }) => {
+test('clasificar: cada elemento a su grupo; los mal colocados se marcan', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Biología');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'sort');
   await page.locator('#fld-g').fill('Mamíferos: perro, ballena\nAves: pingüino, águila');
   await save(page);
@@ -145,9 +146,10 @@ test('clasificar: cada elemento a su grupo; los mal colocados se marcan', async 
   await expect(page.locator('.grade.suggested')).toHaveText(/Difícil/);
 });
 
-test('hueco con opciones: se elige la palabra que falta', async ({ page }) => {
+test('hueco con opciones: se elige la palabra que falta', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Alemán');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'clozechoice');
   await page.locator('#fld-x').fill('Ich wohne {{seit}} zwei Jahren hier.');
   await page.locator('#fld-w').fill('für; vor; mit');
@@ -161,9 +163,10 @@ test('hueco con opciones: se elige la palabra que falta', async ({ page }) => {
   await expect(page.locator('.grade.suggested')).toHaveText(/Bien/);
 });
 
-test('ordenar los pasos: una línea por paso', async ({ page }) => {
+test('ordenar los pasos: una línea por paso', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Biología');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'steps');
   await page.locator('#fld-q').fill('Fases de la mitosis');
   await page.locator('#fld-s').fill('Profase\nMetafase\nAnafase\nTelofase');
@@ -174,9 +177,10 @@ test('ordenar los pasos: una línea por paso', async ({ page }) => {
   await expect(page.locator('.verdict.ok')).toContainText('Profase → Metafase → Anafase → Telofase');
 });
 
-test('respuesta numérica: con margen, «casi» y la coma decimal @ambos', async ({ page }) => {
+test('respuesta numérica: con margen, «casi» y la coma decimal @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCardOfType(page, 'number');
   await page.locator('#fld-q').fill('¿En qué año cayó Constantinopla?');
   await page.locator('#fld-a').fill('1453');

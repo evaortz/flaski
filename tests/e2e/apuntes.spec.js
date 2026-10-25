@@ -1,5 +1,5 @@
 // Apuntes: escribir por bloques, tablas, crear tarjetas desde lo seleccionado y volver a ellos al estudiar
-import { test, expect, openApp, nav, createDeck, pasteNotes, startTanda, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, nav, pasteNotes, startTanda, newCard } from './fixtures.js';
 import { makePdf } from '../pdf-fixture.js';
 
 async function newPage(page, title) {
@@ -136,11 +136,11 @@ test('tablas como texto: sigue pudiendo escribirse en Markdown @ambos', async ({
   await expect(page.locator('#pgBlocks table')).toHaveCount(2);
 });
 
-test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes', async ({ page }) => {
+test('crear una tarjeta desde lo seleccionado, estudiarla y volver a los apuntes', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
   await newPage(page, 'Casos');
-  await page.locator('#pgDeck').selectOption({ label: 'Turco' });
+  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
   await block(page, 0).locator('.nb-text').click();
   await type(page, 'El locativo se forma con -de: evde.');
   // Seleccionar «evde» dentro del bloque que se está editando
@@ -175,12 +175,10 @@ async function cardFrom(page, i, palabra, pregunta) {
   await expect(page.locator('#sheet')).toBeHidden();
 }
 
-test('cómo llevas cada parte y estudiar un apartado', async ({ page }) => {
+test('cómo llevas cada parte y estudiar un apartado', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }], pages: [{ md: '# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.', deck: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Revolución\n\n## Fechas\n\nLa Bastilla cayó en 1789.\n\n## Personajes\n\nRobespierre lideró el Terror.');
-  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await openPage(page, 'Revolución');
   await cardFrom(page, 1, '1789', '¿Año de la Bastilla?');
   await cardFrom(page, 3, 'Robespierre', '¿Quién lideró el Terror?');
 
@@ -227,10 +225,9 @@ async function pastePage(page, text) {
   await pasteNotes(page, text);
 }
 
-test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover apuntes', async ({ page }) => {
+test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover apuntes', async ({ page, seed }) => {
+  await seed({ pages: [{ md: '# Primer apunte\n\nTexto.' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pastePage(page, '# Primer apunte\n\nTexto.');
   await nav(page, 'Biblioteca');
   await page.locator('#main [data-act="new-folder"]').click();
   await page.locator('#fo-name').fill('Turco');
@@ -271,14 +268,11 @@ test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover ap
   await expect(page.locator('#main [data-act="new-folder"]')).toHaveCount(1);             // un solo «+ Carpeta»
 });
 
-test('borrar una carpeta la manda entera a la papelera, con sus apuntes; al recuperarla vuelve con ellos', async ({ page }) => {
+test('borrar una carpeta la manda entera a la papelera, con sus apuntes; al recuperarla vuelve con ellos', async ({ page, seed }) => {
+  await seed({ folders: ['Turco'], pages: [{ md: '# Casos\n\nEl locativo.', folder: 'Turco' }] });
   await openApp(page);
   await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-folder"]').click();
-  await page.locator('#fo-name').fill('Turco');
-  await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();
-  await pastePage(page, '# Casos\n\nEl locativo.');
-  await page.locator('.pg-top .crumbs [data-nfolder]', { hasText: 'Turco' }).click();
+  await page.locator('#main .lfold', { hasText: 'Turco' }).click();
   await page.locator('#main [data-act="edit-folder"]').click();
   await page.locator('[data-act="ask-delete-folder"]').click();
   await page.locator('#sheetBody [data-act="delete-folder"]').click();
@@ -411,10 +405,10 @@ test('icono de carpeta con tu imagen: se recorta cuadrada a 256 px, asoma en la 
   await expect.poll(stored).not.toContain(second);
 });
 
-test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {
+test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page, seed }) => {
+  await seed({ pages: [{ md: '# Beta\n\nVerbos irregulares.' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pastePage(page, '# Beta\n\nVerbos irregulares.');
+  await openPage(page, 'Beta');
   await page.locator('[data-act="page-tags"]').click();
   await page.locator('#f-newtag').fill('examen');
   await page.locator('[data-act="add-tag-inline"]').click();
@@ -434,12 +428,10 @@ test('etiquetas, buscar y ordenar en la Biblioteca', async ({ page }) => {
   await expect(page.locator('#main .ltiles .lt-name')).toHaveText(['Alfa']);
 });
 
-test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async ({ page }) => {
+test('icono, descargar en Markdown y acceso a los apuntes desde el mazo', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }], pages: [{ md: '# Revolución\n\n## Fechas\n\n- 1789\n- 1793', deck: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Historia');
-  await nav(page, 'Biblioteca');
-  await pastePage(page, '# Revolución\n\n## Fechas\n\n- 1789\n- 1793');
-  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
+  await openPage(page, 'Revolución');
   await page.locator('[data-act="page-icon"]').click();
   await page.locator('[data-act="toggle-emoji"]').first().click();
   await page.locator('#emojiPanel [data-emoji]').first().click();
@@ -474,9 +466,10 @@ test('pegar unos apuntes enteros', async ({ page }) => {
 // Imagen de 2×2 píxeles
 const PNG = { name: 'mapa.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==', 'base64') };
 
-test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al recargar', async ({ page }) => {
+test('imágenes: en una tarjeta y en los apuntes con su pie; siguen ahí al recargar', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Geografía');
+  await openDeck(page, 'Historia');
   // En una tarjeta: con el botón de la barra de formato, en el campo activo
   await newCard(page);
   await page.locator('#fld-q').click();
@@ -597,11 +590,11 @@ test('importar un PDF desde el menú de un apunte: títulos, párrafos, listas, 
   await expect(blocks.nth(7)).toHaveText('Los casos del turco');
 });
 
-test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean enlazadas a su parte del apunte', async ({ page }) => {
+test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean enlazadas a su parte del apunte', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
-  await createDeck(page, 'Biología');
   await newPage(page, 'La célula');
-  await page.locator('#pgDeck').selectOption({ label: 'Biología' });
+  await page.locator('#pgDeck').selectOption({ label: 'Historia' });
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
   await page.locator('[data-block-input]').evaluate((t, v) => { t.value = v; t.dispatchEvent(new Event('input', { bubbles: true })); }, 'x');
   await page.keyboard.press('Escape');
@@ -642,7 +635,7 @@ test('sugerir tarjetas: propone las claras ya marcadas, se retocan y se crean en
   await items.nth(1).locator('[data-sug]').uncheck();
   await expect(page.locator('[data-act="sug-create"]')).toHaveText('Crear 2 preguntas');
   await page.locator('[data-act="sug-create"]').click();
-  await expect(page.locator('#toast')).toContainText('2 preguntas creadas en «Biología»');
+  await expect(page.locator('#toast')).toContainText('2 preguntas creadas en «Historia»');
   await expect(page.locator('#pgBlocks .nb-cards')).toHaveCount(2);
   // Al pedirlas otra vez, ya no propone lo que es tarjeta
   await page.locator('[data-act="suggest-cards"]').first().click();

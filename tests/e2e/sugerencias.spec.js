@@ -1,14 +1,15 @@
 // Sugerencias: actualizar tras cambiar el apunte, descartar, la ✨ de los bloques y los consejos
-import { test, expect, openApp, nav, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openPage } from './fixtures.js';
 
-async function pastePage(page, text) {
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, text);
+// Un apunte ya hecho (el primer «# » es su título), abierto
+async function withPage(page, seed, md) {
+  await seed({ pages: [{ md }] });
+  await openApp(page);
+  await openPage(page, /^# (.+)/.exec(md)[1]);
 }
 
-test('actualizar las sugerencias tras cambiar el apunte, conservando lo retocado; descartar', async ({ page }) => {
-  await openApp(page);
-  await pastePage(page, '# Célula\n\nCélula: unidad básica de la vida.\n\nLa **membrana** protege la célula.');
+test('actualizar las sugerencias tras cambiar el apunte, conservando lo retocado; descartar', async ({ page, seed }) => {
+  await withPage(page, seed, '# Célula\n\nCélula: unidad básica de la vida.\n\nLa **membrana** protege la célula.');
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug')).toHaveCount(2);
   // Retocar una
@@ -36,9 +37,8 @@ test('actualizar las sugerencias tras cambiar el apunte, conservando lo retocado
   await expect(page.locator('.sug')).toHaveCount(3);
 });
 
-test('la ✨ marca en el apunte lo que da tarjetas (también al escribir) y abre las de esa parte', async ({ page }) => {
-  await openApp(page);
-  await pastePage(page, '# Biología\n\nUn texto cualquiera sin nada especial.');
+test('la ✨ marca en el apunte lo que da tarjetas (también al escribir) y abre las de esa parte', async ({ page, seed }) => {
+  await withPage(page, seed, '# Biología\n\nUn texto cualquiera sin nada especial.');
   await expect(page.locator('#pgBlocks .nb-sugdot')).toHaveCount(0);
   await page.locator('#pgBlocks .nb').last().locator('.nb-text').click();
   await page.keyboard.press('End'); await page.keyboard.press('Enter');
@@ -51,9 +51,8 @@ test('la ✨ marca en el apunte lo que da tarjetas (también al escribir) y abre
   await expect(page.locator('.sug .sug-src')).toContainText('Ribosoma: fabrica las proteínas.');
 });
 
-test('sin sugerencias: consejos según cómo está escrito el apunte y cómo se eligen', async ({ page }) => {
-  await openApp(page);
-  await pastePage(page, `# Tema\n\n${'Esto es una frase larga sobre el tema que no tiene nada destacado ni ninguna definición. '.repeat(4)}\n\n- uno\n- dos`);
+test('sin sugerencias: consejos según cómo está escrito el apunte y cómo se eligen', async ({ page, seed }) => {
+  await withPage(page, seed, `# Tema\n\n${'Esto es una frase larga sobre el tema que no tiene nada destacado ni ninguna definición. '.repeat(4)}\n\n- uno\n- dos`);
   await page.locator('.pg-suggest').click();
   await expect(page.locator('.sug-tips')).toContainText('párrafo largo');
   await expect(page.locator('.sug-tips')).toContainText('viñetas');

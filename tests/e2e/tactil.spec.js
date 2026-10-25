@@ -1,5 +1,5 @@
 // En el móvil, lo que se toca mide al menos 44 px de alto (la medida mínima cómoda para un dedo)
-import { test, expect, openApp, nav, createDeck, addBasicCards, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 
 test.skip(({ isMobile }) => !isMobile, 'solo en el móvil');
 
@@ -9,10 +9,9 @@ const small = (page, sel) => page.locator(sel).evaluateAll(els => els
   .map(el => [el.getAttribute('aria-label') || el.textContent.trim().slice(0, 30), Math.round(el.getBoundingClientRect().height)])
   .filter(([, h]) => h < 44));
 
-test('zonas táctiles de al menos 44 px: apunte, Ajustes, Estadísticas y la meta de Hoy', async ({ page }) => {
+test('zonas táctiles de al menos 44 px: apunte, Ajustes, Estadísticas y la meta de Hoy', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: [['ev', 'casa']] }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
-  await addBasicCards(page, [['ev', 'casa']]);
   // Hoy: «cambiar» / «poner una» meta
   await nav(page, 'Hoy');
   await expect(page.locator('#main [data-act="goal-change"]')).toBeVisible();
@@ -44,7 +43,8 @@ const hitArea = loc => loc.evaluate(el => {
   return [Math.round(reach(-1, 0) + reach(1, 0) + 1), Math.round(reach(0, -1) + reach(0, 1) + 1)];
 });
 
-test('zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el margen, y las pastillas del apunte', async ({ page }) => {
+test('zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el margen, y las pastillas del apunte', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Historia' }] });
   await openApp(page);
   // El tema de ejemplo: un apunte con preguntas unidas a sus partes y preguntas sugeridas
   await nav(page, 'Explorar');
@@ -68,7 +68,7 @@ test('zonas táctiles de 44 × 44 px: ✕ de las pegatinas, mover y plegar en el
   await big(grip, 'Mover o más opciones');
   await page.keyboard.press('Escape');
   // La ✕ de las pegatinas del editor de una pregunta
-  await createDeck(page, 'Historia');
+  await openDeck(page, 'Historia');
   await newCard(page);
   await page.locator('#tagPick [data-act="tagpick-open"]').click();
   await page.locator('#f-newtag').fill('verbos');

@@ -1,5 +1,5 @@
 // Voz: sin voz para el idioma, el altavoz avisa; «Probar» (Ajustes) usa los idiomas de tus listas
-import { test, expect, openApp, nav, newCard, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, newCard } from './fixtures.js';
 
 // Un dispositivo que solo tiene voz en inglés (y no suena: se apunta lo que se diría)
 test.beforeEach(async ({ page }) => {
@@ -13,9 +13,10 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('sin voz en japonés: el altavoz lo dice; «Probar» dice qué idiomas de tus listas tienen voz', async ({ page }) => {
+test('sin voz en japonés: el altavoz lo dice; «Probar» dice qué idiomas de tus listas tienen voz', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo de Flaski'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo de Flaski');
+  await openDeck(page, 'Japonés · Demo de Flaski');
   await newCard(page);
   await page.locator('.ed-segs [data-set-type="vocab"]').click();
   await page.locator('#fld-w').fill('駅');

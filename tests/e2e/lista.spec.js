@@ -1,9 +1,13 @@
 // La pantalla de una lista: cabecera con lo de hoy, estado, preguntas con su tipo, menús «+» y «…» y apuntes vinculados
-import { test, expect, openApp, nav, answer, addBuiltinDeck, createDeck, pasteNotes, deckMenu } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, answer, deckMenu } from './fixtures.js';
 
-test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async ({ page }) => {
+// Lo mismo para casi todas: así se construye una sola vez por proceso
+const LISTAS = { builtin: ['Alemán · A2', 'Turco · Armonía vocálica'], pages: [{ md: '# Gramática turca\n\nev es casa.\n\n| Turco | Español |\n|---|---|\n| ev | casa |\n| kapı | puerta |' }] };
+
+test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async ({ page, seed }) => {
+  await seed(LISTAS);
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
+  await openDeck(page, 'Alemán · A2');
   await expect(page.locator('.dk-meta')).toContainText('Alemán · 48 preguntas · editado el');
   await expect(page.locator('.dk-num')).toContainText('30');   // todas sus nuevas (una por nota): desde la lista no hay límite del día
   await expect(page.locator('.dk-num')).toContainText('para hoy');
@@ -32,9 +36,10 @@ test('cabecera, filtros por etapa, tipo de cada pregunta y «Ver todas»', async
   await expect(page.locator('#cardCount')).toHaveText(/de 48 preguntas/);
 });
 
-test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lista @ambos', async ({ page }) => {
+test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lista @ambos', async ({ page, seed }) => {
+  await seed(LISTAS);
   await openApp(page);
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
+  await openDeck(page, 'Turco · Armonía vocálica');
   await page.locator('#main [data-act="add-menu"]').click();
   const menu = page.locator('#sheetBody .dk-menu, #dkPop:not([hidden]) .dk-menu');
   await expect(menu).toContainText('Una pregunta');
@@ -57,12 +62,10 @@ test('«+» ofrece las cuatro formas de añadir y «…» archiva y borra la lis
   await expect(page.locator('#main')).not.toContainText('Armonía vocálica');
 });
 
-test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apunte y abrirlo desde la lista @ambos', async ({ page }) => {
+test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apunte y abrirlo desde la lista @ambos', async ({ page, seed }) => {
+  await seed(LISTAS);
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Gramática turca\n\nev es casa.\n\n| Turco | Español |\n|---|---|\n| ev | casa |\n| kapı | puerta |');
-  await addBuiltinDeck(page, 'Alemán · A2');
-  await addBuiltinDeck(page, 'Turco · Armonía vocálica');
+  await openDeck(page, 'Turco · Armonía vocálica');
   // Las sugerencias del apunte van a la lista desde la que se piden (no a la primera)
   await page.locator('#main [data-act="add-menu"]').click();
   await page.locator('#sheetBody [data-act="from-note"], #dkPop:not([hidden]) [data-act="from-note"]').click();
@@ -82,9 +85,10 @@ test('«Desde un apunte» abre sus sugerencias para esta lista; vincular un apun
   await expect(page.locator('#pgTitle')).toHaveValue('Gramática turca');
 });
 
-test('por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman aunque no se vean todas', async ({ page }) => {
+test('por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman aunque no se vean todas', async ({ page, seed }) => {
+  await seed(LISTAS);
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
+  await openDeck(page, 'Alemán · A2');
   await page.locator('#main [data-start]').click();
   await answer(page, 3);
   await answer(page, 3);
@@ -97,15 +101,18 @@ test('por próximo repaso, las nuevas van al final tras «Nuevas · N» y asoman
   await expect(page.locator('#cardRows .cs-new')).not.toHaveCount(0);
 });
 
-test('en el ordenador el título largo baja de tamaño en vez de partirse @ambos', async ({ page }, info) => {
+test('en el ordenador el título largo baja de tamaño en vez de partirse @ambos', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'escritorio', 'solo en el ordenador');
+  await seed({ decks: [{ name: 'Vocabulario Esencial del turco (121-160)' }, { name: 'Turco' }] });
   await openApp(page);
-  await createDeck(page, 'Vocabulario Esencial del turco (121-160)');
+  await openDeck(page, 'Vocabulario Esencial del turco (121-160)');
   const h = page.locator('.dk-title');
   const { height, size } = await h.evaluate(el => ({ height: el.getBoundingClientRect().height, size: parseFloat(getComputedStyle(el).fontSize) }));
   expect(size).toBeLessThan(58);
   expect(height).toBeLessThan(size * 1.6);
   // Uno corto, a su tamaño
-  await createDeck(page, 'Turco');
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-open]').filter({ hasText: 'Turco' }).filter({ hasNotText: 'Vocabulario' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Turco', exact: true })).toBeVisible();
   await expect(h).toHaveCSS('font-size', '58px');
 });

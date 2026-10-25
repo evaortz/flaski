@@ -1,19 +1,15 @@
 // Papelera (lo borrado se queda 30 días, «Deshacer», recuperar, borrar ya, vaciar y la limpieza al abrir)
 // y borrar la cuenta (tres pasos; si falla, se dice y la sesión sigue)
-import { test, expect, openApp, nav, createDeck, addBasicCards, answer, startTanda, deckMenu, edExtra } from './fixtures.js';
+import { test, expect, openApp, openDeck, nav, deckMenu, edExtra } from './fixtures.js';
 import { mockCloud, openCloud, sent } from './nube.js';
 
 const deckRow = (page, name) => page.locator('#main .ltile, #main .lfold, #main [data-deck]', { hasText: name });
 const S = page => page.evaluate(() => import('/js/comun.js').then(({ S }) => ({ decks: [...S.decks.values()].map(d => d.name), cards: S.cards.size, progress: S.progress.size, trash: [...S.trash.keys()], folders: [...S.folders.values()].map(f => f.name), pages: [...S.pages.values()].map(p => p.title) })));
 const db = page => page.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find(k => /^flaski-(local|pruebas)-v1$/.test(k)) || 'flaski-local-v1')));
-async function listWithProgress(page) {
+// Una lista de 3 preguntas ya estudiadas
+async function listWithProgress(page, seed) {
+  await seed({ decks: [{ name: 'Turco', cards: [['ev', 'casa'], ['su', 'agua'], ['el', 'mano']], studied: { due: 1, interval: 3 } }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
-  await addBasicCards(page, [['ev', 'casa'], ['su', 'agua'], ['el', 'mano']]);
-  await nav(page, 'Hoy');
-  await startTanda(page);
-  await answer(page, 3);
-  await page.locator('.studybar [data-act="exit"]').click();
 }
 async function deleteDeck(page, name) {
   await nav(page, 'Biblioteca');
@@ -21,8 +17,8 @@ async function deleteDeck(page, name) {
   await deckMenu(page, '[data-act="ask-delete-deck"]');
 }
 
-test('borrar una lista: hoja de la papelera, «Deshacer» la deja como estaba', async ({ page }) => {
-  await listWithProgress(page);
+test('borrar una lista: hoja de la papelera, «Deshacer» la deja como estaba', async ({ page, seed }) => {
+  await listWithProgress(page, seed);
   const before = await S(page);
   await deleteDeck(page, 'Turco');
   await expect(page.locator('#sheetBody')).toContainText('Va a la papelera con sus 3 preguntas y tu progreso. Durante 30 días puedes recuperarla tal cual; después se borra del todo.');
@@ -39,8 +35,8 @@ test('borrar una lista: hoja de la papelera, «Deshacer» la deja como estaba', 
   expect((await db(page)).decks[0].deleted_at).toBeNull();
 });
 
-test('la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «(recuperada)» si el nombre ya está) y sigue tras recargar @ambos', async ({ page }) => {
-  await listWithProgress(page);
+test('la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «(recuperada)» si el nombre ya está) y sigue tras recargar @ambos', async ({ page, seed }) => {
+  await listWithProgress(page, seed);
   await deleteDeck(page, 'Turco');
   await page.locator('#sheetBody [data-act="delete-deck"]').click();
   // Sigue en la papelera al recargar
@@ -132,10 +128,10 @@ test('«Borrar ya», «Vaciar» con confirmación, y al abrir se borra del todo 
   expect((await db(page)).decks).toEqual([]);
 });
 
-test('una pregunta borrada en el editor no va a la papelera: «Deshacer» la devuelve', async ({ page }) => {
+test('una pregunta borrada en el editor no va a la papelera: «Deshacer» la devuelve', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: [['ev', 'casa']] }] });
   await openApp(page);
-  await createDeck(page, 'Turco');
-  await addBasicCards(page, [['ev', 'casa']]);
+  await openDeck(page, 'Turco');
   const id = await page.evaluate(() => import('/js/comun.js').then(({ S }) => [...S.cards.keys()][0]));
   await page.locator(`[data-card="${id}"], .dk-card`).first().click();
   await edExtra(page);
@@ -162,8 +158,8 @@ test('Ajustes › Datos: el buscador encuentra «papelera» y «borrar cuenta»'
   await expect(page.locator('.set-row:visible', { hasText: 'Papelera' })).toHaveCount(1);
 });
 
-test('borrar la cuenta (modo local): copia, lo que se borra, escribir «borrar» y la pantalla final', async ({ page }) => {
-  await listWithProgress(page);
+test('borrar la cuenta (modo local): copia, lo que se borra, escribir «borrar» y la pantalla final', async ({ page, seed }) => {
+  await listWithProgress(page, seed);
   await nav(page, 'Perfil');
   await page.locator('.pr-row[data-nav="settings"]').click();
   await page.locator('[data-nav="bye"]').click();

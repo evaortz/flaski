@@ -1,6 +1,6 @@
 // Remates del plan, Explorar y el simulacro: «La tienes» por origen (y, de respaldo, por nombre), huecos en la
 // vista previa, mínimo de 10 s por pregunta en las estimaciones; la última semana, «Hagamos tu plan» y los arreglos
-import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav } from './fixtures.js';
 
 const opos = async page => { await nav(page, 'Explorar'); await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click(); };
 
@@ -25,6 +25,8 @@ test('Explorar: las listas de antes (sin origen) se reconocen por el nombre sin 
     const api = await import('/js/api.js'); const { S } = await import('/js/comun.js');
     const d = await api.createDeck({ owner: S.uid, name: 'La Constitucion · Titulo Preliminar', description: '', source: 'apuntes', folder_id: null });
     S.decks.set(d.id, { tags: [], ...d });
+    // con sus preguntas (una lista vacía es un tema a medias: se ofrece completarlo)
+    for (const c of await api.createCards([{ deck_id: d.id, owner: S.uid, front: 'a', back: 'b', type_id: 'basic', template: 't1', fields: { q: 'a', a: 'b' } }])) S.cards.set(c.id, c);
   });
   await opos(page);
   await expect(page.locator('.ex-row [data-ex="open-tema"]')).toHaveText('La tienes');
@@ -43,11 +45,9 @@ test('Explorar: la vista previa pinta los huecos como en la tanda y la respuesta
   await expect(row.locator('b')).toContainText('1978');
 });
 
-test('estimaciones con un mínimo de 10 s por pregunta: Hoy y «salen unas X al día» del Plan', async ({ page }) => {
+test('estimaciones con un mínimo de 10 s por pregunta: Hoy y «salen unas X al día» del Plan', async ({ page, seed }) => {
+  await seed({ builtin: ['Alemán · A2'] });
   await openApp(page);
-  await nav(page, 'Explorar');
-  await page.locator('[data-ex="add-builtin"][data-file="aleman-a2.json"]').click();
-  await expect(page.locator('#main [data-builtin="aleman-a2.json"] .go')).toHaveText('La tienes');
   // 40 respuestas de 2 s (de ayer: las de hoy ya cumplirían el día)
   await page.evaluate(() => import('/js/comun.js').then(({ S }) => { const now = Date.now() - 864e5; S.events = Array.from({ length: 40 }, (_, i) => ({ ms: 2000, t: now - i * 1000, grade: 3 })); }));
   expect(await page.evaluate(() => import('/js/pantallas/estudio.js').then(m => m.shortInfo().secs))).toBe(10);
@@ -78,10 +78,9 @@ async function newExam(page, name, days) {
 }
 const need = async page => Number(/≈ (\d+)/.exec(await page.locator('#sheetBody .ex-tip').textContent())[1]);
 
-test('examen nuevo: «solo repasos» la última semana solo a más de 21 días; dentro de esa semana no se activa; la hoja cuenta los días libres', async ({ page }) => {
+test('examen nuevo: «solo repasos» la última semana solo a más de 21 días; dentro de esa semana no se activa; la hoja cuenta los días libres', async ({ page, seed }) => {
+  await seed({ builtin: [JA, TR] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
-  await addBuiltinDeck(page, TR);
   await openPlan(page);
   const ja = await deckId(page, JA);
   const left = await page.evaluate(async id => { const { S } = await import('/js/comun.js'); return [...S.cards.values()].filter(c => c.deck_id === id && !S.progress.get(c.id)).length; }, ja);
@@ -111,9 +110,9 @@ test('examen nuevo: «solo repasos» la última semana solo a más de 21 días; 
   await expect(page.locator('[data-pl="exam-last"]')).toBeDisabled();
 });
 
-test('«Cómo arreglarlo»: con la última semana activada a mano ofrece que sigan entrando nuevas, y nunca un arreglo que no mejora', async ({ page }) => {
+test('«Cómo arreglarlo»: con la última semana activada a mano ofrece que sigan entrando nuevas, y nunca un arreglo que no mejora', async ({ page, seed }) => {
+  await seed({ builtin: [JA] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
   const ja = await deckId(page, JA);
   await page.evaluate(async id => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
@@ -135,9 +134,9 @@ test('«Cómo arreglarlo»: con la última semana activada a mano ofrece que sig
   expect(await page.evaluate(id => import('/js/comun.js').then(({ S }) => S.prefs.plan.nodes[id].lastWeek), ja)).toBe(false);
 });
 
-test('«Hagamos tu plan»: recta final del 25 % (entre 2 y 7 días), los minutos cambian las nuevas y nunca propone no llegar', async ({ page }) => {
+test('«Hagamos tu plan»: recta final del 25 % (entre 2 y 7 días), los minutos cambian las nuevas y nunca propone no llegar', async ({ page, seed }) => {
+  await seed({ builtin: [JA] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
   const ja = await deckId(page, JA);
   const [t, ex] = [await dayIn(page, 0), await dayIn(page, 8)];
   await page.evaluate(async ([id, ex]) => { const { S } = await import('/js/comun.js'); S.prefs.plan.nodes[id] = { exam: ex, lastWeek: false, after: 'reviews' }; }, [ja, ex]);
@@ -160,10 +159,10 @@ test('«Hagamos tu plan»: recta final del 25 % (entre 2 y 7 días), los minutos
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.newPerDay))).toBe(b);
 });
 
-test('móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se puede tocar', async ({ page }, info) => {
+test('móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se puede tocar', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'movil', 'la tira es del móvil');
+  await seed({ builtin: [JA] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     const d = [...S.decks.values()][0], t = dayKey();
@@ -177,9 +176,9 @@ test('móvil: en la tira de etapas, una etapa de 1 día mide al menos 28 px y se
   await expect(page.locator('#stName')).toHaveValue('Un día');
 });
 
-test('Plan › Hoy toca: dice el porqué de las nuevas de hoy («Hoy 20 nuevas: tienes 90 min») y nunca pasa del doble', async ({ page }) => {
+test('Plan › Hoy toca: dice el porqué de las nuevas de hoy («Hoy 20 nuevas: tienes 90 min») y nunca pasa del doble', async ({ page, seed }) => {
+  await seed({ builtin: [JA] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
   await page.evaluate(async () => {
     const { S } = await import('/js/comun.js'); const { WEEK, weekdayOf, dayKey } = await import('/js/plan.js');
     S.newPerDay = 10;

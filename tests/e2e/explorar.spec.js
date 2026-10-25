@@ -1,10 +1,10 @@
 // Explorar: «La tienes» y «tú tienes N», vista previa por nota, mensajes cuando no hay nada, filtros por
 // objetivo, el tema destacado («Añadir y empezar») y añadir una lista con «+»
-import { test, expect, openApp, nav, addBuiltinDeck } from './fixtures.js';
+import { test, expect, openApp, nav } from './fixtures.js';
 
-test('las listas que ya tienes dicen «La tienes» y «N preguntas · tú tienes M»; su hoja no dice «Se copiará…»', async ({ page }) => {
+test('las listas que ya tienes dicen «La tienes» y «N preguntas · tú tienes M»; su hoja no dice «Se copiará…»', async ({ page, seed }) => {
+  await seed({ builtin: ['Alemán · A2'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
   await nav(page, 'Explorar');
   const card = page.locator('#main [data-builtin="aleman-a2.json"]');
   await expect(card.locator('.go')).toHaveText('La tienes');

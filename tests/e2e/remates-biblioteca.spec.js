@@ -1,9 +1,13 @@
 // Remates de Biblioteca: mover a una carpeta nueva, carpeta vacía, hojas con título a mano, textos, nombre al pegar y colores
-import { test, expect, openApp, nav, createDeck, deckMenu, addBasicCards } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage, nav, deckMenu } from './fixtures.js';
 
-test('«Mover a otra carpeta» › «+ Carpeta nueva»: la lista se mueve a la carpeta que se crea; vacía no ofrece estudiar', async ({ page }) => {
+// Lo mismo para casi todas: así se construye una sola vez por proceso
+const CAPITALES = { decks: [{ name: 'Capitales', cards: [['Francia', 'París'], ['Italia', 'Roma']] }], pages: [{ md: '# Tema 1\n' }] };
+
+test('«Mover a otra carpeta» › «+ Carpeta nueva»: la lista se mueve a la carpeta que se crea; vacía no ofrece estudiar', async ({ page, seed }) => {
+  await seed(CAPITALES);
   await openApp(page);
-  await createDeck(page, 'Capitales');
+  await openDeck(page, 'Capitales');
   await deckMenu(page, '[data-act="move-deck"]');
   await expect(page.locator('#sheetBody h2.sheet-hand')).toContainText('Mover');
   await expect(page.locator('#sheetBody .movelist')).toContainText('Sueltos');
@@ -46,10 +50,9 @@ test('pegar una lista nueva: título a mano, «desde una tabla», su nombre ante
   await expect(page.getByRole('heading', { level: 1, name: 'Capitales de Europa' })).toBeVisible();
 });
 
-test('buscar en Biblioteca también dentro de las preguntas; abre la pregunta', async ({ page }) => {
+test('buscar en Biblioteca también dentro de las preguntas; abre la pregunta', async ({ page, seed }) => {
+  await seed(CAPITALES);
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París'], ['Italia', 'Roma']]);
   await nav(page, 'Biblioteca');
   await page.locator('#libSearch').fill('parís');
   await expect(page.locator('#main .lib-q')).toHaveCount(1);
@@ -59,10 +62,10 @@ test('buscar en Biblioteca también dentro de las preguntas; abre la pregunta', 
   await expect(page.locator('#fld-a')).toHaveValue('París');
 });
 
-test('lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Sacar del archivo»; y «Borrar» con un apunte', async ({ page }) => {
+test('lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Sacar del archivo»; y «Borrar» con un apunte', async ({ page, seed }) => {
+  await seed(CAPITALES);
   await openApp(page);
-  await createDeck(page, 'Capitales');
-  await addBasicCards(page, [['Francia', 'París']]);
+  await openDeck(page, 'Capitales');
   await deckMenu(page, '[data-act="archive-deck"]');
   await expect(page.locator('.dk-head')).toContainText('Archivada');
   await expect(page.locator('.dk-head .dk-study')).toHaveCount(0);
@@ -70,9 +73,7 @@ test('lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Saca
   await page.locator('.dk-head [data-act="archive-deck"]').click();
   await expect(page.locator('.dk-head .dk-study')).toBeVisible();
 
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-page"]').first().click();
-  await page.locator('#pgTitle').fill('Tema 1');
+  await openPage(page, 'Tema 1');
   await page.locator('[data-act="page-menu"]').click();
   await expect(page.locator('#sheetBody')).toContainText('Borrar apunte');
   await page.locator('#sheetBody [data-act="ask-delete-page"]').click();
@@ -81,14 +82,9 @@ test('lista archivada: sin «para hoy» ni «Estudiar», con «Archivada · Saca
   await expect(page.locator('#sheetBody [data-act="delete-page"]')).toHaveText('Borrar');
 });
 
-test('«Nombre (A-Z)» mezcla apuntes y listas; el filtro de etiqueta incluye las listas con preguntas que la llevan', async ({ page }) => {
+test('«Nombre (A-Z)» mezcla apuntes y listas; el filtro de etiqueta incluye las listas con preguntas que la llevan', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Botánica', cards: [['Rosa', 'Rosaceae']] }, { name: 'Zoología' }], pages: [{ md: '# Mitosis\n' }] });
   await openApp(page);
-  await createDeck(page, 'Botánica');
-  await addBasicCards(page, [['Rosa', 'Rosaceae']]);
-  await createDeck(page, 'Zoología');
-  await nav(page, 'Biblioteca');
-  await page.locator('#main [data-act="new-page"]').first().click();
-  await page.locator('#pgTitle').fill('Mitosis');
   await nav(page, 'Biblioteca');
   await page.locator('#libSort').selectOption('name');
   await expect(page.locator('#main .ltiles .ltile .lt-name, #main .ltiles .ltile b').first()).toBeVisible();

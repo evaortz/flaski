@@ -1,9 +1,10 @@
 // Preguntas de entender: «Explícalo con tus palabras» y «¿Qué pasaría si…?», y el paso de las básicas de ejemplo a su tipo
-import { test, expect, openApp, createDeck, newCard } from './fixtures.js';
+import { test, expect, openApp, openDeck, newCard } from './fixtures.js';
 
-async function create(page, typeId, fill) {
+async function create(page, seed, typeId, fill) {
+  await seed({ decks: [{ name: 'Macro' }] });
   await openApp(page);
-  await createDeck(page, 'Macro');
+  await openDeck(page, 'Macro');
   await newCard(page);
   await page.locator('[data-act="pick-type"]').click();
   await page.locator(`[data-pick-type="${typeId}"]`).click();
@@ -14,8 +15,8 @@ async function create(page, typeId, fill) {
   await page.locator('#main [data-start]').first().click();
 }
 
-test('Explícalo: escribes, se marcan las ideas que salen (sin tildes, plural…) y se propone el botón', async ({ page }) => {
-  await create(page, 'explain', { q: '¿Por qué subir los tipos ayuda a bajar la inflación?', k: 'Encarece el crédito\nBaja la inversión y el consumo\nCae la demanda agregada' });
+test('Explícalo: escribes, se marcan las ideas que salen (sin tildes, plural…) y se propone el botón', async ({ page, seed }) => {
+  await create(page, seed, 'explain', { q: '¿Por qué subir los tipos ayuda a bajar la inflación?', k: 'Encarece el crédito\nBaja la inversión y el consumo\nCae la demanda agregada' });
   await expect(page.locator('.ent-chip')).toHaveText('Explícalo con tus palabras');
   await expect(page.locator('[data-ex-mode]')).toContainText(['Escribir', 'Pensarlo']);
   await page.locator('[data-ex-mode="write"]').click();
@@ -36,8 +37,8 @@ test('Explícalo: escribes, se marcan las ideas que salen (sin tildes, plural…
   await expect(page.locator('.ent-done .ent-pill')).toHaveText(['Lo sabrías explicar']);
 });
 
-test('¿Qué pasaría si…?: ↑ = ↓ en cada efecto, «Comprobar» marca bien y mal', async ({ page }) => {
-  await create(page, 'whatif', { s: 'El BCE sube los tipos 0,5 puntos.', e: 'Inversión: baja\nAhorro: sube', k: 'Pedir prestado sale más caro' });
+test('¿Qué pasaría si…?: ↑ = ↓ en cada efecto, «Comprobar» marca bien y mal', async ({ page, seed }) => {
+  await create(page, seed, 'whatif', { s: 'El BCE sube los tipos 0,5 puntos.', e: 'Inversión: baja\nAhorro: sube', k: 'Pedir prestado sale más caro' });
   await expect(page.locator('.ent-chip')).toHaveText('¿Qué pasaría si…?');
   await expect(page.locator('.wi-row .wi-name')).toHaveText(['Inversión', 'Ahorro']);
   await page.locator('[data-wi="0:down"]').click();
@@ -73,8 +74,8 @@ test('las básicas del tema de ejemplo pasan a «Explícalo» sin perder el prog
   expect(await read()).toEqual(want);
 });
 
-test('Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color de la tanda sobre blanco', async ({ page }) => {
-  await create(page, 'explain', { q: '¿Por qué sube el paro?', k: 'Cae la demanda' });
+test('Explícalo: el modo elegido (Escribir, Pensarlo) se lee: texto del color de la tanda sobre blanco', async ({ page, seed }) => {
+  await create(page, seed, 'explain', { q: '¿Por qué sube el paro?', k: 'Cae la demanda' });
   for (const m of ['write', 'think']) {
     const b = page.locator(`[data-ex-mode="${m}"]`);
     await b.click();

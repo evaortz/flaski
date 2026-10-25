@@ -1,16 +1,14 @@
 // Capturas del editor de apuntes para revisar el diseño (solo con SHOT=carpeta)
-import { test, openApp, nav, createDeck, pasteNotes } from './fixtures.js';
+import { test, openApp, openPage } from './fixtures.js';
 
 const NOTES = '# Política monetaria\n\n## Por qué suben los tipos\n\nCuando la inflación sube demasiado, el BCE sube los **tipos de interés**. Pedir dinero prestado sale más caro y eso enfría la economía.\n\n## La cadena\n\n- Tipos de interés ↑ → el crédito sale más caro\n- → bajan la inversión y el consumo a crédito\n- → cae la **demanda agregada**\n\n## El gráfico\n\nAl subir los tipos, la demanda agregada pasa de DA a DA′.';
 
-test('capturas del editor @ambos', async ({ page }, info) => {
+test('capturas del editor @ambos', async ({ page, seed }, info) => {
   test.skip(!process.env.SHOT, 'solo para revisar el diseño');
   const shot = name => page.screenshot({ path: `${process.env.SHOT}/${name}-${info.project.name}.png` });
+  await seed({ decks: [{ name: 'Tema 4 · Política monetaria' }], pages: [{ md: NOTES, deck: 'Tema 4 · Política monetaria' }] });
   await openApp(page);
-  await createDeck(page, 'Tema 4 · Política monetaria');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, NOTES);
-  await page.locator('#pgDeck').selectOption({ label: 'Tema 4 · Política monetaria' });
+  await openPage(page, 'Política monetaria');
   const blocks = page.locator('#pgBlocks .nb');
   // Una pregunta en «Por qué suben…» y otra en «La cadena»
   for (const [i, w] of [[1, 'BCE'], [3, 'crédito']]) {

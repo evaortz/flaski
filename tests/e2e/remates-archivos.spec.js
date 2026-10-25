@@ -1,12 +1,11 @@
 // Remates de archivos: aviso tras restaurar una copia, Markdown con «#» y «##», página web con los colores y letras de
 // Flaski, y «Destacado» sin emoji en el menú de bloques
 import { readFile } from 'node:fs/promises';
-import { test, expect, openApp, nav, createDeck, addBasicCards, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openPage, nav } from './fixtures.js';
 
-test('tras restaurar una copia, al recargar dice cuánto ha entrado (o que ya lo tenías todo)', async ({ page }) => {
+test('tras restaurar una copia, al recargar dice cuánto ha entrado (o que ya lo tenías todo)', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Copia', cards: [['su', 'agua'], ['ekmek', 'pan']] }] });
   await openApp(page);
-  await createDeck(page, 'Copia');
-  await addBasicCards(page, [['su', 'agua'], ['ekmek', 'pan']]);
   await nav(page, 'Perfil');
   await page.locator('[data-nav="settings"]').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-act="backup"]').click()]);
@@ -39,10 +38,10 @@ test('Markdown: el título con «#» y los apartados con «##»; la página web 
   expect(out.html).not.toContain('#37352F');
 });
 
-test('menú de bloques: «Destacado» con el icono de la app, sin emoji', async ({ page }) => {
+test('menú de bloques: «Destacado» con el icono de la app, sin emoji', async ({ page, seed }) => {
+  await seed({ pages: [{ md: '# Tema\n\nTexto.' }] });
   await openApp(page);
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Tema\n\nTexto.');
+  await openPage(page, 'Tema');
   await page.locator('#pgBlocks .nb').first().locator('.nb-text').click();
   await page.locator('[data-block-input]').fill('/');
   await page.locator('[data-block-input]').press('End');

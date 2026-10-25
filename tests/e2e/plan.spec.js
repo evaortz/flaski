@@ -1,12 +1,11 @@
 // Plan de estudio: qué estudias (Pausa · Repasar · Poco · Normal · Mucho), tu semana y días especiales,
 // hoy toca, exámenes, etapas con su orden de temas, «cuando no llegas» y la primera vez
-import { test, expect, openApp, nav, addBuiltinDeck, startTanda } from './fixtures.js';
+import { test, expect, openApp, nav, startTanda } from './fixtures.js';
 
 const JA = 'Japonés · Demo de Flaski', TR = 'Turco · Armonía vocálica';
-async function twoDecks(page) {
+async function twoDecks(page, seed) {
+  await seed({ builtin: [JA, TR] });
   await openApp(page);
-  await addBuiltinDeck(page, JA);
-  await addBuiltinDeck(page, TR);
 }
 async function openPlan(page) {
   await nav(page, 'Perfil');
@@ -25,8 +24,8 @@ const perDay = async (page, name) => Number(/≈ (\d+) nueva/.exec(await row(pag
 const dayIn = (page, n) => page.evaluate(async n => { const { dayKey, addDays } = await import('/js/plan.js'); return addDays(dayKey(), n); }, n);
 const deckId = (page, name) => page.evaluate(n => import('/js/comun.js').then(({ S }) => [...S.decks.values()].find(d => d.name === n).id), name);
 
-test('pausa: sale de lo de hoy y de las tandas de «Todo», y se recuerda', async ({ page }) => {
-  await twoDecks(page);
+test('pausa: sale de lo de hoy y de las tandas de «Todo», y se recuerda', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   await openPlan(page);
   await setLevel(page, JA, 'Pausa');
   await expect(row(page, JA).locator('.pill')).toHaveText('Pausa');
@@ -44,8 +43,8 @@ test('pausa: sale de lo de hoy y de las tandas de «Todo», y se recuerda', asyn
   await expect(row(page, JA).locator('.pill')).toHaveText('Pausa');
 });
 
-test('«Repasar»: esa lista ya no da nuevas; Mucho y Poco reparten 4 a 1', async ({ page }) => {
-  await twoDecks(page);
+test('«Repasar»: esa lista ya no da nuevas; Mucho y Poco reparten 4 a 1', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   await openPlan(page);
   expect(await perDay(page, JA) + await perDay(page, TR)).toBe(15);
   await setLevel(page, TR, 'Repasar');
@@ -60,8 +59,8 @@ test('«Repasar»: esa lista ya no da nuevas; Mucho y Poco reparten 4 a 1', asyn
   expect(Object.values(nodes).map(n => n.weight).sort()).toEqual([0.5, 2]);
 });
 
-test('tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial manda y se puede borrar', async ({ page }) => {
-  await twoDecks(page);
+test('tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial manda y se puede borrar', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   await openPlan(page);
   const wd = await page.evaluate(async () => { const { WEEK, weekdayOf, dayKey } = await import('/js/plan.js'); return WEEK[weekdayOf(dayKey())]; });
   await page.locator(`[data-pl="day"][data-day="${wd}"]`).click();
@@ -96,8 +95,8 @@ test('tu semana: los minutos de hoy son los de la tanda de Hoy; un día especial
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.prefs.plan.special.map(s => !!s.deleted)))).toEqual([true]);
 });
 
-test('nuevo examen en 2 días: «Así no llegas» con tres arreglos; aplicar, deshacer y quitar el examen', async ({ page }) => {
-  await twoDecks(page);
+test('nuevo examen en 2 días: «Así no llegas» con tres arreglos; aplicar, deshacer y quitar el examen', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   await openPlan(page);
   await page.locator('.pl-sec [data-pl="exam-new"]').last().click();
   await page.locator('#sheetBody .ex-opt', { hasText: JA }).click();
@@ -125,8 +124,8 @@ test('nuevo examen en 2 días: «Así no llegas» con tres arreglos; aplicar, de
   await expect(page.locator('.pe-row')).toHaveCount(0);
 });
 
-test('etapa vigente: cambiar el foco en el Plan cambia la etapa, no el de siempre, y lo dice', async ({ page }) => {
-  await twoDecks(page);
+test('etapa vigente: cambiar el foco en el Plan cambia la etapa, no el de siempre, y lo dice', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   await openPlan(page);
   await page.locator('.pl-sec [data-pl="stage-new"]').click();
   await page.locator('#stName').fill('Solo turco');
@@ -146,8 +145,8 @@ test('etapa vigente: cambiar el foco en el Plan cambia la etapa, no el de siempr
   expect(p.stages[0].levels[ja]).toBe('low');
 });
 
-test('orden de temas: las nuevas salen solo de la primera lista sin terminar de la carpeta', async ({ page }) => {
-  await twoDecks(page);
+test('orden de temas: las nuevas salen solo de la primera lista sin terminar de la carpeta', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   const q = await page.evaluate(async ([JA, TR]) => {
     const { S, newPlan } = await import('/js/comun.js'); const { dayKey, addDays } = await import('/js/plan.js');
     S.folders.set('fx', { id: 'fx', name: 'Idiomas', parent_id: null });
@@ -163,8 +162,8 @@ test('orden de temas: las nuevas salen solo de la primera lista sin terminar de 
   expect(q.after).toEqual([0, 15]);
 });
 
-test('primera vez: con exámenes y sin etapas, «Hagamos tu plan» propone etapas y «Me vale» las guarda', async ({ page }) => {
-  await twoDecks(page);
+test('primera vez: con exámenes y sin etapas, «Hagamos tu plan» propone etapas y «Me vale» las guarda', async ({ page, seed }) => {
+  await twoDecks(page, seed);
   const [a, b] = [await dayIn(page, 30), await dayIn(page, 90)];
   await page.evaluate(async ([JA, TR, a, b]) => {
     const { S } = await import('/js/comun.js');
@@ -187,9 +186,9 @@ test('primera vez: con exámenes y sin etapas, «Hagamos tu plan» propone etapa
   expect(await page.evaluate(() => import('/js/comun.js').then(({ S }) => S.prefs.plan.week.mon))).toBe(60);
 });
 
-test('ordenador: tocar una barra abre su panel con el nivel @ambos', async ({ page }, info) => {
+test('ordenador: tocar una barra abre su panel con el nivel @ambos', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'escritorio', 'el planificador es del ordenador');
-  await twoDecks(page);
+  await twoDecks(page, seed);
   await openPlan(page);
   await page.locator('.tp-bar').first().click();
   await expect(page.locator('#ptPanel')).toBeVisible();

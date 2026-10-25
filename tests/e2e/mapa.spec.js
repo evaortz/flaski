@@ -1,5 +1,5 @@
 // Mapa de lo que sabes: casillas, ficha, «Se te resisten», elegir varias y practicar
-import { test, expect, openApp, nav, createDeck, addBasicCards, addBuiltinDeck, pasteNotes } from './fixtures.js';
+import { test, expect, openApp, openDeck, openPage } from './fixtures.js';
 
 const QS = [
   ['¿Qué dice el art. 14 CE?', 'Igualdad ante la ley'],
@@ -7,16 +7,16 @@ const QS = [
   ['¿Qué regula el art. 140?', 'La autonomía de los municipios'],
   ['¿Capital de España?', 'Madrid'],
 ];
-async function deckWithArticles(page) {
+async function deckWithArticles(page, seed) {
+  await seed({ decks: [{ name: 'Constitución', cards: QS }] });
   await openApp(page);
-  await createDeck(page, 'Constitución');
-  await addBasicCards(page, QS);
+  await openDeck(page, 'Constitución');
   await page.locator('[data-map-view="map"]').click();
 }
 const cell = (page, label) => page.locator('.mp-cells [data-map-cell]', { hasText: new RegExp(`^${label}$`) });
 
-test('lista: casillas por artículo, «art. 14» no es «art. 140» y «Sin artículo»', async ({ page }) => {
-  await deckWithArticles(page);
+test('lista: casillas por artículo, «art. 14» no es «art. 140» y «Sin artículo»', async ({ page, seed }) => {
+  await deckWithArticles(page, seed);
   await expect(page.locator('.mp-sh h3')).toHaveText(['Constitución', 'Artículos', 'Sin artículo']);
   await expect(page.locator('.mp-sec').nth(0).locator('.mp-cell')).toHaveText(['14', '15']);
   await expect(page.locator('.mp-sec').nth(1).locator('.mp-cell')).toHaveText(['140']);
@@ -28,8 +28,8 @@ test('lista: casillas por artículo, «art. 14» no es «art. 140» y «Sin art�
   await expect(page.locator('#cardRows')).toBeVisible();
 });
 
-test('practicar una casilla desde su ficha: se resiste si fallas 3 de las 5 últimas', async ({ page }) => {
-  await deckWithArticles(page);
+test('practicar una casilla desde su ficha: se resiste si fallas 3 de las 5 últimas', async ({ page, seed }) => {
+  await deckWithArticles(page, seed);
   await cell(page, '14').click();
   const go = page.locator('[data-act="map-practice"]').first();
   await expect(go).toBeVisible();
@@ -55,8 +55,8 @@ test('practicar una casilla desde su ficha: se resiste si fallas 3 de las 5 últ
   await expect(page.locator('.mp-ficha .mp-q')).toHaveCount(2);
 });
 
-test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo con esas @ambos', async ({ page }, info) => {
-  await deckWithArticles(page);
+test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo con esas @ambos', async ({ page, seed }, info) => {
+  await deckWithArticles(page, seed);
   if (info.project.name === 'movil') {
     // Mantener pulsado
     await cell(page, '14').scrollIntoViewIfNeeded();
@@ -76,12 +76,10 @@ test('elegir varias: barra con preguntas y minutos, y «Hacer una tanda» solo c
   await expect(page.locator('.studybar .left')).toContainText('de 3');
 });
 
-test('apunte con apartados: «Apunte | Mapa» con una casilla por apartado @ambos', async ({ page }) => {
+test('apunte con apartados: «Apunte | Mapa» con una casilla por apartado @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Finanzas' }], pages: [{ md: '# Finanzas\n\n## Valor temporal\n\nUn euro hoy vale más que mañana.\n\n## TIR\n\nLa tasa que hace el VAN cero.', deck: 'Finanzas' }] });
   await openApp(page);
-  await createDeck(page, 'Finanzas');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# Finanzas\n\n## Valor temporal\n\nUn euro hoy vale más que mañana.\n\n## TIR\n\nLa tasa que hace el VAN cero.');
-  await page.locator('#pgDeck').selectOption({ label: 'Finanzas' });
+  await openPage(page, 'Finanzas');
   // Dos preguntas, cada una desde su párrafo
   for (const w of ['euro', 'tasa']) {
     await page.locator('#pgBlocks .nb', { hasText: w }).locator('.nb-text').click();
@@ -107,9 +105,10 @@ test('apunte con apartados: «Apunte | Mapa» con una casilla por apartado @ambo
   await expect(page.locator('#pgBlocks .nb.flash')).toContainText('tasa');
 });
 
-test('notas con varias plantillas: la casilla es la palabra (no der/die/das) y van por secciones', async ({ page }) => {
+test('notas con varias plantillas: la casilla es la palabra (no der/die/das) y van por secciones', async ({ page, seed }) => {
+  await seed({ builtin: ['Alemán · A2'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Alemán · A2');
+  await openDeck(page, 'Alemán · A2');
   await page.locator('[data-map-view="map"]').click();
   const labels = await page.locator('.mp-cells .mp-cell').allTextContents();
   expect(labels.length).toBeGreaterThan(10);
@@ -117,9 +116,10 @@ test('notas con varias plantillas: la casilla es la palabra (no der/die/das) y v
   await expect(page.locator('.mp-sh h3').first()).toHaveText('Palabras');
 });
 
-test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por separado @ambos', async ({ page }) => {
+test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por separado @ambos', async ({ page, seed }) => {
+  await seed({ builtin: ['Japonés · Demo'] });
   await openApp(page);
-  await addBuiltinDeck(page, 'Japonés · Demo');
+  await openDeck(page, 'Japonés · Demo');
   await page.locator('[data-map-view="map"]').click();
   const labels = await page.locator('.mp-cells .mp-cell').allTextContents();
   expect(labels.filter(l => /[[\]]| \/ /.test(l))).toEqual([]);
@@ -134,12 +134,10 @@ test('japonés: sin furigana en crudo ni « / », y Kanji, Palabras y Frases por
   await expect(page.locator('.mp-qt b').filter({ hasText: /\S \S/ }).filter({ hasNotText: '·' })).toHaveCount(0);
 });
 
-test('artículo del título del apartado, «Sin artículo» solo con lo demás y cabecera con los artículos @ambos', async ({ page }) => {
+test('artículo del título del apartado, «Sin artículo» solo con lo demás y cabecera con los artículos @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Constitución' }], pages: [{ md: '# La Constitución\n\n## Artículo 1 · El Estado y sus valores\n\nEspaña es un Estado social.\n\n## Artículo 3 · Las lenguas\n\nEl castellano es la lengua oficial.\n\n## Datos clave\n\nSe aprobó en 1978.', deck: 'Constitución' }] });
   await openApp(page);
-  await createDeck(page, 'Constitución');
-  await nav(page, 'Biblioteca');
-  await pasteNotes(page, '# La Constitución\n\n## Artículo 1 · El Estado y sus valores\n\nEspaña es un Estado social.\n\n## Artículo 3 · Las lenguas\n\nEl castellano es la lengua oficial.\n\n## Datos clave\n\nSe aprobó en 1978.');
-  await page.locator('#pgDeck').selectOption({ label: 'Constitución' });
+  await openPage(page, 'La Constitución');
   for (const w of ['social', 'castellano', '1978']) {
     await page.locator('#pgBlocks .nb', { hasText: w }).locator('.nb-text').click();
     await page.locator('[data-block-input]').evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, w);
@@ -165,16 +163,16 @@ test('artículo del título del apartado, «Sin artículo» solo con lo demás y
   expect(h).toBeLessThan(70);
 });
 
-test('una casilla por pregunta: la cabecera dice solo «N preguntas»', async ({ page }) => {
+test('una casilla por pregunta: la cabecera dice solo «N preguntas»', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Sueltas', cards: [['uno', '1'], ['dos', '2'], ['tres', '3']] }] });
   await openApp(page);
-  await createDeck(page, 'Sueltas');
-  await addBasicCards(page, [['uno', '1'], ['dos', '2'], ['tres', '3']]);
+  await openDeck(page, 'Sueltas');
   await page.locator('[data-map-view="map"]').click();
   await expect(page.locator('.mp-meta')).toHaveText('3 preguntas');
 });
 
-test('«Practicar lo que se resiste» cuenta las preguntas que salen y al salir vuelve al mapa', async ({ page }) => {
-  await deckWithArticles(page);
+test('«Practicar lo que se resiste» cuenta las preguntas que salen y al salir vuelve al mapa', async ({ page, seed }) => {
+  await deckWithArticles(page, seed);
   await cell(page, '14').click();
   await page.locator('[data-act="map-practice"]').first().click();
   for (let i = 0; await page.locator('[data-act="reveal"]').count(); i++) {
@@ -191,10 +189,10 @@ test('«Practicar lo que se resiste» cuenta las preguntas que salen y al salir 
   await expect(page.locator('[data-map-view="map"]')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('«Se te resisten»: la casilla a la izquierda y el significado a la derecha, sin repetir @ambos', async ({ page }) => {
+test('«Se te resisten»: la casilla a la izquierda y el significado a la derecha, sin repetir @ambos', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Kanji sueltos', cards: [['水[みず]', 'agua'], ['火', 'fuego']] }] });
   await openApp(page);
-  await createDeck(page, 'Kanji sueltos');
-  await addBasicCards(page, [['水[みず]', 'agua'], ['火', 'fuego']]);
+  await openDeck(page, 'Kanji sueltos');
   await page.locator('[data-map-view="map"]').click();
   await cell(page, '水').click();
   if (await page.locator('#mpPop').count()) await page.locator('#mpPop [data-act="map-practice"]').click();
@@ -208,17 +206,17 @@ test('«Se te resisten»: la casilla a la izquierda y el significado a la derech
   await expect(page.locator('.mp-rrow .mp-rt b')).toHaveText(['agua']);
 });
 
-test('escritorio: el mapa ocupa todo el ancho de la columna @ambos', async ({ page }, info) => {
+test('escritorio: el mapa ocupa todo el ancho de la columna @ambos', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'escritorio', 'solo en el ordenador');
   await page.setViewportSize({ width: 1310, height: 900 });
-  await deckWithArticles(page);
+  await deckWithArticles(page, seed);
   const [w, col] = await page.locator('.mp-main').evaluate(el => [el.getBoundingClientRect().width, el.closest('.mp-c').getBoundingClientRect().width]);
   expect(w).toBeGreaterThan(col - 2);
 });
 
-test('móvil: la barra de lo elegido cabe en una línea («· N min» fuera)', async ({ page }, info) => {
+test('móvil: la barra de lo elegido cabe en una línea («· N min» fuera)', async ({ page, seed }, info) => {
   test.skip(info.project.name !== 'movil', 'solo en el móvil');
-  await deckWithArticles(page);
+  await deckWithArticles(page, seed);
   await cell(page, '14').scrollIntoViewIfNeeded();
   const box = await cell(page, '14').boundingBox();
   await page.mouse.move(box.x + 10, box.y + 10);
@@ -228,13 +226,11 @@ test('móvil: la barra de lo elegido cabe en una línea («· N min» fuera)', a
   expect(h).toBeLessThan(24);
 });
 
-test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque @ambos', async ({ page }) => {
-  await openApp(page);
-  await createDeck(page, 'Constitución');
-  await nav(page, 'Biblioteca');
+test('artículo: subtítulo del apartado que lo nombra y «Ver en el apunte» lleva hasta el bloque @ambos', async ({ page, seed }) => {
   const filler = Array.from({ length: 40 }, (_, i) => `Párrafo de relleno número ${i + 1}.`).join('\n\n');
-  await pasteNotes(page, `# La Constitución\n\n## Artículo 1 · El Estado y sus valores\n\nEspaña es un Estado social (ver art. 6).\n\n${filler}\n\n## Artículo 6 · Los partidos políticos\n\nLos partidos expresan el pluralismo.`);
-  await page.locator('#pgDeck').selectOption({ label: 'Constitución' });
+  await seed({ decks: [{ name: 'Constitución' }], pages: [{ md: `# La Constitución\n\n## Artículo 1 · El Estado y sus valores\n\nEspaña es un Estado social (ver art. 6).\n\n${filler}\n\n## Artículo 6 · Los partidos políticos\n\nLos partidos expresan el pluralismo.`, deck: 'Constitución' }] });
+  await openApp(page);
+  await openPage(page, 'La Constitución');
   for (const w of ['social', 'pluralismo']) {
     await page.locator('#pgBlocks .nb', { hasText: w }).locator('.nb-text').click();
     await page.locator('[data-block-input]').evaluate((t, w) => { const k = t.value.indexOf(w); t.setSelectionRange(k, k + w.length); document.dispatchEvent(new Event('selectionchange')); }, w);
