@@ -181,3 +181,17 @@ test('«Otras formas» en la tarjeta: el tipo y «Usar esta» arriba, la pregunt
   await expect(alt.locator('.sug-alt-opts')).toHaveText(/31 de octubre de 1978/);
   await expect(alt.locator('.sug-alt-opts')).toContainText(' · ');
 });
+
+test('en oscuro y con el acento «tinta», el botón de la acción también se ilumina con su anillo (la franja, del fondo de la hoja)', async ({ page, seed }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.addInitScript(() => { try { localStorage.setItem('flaski-look', JSON.stringify({ theme: 'dark', accent: 'tinta' })); } catch {} });
+  await openDeck(page, seed);
+  await drag(page, 160, 0, false);
+  await expect.poll(() => page.locator('.sd-add').evaluate(el => getComputedStyle(el).boxShadow)).toMatch(/0px 0px 0px 3px, rgb\(142, 227, 181\) 0px 0px 0px 6px/);
+  // La franja entre el botón y el anillo es el fondo de la hoja (no el color de la tanda, que en algunos navegadores no se resuelve)
+  const [gap, bg] = await page.evaluate(() => {
+    const p = document.createElement('i'); document.querySelector('.sd-wrap').append(p);
+    p.style.color = 'var(--sw-gap)'; const g = getComputedStyle(p).color; p.style.color = 'var(--bg)'; const b = getComputedStyle(p).color; p.remove(); return [g, b];
+  });
+  expect(gap).toBe(bg);
+});
