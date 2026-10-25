@@ -17,7 +17,8 @@ export default defineConfig({
     locale: 'es-ES',
     timezoneId: 'Europe/Madrid',
     serviceWorkers: 'block',     // que el service worker no sirva versiones guardadas
-    trace: 'retain-on-failure',
+    // Grabar la traza cuesta en todas las pruebas (un 24 % más): solo con TRACE=1, para depurar un fallo
+    trace: process.env.TRACE ? 'retain-on-failure' : 'off',
   },
   projects: [
     { name: 'movil', use: { ...devices['Pixel 7'], browserName: 'chromium' } },
