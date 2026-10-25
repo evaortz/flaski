@@ -45,10 +45,10 @@ test('deslizar: a la derecha añade, a la izquierda descarta (con «Deshacer») 
   // Derecha, sin soltar: «Añadir» en menta con texto oscuro; el botón de añadir crece con su anillo y los demás se apagan
   await drag(page, 160, 0, false);
   expect(await pill(page)).toMatchObject({ text: '"Añadir"', bg: 'rgb(142, 227, 181)', color: 'rgb(22, 24, 58)', opacity: 1 });
-  const add = await page.locator('.sd-add').evaluate(el => [getComputedStyle(el).transform, getComputedStyle(el).boxShadow]);
-  expect(add[0]).not.toBe('none');
-  expect(add[1]).toContain('rgb(142, 227, 181)');
-  expect(Number(await page.locator('.sd-drop').evaluate(el => getComputedStyle(el).opacity))).toBeLessThan(0.5);
+  // (el botón cambia con una transición corta: se espera a que acabe)
+  await expect.poll(() => page.locator('.sd-add').evaluate(el => getComputedStyle(el).boxShadow)).toContain('rgb(142, 227, 181)');
+  expect(await page.locator('.sd-add').evaluate(el => getComputedStyle(el).transform)).not.toBe('none');
+  await expect.poll(() => page.locator('.sd-drop').evaluate(el => Number(getComputedStyle(el).opacity))).toBeLessThan(0.5);
   // Ni marco ni capa de color en la tarjeta
   expect(await page.locator('[data-sd-card]').evaluate(el => getComputedStyle(el).boxShadow)).not.toContain('142, 227, 181');
   await page.locator('[data-sd-card]').evaluate(el => el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', isPrimary: true, pointerId: 5, clientX: 400, clientY: 200 })));
