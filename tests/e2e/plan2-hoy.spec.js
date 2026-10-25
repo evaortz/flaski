@@ -164,3 +164,21 @@ test('sin el interruptor, Hoy sigue como antes', async ({ page, seed }) => {
   await expect(page.locator('#main .hero-num')).toBeVisible();
   await expect(page.locator('#main .p2-tanda')).toHaveCount(0);
 });
+
+// El estado de 945 preguntas (dos exámenes, 16 ene y 20 mar) el lunes 26 oct a las 10:00
+async function open945(page) {
+  const { readFileSync } = await import('node:fs');
+  const data = readFileSync(new URL('../fixtures/oposicion-945.json', import.meta.url), 'utf8');
+  await page.clock.install({ time: new Date('2026-10-26T10:00:00') });
+  await page.addInitScript(d => { if (!sessionStorage.getItem('p945')) { sessionStorage.setItem('p945', '1'); localStorage.setItem('flaski-local-v1', d); } }, data);
+  await openApp(page);
+}
+
+test('945 preguntas, lunes 26 oct: la tanda de Hoy y «Cuánto te cunde» dan las mismas cifras', async ({ page }) => {
+  await open945(page);
+  await expect(page.locator('#main .p2-tanda')).toContainText('Tu tanda de hoy · 45 min');
+  await expect(page.locator('#main .p2-legend')).toHaveText('16 nuevas de Auxiliar4 de Inglés100 repasos');
+  await toPlan(page);
+  await page.locator('#main [data-p2="time"]').click();
+  await expect(page.locator('#p2Cunde')).toContainText('Un día de 45 min da para unos 100 repasos y 20 nuevas.');
+});

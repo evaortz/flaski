@@ -52,8 +52,9 @@ export function renderPlanTime() {
 // «Cuánto te cunde»: tu ritmo y lo que da de sí un día normal, con las cuentas del motor
 function cundeHTML() {
   const fc = forecastNow(), { secNew, secReview, measured } = fc.pace;
-  const w = weekOf(), on = WEEK.map(d => Number(w[d]) || 0).filter(Boolean).sort((a, b) => a - b), typical = on[Math.floor(on.length / 2)] || 0;
-  const day = fc.days.find((d, i) => i > 0 && d.minutes === typical) || fc.days.find((d, i) => i > 0 && d.minutes > 0);
+  // El mismo cálculo que la tanda de Hoy: el día de hoy si tiene minutos (lo que da el día entero, como al empezarlo);
+  // si es libre, el próximo con tiempo
+  const day = fc.days.find(d => d.minutes > 0);
   return `<div class="section-h"><h2 id="h-p2cunde">Cuánto te cunde</h2><span class="sec-note">${measured ? 'medido' : 'por ahora, lo normal'}</span></div>
     <div class="p2-cunde"><div class="p2-tiles"><div><b class="hand">${secNew} s</b><span>una pregunta nueva, con sus primeras vueltas</span></div><div><b class="hand">${secReview} s</b><span>un repaso</span></div></div>
     <p id="p2Cunde">${measured ? 'Medido en tus últimas 300 respuestas.' : 'Aún tienes pocas respuestas: hasta tener 50, cuenta 40 s y 12 s.'}${day ? ` Un día de ${day.minutes} min da para unos <b>${plural(day.reviews, 'repaso', 'repasos')} y ${plural(day.new, 'nueva', 'nuevas')}</b>.` : ''} Cuando hay más repasos, entran menos nuevas: el plan ya lo tiene en cuenta.</p></div>`;
