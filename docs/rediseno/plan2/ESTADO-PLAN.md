@@ -225,3 +225,9 @@ el código de antes y pasa con el arreglo.
    un solo examen, nunca se retrasan (ni empeora su veredicto); los demás, como mucho **2 días** (lo peor
    encontrado en unos 6.600 exámenes de 3.600 casos con tres semillas). Se prueba sumando minutos a todos los días
    y a un día suelto.
+9. **Cambio de hora: confirmado, y es código que ya existía** (`js/srs.js:87` y `js/fsrs.js:89`, no del plan nuevo).
+   `startOfDay(now) + iv × 24 h` el 25 oct (día de 25 h) da las 23:00 del día anterior al que toca, y la pregunta
+   salía un día antes; el 28 mar (23 h) da la 01:00. Ahora se suman días de calendario (medianoche del día que
+   toca), en los dos algoritmos. Prueba: `unit/cambio-hora.test.js` con `TZ=Europe/Madrid` el 24 y el 25 oct y el 27 y
+   el 28 mar (antes fallaban las 8). Las preguntas ya guardadas con la hora de antes no se tocan: como mucho salen
+   unas horas antes una vez. El motor del plan ya contaba los días con `Math.round`, así que no le afectaba.

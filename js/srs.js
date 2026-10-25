@@ -84,7 +84,9 @@ export function schedule(prev, g, now = Date.now(), algo = DEFAULT_ALGO) {
   iv = Math.min(iv, A.maxDays || 365);
   s.reps += 1;
   s.interval = iv;
-  s.due = startOfDay(now) + iv * DAY;
+  // N días de calendario (no N × 24 h): el día del cambio de hora dura 23 o 25 h y quedaría a las 23:00 de la víspera
+  const dueDay = new Date(startOfDay(now)); dueDay.setDate(dueDay.getDate() + iv);
+  s.due = dueDay.getTime();
   return s;
 }
 
