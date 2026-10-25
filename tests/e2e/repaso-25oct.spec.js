@@ -38,3 +38,13 @@ test('apunte: la insignia de preguntas no toca el texto y «Estudiar N» del apa
   const [h, s] = await Promise.all([box(page, '#pgBlocks .nb-h2 .nb-text'), box(page, '#pgBlocks .nb-sec')]);
   expect(h.right).toBeLessThanOrEqual(s.left);
 });
+
+test('Estadísticas: el botón atrás y el título en la misma fila, como en Ajustes y el Plan @ambos', async ({ page }) => {
+  await openApp(page);
+  await nav(page, 'Perfil');
+  await page.locator('#main .pr-stats').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Estadísticas' })).toBeVisible();
+  const [back, h1] = await Promise.all([box(page, '#main .back-round'), box(page, '#main .st-head h1')]);
+  expect(back.right).toBeLessThan(h1.left);
+  expect(Math.abs(back.mid - h1.mid)).toBeLessThanOrEqual(6);
+});
