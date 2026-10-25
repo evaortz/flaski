@@ -177,11 +177,14 @@
 .p2-step:last-child::before{display:none}
 .p2-dot{flex:none;position:relative;z-index:1;width:26px;height:26px;margin-top:2px;border-radius:50%;border:2px solid var(--line-strong);background:var(--bg);display:grid;place-items:center}
 .p2-step.p2-done .p2-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.p2-step.p2-now .p2-dot{border:3px solid var(--accent);box-shadow:inset 0 0 0 4px var(--bg);background:var(--accent)}
+.p2-step.p2-cur .p2-dot{border:3px solid var(--accent);box-shadow:inset 0 0 0 4px var(--bg);background:var(--accent)}
 .p2-step.rep .p2-dot{border-radius:8px;border:0;background:var(--tag-green-bg);color:var(--tag-green)}
 .p2-step.p2-last .p2-dot{border-radius:8px;border:0;background:var(--tag-yellow-bg);color:var(--tag-yellow)}
 .p2-step.p2-off b{text-decoration:line-through;color:var(--muted)}
 .p2-step.p2-done b{color:var(--muted)}
+/* El tema de ahora: sin caja, su título subrayado a mano (como «Lo que flojea» en Hoy, en amarillo) */
+.p2-step.p2-cur .p2-step-b b{align-self:flex-start;text-decoration:underline;text-decoration-color:#F5C542;text-decoration-thickness:3px;text-underline-offset:7px;text-decoration-skip-ink:none}
+.p2-step.p2-cur .p2-step-b small{margin-top:6px}
 .p2-step-b{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex:1;min-width:0;padding:0;border:0;background:none;color:var(--fg);text-align:left;font:inherit}
 button.p2-step-b{cursor:pointer}
 .p2-step-b > span{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -360,3 +363,15 @@ button.p2-step-b{cursor:pointer}
 .p2-wd{border:0}
 .p2-wk h2,.p2-wsim h2,.p2-week h1,.p2-wbehind h2,.p2-wok h2{font-family:var(--font-hand);font-weight:400}
 .p2-wk .link{display:inline;margin:0;padding:0;min-height:0;font:inherit;vertical-align:baseline}
+/* Reparto: «Cambiar el reparto» y, dentro de «Sin examen», el peso de cada carpeta o lista */
+.p2-rep-link{align-self:flex-start;margin:4px 0 0;min-height:44px}
+.p2-now-free .p2-rep-link{margin:6px 0 0 4px}
+.p2-freelv{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.p2-freelv li{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.p2-freelv li > span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.p2-freelv li b{overflow-wrap:anywhere}
+.p2-freelv li small{font-size:13px;color:var(--muted)}
+/* Poco · Normal · Mucho siempre en una fila, a lo ancho (la .seg general es de dos columnas) */
+.p2-freelv .seg{display:grid;grid-template-columns:repeat(3,1fr);max-width:360px;width:100%}
+.p2-freelv .seg .seg-b{padding:0 6px}
+.p2-freelv li.p2-focus{background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:12px;padding:10px}

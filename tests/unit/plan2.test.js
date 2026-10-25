@@ -600,3 +600,24 @@ test('D5 · Refuerza este tema: más repasos de lo que te cuesta durante 7 días
   // Y pasada la semana, el refuerzo ya no suma
   assert.ok(boosted.slice(7).every((d, i) => d.reviewsDue <= plain[i + 7].reviewsDue + Math.ceil(weak / 2) / 2));
 });
+
+test('«Sin examen» con su porcentaje: un 30 % del día va a lo que no tiene examen, y la carpeta con Mucho se lleva el doble que la de Normal', () => {
+  const S = invent({ seed: 7, n: 900, nExams: 1, seen: 0, days: [120] });
+  for (const [f, name] of [['fa', 'Lecturas'], ['fb', 'Idiomas']]) {
+    S.folders.push({ id: f, parent_id: null, name, position: 9 });
+    for (let k = 0; k < 2; k++) S.decks.push({ id: `${f}-${k}`, folder_id: f, name: `${name} ${k + 1}` });
+  }
+  for (let i = 0; i < 400; i++) S.cards.push({ id: `x${i}`, deck_id: `${i % 2 ? 'fa' : 'fb'}-${(i >> 1) % 2}` });
+  S.plan.caps.newPerDay = 20;
+  S.plan.split = { mode: 'manual', shares: { ex0: 70, free: 30 }, freeLevels: { 'f:fa': 'high' } };
+  const fc = forecast(S), by = fc.days[1].newBy;
+  const sum = pre => Object.entries(by).filter(([id]) => id.startsWith(pre)).reduce((a, [, n]) => a + n, 0);
+  assert.equal(fc.days[1].new, 20);
+  assert.equal(sum('fa') + sum('fb'), 6);              // el 30 % de 20
+  assert.equal(sum('fa'), 4); assert.equal(sum('fb'), 2);   // Mucho 4 : Normal 2
+  assert.equal(sum('d0-'), 14);
+  // Sin niveles, a partes iguales
+  S.plan.split.freeLevels = {};
+  const even = forecast(S).days[1].newBy, s2 = pre => Object.entries(even).filter(([id]) => id.startsWith(pre)).reduce((a, [, n]) => a + n, 0);
+  assert.equal(s2('fa'), 3); assert.equal(s2('fb'), 3);
+});

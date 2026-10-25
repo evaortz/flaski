@@ -89,6 +89,7 @@ function freeSheetHTML(key) {
     <p class="muted">No tiene examen. ${key.startsWith('f:') ? `Sus ${plural(topics, 'lista', 'listas')} entran` : 'Entra'} en el reparto según lo que elijas.</p>
     <div class="seg" role="group" aria-label="Cómo entra en tu plan">${FREE.map(([v, l]) => `<button type="button" class="seg-b" data-p2="free-set" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</div>
     <p class="muted small">${cur === 'active' ? 'Nuevas y repasos.' : cur === 'reviews' ? 'No entran nuevas, pero repasas lo que ya sabes.' : 'No entra nada: ni nuevas ni repasos.'}</p>
+    ${cur === 'active' ? `<button class="ghost big" data-p2="sheet-more-time">${icon('chart-pie', { size: 20 })} Darle más tiempo</button>` : ''}
     <button class="primary big" data-p2="sheet-new-exam">${icon('calendar', { size: 20 })} Ponerle examen</button></div>`);
 }
 
@@ -99,6 +100,12 @@ export function sheetClick(b) {
     case 'sheet-exam': return go('exam', { examId: ds.id });
     case 'sheet-exam-del': S.examId = ds.id; return import('./plan-examen.js').then(m => m.removeExam());
     case 'sheet-new-exam': return import('./plan-nuevo.js').then(m => m.newExamSheet({ key }));
+    // «Darle más tiempo»: el reparto de las nuevas, con la carpeta o lista de «Sin examen» donde está esta ya marcada
+    case 'sheet-more-time': return import('./plan-reparto.js').then(m => {
+      const under = (d, fid) => { for (let f = d?.folder_id, n = 0; f && n < 50; f = S.folders.get(f)?.parent_id, n++) if (f === fid) return true; return false; };
+      const it = m.freeItems().find(f => f.key === key || f.ids.includes(key) || (key.startsWith('f:') && f.ids.some(id => under(S.decks.get(id), key.slice(2)))));
+      m.repartoSheet({ freeKey: it?.key || key });
+    });
     case 'free-set': closeSheet(); return commitPlan(`${nameOf(key)}: ${FREE.find(f => f[0] === ds.v)[1].toLowerCase()}`, p => { p.free = { ...(p.free || {}) }; if (ds.v === 'active') delete p.free[key]; else p.free[key] = ds.v; });
     case 'topic-known': closeSheet(); return commitPlan(`${topicTag(deckName(T.deckId))}: ya lo sabes`, p => { const x = p.exams.find(e => e.id === T.examId); x.known = [...new Set([...(x.known || []), T.deckId])]; });
     case 'topic-unknown': closeSheet(); return commitPlan(`${topicTag(deckName(T.deckId))}: otra vez como nuevo`, p => { const x = p.exams.find(e => e.id === T.examId); x.known = (x.known || []).filter(id => id !== T.deckId); });

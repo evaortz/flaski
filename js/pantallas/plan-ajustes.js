@@ -23,10 +23,10 @@ const inExam = key => liveExams(plan2()).some(e => (key.startsWith('f:') ? (e.sc
 
 export function renderPlanSettings() {
   const p = plan2(), exams = forecastNow().exams.filter(e => e.date && e.date >= dayKey());
-  const sh = [...sharesToday(stateNow(), 1)].filter(([id]) => id !== 'free');
+  const sh = [...sharesToday(stateNow(), 1)].filter(([id, v]) => id !== 'free' || v > 0);
   const par = liveExams(p).filter(e => e.mode === 'parallel');
   const split = !exams.length ? 'Sin exámenes: las nuevas se reparten entre tus listas.'
-    : p.split?.mode === 'manual' ? sh.map(([id, v]) => `${shortName(liveExams(p).find(e => e.id === id)?.name)} ${v} %`).join(' · ') : `Automático: ${exams.length > 1 ? `el más cercano, el ${p.split?.drip === false ? 100 : 80} %` : 'todo a tu examen'}`;
+    : p.split?.mode === 'manual' ? sh.map(([id, v]) => `${id === 'free' ? 'Sin examen' : shortName(liveExams(p).find(e => e.id === id)?.name)} ${v} %`).join(' · ') : `Automático: ${exams.length > 1 ? `el más cercano, el ${p.split?.drip === false ? 100 : 80} %` : 'todo a tu examen'}`;
   const parTxt = par.map(e => `dentro de ${shortName(e.name)}, ${plural(Object.keys(e.shares || {}).length, 'tema', 'temas')} a la vez`).join(' · ');
   const free = topItems().filter(it => !inExam(it.key));
   const stages = sortStages(p.stages), cap = newCap(stateNow());

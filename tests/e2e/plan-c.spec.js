@@ -67,6 +67,8 @@ test('reparto 70/30 entre dos exámenes, viendo «Así quedaría»; y se deshace
   await page.locator('#main [data-p2="set-reparto"]').click();
   await expect(page.locator('#sheetBody h2')).toHaveText('Cómo repartes las nuevas');
   await page.locator('#sheetBody [data-p2="rep-split"][data-v="manual"]').click();
+  // (Japonés no tiene examen: «Sin examen» a 0, y después Oposición a 70)
+  await page.locator('#sheetBody input[data-group="split"][data-id="free"]').fill('0');
   await page.locator('#sheetBody input[data-group="split"][data-id="ex-Oposición"]').fill('70');
   await expect(page.locator('#sheetBody [data-group="split"] [data-out="ex-Oposición"]')).toHaveText('70 %');
   await expect(page.locator('#sheetBody [data-group="split"] [data-out="ex-Idiomas"]')).toHaveText('30 %');

@@ -100,9 +100,12 @@ function nowHTML(fc, exams) {
   if (free) {
     const when = day.day === k ? 'hoy' : `el ${WEEK_NAMES[weekdayOf(day.day)]}`, one = free.decks.length === 1;
     const head = `<span class="p2-now-tag hand">${one ? esc(topicTag(free.name)) : icon('layers', { size: 22 })}</span><span><b>${esc(free.name)}</b><small>sin examen · ${plural(free.n, 'nueva', 'nuevas')} ${when}</small></span>`;
+    const change = '<button type="button" class="link small p2-rep-link" data-p2="reparto">Cambiar el reparto</button>';
     cards.push(one ? `<div class="p2-now">${head}</div>`
-      : `<details class="p2-now p2-now-free"><summary>${head}${icon('chevron-down', { size: 18 })}</summary><ul class="p2-now-list">${free.decks.map(([id, n]) => `<li><span>${esc(deckName(id))}</span><b>${plural(n, 'nueva', 'nuevas')}</b></li>`).join('')}</ul></details>`);
+      : `<details class="p2-now p2-now-free"><summary>${head}${icon('chevron-down', { size: 18 })}</summary><ul class="p2-now-list">${free.decks.map(([id, n]) => `<li><span>${esc(deckName(id))}</span><b>${plural(n, 'nueva', 'nuevas')}</b></li>`).join('')}</ul>${change}</details>`);
   }
+  // (cuánto se lleva cada examen y lo que no tiene examen)
+  if (cards.length) cards.push('<button type="button" class="link small p2-rep-link" data-p2="reparto">Cambiar el reparto</button>');
   return cards.join('') || '<p class="muted">Ahora no toca nada nuevo: solo repasos.</p>';
 }
 

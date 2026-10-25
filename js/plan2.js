@@ -292,6 +292,27 @@ function groupsOn(P, i, rem) {
   if (free.length) gs.push({ id: 'free', x: null, ids: free, avail: free.reduce((a, id) => a + rem.get(id), 0) });
   return gs;
 }
+// Dentro de lo que no tiene examen: cada carpeta o lista de arriba (o la que tenga su nivel) con su peso, Poco 1 :
+// Normal 2 : Mucho 4 (split.freeLevels; por defecto, Normal); dentro de cada una, a partes iguales
+export function freeKeyOf(deck, folders, levels) {
+  const hit = climbKey(levels, deck, folders);
+  if (hit) return hit;
+  let top = deck.folder_id, seen = new Set();
+  while (top && folders.has(top) && folders.get(top).parent_id && !seen.has(top)) { seen.add(top); top = folders.get(top).parent_id; }
+  return { key: top && folders.has(top) ? 'f:' + top : deck.id, v: 'normal' };
+}
+function withinFree(P, n, ids, left) {
+  const levels = P.plan.split?.freeLevels || {}, groups = new Map();
+  for (const id of ids) {
+    const d = P.ctx.decks.get(id);
+    const { key, v } = d ? freeKeyOf(d, P.ctx.folders, levels) : { key: id, v: 'normal' };
+    if (!groups.has(key)) groups.set(key, { w: STAGE_W[v] || STAGE_W.normal, ids: [] });
+    groups.get(key).ids.push(id);
+  }
+  const got = spread(n, new Map([...groups].map(([k, G]) => [k, G.w])), new Map([...groups].map(([k, G]) => [k, G.ids.reduce((a, id) => a + left.get(id), 0)]))), out = new Map();
+  for (const [k, q] of got) for (const [id, m] of spread(q, new Map(groups.get(k).ids.map(id => [id, 1])), new Map(groups.get(k).ids.map(id => [id, left.get(id)])))) add(out, id, m);
+  return out;
+}
 // Los porcentajes del reparto entre exámenes un día (enteros que suman 100)
 function splitShares(P, gs) {
   const split = P.plan.split || {}, sh = new Map();
@@ -423,7 +444,7 @@ export function forecast(state, opts = {}) {
         const take = (g, n) => {
           if (n <= 0) return 0;
           const ids = new Set(g.ids.filter(id => left.get(id) > 0));
-          const part = g.x ? withinExam(g.x, n, i, left, P, ids) : spread(n, new Map([...ids].map(id => [id, 1])), new Map([...ids].map(id => [id, left.get(id)])));
+          const part = g.x ? withinExam(g.x, n, i, left, P, ids) : withinFree(P, n, ids, left);
           let k = 0;
           for (const [id, q] of part) { add(got, id, q); left.set(id, left.get(id) - q); k += q; }
           return k;
