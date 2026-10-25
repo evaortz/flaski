@@ -48,3 +48,17 @@ test('Estadísticas: el botón atrás y el título en la misma fila, como en Aju
   expect(back.right).toBeLessThan(h1.left);
   expect(Math.abs(back.mid - h1.mid)).toBeLessThanOrEqual(6);
 });
+
+test('Plan en oscuro: el tramo de los repasos de «Hoy toca» va en el fondo suave oscuro, no casi blanco', async ({ page, seed }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await seed({ decks: [{ name: 'A', cards: Array.from({ length: 30 }, (_, i) => [`p${i}`, 'r']) }, { name: 'B', cards: [['x', 'y']], studied: { due: 0 } }] });
+  await openApp(page);
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-nav="plan"]').click();
+  // Luminosidad del color (canvas: cualquier formato de color → rgb)
+  const lum = await page.locator('.ht-bar .ht-r').evaluate(el => {
+    const g = document.createElement('canvas').getContext('2d'); g.fillStyle = getComputedStyle(el).backgroundColor; g.fillRect(0, 0, 1, 1);
+    const [r, gr, b] = g.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * gr + 0.0722 * b) / 255;
+  });
+  expect(lum).toBeLessThan(0.25);
+});
