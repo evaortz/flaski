@@ -48,6 +48,9 @@ test('la papelera: desde Biblioteca, la fila con lo que queda, recuperar (con «
   await expect(page.locator('#main .hero, #main .hoy-done, #main h1').first()).toBeVisible();
   await nav(page, 'Biblioteca');
   await expect(page.locator('.lib-trash')).toHaveText(/Papelera · 1/);
+  // A 375 px la píldora cabe (nada se sale de lado)
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.locator('.lib-trash').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Papelera' })).toBeVisible();
   const row = page.locator('.tr-row');

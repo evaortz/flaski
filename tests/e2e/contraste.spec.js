@@ -26,6 +26,9 @@ test('cabecera de la tanda: «pregunta N de M» con 4,5:1 o más con los 9 acent
     await page.evaluate(async ([accent, theme]) => { const { S } = await import('/js/comun.js'); const { applyLook } = await import('/js/prefs.js'); S.prefs.look.accent = accent; S.prefs.look.theme = theme; applyLook(S.prefs.look); }, [accent, theme]);
     const r = await left.evaluate(ratio);
     if (r < 4.5) bad.push(`${accent} (${theme}): ${r.toFixed(2)}`);
+    // y el pie de atajos («Espacio: mostrar · 1-4: valorar»), en el ordenador
+    const keys = page.locator('.studyfoot .keys:visible');
+    if (await keys.count()) { const k = await keys.evaluate(ratio); if (k < 4.5) bad.push(`atajos ${accent} (${theme}): ${k.toFixed(2)}`); }
   }
   expect(bad).toEqual([]);
 });

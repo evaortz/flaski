@@ -141,7 +141,8 @@ function whenText(e, long = true) {
   if (!long) return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : new Date(e.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '');
   return d <= 0 ? `borrad${fem(e) ? 'a' : 'o'} hoy` : d === 1 ? `borrad${fem(e) ? 'a' : 'o'} ayer` : `hace ${d} días`;
 }
-const kindIcon = e => (e.kind === 'deck' ? deckIcon(e.item) : e.kind === 'folder' ? folderIcon(e.item) : icon('file-text', { size: 20 }));
+// El icono del tipo (lista, carpeta o apunte), como en los botones de Biblioteca
+const kindIcon = e => icon(e.kind === 'deck' ? 'copy' : e.kind === 'folder' ? 'folder' : 'file-text', { size: 20 });
 // Para Ajustes › Datos: «3 cosas · lo más antiguo se borra del todo en 3 días»
 export function trashSummary() {
   const list = trashList();
