@@ -753,13 +753,14 @@ document.addEventListener('click', async e => {
       const ids = S.deleting || [];
       const gone = ids.map(id => [S.cards.get(id), S.progress.get(id)]).filter(([c]) => c);
       for (const id of ids) { S.cards.delete(id); S.progress.delete(id); }
-      const queue = S.session ? [...S.session.queue] : null;
+      const ses = S.session, queue = ses ? [...ses.queue] : null;
       if (S.session) { S.session.queue = S.session.queue.filter(x => !ids.includes(x)); S.session.st = null; S.session.revealed = false; }
       const later = laterDelete(ids);
       toastAction(ids.length > 1 ? 'Preguntas borradas' : 'Pregunta borrada', 'Deshacer', () => {
         later.cancel();
         for (const [c, p] of gone) { S.cards.set(c.id, c); if (p) S.progress.set(c.id, p); }
-        if (S.session && queue) { S.session.queue = queue; S.session.st = null; S.session.revealed = false; }
+        // Solo vuelve lo borrado (delante): lo valorado mientras tanto no se repite
+        if (S.session && S.session === ses) { const back = queue.filter(x => ids.includes(x) && !ses.queue.includes(x)); if (back.length) { ses.queue = [...back, ...ses.queue]; ses.st = null; ses.revealed = false; } }
         render();
       }, { icon: 'trash-2' });
       closeSheet(); return render();

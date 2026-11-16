@@ -33,3 +33,25 @@ test('salir a otra sección desde un apunte deja la tanda: ya no sale «Volver a
   await expect(page.locator('#main .nb-text').first()).toBeVisible();
   await expect(page.locator('[data-act="back-study"]')).toHaveCount(0);
 });
+
+// Borrar una pregunta en plena tanda y valorar la siguiente antes de «Deshacer»: se volvía a la cola de antes y la
+// recién valorada salía otra vez (contaba dos veces). Ahora solo vuelve la borrada
+test('tanda: borrar una pregunta, valorar la siguiente y «Deshacer» devuelve solo la borrada', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: [['bir', 'uno'], ['iki', 'dos'], ['üç', 'tres']] }] });
+  await openApp(page);
+  await openDeck(page, 'Turco');
+  await page.locator('#main [data-start]').first().click();
+  const queue = () => page.evaluate(() => import('/js/comun.js').then(({ S }) => S.session.queue.map(id => S.cards.get(id)?.front)));
+  const [first, second, third] = await queue();
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
+  await page.getByRole('button', { name: 'Editar pregunta' }).click();
+  const more = page.locator('[data-act="ed-extra"]');
+  if (await more.isVisible()) await more.click();
+  await page.locator('[data-act="ask-delete-card"]:visible').first().click();
+  await page.locator('#sheetBody [data-act="delete-card"]').click();
+  await expect(page.locator('.card .front')).toContainText(second);
+  await page.getByRole('button', { name: 'Ver respuesta' }).click();
+  await page.locator('[data-grade="3"]').click();
+  await page.locator('#toast .ta-btn').click();
+  expect(await queue()).toEqual([first, third]);
+});
