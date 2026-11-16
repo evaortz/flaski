@@ -29,9 +29,21 @@ export function commitPlan(what, change, { quiet = false, redraw = true } = {}) 
 export function undoTo(at) {
   const p = editPlan2(), i = (p.history || []).findIndex(h => h.at === at);
   if (i < 0) return;
-  const { before } = p.history[i], now = Date.now();
+  const { before } = p.history[i], now = Date.now(), cur = snapshot(p);
   for (const k of Object.keys(p)) if (!['history', 'v1'].includes(k)) delete p[k];
   Object.assign(p, clone(before));
+  // Para que deshacer también valga en los demás dispositivos (al juntar se unen por id): lo que el cambio añadió
+  // queda marcado como borrado, y lo que vuelve, con la fecha de ahora (gana a una marca de borrado de antes)
+  const gone = (now_, then_, stamp) => {
+    const ids = new Set((then_ || []).map(x => x?.id));
+    return (now_ || []).filter(x => x?.id && !x.deleted && !ids.has(x.id)).map(x => ({ id: x.id, deleted: true, ...stamp }));
+  };
+  p.exams = [...(p.exams || []), ...gone(cur.exams, before.exams, { updated_at: now })];
+  if (p.time || cur.time?.special?.length) {
+    p.time ||= { week: null, special: [], today: null, pause: null };
+    p.time.special = [...(p.time.special || []).map(s => ({ ...s, at: now })), ...gone(cur.time?.special, p.time.special, { at: now })];
+  }
+  if (Array.isArray(p.stages) || cur.stages?.length) p.stages = [...(p.stages || []).map(s => ({ ...s, at: now })), ...gone(cur.stages, p.stages, { at: now })];
   for (const e of p.exams || []) e.updated_at = now;
   if (p.time) p.time.updated_at = now;
   if (p.split) p.split.updated_at = now;

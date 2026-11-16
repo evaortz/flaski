@@ -10,7 +10,7 @@ import { htmlToBlocks } from '../paste.js';
 import { writeZip, safeName, pageImageIds, markdownWithImages, pageToHTML, pageToDocx, docxToHTML, csvToBlocks, markdownToPage, plainTextToPage, boldLabels, titleFromFile, markdownImageRefs } from '../notesio.js';
 import { readZip } from '../zip.js';
 import { BLOCK_MENU, NO_TEXT, olNumbers, newBlock, blockId, hiddenIds, unitOf, moveBlocks, canIndent, INDENTABLE, MAX_INDENT, findAll, backlinks, renameLinks, sameTitle, imageBlock, textToBlocks, splitBlock, mergeBlocks, clozeFrom, pageTitle, parseTable, isTableText, tableToMarkdown, cardsStatus, sectionIds, STATUS, pageToMarkdown } from '../pages.js';
-import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, fail, tagChips, algo } from '../comun.js';
+import { $, main, S, esc, imgHTML, fmt, plain, cardList, toast, toastAction, fail, tagChips, algo } from '../comun.js';
 import { saveSnapSoon } from './cuenta.js';
 import { deckLang, todayQueue } from './estudio.js';
 import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
@@ -35,6 +35,26 @@ export function pageCards(pageId) {
 // Fila para guardar. Las etiquetas solo si la base de datos ya tiene esa columna (si no, se perdería el guardado)
 export const pageRow = p => ({ id: p.id, owner: S.uid, title: p.title || '', icon: p.icon || '', deck_id: p.deck_id || null, folder_id: p.folder_id || null, blocks: p.blocks,
   ...(S.pageTagsMissing ? {} : { tags: p.tags || [] }) });
+// Guardar un apunte sobre la versión de la nube que se tiene (synced_at): si otro dispositivo lo cambió entretanto,
+// lo de aquí va a una copia (ver savePage en backend-supabase.js y el aviso de abajo)
+export function sendPage(p) {
+  const row = { ...pageRow(p), updated_at: p.updated_at || new Date().toISOString() };
+  const bases = p.synced_at === undefined ? undefined : [p.synced_at];
+  p.synced_at = row.updated_at;
+  return api.savePage(row, bases);
+}
+addEventListener('flaski-page-conflict', e => {
+  const { theirs, copy } = e.detail || {};
+  if (!theirs?.id || !copy?.id) return;
+  const mine = S.pages.get(theirs.id), blocks = b => (Array.isArray(b) ? b : []);
+  // La copia, con lo último de aquí (lo que aún esperaba para guardarse va a ella)
+  const c = { ...copy, blocks: blocks(mine?.blocks ?? copy.blocks), synced_at: copy.updated_at };
+  S.pages.set(c.id, c);
+  if (pageTimers.has(theirs.id)) { clearTimeout(pageTimers.get(theirs.id)); pageTimers.delete(theirs.id); sendPage(c).catch(() => {}); }
+  S.pages.set(theirs.id, { ...theirs, blocks: blocks(theirs.blocks), synced_at: theirs.updated_at });
+  if (['page', 'notes', 'library'].includes(S.view)) go(S.view, {});
+  toastAction('Este apunte cambió en otro dispositivo. Lo de aquí está en una copia', 'Ver la copia', () => go('page', { pageId: c.id }), { ms: 10000 });
+});
 const pageTimers = new Map();
 // Guarda una página poco después del último cambio (se escribe mucho seguido)
 export function savePageSoon(p, wait = 700) {
@@ -44,7 +64,7 @@ export function savePageSoon(p, wait = 700) {
   clearTimeout(pageTimers.get(p.id));
   pageTimers.set(p.id, setTimeout(() => {
     pageTimers.delete(p.id);
-    api.savePage(pageRow(p)).then(() => savedState('saved')).catch(e => { savedState('error'); fail(e); });
+    sendPage(p).then(() => savedState('saved')).catch(e => { savedState('error'); fail(e); });
     saveSnapSoon();
   }, wait));
 }
@@ -56,7 +76,7 @@ function savedState(state) {
   el.textContent = state === 'saving' ? 'Guardando…' : state === 'error' ? 'No se ha guardado' : 'Guardado';
 }
 function flushPages() {
-  for (const [id, t] of pageTimers) { clearTimeout(t); pageTimers.delete(id); const p = S.pages.get(id); if (p) api.savePage(pageRow(p)).catch(() => {}); }
+  for (const [id, t] of pageTimers) { clearTimeout(t); pageTimers.delete(id); const p = S.pages.get(id); if (p) sendPage(p).catch(() => {}); }
 }
 export const pagesPending = () => pageTimers.size > 0;
 addEventListener('pagehide', flushPages);

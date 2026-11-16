@@ -189,7 +189,8 @@ function applyData(d) {
   S.cards = new Map(d.cards.map(x => [x.id, x]));
   S.progress = new Map(d.progress.map(r => [r.card_id, api.fromRow(r)]));
   S.log = Object.fromEntries(d.log.map(r => [r.day, r.count]));
-  S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [] }]));
+  // synced_at: la versión de la nube de cada apunte, para saber al guardar si otro dispositivo lo cambió
+  S.pages = new Map((d.pages || []).map(p => [p.id, { ...p, blocks: Array.isArray(p.blocks) ? p.blocks : [], synced_at: p.updated_at ?? null }]));
   S.pagesMissing = !!d.pagesMissing;
   S.pageTagsMissing = !!d.pageTagsMissing;
   splitTrash();   // lo borrado (deleted_at) va a la papelera

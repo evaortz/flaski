@@ -146,3 +146,79 @@ test('con pocas etiquetas no se ofrece quitarlas', async ({ page }) => {
   await expect(page.locator('#sheetBody [data-act="add-preview"]')).toBeVisible();
   await expect(page.locator('#sheetBody .pv-tags')).toHaveCount(0);
 });
+
+/* ---------------- Copiar las instrucciones ---------------- */
+const openPaste = async page => {
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-act="import-menu"]').click();
+  await page.locator('#sheetBody [data-act="paste"]').click();
+};
+
+test.describe('copiar instrucciones', () => {
+  test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
+  test('copia aunque las instrucciones aún no hayan llegado, y lo dice en el botón @ambos', async ({ page }) => {
+    // La red tarda: se toca «Copiar» antes de que llegue FORMATO-IA.md (antes, en Safari, no copiaba nada)
+    let release;
+    const gate = new Promise(r => { release = r; });
+    await page.route('**/FORMATO-IA.md', async route => { await gate; await route.continue(); });
+    await openApp(page);
+    await openPaste(page);
+    const btn = page.locator('#sheetBody [data-act="copy-ai-guide"]');
+    await btn.click();
+    setTimeout(release, 300);
+    await expect(btn).toContainText('Copiadas');
+    await expect(page.locator('#toast')).toContainText('Instrucciones copiadas');
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toContain('"format": "flaski-notes"');
+    expect(copied).toContain('`whatif`');
+    await expect(btn).toContainText('Copiar instrucciones', { timeout: 5000 });
+  });
+
+  test('si el navegador no deja copiar, enseña el texto para copiarlo a mano y se puede volver @ambos', async ({ page }) => {
+    await page.addInitScript(() => {
+      const no = () => Promise.reject(new DOMException('no', 'NotAllowedError'));
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: no, write: no, readText: no } });
+      document.execCommand = () => false;
+    });
+    await openApp(page);
+    await openPaste(page);
+    await page.locator('#pasteText').fill('lo que llevaba pegado');
+    await page.locator('#sheetBody [data-act="copy-ai-guide"]').click();
+    const sheet = page.locator('#sheetBody');
+    await expect(sheet.getByRole('heading', { name: 'Copia las instrucciones' })).toBeVisible();
+    await expect(page.locator('#aiGuideText')).toHaveValue(/flaski-notes/);
+    expect(await page.evaluate(() => { const t = document.getElementById('aiGuideText'); return t.selectionEnd - t.selectionStart; })).toBeGreaterThan(1000);
+    await expect(sheet.locator('[data-act="download-ai-guide"]')).toBeVisible();
+    await sheet.getByRole('button', { name: 'Volver' }).click();
+    await expect(sheet.getByRole('heading', { name: 'Pegar una lista' })).toBeVisible();
+  });
+
+  test('en Ajustes › Datos también copia', async ({ page }) => {
+    await openApp(page);
+    await nav(page, 'Perfil');
+    await page.locator('.pr-row', { hasText: 'Ajustes' }).click();
+    const btn = page.locator('#main [data-act="copy-ai-guide"]');
+    await btn.click();
+    await expect(btn).toContainText('Copiadas');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('flaski-notes');
+  });
+});
+
+/* ---------------- Tipos nuevos y carpeta ---------------- */
+test('una lista con «folder» va a esa carpeta: la que ya tienes o una nueva', async ({ page, seed }) => {
+  await seed({ folders: ['Biología'] });
+  await openApp(page);
+  const notes = [{ type: 'steps', fields: { q: 'Ordena la mitosis', s: ['Profase', 'Metafase', 'Anafase'] } },
+    { type: 'sort', fields: { g: { Vertebrados: ['rana'], Invertebrados: ['pulpo'] } } }];
+  await paste(page, JSON.stringify({ format: 'flaski-notes', version: 1, name: 'La célula', folder: 'biologia', notes }));
+  const sheet = page.locator('#sheetBody');
+  await expect(sheet).toContainText('2 preguntas');
+  await expect(sheet.locator('.pv-folder')).toHaveText(/Va a la carpeta «biologia»$/);
+  await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
+  await expect(page.locator('.crumbs')).toContainText('Biología');
+  await paste(page, JSON.stringify({ format: 'flaski-notes', version: 1, name: 'Ríos', folder: 'Geografía', notes }));
+  await expect(sheet.locator('.pv-folder')).toContainText('(se crea)');
+  await sheet.getByRole('button', { name: 'Añadir a mis listas' }).click();
+  await expect(page.locator('.crumbs')).toContainText('Geografía');
+});

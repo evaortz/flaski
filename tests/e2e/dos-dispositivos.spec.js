@@ -47,3 +47,74 @@ test('ajustes: el móvil con lo de ayer solo sube lo que cambias en él; lo del 
   await expect.poll(() => srv.settings.prefs.look?.accent, { timeout: 10000 }).toBe('teja');
   expect(srv.settings.prefs.study.tandaMin).toBe(20);
 });
+
+// Apuntes: se guardan sobre la versión de la nube que se tiene; si otro dispositivo lo cambió, lo suyo se queda y lo
+// de aquí va a una copia (nada se pierde)
+const PAGE = 'p0000000-0000-4000-8000-000000000001';
+const T0 = '2026-11-15T10:00:00.123456+00:00';
+const pageRowOf = (title, text, updated_at) => ({ id: PAGE, owner: '11111111-1111-4111-8111-111111111111', title, icon: '', deck_id: null, folder_id: null, tags: [], blocks: [{ id: 'b1', type: 'p', text }], created_at: T0, updated_at });
+const editHere = (page, text) => page.evaluate(async ([id, text]) => {
+  const { S } = await import('/js/comun.js'); const { savePageSoon } = await import('/js/pantallas/apuntes.js');
+  const p = S.pages.get(id); p.blocks = [{ ...p.blocks[0], text }]; savePageSoon(p, 0);
+}, [PAGE, text]);
+
+test('apuntes: sin nadie más, cada guardado va sobre el anterior (sin copias)', async ({ page }) => {
+  const srv = await mockCloud(page);
+  srv.tables.pages = [pageRowOf('Tema 1', 'Hola', T0)];
+  await openCloud(page);
+  await editHere(page, 'Hola, móvil');
+  await expect.poll(() => srv.tables.pages[0].blocks[0].text).toBe('Hola, móvil');
+  await editHere(page, 'Hola otra vez');
+  await expect.poll(() => srv.tables.pages[0].blocks[0].text).toBe('Hola otra vez');
+  // Sin red, dos cambios seguidos; al volver, uno solo y sobre la versión buena
+  srv.reachable = false;
+  await editHere(page, 'Sin red 1');
+  await editHere(page, 'Sin red 2');
+  await page.waitForTimeout(300);
+  srv.reachable = true;
+  await page.evaluate(() => import('/js/api.js').then(api => api.offline.flush()));
+  await expect.poll(() => srv.tables.pages[0].blocks[0].text).toBe('Sin red 2');
+  expect(srv.tables.pages).toHaveLength(1);
+});
+
+test('apuntes: si otro dispositivo lo cambió, lo suyo se queda y lo de aquí va a una copia', async ({ page }) => {
+  const srv = await mockCloud(page);
+  srv.tables.pages = [pageRowOf('Tema 1', 'Hola', T0)];
+  await openCloud(page);
+  // En el ordenador lo reescriben
+  srv.tables.pages[0] = pageRowOf('Tema 1', 'Del ordenador', '2026-11-16T09:00:00.000Z');
+  // En el móvil (con lo de ayer) se corrige una errata
+  await editHere(page, 'Hola (errata corregida)');
+  await expect.poll(() => srv.tables.pages.length).toBe(2);
+  const [orig, copy] = srv.tables.pages;
+  expect(orig.blocks[0].text).toBe('Del ordenador');
+  expect(copy.title).toBe('Tema 1 (copia de este dispositivo)');
+  expect(copy.blocks[0].text).toBe('Hola (errata corregida)');
+  await expect(page.locator('#toast')).toContainText('cambió en otro dispositivo');
+  const here = await page.evaluate(() => import('/js/comun.js').then(({ S }) => [...S.pages.values()].map(p => [p.title, p.blocks[0]?.text]).sort()));
+  expect(here).toEqual(expect.arrayContaining([['Tema 1', 'Del ordenador'], ['Tema 1 (copia de este dispositivo)', 'Hola (errata corregida)']]));
+  expect(here).toHaveLength(2);
+});
+
+// Deshacer en el Plan: lo que el cambio añadió (un examen, un día especial) ya estaba en la nube; al juntar se unen
+// por id, así que sin marca de borrado volvía al recargar o en el otro dispositivo
+test('Plan: deshacer «añadir un examen» también lo quita de la nube y no vuelve al recargar', async ({ page }) => {
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await page.evaluate(async () => {
+    const { commitPlan } = await import('/js/pantallas/plan-guardar.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    commitPlan('Examen de Turco', p => {
+      p.exams.push({ id: 'ex-turco', name: 'Turco', scope: { folders: [], decks: ['d0000000-0000-4000-8000-000000000001'], pages: [] }, date: addDays(dayKey(), 30), order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [], lastWeek: false, after: null, retention: 0.9 });
+      p.time.special = [...(p.time.special || []), { id: 'puente', label: 'Puente', from: addDays(dayKey(), 3), to: addDays(dayKey(), 4), minutes: 0, at: Date.now() }];
+    });
+  });
+  const cloudPlan = () => srv.settings?.prefs?.plan;
+  await expect.poll(() => (cloudPlan()?.exams || []).some(e => e.id === 'ex-turco' && !e.deleted), { timeout: 10000 }).toBe(true);
+  await page.locator('#toast .ta-btn').click();
+  await expect.poll(() => (cloudPlan()?.exams || []).find(e => e.id === 'ex-turco')?.deleted, { timeout: 10000 }).toBe(true);
+  expect(cloudPlan().time.special.find(s => s.id === 'puente')?.deleted).toBe(true);
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  const live = await page.evaluate(async () => { const { plan2 } = await import('/js/plan2-app.js'); const p = plan2(); return [(p.exams || []).filter(e => !e.deleted).map(e => e.id), (p.time?.special || []).filter(s => !s.deleted).map(s => s.id)]; });
+  expect(live).toEqual([[], []]);
+});

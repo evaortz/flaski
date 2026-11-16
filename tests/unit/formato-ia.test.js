@@ -32,3 +32,37 @@ test('dropTags: la lista se queda sin etiquetas', () => {
   assert.ok(e.cards.every(c => c.tagNames.length === 0));
   assert.equal(e.cards.length, 2);
 });
+
+test('FORMATO-IA.md: enseña todos los tipos que puede crear una IA (todos menos tapar partes de una imagen)', async () => {
+  const { BUILTIN_TYPES } = await import('../../js/cardtypes.js');
+  for (const t of BUILTIN_TYPES.filter(t => t.id !== 'occlusion')) assert.match(md, new RegExp('\| `' + t.id + '` \|'), t.id);
+  const used = new Set(examples.flatMap(ex => JSON.parse(ex.json).notes.map(n => n.type)));
+  for (const id of ['truefalse', 'number', 'steps', 'sort', 'match', 'clozechoice', 'explain', 'whatif', 'conj']) assert.ok(used.has(id), `falta un ejemplo de ${id}`);
+});
+
+test('campos de varios elementos: listas y objetos se escriben como los espera la app', () => {
+  const d = notesToDeck({ name: 'X', folder: '  Biología ', notes: [
+    { type: 'steps', fields: { q: 'Ordena', s: ['uno', 'dos', 'tres'] } },
+    { type: 'sort', fields: { g: { A: ['a1', 'a2'], B: 'b1, b2' } } },
+    { type: 'sort', fields: { g: [{ name: 'A', items: ['x'] }, ['B', 'y', 'z']] } },
+    { type: 'match', fields: { p: { ev: 'casa', su: 'agua' } } },
+    { type: 'match', fields: { p: [['ev', 'casa'], { a: 'su', b: 'agua' }, 'el = mano'] } },
+    { type: 'explain', fields: { q: '¿Por qué?', k: ['idea 1', 'idea 2'] } },
+    { type: 'whatif', fields: { s: 'Caso', e: { Precio: 'sube', Ventas: 'baja' }, k: ['porque sí'] } },
+    { type: 'truefalse', fields: { s: 'El agua moja', v: true } },
+    { type: 'number', fields: { q: 'Año', a: 1492 } },
+  ] });
+  assert.deepEqual(d.issues.filter(i => i.skipped), []);
+  assert.equal(d.cards.length, 9);
+  const f = d.cards.map(c => c.fields);
+  assert.equal(f[0].s, 'uno\ndos\ntres');
+  assert.equal(f[1].g, 'A: a1, a2\nB: b1, b2');
+  assert.equal(f[2].g, 'A: x\nB: y, z');
+  assert.equal(f[3].p, 'ev = casa\nsu = agua');
+  assert.equal(f[4].p, 'ev = casa\nsu = agua\nel = mano');
+  assert.equal(f[5].k, 'idea 1\nidea 2');
+  assert.equal(f[6].e, 'Precio: sube\nVentas: baja');
+  assert.equal(f[7].v, 'Verdadero');
+  assert.equal(f[8].a, '1492');
+  assert.equal(d.folder, 'Biología');
+});

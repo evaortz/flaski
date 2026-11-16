@@ -82,6 +82,33 @@ export async function mockCloud(page) {
       return json(SOCIAL[fn] ? SOCIAL[fn]() : null);
     }
     const method = req.method();
+    // Apuntes: con sus filtros (id=eq.…, updated_at=in.(…)), para guardar sobre una versión y ver si otro la cambió
+    const match = r => [...u.searchParams].every(([k, v]) => {
+      if (!(k in r)) return true;
+      const eq = /^eq\.(.*)$/.exec(v), inn = /^in\.\((.*)\)$/.exec(v);
+      const same = (a, b) => (k.endsWith('_at') ? +new Date(a) === +new Date(b) : String(a) === String(b));
+      if (eq) return same(r[k], eq[1]);
+      if (inn) return inn[1].split(',').map(x => x.replace(/^"|"$/g, '')).some(x => same(r[k], x));
+      return true;
+    });
+    if (path === 'pages') {
+      srv.tables.pages ||= [];
+      if (srv.failWrite && method !== 'GET' && path === srv.failWrite.path) return json(srv.failWrite.body, srv.failWrite.status || 400);
+      if (method === 'GET') { const rows = srv.tables.pages.filter(match); return (req.headers().accept || '').includes('vnd.pgrst.object') ? json(rows[0] || null) : json(rows); }
+      const body = req.postData() ? req.postDataJSON() : null;
+      srv.writes.push([method, path, body]);
+      let rows = [];
+      if (method === 'POST') for (const b of Array.isArray(body) ? body : [body]) {
+        const i = b.id ? srv.tables.pages.findIndex(x => x.id === b.id) : -1;
+        const r = i >= 0 ? { ...srv.tables.pages[i], ...b } : { id: globalThis.crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...b };
+        if (i >= 0) srv.tables.pages[i] = r; else srv.tables.pages.push(r);
+        rows.push(r);
+      }
+      if (method === 'PATCH') { rows = srv.tables.pages.filter(match); rows.forEach(r => Object.assign(r, body)); }
+      if (method === 'DELETE') srv.tables.pages = srv.tables.pages.filter(r => !match(r));
+      const one = (req.headers().accept || '').includes('vnd.pgrst.object');
+      return (req.headers().prefer || '').includes('return=representation') ? json(one ? rows[0] : rows, method === 'POST' ? 201 : 200) : route.fulfill({ status: method === 'DELETE' ? 204 : 201, body: '' });
+    }
     // srv.failWrite = { path, status, body }: esa escritura falla con ese error de Supabase
     if (srv.failWrite && method !== 'GET' && path === srv.failWrite.path) return json(srv.failWrite.body, srv.failWrite.status || 400);
     if (method === 'GET') {

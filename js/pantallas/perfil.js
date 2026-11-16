@@ -19,7 +19,7 @@ import { drawHeatmap, drawProgress } from './inicio.js';
 import { nativeLang, cardModel, grade } from './estudio.js';
 import { plural, download } from './mazos.js';
 import { AI_GUIDE_BTNS, loadAiGuide } from './explorar.js';
-import { pageRow } from './apuntes.js';
+import { pageRow, sendPage } from './apuntes.js';
 import { openSheet, closeSheet, deckTypes, adoptTypes, deckOptionName } from './editor.js';
 import { forecastNow } from '../plan2-app.js';
 import { dayKey } from '../plan.js';
@@ -597,7 +597,7 @@ async function restoreInto(data) {
   // El mazo de cada apunte restaurado
   for (const [pid, oldDeck] of pageDeck) {
     const p = S.pages.get(pid), deckId = deckMap.get(oldDeck);
-    if (p && deckId) { p.deck_id = deckId; api.savePage(pageRow(p)).catch(() => {}); }
+    if (p && deckId) { p.deck_id = deckId; sendPage(p).catch(() => {}); }
   }
   // Registro diario: el máximo de cada día, para no borrar actividad más reciente que la copia
   try { await api.mergeLog(uid, data.log || []); } catch (e) { rep.failed.push(['Registro diario', errMsg(e)]); }
