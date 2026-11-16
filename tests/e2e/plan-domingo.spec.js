@@ -28,7 +28,7 @@ test('domingo libre: «Tu semana» (vas bien) y el Simulacro de la semana como �
   const wk = page.locator('#main .p2-wk');
   await expect(wk.getByRole('heading', { name: 'Tu semana' })).toBeVisible();
   await expect(wk.locator('.p2-pill')).toHaveText('vas bien');
-  await expect(wk.locator('.p2-wd')).toHaveCount(7);
+  await expect(wk.locator('.p2-wtile')).toHaveCount(7);
   await expect(wk).toContainText(/Acabas Auxiliar el \d+ \w+/);
   // El simulacro: lo visto (T1 a T3), con el formato del examen (aquí, de dar la vuelta); es la propuesta principal
   const sim = page.locator('#main .p2-wsim.main');

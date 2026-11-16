@@ -66,7 +66,7 @@ export function weekCardHTML(r = reviewNow()) {
   const tiles = r.days.map(d => {
     const cls = d.studied ? 'on' : !d.planned ? 'free' : d.past ? 'miss' : 'next';
     const say = d.studied ? 'estudiaste' : !d.planned ? 'libre' : d.past ? 'no estudiaste' : 'por hacer';
-    return `<span class="p2-wd ${cls}" role="img" aria-label="${WEEK_NAMES[weekdayOf(d.day)]}: ${say}"><i></i><small>${WEEK_SHORT[weekdayOf(d.day)]}</small></span>`;
+    return `<span class="p2-wtile ${cls}" role="img" aria-label="${WEEK_NAMES[weekdayOf(d.day)]}: ${say}"><i></i><small>${WEEK_SHORT[weekdayOf(d.day)]}</small></span>`;
   }).join('');
   return `<section class="p2-wk" aria-labelledby="h-wk"><div class="p2-wk-h"><h2 class="hand" id="h-wk">Tu semana</h2><em class="p2-pill${r.behind ? ' justo' : ''}">${behindText(r.behind)}</em></div>
     <div class="p2-wdays">${tiles}</div>

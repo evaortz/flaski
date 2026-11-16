@@ -322,12 +322,12 @@ button.p2-step-b{cursor:pointer}
 .p2-wk h2{margin:0;font-size:30px;line-height:1.1}
 .p2-wk p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
 .p2-wdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.p2-wd{display:flex;flex-direction:column;align-items:center;gap:6px}
-.p2-wd i{display:block;width:100%;height:36px;border-radius:10px;background:var(--accent)}
-.p2-wd small{font-size:12px;color:var(--muted)}
-.p2-wd.miss i{background:var(--bg);border:2px solid var(--line-strong)}
-.p2-wd.free i{background:transparent;border:2px dashed var(--line-strong)}
-.p2-wd.next i{background:var(--bg);border:2px solid var(--line)}
+.p2-wtile{display:flex;flex-direction:column;align-items:center;gap:6px}
+.p2-wtile i{display:block;width:100%;height:36px;border-radius:10px;background:var(--accent)}
+.p2-wtile small{font-size:12px;color:var(--muted)}
+.p2-wtile.miss i{background:var(--bg);border:2px solid var(--line-strong)}
+.p2-wtile.free i{background:transparent;border:2px dashed var(--line-strong)}
+.p2-wtile.next i{background:var(--bg);border:2px solid var(--line)}
 .p2-wsim{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding:18px;border-radius:24px;border:1px solid var(--line)}
 .p2-wsim > small{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
 .p2-wsim h2{margin:0;font-size:28px;line-height:1.15}
@@ -360,7 +360,7 @@ button.p2-step-b{cursor:pointer}
 .p2-weak li > span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .p2-weak small{color:var(--muted);font-size:13px}
 .p2-tag.no{background:var(--tag-red-bg);color:var(--tag-red)}
-.p2-wd{border:0}
+.p2-wtile{border:0}
 .p2-wk h2,.p2-wsim h2,.p2-week h1,.p2-wbehind h2,.p2-wok h2{font-family:var(--font-hand);font-weight:400}
 .p2-wk .link{display:inline;margin:0;padding:0;min-height:0;font:inherit;vertical-align:baseline}
 /* Reparto: «Cambiar el reparto» y, dentro de «Sin examen», el peso de cada carpeta o lista */
