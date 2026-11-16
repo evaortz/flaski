@@ -145,6 +145,9 @@ export async function nav(page, name) {
 
 // Responde la siguiente tarjeta de la sesión con una nota (1-4)
 export async function answer(page, g = 3) {
+  // (un kanji nuevo se presenta antes de su palabra: «Entendido» y sigue con la palabra)
+  const intro = page.locator('[data-act="ja-intro"]');
+  while (await intro.count()) await intro.click();
   await page.locator('[data-act="reveal"]').click();
   await page.locator(`[data-grade="${g}"]`).click();
 }

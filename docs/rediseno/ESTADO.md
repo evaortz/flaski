@@ -931,3 +931,34 @@ Revisión de toda la app buscando fallos (datos y sincronización, Plan y CSS, p
 - **Plan, menores**: «En tu plan» de una subcarpeta de la carpeta de un examen dice «No tiene examen» (`plan-hojas.js:20`); la hoja de atrasos nombra hoy como día final cuando no hay (`plan-tiempo.js:239`); el día del examen «Para llegar» propone dejar temas para después; el historial puede decir «Sin examen:  poco» con una carpeta que ya no existe (`plan-reparto.js:137`); en 320–375 px los cinco niveles de «Sin examen» y los dos modos del examen pueden no caber (sin comprobar en el iPhone).
 - **Descartado tras mirarlo**: `inline.js`/`paste.js`/Anki/Explorar/Amigos escapan bien; las funciones `security definer` llevan `search_path` y comprueban `auth.uid()`; el esquema es repetible; la cola de envíos no pierde nada al recargar; `.p2-now` ya no choca.
 - **Supabase**: ningún arreglo necesita SQL nuevo; sigue haciendo falta ejecutar `schema.sql` antes del push (columna `deleted_at` de la papelera).
+
+## Japonés: kanji, kana, frases y leer de verdad (16 nov · rama `japones` · `flaski-v243`; diseño en `japones/SISTEMA.md`)
+- **Fase 0 · datos y motor.**
+  - Datos: los 2.136 kanji de uso común (2.063 con significado en español) y un diccionario de 22.661 palabras comunes (70 % con español, 75 % con entonación), troceado por el primer carácter (2.595 trozos, 5,9 MB).
+  - Están en `data/ja/` y los genera `tests/tools/ja_datos.py` (EDRDG y Kanjium, CC BY-SA 4.0; atribución en Créditos y en `data/ja/LEEME.md`). El service worker los guarda la primera vez (`flaski-ja-v1`).
+  - Motor en `js/ja/`: texto, datos, reparto de lecturas, verbos (formas y vuelta a la forma de diccionario), corte en palabras, partículas, pintar y lo que sabes (`saber.js`).
+- **Fase 1 · kanji.**
+  - Tipo `ja-kanji` (automático) en la lista «Kanji», que se crea sola con los kanji de tus palabras. Tres pasos: el paso 1 es flip, con presentación la primera vez; el paso 2, «¿cómo se lee aquí?» con una de tus palabras; el paso 3, draw.
+  - Cada paso espera a que el anterior tenga un intervalo de 3 días o más (`ja-tanda.js`: `studyOk` en la tanda y en el Plan).
+  - El paso 1 de un kanji cuyas palabras son todas nuevas no sale suelto: va justo delante de la primera (`arrangeFresh`).
+  - «Tus kanji» arriba de la lista, la ficha (con tu historia) y el resumen al acabar la tanda.
+  - Si borras la lista «Kanji», no vuelve (`prefs.ja.noKanji`).
+- **Fase 2 · kana.** Tipo `ja-kana`. «Tu tabla de hiragana y katakana» en cada lista de japonés, «Empezar con los hiragana/katakana», la ficha con su truco (92, escritos para Flaski) y, al confundir una pareja (シ/ツ…), los dos juntos con la pista (`prefs.ja.parejas`).
+- **Fase 3 · frases.**
+  - En los campos de japonés: furigana solo en lo que no sabes leer (paso 2), partículas en color con su hoja, y la entonación de la palabra.
+  - «Desmontar la frase», con trozos acabados en partícula, su papel y la forma del verbo; «Practicar ordenándola» crea una pregunta de ordenar.
+  - En los verbos, «Ver sus formas» y «Practicar sus formas» (tipo `ja-verbo`, lista «Verbos · formas», formas de N5).
+  - Ajustes › Tanda: furigana, entonación y partículas.
+- **Fase 4 · leer.**
+  - «Leer» en apuntes con japonés: cuánto conoces, las nuevas subrayadas y con su lectura, «Aprenderla» (pregunta de vocabulario con la frase) y «Ya me la sé».
+  - Importar › Subtítulos de una serie (.srt/.vtt, con el de español emparejado por tiempo) y el filtro de frases con una sola nueva.
+- **Cambia una prueba de antes:** en `plan-c.spec.js`, la demo tiene ahora 6 listas con nuevas, porque se suma la de sus kanji.
+- **Pruebas nuevas:**
+  - unitarias en `ja.test.js`: 8;
+  - e2e `japones-kanji` (3), `japones-kana` (2), `japones-frases` (3) y `japones-leer` (2);
+  - el fixture `seed` acepta `notes: [{ type, fields }]`.
+- **Pendiente:**
+  - historias propias de Flaski para los kanji de N5 y N4 (ahora solo las piezas y la tuya);
+  - el reparto de lecturas en palabras raras (sin dato, el paso 2 pregunta las lecturas del kanji);
+  - Novedades de japonés (no se tocan: las de ahora son el vídeo).
+- **Supabase:** nada nuevo. Todo va en `cards`, `decks` y `prefs`.

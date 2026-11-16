@@ -37,17 +37,19 @@ function waiting(c) {
 // ¿Puede salir en la tanda? (lo usan la tanda y el Plan)
 export const studyOk = c => !locked(c) && !waiting(c);
 // Las nuevas de la tanda, ya elegidas y en orden: delante de cada palabra nueva, el paso 1 de sus kanji que aún
-// no conoces (una vez cada uno)
+// no conoces (una vez cada uno). Cuentan dentro de las nuevas del día: si no caben, la palabra espera a otro día
 export function arrangeFresh(ids) {
   if (!hasJapanese()) return ids;
   const out = [], put = new Set(ids.filter(id => S.cards.get(id)?.type_id === KANJI_TYPE));
   for (const id of ids) {
-    const c = S.cards.get(id), w = c && wordOfCard(c);
+    const c = S.cards.get(id), w = c && wordOfCard(c), group = [];
     if (w) for (const k of kanjiIn(w)) {
       const t1 = kanjiCards(k).t1;
-      if (t1 && !S.progress.get(t1.id) && !put.has(t1.id)) { out.push(t1.id); put.add(t1.id); }
+      if (t1 && !S.progress.get(t1.id) && !put.has(t1.id)) group.push(t1.id);
     }
-    out.push(id);
+    if (out.length + group.length + 1 > ids.length) break;
+    for (const x of group) put.add(x);
+    out.push(...group, id);
   }
   return out;
 }

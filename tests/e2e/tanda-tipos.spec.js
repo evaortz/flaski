@@ -51,7 +51,7 @@ test('la tanda con una pregunta de cada tipo: todo cabe y salen los 4 botones @a
   await page.route(/hanzi-writer-data-jp@[^/]+\/%E6%97%A5\.json$/, route => route.fulfill({ contentType: 'application/json', body: NICHI }));
   const now = new Date().toISOString();
   const db = {
-    profile: { id: 'local', display_name: '' }, settings: { new_per_day: 15, prefs: {} },
+    profile: { id: 'local', display_name: '' }, settings: { new_per_day: 15, prefs: { ja: { noKanji: true } } },   // (sin la lista «Kanji»: una pregunta de cada tipo)
     decks: DECKS.map(([id, name, lang], k) => ({ id, owner: 'local', name, created_at: new Date(T0 + k).toISOString(), folder_id: null, icon: '', color: '', tags: [], pinned: false, archived: false, options: lang ? { lang } : {} })),
     cards: CASES.map(([type, tpl, deck, fields], k) => ({ id: `c${k}`, deck_id: deck, owner: 'local', type_id: type, template: tpl, fields, front: '—', back: '—', note: '', hint: '', tags: [], position: k, created_at: now })),
     // Todas ya vistas y para hoy, en el orden de la lista

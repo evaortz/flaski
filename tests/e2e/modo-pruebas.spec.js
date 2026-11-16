@@ -52,7 +52,7 @@ test('con ?local usa el backend local, avisa y carga datos de ejemplo sin tocar 
     local: localStorage.getItem('flaski-local-v1'),
     outbox: localStorage.getItem('flaski-outbox:' + uid),
   }), [UID]);
-  expect(stored.pruebas).toBe(5);   // las 3 listas y las de los 2 temas
+  expect(stored.pruebas).toBe(6);   // las 3 listas, las de los 2 temas y la de los kanji (sale sola de la de japonés)
   expect(JSON.parse(stored.local).decks).toHaveLength(1);
   expect(JSON.parse(stored.outbox)).toHaveLength(1);
   expect(cloud).toEqual([]);

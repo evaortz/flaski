@@ -52,6 +52,7 @@ test('furigana oculta al estudiar: se destapa tocando el kanji', async ({ page, 
   await page.locator('#main [data-start]').click();
   // Avanza hasta una tarjeta con la furigana oculta en el anverso
   for (let i = 0; i < 30 && !(await page.locator('.ruby-hide').count()); i++) {
+    if (await page.locator('[data-act="ja-intro"]').count()) { await page.locator('[data-act="ja-intro"]').click(); continue; }   // (un kanji nuevo, presentado)
     await page.locator('[data-act="reveal"]').click();
     await page.locator('[data-grade="4"]').click();
   }

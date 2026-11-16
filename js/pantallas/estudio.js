@@ -891,7 +891,9 @@ export function reveal(giveUp = false) {
 }
 // Guarda una respuesta: el progreso, el registro para Estadísticas y los repasos del día (en la tanda y al repasar
 // un apunte). Devuelve { prev, next, ev, day }
-export function recordAnswer(id, g, ms = 0, now = Date.now()) {
+// count: false para lo que no es una respuesta (la presentación de un kanji nuevo): guarda el progreso, pero no
+// suma en tu actividad ni en las estadísticas
+export function recordAnswer(id, g, ms = 0, now = Date.now(), { count = true } = {}) {
   const prev = S.progress.get(id) || null;
   const card = S.cards.get(id);
   const next = schedule(prev, g, now, algo(card?.deck_id));
@@ -899,18 +901,20 @@ export function recordAnswer(id, g, ms = 0, now = Date.now()) {
   // Registro de cada respuesta, para Estadísticas
   const state = !prev ? 'new' : prev.interval === 0 ? (prev.lapses ? 'relearning' : 'learning') : 'review';
   const ev = { id: api.newId(), user_id: S.uid, card_id: id, deck_id: card?.deck_id || null, ts: new Date(now).toISOString(), grade: g, state, ivl: next.interval, last_ivl: prev?.interval || 0, ease: Math.round(next.ease * 1000) / 1000, ms, t: now };
-  S.events.push(ev);
-  const { t: _t, ...evRow } = ev;
-  api.addEvent(evRow).catch(() => {});
   S.progress.set(id, next);
-  S.log[day] = (S.log[day] || 0) + 1;
   api.saveProgress(S.uid, id, next).catch(fail);
-  // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
-  api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
+  if (count) {
+    S.events.push(ev);
+    const { t: _t, ...evRow } = ev;
+    api.addEvent(evRow).catch(() => {});
+    S.log[day] = (S.log[day] || 0) + 1;
+    // El servidor suma 1 y devuelve el total del día, que incluye lo estudiado en otros dispositivos
+    api.bumpLog(S.uid, day, 1, S.log[day]).then(n => { if (n > (S.log[day] || 0)) S.log[day] = n; }).catch(() => {});
+  }
   saveSnapSoon();
   return { prev, next, ev, day };
 }
-export function grade(g) {
+export function grade(g, { count = true } = {}) {
   const ses = S.session;
   if (!ses || !ses.revealed || !ses.queue.length) return;
   stopSpeaking();
@@ -920,15 +924,15 @@ export function grade(g) {
   const now = Date.now();
   const ms = Math.min(120e3, Math.max(0, now - (ses.shownAt || now)));
   const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally }, asked = (ses.asked || []).slice();
-  const { prev, next, ev, day } = recordAnswer(id, g, ms, now);
-  ses.undo = { id, prev, queue, done, answered, tally, asked, day, evId: ev.id };
+  const { prev, next, ev, day } = recordAnswer(id, g, ms, now, { count });
+  ses.undo = { id, prev, queue, done, answered, tally, asked, day, evId: count ? ev.id : null, counted: count };
   if (!asked.includes(id)) ses.asked = [...asked, id];
   ses.queue.shift();
   ses.answered = (ses.answered ?? ses.done) + 1;
   // Solo vuelven a salir en esta sesión las tarjetas en aprendizaje (falladas o «difícil» siendo nuevas)
   if (next.interval === 0 && next.due > now) ses.queue.splice(Math.min(ses.queue.length, g === 1 ? 3 : 6), 0, id);
   else ses.done++;
-  ses.tally[g]++;
+  if (count) ses.tally[g]++;
   if (ENT_MODES.includes(cardModel(S.cards.get(id) || {}).tpl?.mode)) (ses.ent ||= []).push({ id, g });
   ses.revealed = false;
   ses.st = null;
@@ -941,8 +945,10 @@ export function undo() {
   const u = ses.undo;
   if (u.prev) { S.progress.set(u.id, u.prev); api.saveProgress(S.uid, u.id, u.prev).catch(fail); }
   else { S.progress.delete(u.id); api.clearProgress(S.uid, u.id).catch(fail); }
-  S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
-  api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
+  if (u.counted !== false) {
+    S.log[u.day] = Math.max(0, (S.log[u.day] || 0) - 1);
+    api.bumpLog(S.uid, u.day, -1, S.log[u.day]).catch(() => {});
+  }
   if (u.evId) { S.events = S.events.filter(e => e.id !== u.evId); api.deleteEvent(u.evId).catch(() => {}); }
   Object.assign(ses, { queue: u.queue, done: u.done, answered: u.answered, tally: u.tally, asked: u.asked, revealed: true, undo: null, st: null });
   saveSnapSoon();

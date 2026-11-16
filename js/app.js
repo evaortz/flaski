@@ -386,7 +386,7 @@ document.addEventListener('click', async e => {
     case 'sample-data': return loadSampleData(b);
     case 'reveal': return reveal(!!b.dataset.giveup);
     // Un kanji nuevo, presentado: cuenta como un primer «Bien»
-    case 'ja-intro': reveal(); return grade(3);
+    case 'ja-intro': reveal(); return grade(3, { count: false });
     case 'kj-strokes': return strokesSheet(b.dataset.kjS, 'ja-JP');
     case 'ja-frase': {
       const c = S.cards.get(S.session?.queue[0]);
