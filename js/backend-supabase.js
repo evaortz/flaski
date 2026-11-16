@@ -23,7 +23,20 @@ const send = {
   addEvent: ev => sb.from('review_events').upsert(ev, { onConflict: 'id', ignoreDuplicates: true }).then(check),
   deleteEvent: id => sb.from('review_events').delete().eq('id', id).then(check),
   bumpLog: (uid, day, delta, localCount) => sendBump(uid, day, delta, localCount),
-  savePage: page => sb.from('pages').upsert({ ...page, updated_at: new Date().toISOString() }).then(check),
+  // bases: las versiones de la nube sobre las que se editó (su updated_at). Si ahí ya hay otra, es que otro
+  // dispositivo cambió el apunte: el suyo se queda y lo de aquí va a una copia. Sin bases, se guarda sin mirar
+  savePage: async (page, bases) => {
+    const row = { ...page, updated_at: page.updated_at || new Date().toISOString() };
+    if (!Array.isArray(bases)) return sb.from('pages').upsert(row).then(check);
+    const known = bases.filter(Boolean);
+    if (known.length && check(await sb.from('pages').update(row).eq('id', row.id).in('updated_at', known).select('id')).length) return;
+    const cur = check(await sb.from('pages').select('*').eq('id', row.id).maybeSingle());
+    if (!cur) return sb.from('pages').upsert(row).then(check);   // aún no está en la nube (creado sin red)
+    if (+new Date(cur.updated_at) === +new Date(row.updated_at)) return;   // ya había llegado (se perdió la respuesta)
+    const copy = { ...row, id: crypto.randomUUID(), title: `${row.title || 'Sin título'} (copia de este dispositivo)`.slice(0, 120), updated_at: new Date().toISOString() };
+    check(await sb.from('pages').insert(copy));
+    globalThis.dispatchEvent?.(new CustomEvent('flaski-page-conflict', { detail: { theirs: cur, copy } }));
+  },
   // Borrar una imagen que ya no usa nada (p. ej. la anterior de una carpeta)
   removeImage: async (uid, id) => { const { error } = await sb.storage.from('media').remove([`${uid}/${id}`]); if (error) throw error; },
   // Las listas que se juntan por id (simulacros, días especiales, etapas) se unen con lo que ya hay en la
