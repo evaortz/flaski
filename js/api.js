@@ -4,6 +4,7 @@
 // Los dos backends exponen las mismas funciones, así que app.js no nota la diferencia.
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { localTest } from './modo.js';
+import { langOk } from './cardtypes.js';
 export { fromRow } from './rows.js';
 
 export const configured =
@@ -78,7 +79,7 @@ export function newId() {
 // lang: idioma que se estudia en el mazo (si se sabe; si no, la app lo deduce después)
 export async function importDeck(uid, { name, description = '', source = '', lang, cards, typeMap = new Map() }) {
   const fields = { owner: uid, name: name.slice(0, 80), description: description.slice(0, 300), source };
-  if (typeof lang === 'string') fields.options = { lang };
+  if (typeof lang === 'string' && langOk(lang) && !lang.startsWith('@')) fields.options = { lang };
   const deck = await createDeck(fields);
   return { deck, cards: await importCards(uid, deck.id, cards, typeMap) };
 }

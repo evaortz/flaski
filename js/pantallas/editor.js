@@ -2,7 +2,7 @@
 import * as api from '../api.js';
 import { ALGO_PRESETS } from '../srs.js';
 import { icon } from '../icons.js';
-import { BUILTIN_TYPES, MODES, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, detectSep, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
+import { BUILTIN_TYPES, MODES, safeType, LANGS, RUBY_RE, NEEDS_ANSWER, activeTemplates, summarize, missingFor, splitQuick, detectSep, choiceOptions, typeFit, typeScope, LANG_ROLES, baseLang, parseMasks, masksToText, imageIdIn, MAX_MASKS } from '../cardtypes.js';
 import { ttsAvailable } from '../tts.js';
 import { COLORS, colorVar, FOLDER_COLORS, folderColorId, TAG_COLORS, tagColor, folderPath, folderTree, sortDecks, DRAWINGS, drawingOf, drawingSVG, imageOf, iconText } from '../org.js';
 import { addImage, imgToken, imageIdsOf, deleteImage } from '../media.js';
@@ -426,9 +426,9 @@ function fieldInputs(type, values) {
         <label class="ef-name" for="fld-${f.id}">${esc(name)}${main ? '' : `<span class="ef-opt">${/^nota$/i.test(f.name) ? ' · solo la ves al dar la vuelta' : ' · opcional'}</span>`}</label>
         ${f.lang && ttsAvailable() ? `<button type="button" class="ef-say" data-say-input="${f.id}" aria-label="Escuchar ${esc(f.name)}" title="Escuchar">${SPEAK_ICON}</button>` : ''}
       </div>
-      <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${f.lang}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
+      <textarea id="fld-${f.id}" class="ef-input" data-fld="${f.id}" rows="1" maxlength="2000" ${f.lang ? `lang="${esc(f.lang)}"` : ''} placeholder="${esc(fieldPlaceholder(f, type))}">${esc(values[f.id] || '')}</textarea>
       ${fieldRoles(type, f.id).includes('huecos') ? `<div class="ef-cz" data-cz-for="${f.id}" aria-hidden="true" ${/\{\{.+?\}\}/.test(values[f.id] || '') ? '' : 'hidden'}>${czHTML(values[f.id])}</div>` : ''}
-      ${cjk ? `<div class="ef-ruby" data-ruby-for="${f.id}" lang="${f.lang}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
+      ${cjk ? `<div class="ef-ruby" data-ruby-for="${f.id}" lang="${esc(f.lang)}" aria-hidden="true" ${hasRuby(values[f.id]) ? '' : 'hidden'}>${hasRuby(values[f.id]) ? fmt(values[f.id]) : ''}</div>` : ''}
       ${help ? `<p class="ef-help">${esc(help)}</p>` : ''}
     </div>`;
   }).join('');
@@ -781,11 +781,11 @@ export function drawPreview() {
   const reveal = ['flip', 'cloze', 'occlusion'].includes(tpl.mode) ? '<span class="pv-reveal">Ver respuesta</span>' : '';
   const grades = `<div class="pv-grades" aria-hidden="true"><span class="g1">Otra vez</span><span class="g2">Difícil</span><span class="g3">Bien</span><span class="g4">Fácil</span></div>`;
   const plainFront = plain(summarize(type, tpl, e.fields).front).slice(0, 40);
-  box.innerHTML = `<div class="pv-card pv-front mode-${tpl.mode}${e.pvSide === 'front' ? ' is-on' : ''}" title="Toca para darle la vuelta">
+  box.innerHTML = `<div class="pv-card pv-front mode-${esc(tpl.mode)}${e.pvSide === 'front' ? ' is-on' : ''}" title="Toca para darle la vuelta">
       <div class="pv-meta"><span>anverso</span><span>${state}</span></div>
       <div class="front">${f.front || '<span class="pv-empty">Rellena los campos…</span>'}</div>${f.ask}${reveal}
     </div>
-    <div class="pv-card pv-back mode-${tpl.mode}${e.pvSide === 'back' ? ' is-on' : ''}" title="Toca para darle la vuelta">
+    <div class="pv-card pv-back mode-${esc(tpl.mode)}${e.pvSide === 'back' ? ' is-on' : ''}" title="Toca para darle la vuelta">
       <div class="pv-meta"><span>reverso</span><span>${esc(plainFront)}</span></div>
       ${b.answer ? `<div class="answer">${b.answer}</div>` : `<div class="front">${b.front || ''}</div>`}
       ${grades}
@@ -1140,7 +1140,7 @@ export function drawTypeEditor() {
   if (pvTpl && pvTpl.front.length) {
     const st = { revealed: true, typed: null, choice: pvTpl.mode === 'choice' ? { correct: sample[pvTpl.answer] || 'Respuesta', opts: [sample[pvTpl.answer] || 'Respuesta', 'Opción B', 'Opción C', 'Opción D'], picked: -1 } : null };
     const f = faceHTML({ type: t, tpl: pvTpl, fields: sample }, st, { preview: true });
-    pv = `<div class="card card-pv mode-${pvTpl.mode}"><div class="front">${f.front}</div>${f.ask}<div class="answer">${f.answer}</div></div>`;
+    pv = `<div class="card card-pv mode-${esc(pvTpl.mode)}"><div class="front">${f.front}</div>${f.ask}<div class="answer">${f.answer}</div></div>`;
   }
   openSheet(`<h2>${t.id ? 'Editar tipo' : 'Tipo nuevo'}</h2>
     <form data-form="type" class="cardform typeform">
@@ -1255,10 +1255,12 @@ const canonJSON = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' &
 export async function adoptTypes(types = []) {
   const map = new Map();
   for (const t of types || []) {
-    if (!t || !Array.isArray(t.fields) || !Array.isArray(t.templates) || BUILTIN_TYPES.some(b => b.id === t.id)) continue;
-    const same = [...S.types.values()].find(x => x.name === t.name && canonJSON(x.fields) === canonJSON(t.fields) && canonJSON(x.templates) === canonJSON(t.templates));
+    if (!t || BUILTIN_TYPES.some(b => b.id === t.id)) continue;
+    const ok = safeType(t);   // de otra persona o de un archivo: lo que no cuadre, no se crea
+    if (!ok) continue;
+    const same = [...S.types.values()].find(x => x.name === t.name && canonJSON(x.fields) === canonJSON(ok.fields) && canonJSON(x.templates) === canonJSON(ok.templates));
     if (same) { map.set(t.id, same.id); continue; }
-    const created = await api.createType({ owner: S.uid, name: String(t.name || 'Tipo').slice(0, 60), icon: String(t.icon || '').slice(0, 16), description: String(t.description || '').slice(0, 300), fields: t.fields, templates: t.templates });
+    const created = await api.createType({ owner: S.uid, name: String(t.name || 'Tipo').slice(0, 60), icon: String(t.icon || '').slice(0, 16), description: String(t.description || '').slice(0, 300), fields: ok.fields, templates: ok.templates });
     S.types.set(created.id, created);
     map.set(t.id, created.id);
   }

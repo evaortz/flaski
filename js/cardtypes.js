@@ -47,6 +47,20 @@ export const STUDY = '@study';     // el idioma que se estudia en la lista (sin 
 export const NATIVE = '@native';   // tu idioma (Ajustes); solo en listas de idiomas
 export const LANG_ROLES = [{ id: STUDY, label: 'Idioma de la lista' }, { id: NATIVE, label: 'Tu idioma' }];
 
+// Un tipo que llega de fuera (una lista pública, un archivo): solo ids sencillos, modos e idiomas conocidos y
+// plantillas que apuntan a sus campos. Si algo no cuadra, null (no se crea). Ids y modos acaban en atributos HTML
+const SAFE_ID = /^[\w-]{1,40}$/;
+export const langOk = l => l === '' || l === STUDY || l === NATIVE || LANGS.some(x => x.id === l);
+export function safeType(t) {
+  if (!t || !Array.isArray(t.fields) || !Array.isArray(t.templates) || !t.fields.length || !t.templates.length) return null;
+  if (!t.fields.every(f => f && typeof f === 'object' && SAFE_ID.test(f.id))) return null;
+  const ids = new Set(t.fields.map(f => f.id));
+  const one = x => x == null || x === '' || ids.has(x), list = a => a == null || (Array.isArray(a) && a.every(x => ids.has(x)));
+  if (!t.templates.every(p => p && SAFE_ID.test(p.id) && MODES.some(m => m.id === p.mode) && list(p.front) && list(p.back) && one(p.answer) && one(p.image))) return null;
+  const fields = t.fields.map(f => ({ ...f, name: String(f.name ?? ''), lang: langOk(f.lang ?? '') ? (f.lang ?? '') : '', help: String(f.help ?? '') }));
+  return { ...t, fields, templates: t.templates.map(p => ({ ...p, name: String(p.name ?? '') })) };
+}
+
 const F = (id, name, extra = {}) => ({ id, name, lang: '', autoplay: false, help: '', ...extra });
 
 // scope: para qué mazos tiene sentido el tipo · 'general' (todos) · 'lang' (mazos de idiomas)

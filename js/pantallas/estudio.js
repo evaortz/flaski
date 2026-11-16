@@ -120,7 +120,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const lang = fdef(tpl.answer)?.lang || '';
     if (!st.revealed) {
       ask += `<${preview ? 'div' : 'form data-form="typed"'} class="typed" autocomplete="off">
-        <input id="typed" ${lang ? `lang="${lang}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false"  placeholder="${tpl.mode === 'listen' ? 'Escribe lo que oyes' : 'Escribe la respuesta'}" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>
+        <input id="typed" ${lang ? `lang="${esc(lang)}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false"  placeholder="${tpl.mode === 'listen' ? 'Escribe lo que oyes' : 'Escribe la respuesta'}" aria-label="Tu respuesta" ${preview ? 'disabled' : ''}>
         <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>
         ${preview || !charsFor(lang).length ? '' : `<div class="chars chars-study" role="group" aria-label="Letras especiales">${charsFor(lang).map(ch => `<button type="button" data-char="${ch}">${ch}</button>`).join('')}</div>`}`;
     } else if (st.typed) {
@@ -175,7 +175,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     const rows = parsePairs(val(tpl.answer)), lang = fdef(tpl.answer)?.lang || '';
     if (!st.revealed) {
       ask = `<${preview ? 'div' : 'form data-form="conj"'} class="conj" autocomplete="off"><table class="conj-tbl">${rows.map((r, k) => `<tr><th scope="row">${esc(r.a)}</th>
-        <td><input class="conj-in" data-conj="${k}" ${lang ? `lang="${lang}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${esc(r.a)}" ${preview ? 'disabled' : ''}></td></tr>`).join('')}</table>
+        <td><input class="conj-in" data-conj="${k}" ${lang ? `lang="${esc(lang)}"` : ''} autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${esc(r.a)}" ${preview ? 'disabled' : ''}></td></tr>`).join('')}</table>
         <button class="primary" type="${preview ? 'button' : 'submit'}" ${preview ? 'disabled' : ''}>Comprobar</button></${preview ? 'div' : 'form'}>
         ${preview || !charsFor(lang).length ? '' : `<div class="chars chars-study" role="group" aria-label="Letras especiales">${charsFor(lang).map(ch => `<button type="button" data-char="${ch}">${ch}</button>`).join('')}</div>`}`;
     } else {
@@ -771,7 +771,7 @@ export function renderStudy() {
   // El total son las preguntas distintas (no salta al volver una a la cola); la que vuelve dice «repite»
   const asked = ses.asked || [], again = asked.includes(c.id), total = ses.done + ses.queue.length;
   const n = Math.min(total, asked.length + (again ? 0 : 1));
-  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${n} de ${total} · ${again ? 'repite' : p ? 'repaso' : 'nueva'}`)}<article class="card mode-${model.tpl.mode}" aria-live="polite">
+  main.innerHTML = `${head(ses.scope === 'all' ? deckName(c.deck_id) : scopeName(ses.scope), `pregunta ${n} de ${total} · ${again ? 'repite' : p ? 'repaso' : 'nueva'}`)}<article class="card mode-${esc(model.tpl.mode)}" aria-live="polite">
       ${tags ? `<div class="card-top">${tags}</div>` : ''}
       <div class="front">${front}</div>${hint}${ask}
       ${ses.firstRun && ses.revealed && ses.done === 0 ? `<div class="first-tip" role="note"><b>¿Cómo te ha ido?</b><p>Sin trampas: según lo que elijas, Flaski decide cuándo volver a preguntártelo. Si te costó, pronto; si fue fácil, dentro de unos días.</p></div>` : ''}
