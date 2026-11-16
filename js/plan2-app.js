@@ -90,10 +90,12 @@ export function boostCards() {
   }
   return out;
 }
+// La forma de la biblioteca: archivar o mover una lista (o una carpeta) no cambia cuántas hay, pero sí lo que entra
+const shapeKey = () => `${[...S.decks.values()].map(d => `${d.id}${d.archived ? '*' : ''}>${d.folder_id || ''}`).join()}|${[...S.folders.values()].map(f => `${f.id}>${f.parent_id || ''}`).join()}`;
 // Lo de hoy (today() del motor), calculado una vez mientras no cambie nada
 let memo = null;
 export function todayPlan() {
-  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.done, st.extraNew, st.fallbackMin, st.boostToday, S.decks.size, S.folders.size]);
+  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.done, st.extraNew, st.fallbackMin, st.boostToday, shapeKey()]);
   if (memo?.key !== key) memo = { key, value: lateAll(siblings(today(st))) };
   return memo.value;
 }
@@ -144,7 +146,7 @@ function siblings(t) {
 }
 let fcMemo = null;
 export function forecastNow() {
-  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.fallbackMin, st.boostToday, S.decks.size, S.folders.size]);
+  const st = stateNow(), key = JSON.stringify([st.plan, st.today, st.stockKey, st.newPerDay, st.fallbackMin, st.boostToday, st.extraNew, shapeKey()]);
   if (fcMemo?.key !== key) fcMemo = { key, value: forecast(st) };
   return fcMemo.value;
 }

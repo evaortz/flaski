@@ -10,7 +10,7 @@ import { examIdFor } from '../plan2-migrar.js';
 import { plural } from './mazos.js';
 import { openSheet, closeSheet } from './editor.js';
 import { fmtMin } from './plan-tiempo.js';
-import { examBarHTML, longDay, shortDay, shortName } from './plan-ui.js';
+import { examBarHTML, longDay, shortDay, shortName, daysLeft } from './plan-ui.js';
 import { commitPlan } from './plan-guardar.js';
 import { go } from '../app.js';
 
@@ -70,7 +70,7 @@ function drawNewExam() {
       <p class="muted small">${x.keys.length ? scopeSummary(x.keys) + ' · ' : ''}Una carpeta, una lista o varias. <button type="button" class="link" data-p2="new-pick-more">Añadir otra</button></p></section>
     <section><h3 class="p2-step-h"><span class="p2-num">2</span>¿Cuándo es?</h3>
       <label class="p2-date">${icon('calendar', { size: 20 })}<input type="date" id="p2nDate" data-p2="new-date" min="${addDays(t, 1)}" value="${x.date}" aria-describedby="p2nDays"></label>
-      <p class="muted small" id="p2nDays">${isDay(x.date) ? `${WEEK_NAMES[weekdayOf(x.date)].replace(/^./, c => c.toUpperCase())} ${longDay(x.date)} · faltan ${daysBetween(t, x.date)} días` : ''}</p></section>
+      <p class="muted small" id="p2nDays">${isDay(x.date) ? `${WEEK_NAMES[weekdayOf(x.date)].replace(/^./, c => c.toUpperCase())} ${longDay(x.date)} · ${daysLeft(x.date, t)}` : ''}</p></section>
     <section><h3 class="p2-step-h"><span class="p2-num">3</span>¿Cuánto tiempo tienes?</h3>
       <div class="p2-chips" role="radiogroup" aria-label="Cuánto tiempo tienes">${times.map(([v, l]) => `<button type="button" class="p2-chip" role="radio" aria-checked="${cur === v}" data-p2="new-time" data-v="${v}">${l}</button>`).join('')}</div>
       ${cur === 'other' ? `<label class="p2-other">Cada día <input type="number" id="p2nMin" data-p2="new-min" min="5" max="600" step="5" value="${x.min}"> min</label>` : ''}
@@ -125,6 +125,9 @@ export function newExamClick(b) {
 function saveNewExam() {
   const x = S.p2New, week = plan2().time?.week;
   if (!x.keys.length || !isDay(x.date)) return toast('Elige qué entra y la fecha');
+  // El selector de fecha del iPhone no respeta «min»: un examen nuevo (o una fecha cambiada) tiene que ser de mañana en adelante
+  const was = x.id && (plan2().exams || []).find(e => e.id === x.id)?.date;
+  if (x.date <= dayKey() && x.date !== was) return toast('Elige una fecha a partir de mañana');
   const exams = liveExams(plan2());
   let id = x.id || examIdFor(x.keys[0]);
   if (!x.id) for (let n = 2; exams.some(e => e.id === id) || (plan2().exams || []).some(e => e.id === id && !e.deleted); n++) id = `${examIdFor(x.keys[0])}-${n}`;

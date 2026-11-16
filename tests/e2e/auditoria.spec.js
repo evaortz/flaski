@@ -1,5 +1,5 @@
 // Arreglos de la auditoría de noviembre (cada uno con lo que se rompía)
-import { test, expect, openApp, nav, openDeck } from './fixtures.js';
+import { test, expect, openApp, nav, openDeck, deckMenu } from './fixtures.js';
 
 const qs = (n, p = 'p') => Array.from({ length: n }, (_, i) => [`${p}${i}`, `r${i}`]);
 
@@ -54,4 +54,35 @@ test('tanda: borrar una pregunta, valorar la siguiente y «Deshacer» devuelve s
   await page.locator('[data-grade="3"]').click();
   await page.locator('#toast .ta-btn').click();
   expect(await queue()).toEqual([first, third]);
+});
+
+// Hoy y el Plan guardan sus cuentas mientras no cambie nada; archivar una lista no cambiaba cuántas hay y seguían
+// contando sus nuevas hasta responder algo o recargar
+test('archivar una lista la quita al momento de lo de hoy del plan', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: qs(10, 't') }, { name: 'Alemán', cards: qs(10, 'a') }] });
+  await openApp(page);
+  const newBy = () => page.evaluate(async () => {
+    const { todayPlan } = await import('/js/plan2-app.js'); const { S } = await import('/js/comun.js');
+    return Object.entries(todayPlan().newBy || {}).filter(([, n]) => n > 0).map(([id]) => S.decks.get(id)?.name).sort();
+  });
+  expect(await newBy()).toEqual(['Alemán', 'Turco']);
+  await openDeck(page, 'Alemán');
+  await deckMenu(page, '[data-act="archive-deck"]');
+  await expect(page.locator('#toast')).toContainText('Lista archivada');
+  expect(await newBy()).toEqual(['Turco']);
+});
+
+// Nuevo examen: «falta 1 día» (no «faltan 1 días») y, como el iPhone no respeta la fecha mínima, no se guarda uno de hoy
+test('nuevo examen: «falta 1 día» y no se puede guardar con la fecha de hoy', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Turco', cards: qs(10, 't') }] });
+  await openApp(page);
+  await page.evaluate(() => import('/js/app.js').then(({ go }) => go('plan')));
+  await page.evaluate(() => import('/js/pantallas/plan-nuevo.js').then(m => m.newExamSheet()));
+  const t = await page.evaluate(() => import('/js/plan.js').then(m => [m.dayKey(), m.addDays(m.dayKey(), 1)]));
+  await page.locator('#p2nDate').fill(t[1]);
+  await expect(page.locator('#p2nDays')).toContainText('falta 1 día');
+  await page.locator('#p2nDate').fill(t[0]);
+  await page.locator('#sheetBody [data-p2="new-save"]').click();
+  await expect(page.locator('#toast')).toContainText('a partir de mañana');
+  expect(await page.evaluate(() => import('/js/plan2-app.js').then(m => (m.plan2().exams || []).length))).toBe(0);
 });
