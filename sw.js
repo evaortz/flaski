@@ -4,6 +4,7 @@
 const VERSION = 'flaski-v241';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
+const JA = 'flaski-ja-v1';      // datos de japonés (data/ja/): se guardan la primera vez que se piden
 const SHELL = [
   './',
   './index.html',
@@ -31,6 +32,7 @@ const SHELL = [
   './js/tts.js',
   './js/handwriting.js',
   './js/icons.js', './js/dibujos.js', './js/primera-vez.js',
+  './js/ja/texto.js', './js/ja/datos.js', './js/ja/lecturas.js', './js/ja/verbos.js', './js/ja/palabras.js', './js/ja/particulas.js', './js/ja/saber.js',
   './img/novedades/flaski-asi-es.jpg',   // el póster del vídeo de Novedades (el .mp4, no: ver el fetch de abajo)
   './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md', './temas/tema-curva-olvido.svg', './temas/tema-repasos.svg',
   './js/vendor/hanzi-writer.min.js',
@@ -68,9 +70,23 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== STROKES && k !== FONTS).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== STROKES && k !== FONTS && k !== JA).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// Datos de japonés (kanji y diccionario troceado): solo se piden si hay listas de japonés. La primera vez se
+// guardan y desde entonces funcionan sin conexión (si cambian, se sube JA)
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin || !u.pathname.includes('/data/ja/')) return;
+  e.respondWith(caches.open(JA).then(async c => {
+    const hit = await c.match(e.request, { ignoreSearch: true });
+    if (hit) return hit;
+    const res = await fetch(e.request);
+    if (res.ok) c.put(e.request, res.clone());
+    return res;
+  }));
 });
 
 // Trazos de kanji/hanzi (jsDelivr): nunca cambian, así que se guardan la primera vez
@@ -117,6 +133,7 @@ self.addEventListener('fetch', e => {
   // Los vídeos (img/novedades/*.mp4) no pasan por aquí ni se guardan: van directos a la red, sin respondWith.
   // Safari en el iPhone los pide por trozos (cabecera Range) y una respuesta entera sacada de la caché no se reproduce
   if (url.pathname.endsWith('.mp4')) return;
+  if (url.pathname.includes('/data/ja/')) return;   // (los datos de japonés, en su caché: arriba)
   // (una petición de navegación no se puede copiar con opciones: se pide por su dirección)
   const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(
