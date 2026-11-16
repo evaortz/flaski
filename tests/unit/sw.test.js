@@ -52,3 +52,16 @@ test('index.html lleva la versión de sw.js en el import map, las precargas y ap
   const cur = await readFile(join(ROOT, 'index.html'), 'utf8');
   assert.ok(cur === html, 'ejecuta «node version.mjs» desde tests/ tras subir VERSION en sw.js');
 });
+
+// Las fuentes de css/fonts.css (General Sans faltaba): sin ellas en SHELL, al abrir sin conexión tras una versión
+// nueva los títulos salen con otra letra
+test('el service worker guarda todas las fuentes de fonts.css y que existan', async () => {
+  const sw = await readFile(join(ROOT, 'sw.js'), 'utf8');
+  const shell = new Set([...sw.matchAll(/'\.\/([^']*)'/g)].map(m => m[1]));
+  const css = await readFile(join(ROOT, 'css/fonts.css'), 'utf8');
+  const fonts = [...new Set([...css.matchAll(/url\(\.\.\/([^)]+)\)/g)].map(m => m[1]))];
+  assert.ok(fonts.length > 5);
+  assert.deepEqual(fonts.filter(f => !shell.has(f)), [], 'añade estas fuentes a SHELL en sw.js');
+  const { access } = await import('node:fs/promises');
+  for (const f of shell) if (f) await access(join(ROOT, f));   // un archivo que no existe haría fallar la instalación entera
+});
