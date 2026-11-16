@@ -63,3 +63,28 @@
 .kj-confuse{display:flex;align-items:center;gap:12px;border:1.5px dashed #FF9F92;border-radius:16px;padding:10px 12px;font-size:13px}
 .kj-confuse b[lang]{font-family:"Klee One",var(--font-ja,serif);font-size:36px;font-weight:600}
 .kj-story-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;font-family:"Gochi Hand",var(--font);font-size:20px;resize:vertical;min-height:72px;background:var(--bg);color:var(--fg)}
+/* Hiragana y katakana: la tabla, la ficha y la comparación al confundir dos */
+.kn-entry{margin:0 0 12px}
+.kn-sheet{display:flex;flex-direction:column;gap:14px}
+.kn-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.kn-head h2{margin:0}
+.kn-alpha{display:flex;gap:2px;background:var(--soft);border-radius:20px;padding:3px;flex:none}
+.kn-alpha button{height:36px;min-width:44px;padding:0 12px;border-radius:17px;border:0;background:transparent;color:var(--fg);font-size:16px;cursor:pointer}
+.kn-alpha button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.kn-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:420px}
+.kn-cell{aspect-ratio:1;border-radius:12px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font:inherit}
+.kn-cell b{font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:21px;line-height:1.05}
+.kn-cell small{font-size:10px;line-height:1;opacity:.9}
+.kn-cell.is-empty{background:none;cursor:default}
+.kn-ok{background:var(--fg);color:var(--bg)}
+.kn-mid{background:#FFC36B;color:#4A2E00}
+.kn-bad{background:#FF9F92;color:#4A1410}
+.kn-no{background:var(--bg);color:var(--muted);border:1.5px dashed var(--line)}
+.kn-key{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.kn-key span{display:flex;align-items:center;gap:5px}
+.kn-key i{width:10px;height:10px;border-radius:3px;display:block;box-sizing:border-box}
+.kn-compare{display:flex;flex-direction:column;gap:8px;border:1.5px dashed #FF9F92;border-radius:16px;padding:12px 14px;margin-bottom:10px;text-align:left}
+.kn-compare p{margin:0}
+.kn-two{display:flex;gap:10px}
+.kn-two span{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:14px;padding:8px}
+.kn-two b{font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:46px;line-height:1.1}

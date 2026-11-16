@@ -17,6 +17,7 @@ import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
 import { openSheet, charsFor, hasRuby } from './editor.js';
 import { go } from '../app.js';
 import { studyOk, arrangeFresh, jaCardState, jaFace, noteBefore, jaDoneHTML } from './ja-tanda.js';
+import { kanaAnswerExtra } from './ja-kana.js';
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -255,7 +256,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
     else if (['cloze', 'choice', 'match', 'occlusion', 'conj', 'sort', 'clozechoice', 'number'].includes(tpl.mode)) answer = tpl.back.map(id => block(id, false)).join('');
     else {
       // type · listen · order · draw: la respuesta principal solo se repite si no la has resuelto ya arriba
-      answer = sayAns ? rest : (resolved ? '' : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest;
+      answer = (st.id ? kanaAnswerExtra(S.cards.get(st.id), model, st) : '') + (sayAns ? rest : (resolved ? '' : tpl.mode === 'order' ? `<div class="fld fld-main"><div class="fld-v"><span class="fld-t">${fmt(orderJoin(orderTokens(val(tpl.answer)), val(tpl.answer)))}</span>${say(tpl.answer)}</div></div>` : block(tpl.answer, true)) + rest);
     }
   }
   return { front, ask, answer };

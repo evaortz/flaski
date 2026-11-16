@@ -19,6 +19,7 @@ import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
 import { openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
 import { collectionHTML } from './ja-kanji.js';
+import { isJaDeck } from '../ja/saber.js';
 
 /* ===================== mis mazos ===================== */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -142,6 +143,7 @@ export function renderDeck() {
       </div>
     </header>
     ${d.options?.auto === 'kanji' ? collectionHTML(d) : ''}
+    ${isJaDeck(d) ? `<p class="kn-entry"><button class="link" data-act="kana-table">${icon('languages', { size: 16 })} Tu tabla de hiragana y katakana</button></p>` : ''}
     ${all.length ? `<section class="dk-state" aria-labelledby="h-dkst"><h2 class="dk-h" id="h-dkst">Estado</h2>
       <span class="dk-bar" role="img" aria-label="${STAGES.map(([k, label]) => `${n[k]} ${label}`).join(', ')}">${STAGES.map(([k]) => (n[k] ? `<i class="cs-${k}" style="flex:${n[k]}"></i>` : '')).join('')}</span>
       <ul class="dk-key">${STAGES.map(([k, label]) => `<li class="cs-${k}"><b>${n[k]}</b><span><i aria-hidden="true"></i>${label}</span></li>`).join('')}</ul>

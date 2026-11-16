@@ -227,6 +227,16 @@ export const BUILTIN_TYPES = [
       { id: 't3', name: 'Paso 3 · Cómo se escribe', mode: 'draw', front: ['m', 'kun', 'on'], back: ['h'], answer: 'k', guide: false },
     ],
   },
+  {
+    // Hiragana y katakana para quien empieza: los crea Flaski («Empezar con los hiragana»)
+    id: 'ja-kana', builtin: true, auto: true, scope: ['ja'], name: 'Kana (automático)', icon: '', lucide: 'languages',
+    description: 'Un hiragana o katakana: reconocerlo y escribirlo a mano.',
+    fields: [F('c', 'Kana', { lang: 'ja-JP' }), F('r', 'En letras'), F('t', 'Truco para recordarlo'), F('x', 'En el otro alfabeto', { lang: 'ja-JP' })],
+    templates: [
+      { id: 't1', name: 'Reconocer (kana → letras)', mode: 'type', front: ['c'], back: ['t', 'x'], answer: 'r' },
+      { id: 't2', name: 'Escribirlo (letras → kana a mano)', mode: 'draw', front: ['r'], back: ['t'], answer: 'c', guide: false },
+    ],
+  },
 ];
 
 /* ---------------- Idioma del mazo ---------------- */

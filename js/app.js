@@ -217,6 +217,8 @@ document.addEventListener('click', async e => {
   // Japonés: un kanji (Tus kanji, la ficha) y los filtros de Tus kanji
   if (ds.kj !== undefined) return import('./pantallas/ja-kanji.js').then(m => m.kanjiSheet(ds.kj));
   if (ds.kjf !== undefined) { S.kjFilter = ds.kjf; return render(); }
+  if (ds.kana !== undefined) return import('./pantallas/ja-kana.js').then(m => m.kanaSheet(ds.kana));
+  if (ds.kanaAlpha !== undefined) return import('./pantallas/ja-kana.js').then(m => m.kanaTable(ds.kanaAlpha));
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
   if (ds.listen) { const c = S.cards.get(S.session?.queue[0]); if (c) playListen(cardModel(c), +ds.listen); return; }
   if (ds.strokes) {
@@ -381,6 +383,10 @@ document.addEventListener('click', async e => {
     // Un kanji nuevo, presentado: cuenta como un primer «Bien»
     case 'ja-intro': reveal(); return grade(3);
     case 'kj-strokes': return strokesSheet(b.dataset.kjS, 'ja-JP');
+    case 'kana-table': return import('./pantallas/ja-kana.js').then(m => m.kanaTable());
+    case 'kana-start': return import('./pantallas/ja-kana.js').then(m => m.startKana(b.dataset.alpha));
+    case 'kana-weak': return import('./pantallas/ja-kana.js').then(m => m.weak(b.dataset.alpha));
+    case 'kana-practice': return import('./pantallas/ja-kana.js').then(m => m.practice(b.dataset.kanaP));
     case 'kj-story': return import('./pantallas/ja-kanji.js').then(m => m.saveStory(b.dataset.kjS));
     case 'show-hint': {
       // Sin volver a pintar la tarjeta, para no borrar lo que estés dibujando
@@ -830,7 +836,8 @@ document.addEventListener('submit', async e => {
     const st = S.session?.st; const c = S.cards.get(S.session?.queue[0]);
     if (!st || !c) return;
     const m = cardModel(c);
-    st.typed = checkTyped($('#typed').value, m.fields[m.tpl.answer], m.type.fields.find(f => f.id === m.tpl.answer)?.lang);
+    st.input = $('#typed').value;
+    st.typed = checkTyped(st.input, m.fields[m.tpl.answer], m.type.fields.find(f => f.id === m.tpl.answer)?.lang);
     return reveal();
   }
   if (kind === 'newtag') {
