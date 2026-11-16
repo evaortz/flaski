@@ -18,6 +18,7 @@ import { seg } from './perfil.js';
 import { hasMap, mapOn, mapSeg, mapHTML } from './mapa.js';
 import { openSheet, closeSheet, addTag, deckTypes, adoptTypes, migrateDeckLangs } from './editor.js';
 import { go } from '../app.js';
+import { collectionHTML } from './ja-kanji.js';
 
 /* ===================== mis mazos ===================== */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -140,6 +141,7 @@ export function renderDeck() {
           <button class="dk-add" data-act="add-menu" aria-label="Añadir preguntas" aria-haspopup="menu" title="Añadir preguntas">${icon('plus', { size: 24 })}</button>${more}</div>
       </div>
     </header>
+    ${d.options?.auto === 'kanji' ? collectionHTML(d) : ''}
     ${all.length ? `<section class="dk-state" aria-labelledby="h-dkst"><h2 class="dk-h" id="h-dkst">Estado</h2>
       <span class="dk-bar" role="img" aria-label="${STAGES.map(([k, label]) => `${n[k]} ${label}`).join(', ')}">${STAGES.map(([k]) => (n[k] ? `<i class="cs-${k}" style="flex:${n[k]}"></i>` : '')).join('')}</span>
       <ul class="dk-key">${STAGES.map(([k, label]) => `<li class="cs-${k}"><b>${n[k]}</b><span><i aria-hidden="true"></i>${label}</span></li>`).join('')}</ul>

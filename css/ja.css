@@ -1,0 +1,65 @@
+/* Japonés: los kanji como sistema (presentación, «cómo se lee aquí», resumen, Tus kanji y la ficha) */
+.kj-intro{display:flex;flex-direction:column;gap:16px;text-align:left}
+.kj-new{align-self:flex-start;font-size:12px;font-weight:600;border-radius:12px;padding:4px 10px;background:var(--tag-yellow-bg);color:var(--tag-yellow)}
+.kj-lead{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
+.kj-hero{display:flex;align-items:center;gap:18px}
+.kj-big{width:128px;height:128px;flex:none;border-radius:26px;background:var(--soft);color:var(--fg);font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:92px;line-height:1;display:flex;align-items:center;justify-content:center}
+.kj-mean{display:flex;flex-direction:column;gap:4px;min-width:0}
+.kj-mean small{font-size:12px;color:var(--muted)}
+.kj-mean b{font-family:"Gochi Hand",var(--font);font-weight:400;font-size:32px;line-height:1.05}
+.kj-box{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:18px;padding:12px 14px}
+.kj-box > small{font-size:12px;color:var(--muted)}
+.kj-pieces,.kj-words{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.kj-piece{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:12px;padding:6px 10px}
+.kj-piece b{font-size:22px;font-weight:600}
+.kj-piece small,.kj-word small{font-size:12px;color:var(--muted)}
+.kj-plus{color:var(--muted)}
+.kj-word{display:inline-flex;flex-direction:column;gap:1px;background:var(--soft);border-radius:12px;padding:6px 10px}
+.kj-word b{font-size:17px;font-weight:500}
+.kj-story{margin:0;font-family:"Gochi Hand",var(--font);font-size:21px;line-height:1.2}
+.kj-note{margin:0;font-size:12px;color:var(--muted);text-align:center}
+/* Paso 2: el kanji marcado dentro de la palabra */
+.kj-ask{margin:0;font-size:18px}
+.kj-wordbig{font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:76px;line-height:1.1;text-align:center;padding:8px 0}
+.kj-mark{border-bottom:5px solid #FF9F92}
+.kj-dim{color:var(--muted)}
+.kj-choices .choice span:last-child{font-size:20px}
+.kj-why{display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.5}
+.kj-why p{margin:0;color:var(--muted)}
+/* Los tres pasos: tres puntos */
+.kj-dots{display:inline-flex;gap:4px;align-items:center}
+.kj-dots i{width:9px;height:9px;border-radius:5px;display:block;box-sizing:border-box;border:1.5px solid var(--muted)}
+.kj-dots i.on{background:var(--fg);border-color:var(--fg)}
+/* Fin de tanda */
+.kj-done{text-align:left;margin-top:8px}
+.kj-done h3{margin:0 0 4px;font-family:"Gochi Hand",var(--font);font-weight:400;font-size:26px}
+.kj-done ul{list-style:none;margin:0;padding:0}
+.kj-done li{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.kj-done li > span:last-child{display:flex;flex-direction:column;gap:3px;min-width:0}
+.kj-done small{font-size:13px;color:var(--muted);line-height:1.4}
+.kj-sq{width:52px;height:52px;flex:none;border-radius:14px;font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:32px;display:flex;align-items:center;justify-content:center}
+.kj-sq.ok{background:#DDF6E8;color:#0E3B25}
+.kj-sq.bad{background:#FFE1DC;color:#4A1410}
+/* Tus kanji (la lista «Kanji») */
+.kj-col{display:flex;flex-direction:column;gap:14px;margin:4px 0 20px}
+.kj-steps{display:flex;flex-direction:column;gap:10px;background:var(--soft);border-radius:18px;padding:14px 16px}
+.kj-step{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.kj-step > span{display:flex;justify-content:space-between;gap:8px}
+.kj-bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden}
+.kj-bar i{display:block;height:100%;border-radius:4px;background:var(--fg)}
+.kj-filters{display:flex;gap:8px;flex-wrap:wrap}
+.kj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px}
+.kj-tile{height:64px;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;font:inherit}
+.kj-tile b{font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:26px;line-height:1}
+.kj-tile.is-new{border-style:dashed}
+.kj-tile.is-hard{border:2px solid #FF9F92}
+.kj-tile .kj-dots i{width:7px;height:7px}
+.kj-hint{margin:0;font-size:12px;color:var(--muted)}
+/* La ficha de un kanji */
+.kj-sheet{display:flex;flex-direction:column;gap:14px}
+.kj-sheet .kj-big{width:110px;height:110px;font-size:78px}
+.kj-read{display:flex;flex-direction:column;gap:3px;font-size:13px}
+.kj-read span[lang]{font-size:16px}
+.kj-confuse{display:flex;align-items:center;gap:12px;border:1.5px dashed #FF9F92;border-radius:16px;padding:10px 12px;font-size:13px}
+.kj-confuse b[lang]{font-family:"Klee One",var(--font-ja,serif);font-size:36px;font-weight:600}
+.kj-story-in{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;font-family:"Gochi Hand",var(--font);font-size:20px;resize:vertical;min-height:72px;background:var(--bg);color:var(--fg)}

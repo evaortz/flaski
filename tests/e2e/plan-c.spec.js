@@ -308,12 +308,12 @@ test('sin exámenes (la demo): Hoy, Qué toca ahora y la semana hablan de «tus 
   await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
   await expect(page.locator('#toast')).toContainText('Datos de ejemplo cargados');
-  // Hoy: el motor reparte entre las 5 listas, y la tarjeta lo dice
+  // Hoy: el motor reparte entre las 6 listas (las 5 de la demo y la de sus kanji, que sale sola del japonés), y la tarjeta lo dice
+  await expect.poll(() => page.evaluate(() => import('/js/plan2-app.js').then(m => Object.values(m.todayPlan().newBy).length))).toBe(6);
   const by = await page.evaluate(() => import('/js/plan2-app.js').then(m => Object.values(m.todayPlan().newBy)));
-  expect(by.length).toBe(5);
   await expect(page.locator('#main .p2-topic')).toHaveText('Tus listas');
   const n = by.reduce((a, b) => a + b, 0);
-  await expect(page.locator('#main .p2-legend span').first()).toHaveText(`${n} nuevas de 5 listas`);
+  await expect(page.locator('#main .p2-legend span').first()).toHaveText(`${n} nuevas de 6 listas`);
   // Plan › Qué toca ahora: una fila para todas, que al tocarla dice cuántas de cada una
   await nav(page, 'Perfil');
   await page.locator('#main [data-nav="plan"]').click();
@@ -322,7 +322,7 @@ test('sin exámenes (la demo): Hoy, Qué toca ahora y la semana hablan de «tus 
   await expect(row.locator('summary')).toContainText(`sin examen · ${n} nuevas`);
   await expect(row.locator('.p2-now-list li').first()).toBeHidden();
   await row.locator('summary').click();
-  await expect(row.locator('.p2-now-list li')).toHaveCount(5);
+  await expect(row.locator('.p2-now-list li')).toHaveCount(6);
   // La semana: hoy ninguna lista se lleva más de la mitad, así que el día no nombra ninguna
   await expect(page.locator('#main .p2-day em').first()).toHaveText('');
 });

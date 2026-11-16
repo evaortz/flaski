@@ -16,6 +16,7 @@ import { plural } from './mazos.js';
 import { seg, numIn, savePrefsSoon, remindOffer } from './perfil.js';
 import { openSheet, charsFor, hasRuby } from './editor.js';
 import { go } from '../app.js';
+import { studyOk, arrangeFresh, jaCardState, jaFace, noteBefore, jaDoneHTML } from './ja-tanda.js';
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -58,6 +59,9 @@ function clozeHTML(text, reveal) {
 // HTML del anverso y de la respuesta. st = estado de la tarjeta en pantalla.
 export function faceHTML(model, st, { preview = false } = {}) {
   const { type, tpl, fields } = model;
+  // Kanji (automático): la presentación y «cómo se lee aquí»
+  const ja = !preview && st.id && jaFace(S.cards.get(st.id), model, st);
+  if (ja) return ja;
   const fdef = id => type.fields.find(f => f.id === id);
   const val = id => String(fields[id] ?? '');
   const say = id => (fdef(id)?.lang && ttsAvailable() && val(id).trim()
@@ -393,7 +397,7 @@ function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 // Cola de estudio según Ajustes: límites de nuevas (global y por mazo), de repasos, orden y mezcla
 function buildSession(scope, size = 0) {
   const P = S.prefs.study, inScope = scopeTest(scope), now = Date.now();
-  const pool = cardList().filter(inScope);
+  const pool = cardList().filter(c => inScope(c) && studyOk(c));
   // «Repasar solo lo que flojea»: todas, toque o no repasarlas hoy (las que te cuestan primero)
   if (scope === 'weak') return pool.sort((a, b) => S.progress.get(a.id).interval - S.progress.get(b.id).interval || S.progress.get(a.id).due - S.progress.get(b.id).due).map(c => c.id);
   // Con un examen cerca, sus preguntas primero; luego, lo más atrasado
@@ -442,6 +446,8 @@ function buildSession(scope, size = 0) {
   fresh = [];
   const lists = [...byDeck].sort(([a], [b]) => (near.has(a) ? 0 : 1) - (near.has(b) ? 0 : 1)).map(([, l]) => l);
   for (let k = 0; lists.some(l => k < l.length); k++) for (const l of lists) if (k < l.length) fresh.push(l[k]);
+  // Japonés: delante de cada palabra nueva, el kanji nuevo que lleva (su presentación)
+  fresh = arrangeFresh(fresh);
   // Tanda corta: las N primeras, siempre con las nuevas intercaladas (una de cada cuatro)
   if (size) return composeShort(due, fresh, size);
   if (P.mix === 'reviewsFirst') return [...due, ...fresh];
@@ -456,7 +462,7 @@ function buildSession(scope, size = 0) {
 // Nuevas que aún quedan en un ámbito y que podrían salir hoy (una por nota si las hermanas esperan, y ninguna
 // de una nota que ya viste hoy): las de «N nuevas más» al final de la tanda
 export function freshLeft(scope) {
-  const bury = S.prefs.study.burySiblings, pool = cardList().filter(scopeTest(scope)), notes = new Set();
+  const bury = S.prefs.study.burySiblings, pool = cardList().filter(c => scopeTest(scope)(c) && studyOk(c)), notes = new Set();
   if (bury) for (const c of pool) { const p = S.progress.get(c.id); if (c.note_id && p && seenToday(p)) notes.add(c.note_id); }
   let n = 0;
   for (const c of pool) {
@@ -472,7 +478,7 @@ export function freshLeft(scope) {
 // (lo que cabe en tu tanda a tu ritmo: el tamaño del plan se mide con lo de hoy y, sin nada para hoy, sería 1)
 export function moreQueue(scope = 'all', n = tandaSize(tandaMinutes(), pace(S.events))) {
   const out = buildSession(scope), have = new Set(out), now = Date.now();
-  const bury = S.prefs.study.burySiblings, pool = cardList().filter(scopeTest(scope)), notes = new Set();
+  const bury = S.prefs.study.burySiblings, pool = cardList().filter(c => scopeTest(scope)(c) && studyOk(c)), notes = new Set();
   if (bury) for (const c of pool) { const p = S.progress.get(c.id); if (c.note_id && p && seenToday(p)) notes.add(c.note_id); }
   for (const c of pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position)) {
     if (out.length >= n) break;
@@ -573,6 +579,7 @@ function cardState(c) {
     if (pool.length < 3) pool.push(...cardList().filter(x => x.deck_id === c.deck_id && x.id !== c.id).map(x => x.back));
     st.choice = { ...choiceOptions(model.tpl, model.fields, pool), picked: -1 };
   }
+  jaCardState(c, model, st);
   ses.st = st;
   ses.shownAt = Date.now();   // para medir el tiempo de cada pregunta
   return st;
@@ -710,11 +717,11 @@ export function renderStudy() {
     if (ses.minutes) {
       const q = todayQueue('all'), left = q.ids.length, done = doneToday(), tandas = tandasToday(), dd = left && dayDone();
       if (dd) {
-        main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>Hecho por hoy</h2>${sub}${tally}${entDoneHTML(ses)}
+        main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>Hecho por hoy</h2>${sub}${tally}${entDoneHTML(ses)}${jaDoneHTML(ses)}
           <div class="done-go"><button class="primary big" data-act="exit">Volver a Hoy</button></div><p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>${again}</div>`;
         return;
       }
-      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}${entDoneHTML(ses)}
+      main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>${left ? '¡Tanda hecha!' : '¡Todo hecho por hoy!'}</h2>${sub}${tally}${entDoneHTML(ses)}${jaDoneHTML(ses)}
         ${left ? `<div class="done-left"><small>Para hoy</small><b>${left === 1 ? 'te queda 1' : `te quedan ${left}`}</b><span class="done-bar"><i style="width:${Math.round(100 * done / Math.max(1, done + left))}%"></i></span>
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
         <div class="done-go">${left > 1 ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
@@ -725,7 +732,7 @@ export function renderStudy() {
     // Con atrasos, no se ofrecen nuevas de más: «¿Adelantas 10 atrasadas?»
     const late = ses.picked || !hooks.plan2 ? null : hooks.plan2.late();
     const more = ses.picked || late ? 0 : Math.min(10, freshLeft(ses.scope));
-    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}
+    main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}${jaDoneHTML(ses)}
       <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : late ? `<button class="ghost big" data-p2="late-10">¿Adelantas ${Math.min(10, late.n)} atrasadas?</button>` : ses.picked ? '' : moreBtn(ses.scope, 'ghost big')}</div>${again}</div>`;
     return;
   }
@@ -759,6 +766,8 @@ export function renderStudy() {
     // Entender: Todavía no · A medias · Lo sé explicar (= Otra vez · Difícil · Bien)
     const gs = ent ? ENT_GRADES : P.buttons === 2 ? GRADES.filter(x => x.g === 1 || x.g === 3) : GRADES;
     foot = `<div class="grades${gs.length === 2 ? ' two' : gs.length === 3 ? ' three ent-grades' : ''}">${gs.map(({ g, label }) => `<button class="grade g${g}${P.suggest && g === suggest ? ' suggested' : ''}" data-grade="${g}">${label}${P.showIntervals ? `<small>${fmtWhen(schedule(p, g, now, A).due, now)}</small>` : ''}</button>`).join('')}</div>`;
+  } else if (st.intro) {
+    foot = '<button class="primary big" data-act="ja-intro">Entendido</button>';
   } else if (ENT_MODES.includes(model.tpl.mode)) {
     foot = `<button class="primary big" data-act="reveal">${entState(model, st).effects.length ? 'Comprobar' : 'Ver las ideas clave'}</button>`;
   } else if (NEEDS_ANSWER.includes(model.tpl.mode)) {
@@ -897,6 +906,7 @@ export function grade(g) {
   stopSpeaking();
   document.querySelector('.swipe-hints')?.remove();
   const id = ses.queue[0];
+  noteBefore(ses, S.cards.get(id));
   const now = Date.now();
   const ms = Math.min(120e3, Math.max(0, now - (ses.shownAt || now)));
   const queue = ses.queue.slice(), done = ses.done, answered = ses.answered ?? ses.done, tally = { ...ses.tally }, asked = (ses.asked || []).slice();

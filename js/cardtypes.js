@@ -215,6 +215,18 @@ export const BUILTIN_TYPES = [
       { id: 't2', name: 'Escribir (significado → kanji a mano)', mode: 'draw', front: ['m', 'kun', 'on'], back: ['e'], answer: 'k', guide: false },
     ],
   },
+  {
+    // Los kanji de tus palabras de japonés: los crea Flaski (lista «Kanji»), tres pasos que se esperan uno a otro
+    id: 'ja-kanji', builtin: true, auto: true, scope: ['ja'], name: 'Kanji (automático)', icon: '', lucide: 'brush',
+    description: 'Los kanji de tus palabras: qué significa, cómo se lee en tus palabras y cómo se escribe.',
+    fields: [F('k', 'Kanji', { lang: 'ja-JP' }), F('m', 'Significado', { lang: NATIVE }), F('kun', 'Lectura japonesa', { lang: 'ja-JP' }),
+      F('on', 'Lectura china', { lang: 'ja-JP' }), F('p', 'Piezas'), F('h', 'Tu historia para recordarlo')],
+    templates: [
+      { id: 't1', name: 'Paso 1 · Qué significa', mode: 'flip', front: ['k'], back: ['m', 'kun', 'on', 'h'] },
+      { id: 't2', name: 'Paso 2 · Cómo se lee', mode: 'choice', front: ['k'], back: ['m'], answer: 'on' },
+      { id: 't3', name: 'Paso 3 · Cómo se escribe', mode: 'draw', front: ['m', 'kun', 'on'], back: ['h'], answer: 'k', guide: false },
+    ],
+  },
 ];
 
 /* ---------------- Idioma del mazo ---------------- */
@@ -239,6 +251,7 @@ export function typeScope(type) {
 // ¿Encaja el tipo en un mazo con este idioma de estudio ('' = no es de idiomas)?
 //   'own' (hecho para ese idioma) · 'lang' (para cualquier idioma) · 'general' · false (no encaja)
 export function typeFit(type, study = '') {
+  if (type.auto) return false;   // (los que crea Flaski solo: no se eligen al crear preguntas)
   const s = typeScope(type);
   if (s === 'general') return 'general';
   if (!study) return false;

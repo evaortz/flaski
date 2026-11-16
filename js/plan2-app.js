@@ -7,6 +7,8 @@ import { migrate, emptyPlan2 } from './plan2-migrar.js';
 import { dayKey, isDay, stageOn, live } from './plan.js';
 import { startOfDay } from './srs.js';
 import { whyCard } from './pantallas/plan-tiempo.js';
+import { studyOk } from './pantallas/ja-tanda.js';
+import { hasJapanese } from './ja/saber.js';
 
 export const P2 = true;
 
@@ -52,10 +54,19 @@ export function doneToday(now = Date.now()) {
   return { new: fresh, reviews, n, ms };
 }
 // Cuándo ha cambiado el progreso (se cambia en el sitio): las cuentas del motor se rehacen solo entonces
+// Las preguntas que pueden salir (las de kanji esperan a su paso anterior: ja-tanda.js)
+let gated = null, gatedKey = '';
+function studyCards() {
+  if (!hasJapanese()) return S.cards;
+  const k = stockKey();
+  if (gated && gatedKey === k) return gated;
+  gated = new Map([...S.cards].filter(([, c]) => studyOk(c))); gatedKey = k;
+  return gated;
+}
 const stockKey = () => `${S.progress.size}|${S.cards.size}|${S.events.length}|${S.events.at(-1)?.t || 0}`;
 export function stateNow() {
   return {
-    plan: plan2(), today: dayKey(), decks: S.decks, folders: S.folders, pages: S.pages, cards: S.cards, progress: S.progress,
+    plan: plan2(), today: dayKey(), decks: S.decks, folders: S.folders, pages: S.pages, cards: studyCards(), progress: S.progress,
     stockKey: stockKey(), events: S.events, newPerDay: S.newPerDay, fallbackMin: S.prefs.study.tandaMin,
     done: doneToday(), extraNew: extraNew(), boostToday: boostToday(),
   };

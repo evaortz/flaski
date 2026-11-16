@@ -14,7 +14,7 @@ export const APP_NAME = 'Flaski';
 // crear, añadir de Explorar o pegar siguen haciéndolo con la pantalla.
 //   await seed({
 //     folders: ['Oposición'],
-//     decks: [{ name: 'Macro', folder?: 'Oposición', lang?: 'de-DE', cards?: [['pregunta', 'respuesta'], …],
+//     decks: [{ name: 'Macro', folder?: 'Oposición', lang?: 'de-DE', cards?: [['pregunta', 'respuesta'], …], notes?: [{ type, fields }],
 //               studied?: { due: -1, interval: 3 } }],   // progreso de todas sus preguntas (due en días desde hoy)
 //     builtin: ['Alemán · A2'],                          // como «Añadir a mis listas» en Explorar
 //     pages: [{ md: '# Título\n\nTexto…', deck?: 'Macro', folder?: 'Oposición' }],   // como pasteNotes
@@ -41,6 +41,8 @@ async function buildSeed(recipe) {
     S.decks.set(row.id, { tags: [], ...row }); decks.set(d.name, row.id);
     const made = [];
     for (const [q, a] of d.cards || []) made.push(...await saveNote({ type: getType('basic'), fields: { q, a, n: '' }, deckId: row.id }));
+    // Notas de otro tipo: { type: 'vocab', fields: { w: '休日[きゅうじつ]', t: 'día festivo' } }
+    for (const x of d.notes || []) made.push(...await saveNote({ type: getType(x.type), fields: x.fields, deckId: row.id }));
     if (d.studied) {
       const { due = 0, interval = 1 } = d.studied;
       for (const c of made) await api.saveProgress(S.uid, c.id, { reps: 2, interval, ease: 2.5, lapses: 0, due: now + due * DAY - (due <= 0 ? 1000 : 0), firstSeen: now - (interval + 7) * DAY, last: now - interval * DAY, stability: interval, difficulty: 5 });

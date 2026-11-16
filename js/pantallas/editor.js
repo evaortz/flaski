@@ -978,6 +978,8 @@ export async function saveCardForm(form, more) {
   const src = next && S.edit.side ? e.source : null;
   if (next) {
     rememberType(deckId, type.id);
+    // Japonés: los kanji nuevos de esta palabra tienen ya su pregunta (lista «Kanji»)
+    import('./ja-tanda.js').then(m => m.syncKanji()).catch(() => {});
     S.edit.dirty = false; cardForm(null, { deckId, source: src }); S.edit.dirty = false;
     document.querySelector('[data-fld]')?.focus();
   }

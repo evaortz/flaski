@@ -34,7 +34,7 @@ let cache = null, cacheKey = '';
 const key = () => `${S.cards.size}|${S.progress.size}|${S.events.length}|${S.events.at(-1)?.t || 0}|${S.decks.size}`;
 function build() {
   if (cache && cacheKey === key()) return cache;
-  const words = new Map(), kanji = new Map(), steps = new Map();
+  const words = new Map(), kanji = new Map(), steps = new Map(), cardWord = new Map();
   for (const c of S.cards.values()) {
     if (c.type_id === KANJI_TYPE) {
       const k = c.fields?.k;
@@ -46,6 +46,7 @@ function build() {
     }
     const w = wordField(c);
     if (!w) continue;
+    cardWord.set(c.id, w.word);
     const p = S.progress.get(c.id), st = stateOf(p);
     const cur = words.get(w.word);
     if (!cur) words.set(w.word, { word: w.word, raw: w.raw, reading: w.reading, state: st, cards: [c.id], deck: c.deck_id });
@@ -61,11 +62,13 @@ function build() {
     for (const t of ['t1', 't2', 't3']) { const c = st.cards[t], p = c && S.progress.get(c.id); if (p && (p.interval || 0) >= STEP_DAYS) n++; else break; }
     st.step = n;
   }
-  cache = { words, kanji, steps }; cacheKey = key();
+  cache = { words, kanji, steps, cardWord }; cacheKey = key();
   return cache;
 }
 // Map palabra → { word, raw, reading, state, cards, deck }
 export const jaWords = () => build().words;
+// La palabra de una pregunta de japonés (o undefined)
+export const wordOfCard = c => build().cardWord.get(c.id);
 // Map kanji → [palabras tuyas que lo llevan]
 export const jaKanjiWords = () => build().kanji;
 // El paso de un kanji (0–3) y sus preguntas

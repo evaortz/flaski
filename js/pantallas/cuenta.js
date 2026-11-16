@@ -158,6 +158,8 @@ export async function onSignedIn(session) {
     if (!S.fromCache) dropEmptyPages();
     if (!S.fromCache) purgeExpired();   // lo que lleva más de 30 días en la papelera se borra del todo
     if (!S.fromCache) migrateEntender().then(() => migrateTemas()).then(n => { if (n && ['home', 'page', 'deck'].includes(S.view)) render(); }).catch(() => {});
+    // Japonés: los kanji de tus palabras, con sus preguntas (se crean una vez por kanji)
+    if (!S.fromCache) import('./ja-tanda.js').then(m => m.syncKanji()).then(n => { if (n && ['home', 'deck', 'decks'].includes(S.view)) render(); }).catch(() => {});
     // El plan de antes pasa al nuevo (v: 2), con su copia; con la copia de este navegador, solo en memoria
     if (migrateLoaded() && !S.fromCache) savePrefsSoon();
     if (!S.fromCache) saveSnap();

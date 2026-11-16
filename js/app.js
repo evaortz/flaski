@@ -214,6 +214,9 @@ document.addEventListener('click', async e => {
   if (ds.sortPick !== undefined) return sortAction('pick', +ds.sortPick);
   if (ds.sortBack !== undefined) return sortAction('back', +ds.sortBack);
   if (ds.occDel !== undefined) return occDelete(+ds.occDel);
+  // Japonés: un kanji (Tus kanji, la ficha) y los filtros de Tus kanji
+  if (ds.kj !== undefined) return import('./pantallas/ja-kanji.js').then(m => m.kanjiSheet(ds.kj));
+  if (ds.kjf !== undefined) { S.kjFilter = ds.kjf; return render(); }
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
   if (ds.listen) { const c = S.cards.get(S.session?.queue[0]); if (c) playListen(cardModel(c), +ds.listen); return; }
   if (ds.strokes) {
@@ -375,6 +378,10 @@ document.addEventListener('click', async e => {
     case 'reload': S.uid = null; return onSignedIn(await api.auth.session());
     case 'sample-data': return loadSampleData(b);
     case 'reveal': return reveal(!!b.dataset.giveup);
+    // Un kanji nuevo, presentado: cuenta como un primer «Bien»
+    case 'ja-intro': reveal(); return grade(3);
+    case 'kj-strokes': return strokesSheet(b.dataset.kjS, 'ja-JP');
+    case 'kj-story': return import('./pantallas/ja-kanji.js').then(m => m.saveStory(b.dataset.kjS));
     case 'show-hint': {
       // Sin volver a pintar la tarjeta, para no borrar lo que estés dibujando
       const c = S.cards.get(S.session?.queue[0]);
