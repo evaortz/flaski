@@ -9,7 +9,7 @@ import { $, main, S, esc, plain, cardList, weakSections, WEAK_SHOWN, daysAway } 
 import { plural } from './mazos.js';
 import { statsData, pushAskHTML } from './perfil.js';
 import { homeFriendsHTML } from './amigos.js';
-import { shortSize, todayQueue, freshLeft, dayDone, restLink } from './estudio.js';
+import { shortSize, todayQueue, freshLeft, dayDone, restLink, moreBtn } from './estudio.js';
 import { openSheet } from './editor.js';
 import { TANDA_MINUTES } from '../tanda.js';
 import { heroHTML as p2Hero, examCardHTML as p2Exam, lateRowHTML } from './plan-tiempo.js';
@@ -59,7 +59,7 @@ export function renderHome() {
 // «Hecho por hoy»: lo que has hecho y, si queda algo, la otra tanda como enlace (lo que quede pasa a mañana)
 const doneHTML = (done, q) => `<h1 class="hero-hi hero-done">Hecho por hoy</h1>
       <p class="day-done">${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min</p>
-      ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : ''}`;
+      ${q.ids.length ? `<p class="day-next">Lo que queda pasa a mañana. ${restLink(q)}</p>` : `<p class="day-next">Si te apetece seguir: ${moreBtn()}</p>`}`;
 // Hoja «¿Cuánto suele durar tu rato de estudio?»: la primera tanda y «Tanda de N min»
 const TANDA_LABELS = { 5: 'una parada o dos', 10: 'un trayecto corto', 15: 'un trayecto medio', 20: 'un trayecto largo' };
 export function tandaSheet() {

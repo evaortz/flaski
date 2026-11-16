@@ -19,7 +19,7 @@ import { chime } from './feel.js';
 import { $, main, S, esc, fmt, plain, cardList, toast, toastAction, fail, errorSheetHTML, errorText, lastError, deckIcon, saveOrgPrefs, loadOrgPrefs, shareUrl, addExtraNew, algo, planNodes, tandaMinutes, todayMinutes } from './comun.js';
 import { renderAuth, renderNewPassword, submitAuth, onSignedIn, showNews, showIntro, isOffline, onSignedOut } from './pantallas/cuenta.js';
 import { renderHome, tandaSheet } from './pantallas/inicio.js';
-import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
+import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, startMore, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
 import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview, dropPreviewTags } from './pantallas/explorar.js';
@@ -437,6 +437,7 @@ document.addEventListener('click', async e => {
     case 'more': { addExtraNew(Number(b.dataset.more) || 10); return startSession(S.session?.scope || 'all'); }
     case 'more-today': { const n = Number(b.dataset.more) || 10; addExtraNew(n); render(); return toast(n === 1 ? '1 nueva más para hoy' : `${n} nuevas más para hoy`); }
     // Tanda corta: la primera vez se pregunta cuánto suele durar el rato de estudio
+    case 'study-more': return startMore(b.dataset.scope || 'all');
     case 'tanda-rest': return startSession('all', { minutes: Number(b.dataset.min) || tandaMinutes() });
     case 'tanda-short': return S.prefs.study.tandaAsked || todayMinutes() ? startSession('all', { minutes: tandaMinutes() }) : tandaSheet();
     case 'tanda-min': return tandaSheet();

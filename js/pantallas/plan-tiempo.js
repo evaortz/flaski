@@ -4,7 +4,7 @@ import { icon } from '../icons.js';
 import { WEEK, WEEK_NAMES, dayKey, addDays, isDay, live, daysBetween, weekdayOf } from '../plan.js';
 import { main, S, esc, toast } from '../comun.js';
 import { plan2, editPlan2, todayPlan, forecastNow, minutesToday, lateNow, setLateAllToday, oldestLate } from '../plan2-app.js';
-import { startSession } from './estudio.js';
+import { startSession, moreBtn } from './estudio.js';
 import { afterQuestionHTML } from './plan-examen.js';
 import { plural } from './mazos.js';
 import { newGroups, deckName } from './plan-ui.js';
@@ -169,8 +169,8 @@ export function heroHTML({ hi, back, fresh = 0 }) {
       <button class="link p2-min" data-p2="today-min">${icon('pencil', { size: 15 })} Hoy sí tengo un rato</button>${lateRowHTML()}`;
   }
   if (!t.total) {
-    return `<h1 class="hero-hi hero-done">${hi}, estás al día</h1><p class="muted">${fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Vuelve mañana: hoy no queda nada.'}</p>
-      ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : ''}`;
+    return `<h1 class="hero-hi hero-done">${hi}, estás al día</h1><p class="muted">${fresh ? 'Vuelve mañana o aprende alguna nueva.' : 'Hoy no te toca nada más. Si te apetece, repasa por adelantado.'}</p>
+      ${fresh ? `<button class="ghost big" data-act="more" data-more="${fresh}">Estudiar ${fresh === 1 ? '1 nueva más' : `${fresh} nuevas más`}</button>` : moreBtn('all', 'ghost big')}`;
   }
   const total = Math.max(1, t.total), mins = Math.max(1, Math.min(t.minutes, Math.ceil(Math.min(t.secs, t.minutes * 60) / 60)));
   const segs = groups.map(({ n }, i) => `<i class="p2-seg p2-s${Math.min(i, 2)}" style="width:${(100 * n) / total}%"></i>`).join('') + (t.reviews ? `<i class="p2-seg p2-sr" style="width:${(100 * t.reviews) / total}%"></i>` : '');

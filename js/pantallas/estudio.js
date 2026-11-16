@@ -466,6 +466,33 @@ export function freshLeft(scope) {
   }
   return n;
 }
+// «Estudiar más»: aunque hoy ya no toque nada, siempre se puede seguir. Primero lo que quede de hoy; luego nuevas
+// por encima del límite del día (una por nota si las hermanas esperan); luego repasos por adelantado, los que
+// tocan antes primero (sin los que ya viste hoy). Las N primeras
+// (lo que cabe en tu tanda a tu ritmo: el tamaño del plan se mide con lo de hoy y, sin nada para hoy, sería 1)
+export function moreQueue(scope = 'all', n = tandaSize(tandaMinutes(), pace(S.events))) {
+  const out = buildSession(scope), have = new Set(out), now = Date.now();
+  const bury = S.prefs.study.burySiblings, pool = cardList().filter(scopeTest(scope)), notes = new Set();
+  if (bury) for (const c of pool) { const p = S.progress.get(c.id); if (c.note_id && p && seenToday(p)) notes.add(c.note_id); }
+  for (const c of pool.filter(c => !S.progress.get(c.id)).sort((a, b) => a.position - b.position)) {
+    if (out.length >= n) break;
+    if (have.has(c.id)) continue;
+    if (bury && c.note_id) { if (notes.has(c.note_id)) continue; notes.add(c.note_id); }
+    out.push(c.id); have.add(c.id);
+  }
+  const ahead = pool.filter(c => { const p = S.progress.get(c.id); return p && !have.has(c.id) && !(p.due <= now) && !seenToday(p); })
+    .sort((a, b) => S.progress.get(a.id).due - S.progress.get(b.id).due);
+  for (const c of ahead) { if (out.length >= n) break; out.push(c.id); }
+  return out.slice(0, Math.max(1, n));
+}
+export function startMore(scope = 'all') {
+  const queue = moreQueue(scope);
+  if (!queue.length) { toast('Aquí todavía no hay preguntas'); return; }
+  S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes: 0, firstRun: false, picked: false, more: true };
+  go('study');
+}
+// El botón, para Hoy, el Plan y el final de la tanda
+export const moreBtn = (scope = 'all', cls = 'link day-rest') => `<button class="${cls}" data-act="study-more" data-scope="${esc(scope)}">Estudiar más</button>`;
 // Lo que sale hoy en un ámbito, con las mismas reglas que la tanda: { ids, due, fresh } (Hoy, Biblioteca, apuntes)
 export function todayQueue(scope = 'all') {
   const ids = buildSession(scope);
@@ -485,6 +512,8 @@ function segBar(ses) {
 // ids: unas preguntas concretas, toque o no repasarlas (desde el mapa); al salir se vuelve a scope
 export function startSession(scope = 'all', { minutes = 0, firstRun = false, ids = null, back = null, backLabel = '' } = {}) {
   const queue = ids ? ids.filter(id => S.cards.has(id)) : buildSession(scope, minutes ? shortSize(minutes) : 0);
+  // Nada para hoy aquí: se sigue igual, con lo de «Estudiar más» (nuevas de más y repasos por adelantado)
+  if (!queue.length && !ids) { if (moreQueue(scope).length) { toast('Hoy ya no toca nada aquí: sigues por adelantado'); return startMore(scope); } }
   if (!queue.length) { toast('No hay preguntas pendientes aquí'); return; }
   S.session = { scope, queue, done: 0, revealed: false, tally: { 1: 0, 2: 0, 3: 0, 4: 0 }, undo: null, st: null, startedAt: Date.now(), minutes, firstRun, picked: !!ids, back, backLabel };
   go('study');
@@ -690,14 +719,14 @@ export function renderStudy() {
           <small>${done} de ${done + left} hechas · ${tandas === 1 ? '1 tanda' : `${tandas} tandas`} hoy</small></div>` : ''}
         <div class="done-go">${left > 1 ? `<button class="primary big" data-act="tanda-again">Otra tanda · ${ses.minutes} min</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
           : left ? `<button class="primary big" data-start="all">Hacer la que queda</button><button class="ghost big" data-act="exit">Por hoy vale</button>`
-          : '<button class="primary big" data-act="exit">Volver</button>'}</div>${again}</div>`;
+          : `<button class="primary big" data-act="exit">Volver</button>${moreBtn(ses.scope, 'ghost big')}`}</div>${again}</div>`;
       return;
     }
     // Con atrasos, no se ofrecen nuevas de más: «¿Adelantas 10 atrasadas?»
     const late = ses.picked || !hooks.plan2 ? null : hooks.plan2.late();
     const more = ses.picked || late ? 0 : Math.min(10, freshLeft(ses.scope));
     main.innerHTML = `${head(scopeName(ses.scope), '', 'x')}<div class="done">${DONE_FACE}<h2>¡Tanda hecha!</h2>${sub}${capNote(counts(ses.scope))}${tally}${entDoneHTML(ses)}
-      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : late ? `<button class="ghost big" data-p2="late-10">¿Adelantas ${Math.min(10, late.n)} atrasadas?</button>` : ''}</div>${again}</div>`;
+      <div class="done-go"><button class="primary big" data-act="exit">${exitLabel(ses.scope)}</button>${more ? `<button class="ghost big" data-act="more" data-more="${more}">${more === 1 ? '1 nueva más' : `${more} nuevas más`}</button>` : late ? `<button class="ghost big" data-p2="late-10">¿Adelantas ${Math.min(10, late.n)} atrasadas?</button>` : ses.picked ? '' : moreBtn(ses.scope, 'ghost big')}</div>${again}</div>`;
     return;
   }
   const id = ses.queue[0];

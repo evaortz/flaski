@@ -136,7 +136,7 @@ export function renderDeck() {
         ${d.archived ? `<div class="dk-num dk-arch"><span class="dk-para dk-done">Archivada</span><button class="link" data-act="archive-deck">Sacar del archivo</button></div>
         <div class="dk-acts">` : `<div class="dk-num">${avail ? `<b>${avail}</b><span class="dk-para">para hoy</span>` : `<span class="dk-para dk-done">${all.length ? 'al día' : 'vacía'}</span>`}
           ${split.length ? `<span class="dk-split">${split.map(s => `<span>${s}</span>`).join('<span class="dk-sep" aria-hidden="true"> · </span>')}</span>` : ''}</div>
-        <div class="dk-acts"><button class="primary big dk-study" data-start="${d.id}" ${avail ? '' : 'disabled'}>${icon('play', { size: 20 })} Estudiar</button>`}
+        <div class="dk-acts"><button class="primary big dk-study" data-start="${d.id}" ${all.length ? '' : 'disabled'}>${icon('play', { size: 20 })} Estudiar</button>`}
           <button class="dk-add" data-act="add-menu" aria-label="Añadir preguntas" aria-haspopup="menu" title="Añadir preguntas">${icon('plus', { size: 24 })}</button>${more}</div>
       </div>
     </header>

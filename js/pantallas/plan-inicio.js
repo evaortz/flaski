@@ -6,7 +6,7 @@ import { icon } from '../icons.js';
 import { dayKey, addDays, daysBetween, weekdayOf, WEEK_NAMES } from '../plan.js';
 import { main, S, esc } from '../comun.js';
 import { plan2, forecastNow, stateNow, todayPlan } from '../plan2-app.js';
-import { todayQueue, dayDone, restLink } from './estudio.js';
+import { todayQueue, dayDone, restLink, moreBtn } from './estudio.js';
 import { fixes, liveExams } from '../plan2.js';
 import { plural } from './mazos.js';
 import { cundeHTML, lateRowHTML } from './plan-tiempo.js';
@@ -74,7 +74,7 @@ function todayLineHTML() {
   const t = todayPlan(), done = dayDone();
   if (done) {
     const q = todayQueue('all');
-    return `<p class="p2-today day-done"><b>Hecho por hoy:</b> ${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min.${q.ids.length ? ` Lo que queda pasa a mañana. ${restLink(q)}` : ''}</p>`;
+    return `<p class="p2-today day-done"><b>Hecho por hoy:</b> ${plural(done.n, 'pregunta', 'preguntas')} · ${done.minutes} min.${q.ids.length ? ` Lo que queda pasa a mañana. ${restLink(q)}` : ` ${moreBtn()}`}</p>`;
   }
   if (t.rest) return `<p class="p2-today">Hoy es tu día libre${t.reviews ? `: tocarían ${plural(t.reviews, 'repaso', 'repasos')}, que pasan a mañana si no los haces` : ''}.</p>`;
   if (!t.total) return '<p class="p2-today">Hoy no te queda nada.</p>';
