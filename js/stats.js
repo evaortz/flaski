@@ -55,7 +55,10 @@ export function computeStats(ctx, f) {
   const scoped = ctx.events.filter(evOk);
   // No se da por hecho que vengan ordenados por fecha
   const first = scoped.length ? startOfDay(scoped.reduce((m, e) => Math.min(m, e.t), Infinity)) : today;
-  const start = f.period ? today - (f.period - 1) * DAY : Math.min(first, today - 6 * DAY);
+  // N días de calendario (a mediodía y luego al empezar el día): restar N × 24 h con un cambio de hora por medio
+  // caería a las 23:00 de la víspera (un día de más) o a la 01:00 (sin la primera hora)
+  const back = n => startOfDay(today - n * DAY + DAY / 2);
+  const start = f.period ? back(f.period - 1) : Math.min(first, back(6));
   const evs = scoped.filter(e => e.t >= start);
 
   // Por fecha
