@@ -98,6 +98,7 @@ export function nameSheet() {
 export function creditsSheet() {
   openSheet(`<h2 class="sheet-hand">Créditos y licencias</h2>
     <p class="small">Escritura de kanji y hanzi con <a href="https://hanziwriter.org" target="_blank" rel="noopener">Hanzi Writer</a> de David Chanin (MIT), con datos de trazos de animCJK y Make Me A Hanzi (licencias Arphic y LGPL). Iconos de <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC) y <a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Fluent Emoji</a> de Microsoft (MIT). Detalles en la carpeta <i>licenses</i>.</p>
+    <p class="small">Japonés: kanji, lecturas, piezas y diccionario de <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noopener">EDRDG</a> (KANJIDIC2, KRADFILE y JMdict) y entonación de <a href="https://github.com/mifunetoshiro/kanjium" target="_blank" rel="noopener">Kanjium</a>, con licencia CC BY-SA 4.0. Los datos, adaptados, están en <i>data/ja</i> con la misma licencia.</p>
     <p class="small">Flaski es software libre. <span class="hand-inline">Consejo:</span> en el iPhone, abre la app en Safari y pulsa Compartir → «Añadir a pantalla de inicio».</p>
     <div class="btnrow"><span class="spacer"></span><button class="primary" data-act="close-sheet">Cerrar</button></div>`);
 }
