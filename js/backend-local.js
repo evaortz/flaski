@@ -25,6 +25,9 @@ function read() {
   }
 }
 let db = read();
+// Otra pestaña (o la app instalada y el navegador a la vez) ha guardado: se toma lo suyo, para que al guardar aquí
+// no se pise lo que hizo allí (persist escribe la copia entera)
+if (typeof window !== 'undefined') window.addEventListener('storage', e => { if (e.key === KEY) db = read(); });
 
 function persist() {
   try {

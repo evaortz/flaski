@@ -86,3 +86,22 @@ test('nuevo examen: «falta 1 día» y no se puede guardar con la fecha de hoy',
   await expect(page.locator('#toast')).toContainText('a partir de mañana');
   expect(await page.evaluate(() => import('/js/plan2-app.js').then(m => (m.plan2().exams || []).length))).toBe(0);
 });
+
+// Modo local con dos pestañas: cada una guardaba su copia entera y la última pisaba lo de la otra
+test('modo local: lo que se guarda en otra pestaña no se pierde al guardar en esta', async ({ page, seed, context }) => {
+  await seed({ decks: [{ name: 'Turco', cards: qs(2, 't') }] });
+  await openApp(page);
+  // Otra pestaña añade una lista
+  const other = await context.newPage();
+  await other.goto('/manifest.webmanifest');
+  await other.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('flaski-local-v1'));
+    db.decks.push({ ...db.decks[0], id: '00000000-0000-4000-8000-00000000beef', name: 'De la otra pestaña' });
+    localStorage.setItem('flaski-local-v1', JSON.stringify(db));
+  });
+  await other.close();
+  // Aquí se guarda algo (una lista nueva)
+  await page.evaluate(async () => { const api = await import('/js/api.js'); const { S } = await import('/js/comun.js'); await api.createDeck({ owner: S.uid, name: 'De esta pestaña' }); });
+  const names = await page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).decks.map(d => d.name).sort());
+  expect(names).toEqual(['De esta pestaña', 'De la otra pestaña', 'Turco']);
+});
