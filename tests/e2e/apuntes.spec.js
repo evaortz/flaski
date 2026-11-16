@@ -251,7 +251,7 @@ test('carpetas: una sola por tema, con apuntes y listas dentro; crear y mover ap
   // Una lista dentro de la carpeta con el botón de crear: sale junto a los apuntes
   await page.locator('#main .lfold').click();
   await page.locator('#main [data-act="create-menu"]').click();
-  await expect(page.locator('#sheetBody [data-act]')).toHaveCount(2);                     // Apunte o Lista
+  await expect(page.locator('#sheetBody [data-act]')).toHaveCount(3);                     // Apunte, Lista o Apunte con IA
   await page.locator('#sheetBody [data-act="new-deck"]').click();
   await page.locator('#d-name').fill('Vocabulario');
   await page.locator('#sheetBody').getByRole('button', { name: 'Guardar' }).click();

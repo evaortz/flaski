@@ -1480,8 +1480,9 @@ export function newPage({ title = '', blocks = null, folder } = {}) {
   S.pages.set(p.id, p);
   savePageSoon(p, 0);
   go('page', { pageId: p.id });
-  if (title || blocks?.length) return;
+  if (title || blocks?.length) return p;
   setTimeout(() => $('#pgTitle')?.focus(), 30);
+  return p;
 }
 // Lee un PDF y lo convierte en bloques (las páginas escaneadas, como imágenes ya guardadas)
 export async function readPdfFile(file, status = () => {}) {

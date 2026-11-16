@@ -215,7 +215,7 @@ function showPreview(byline) {
 function issueList(items) {
   return `<ul class="issues">${items.map(i => `<li><b>${i.n ? `Nota ${i.n}` : 'Lista'}</b>${i.label && i.n ? ` <span class="muted">(${esc(i.label)})</span>` : ''}: ${esc(i.reason)}</li>`).join('')}</ul>`;
 }
-function issuesHTML(issues = []) {
+export function issuesHTML(issues = []) {
   const skipped = issues.filter(i => i.skipped), warns = issues.filter(i => !i.skipped);
   return `${skipped.length ? `<details class="issues-box" open><summary>${skipped.length === 1 ? 'Se salta 1 nota' : `Se saltan ${skipped.length} notas`}</summary>${issueList(skipped)}</details>` : ''}
     ${warns.length ? `<details class="issues-box"><summary>${plural(warns.length, 'aviso', 'avisos')}</summary>${issueList(warns)}</details>` : ''}`;
@@ -249,18 +249,23 @@ export function dropPreviewTags(b) {
 }
 
 /* ---------------- Pegar e instrucciones para IA ---------------- */
-export function pasteSheet() {
-  openSheet(`<h2 class="sheet-hand">Pegar una lista</h2>
-    <p class="muted small">Pega la lista que te ha preparado una IA (ChatGPT, Gemini, Claude…) o unas columnas copiadas de una hoja de cálculo.</p>
-    <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Texto de la lista" placeholder="{ &quot;format&quot;: &quot;flaski-notes&quot;, … }">${esc(S.pasteText || '')}</textarea>
+// mode 'page': «Apunte con IA» (la IA prepara el apunte y sus preguntas). Las dos hojas leen las dos cosas
+export function pasteSheet({ mode = 'list' } = {}) {
+  const page = mode === 'page';
+  openSheet(`<h2 class="sheet-hand">${page ? 'Apunte con IA' : 'Pegar una lista'}</h2>
+    ${page
+      ? `<ol class="ai-steps"><li>Copia las instrucciones y pégalas en tu IA (ChatGPT, Gemini, Claude…). Añade el tema, tu texto o una foto de tus apuntes.</li><li>Pega aquí lo que te responda: se crea el apunte con sus preguntas, cada una unida a su apartado.</li></ol>
+        ${AI_GUIDE_BTNS('page')}`
+      : '<p class="muted small">Pega la lista o el apunte que te ha preparado una IA (ChatGPT, Gemini, Claude…), o unas columnas copiadas de una hoja de cálculo.</p>'}
+    <textarea id="pasteText" class="paste-box" rows="9" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="${page ? 'Lo que te ha respondido la IA' : 'Texto de la lista'}" placeholder="${page ? '# Título del apunte…' : '{ &quot;format&quot;: &quot;flaski-notes&quot;, … }'}">${esc(S.pasteText || '')}</textarea>
     <p class="error" id="pasteError" role="alert" hidden></p>
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cancelar</button><button class="primary" data-act="paste-preview">Ver vista previa</button></div>
-    <div class="ai-help">${icon('lightbulb', { size: 18 })}<div>
+    ${page ? '' : `<div class="ai-help">${icon('lightbulb', { size: 18 })}<div>
       <p><b>¿Quieres que una IA te haga la lista?</b> Copia estas instrucciones, pégalas en la IA junto con lo que quieres estudiar y pega aquí lo que te responda.</p>
-      ${AI_GUIDE_BTNS()}</div></div>`);
+      ${AI_GUIDE_BTNS()}</div></div>`}`);
   loadAiGuide();
 }
-export const AI_GUIDE_BTNS = () => `<span class="btnrow"><button type="button" class="ghost small-btn" data-act="copy-ai-guide">${icon('copy', { size: 16 })} Copiar instrucciones</button><button type="button" class="ghost small-btn" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button></span>`;
+export const AI_GUIDE_BTNS = (ai = '') => `<span class="btnrow"><button type="button" class="ghost small-btn" data-act="copy-ai-guide"${ai ? ` data-ai="${ai}"` : ''}>${icon('copy', { size: 16 })} Copiar instrucciones</button><button type="button" class="ghost small-btn" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button></span>`;
 let guideLoading = null;
 export function loadAiGuide() {
   if (S.aiGuide) return Promise.resolve(S.aiGuide);
@@ -306,8 +311,10 @@ export async function copyText(text, done) {
 }
 // «Copiar instrucciones»: copia la guía y lo dice en el propio botón (el aviso de abajo lo puede tapar el teclado).
 // Si no se puede copiar, enseña el texto para copiarlo a mano.
-export async function copyAiGuide(btn) {
-  const ok = await writeClipboard(S.aiGuide || loadAiGuide());
+// wrap: lo que va con la guía (el encargo para la IA, el apunte…); back: la acción de «Volver» si no se puede copiar
+export async function copyAiGuide(btn, { wrap = t => t, back = 'paste' } = {}) {
+  const full = t => (t ? wrap(t) : '');
+  const ok = await writeClipboard(S.aiGuide ? full(S.aiGuide) : loadAiGuide().then(full));
   if (ok) {
     toast('Instrucciones copiadas: pégalas en tu IA');
     if (btn?.isConnected) {
@@ -317,18 +324,18 @@ export async function copyAiGuide(btn) {
     }
     return true;
   }
-  const text = S.aiGuide || await loadAiGuide();
+  const text = full(S.aiGuide || await loadAiGuide());
   if (!text) { toast('No se han podido cargar las instrucciones. Revisa la conexión.'); return false; }
-  guideTextSheet(text, !!btn?.closest('#sheetBody'));
+  guideTextSheet(text, btn?.closest('#sheetBody') ? back : '');
   return false;
 }
 // El navegador no deja copiar: el texto entero, seleccionado, para copiarlo a mano (o descargarlo)
-function guideTextSheet(text, fromSheet) {
+function guideTextSheet(text, back) {
   openSheet(`<h2>Copia las instrucciones</h2>
     <p class="muted small">Este navegador no deja copiar solo. Mantén pulsado el texto (o Ctrl+C), elige «Copiar» y pégalo en tu IA.</p>
     <textarea id="aiGuideText" class="paste-box" rows="10" readonly aria-label="Instrucciones para la IA">${esc(text)}</textarea>
     <div class="btnrow"><button type="button" class="ghost" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button><span class="spacer"></span>
-      ${fromSheet ? '<button class="primary" data-act="paste">Volver</button>' : '<button class="primary" data-act="close-sheet">Hecho</button>'}</div>`);
+      ${back ? `<button class="primary" data-act="${back}">Volver</button>` : '<button class="primary" data-act="close-sheet">Hecho</button>'}</div>`);
   const ta = $('#aiGuideText');
   ta.focus({ preventScroll: true }); ta.select();
 }
@@ -383,7 +390,7 @@ export function findFolder(name) {
   const all = [...S.folders.values()].filter(f => !f.deleted_at && fold(f.name).trim() === fold(name).trim());
   return all.find(f => (f.parent_id || null) === here()) || all[0] || null;
 }
-async function folderNamed(name) {
+export async function folderNamed(name) {
   const found = findFolder(name);
   if (found) return found;
   const f = await api.createFolder({ owner: S.uid, name: name.slice(0, 80), icon: '', color: '', position: Date.now() / 1000, parent_id: here() });

@@ -66,3 +66,40 @@ test('campos de varios elementos: listas y objetos se escriben como los espera l
   assert.equal(f[8].a, '1492');
   assert.equal(d.folder, 'Biología');
 });
+
+/* ---------------- Apuntes con preguntas ---------------- */
+import { splitPagePaste, sectionBlockId, notesOf } from '../../js/notes.js';
+import { markdownToPage } from '../../js/notesio.js';
+
+test('FORMATO-IA.md: el apunte de ejemplo y sus preguntas se leen juntos y cada pregunta encuentra su apartado', () => {
+  const mdEx = /```markdown\r?\n([\s\S]*?)```/.exec(md)[1];
+  const jsonEx = examples.find(e => /"section"/.test(e.json)).json;
+  // Como lo da una IA: una frase, el apunte sin bloque y las preguntas en su bloque
+  const sp = splitPagePaste(`¡Aquí lo tienes!\n\n${mdEx}\n\`\`\`json\n${jsonEx}\`\`\`\n¿Quieres más?`);
+  assert.ok(sp);
+  const { title, blocks } = markdownToPage(sp.md);
+  assert.equal(title, 'La fotosíntesis');
+  const notes = notesOf(notesToDeck(sp.data));
+  assert.equal(notes.length, 3);
+  for (const n of notes) assert.ok(sectionBlockId(blocks, n.section), n.section);
+  assert.ok(blocks.some(b => b.type === 'table'));
+});
+
+test('splitPagePaste: solo el Markdown, en un bloque ```markdown, o con "page" dentro del JSON; una lista no es un apunte', () => {
+  assert.equal(splitPagePaste('# Tema\n\nTexto').md, '# Tema\n\nTexto');
+  assert.equal(splitPagePaste('# Tema\n\nTexto').data, null);
+  assert.equal(splitPagePaste('Claro:\n```markdown\n# Tema\n## A\nx\n```\n```json\n{"notes":[{"section":"A","fields":{"q":"p","a":"r"}}]}\n```').data.notes[0].section, 'A');
+  assert.equal(splitPagePaste(JSON.stringify({ name: 'X', page: '# Tema\n\n## A', notes: [] })).md, '# Tema\n\n## A');
+  assert.equal(splitPagePaste('Aquí tienes:\n```json\n{"format":"flaski-notes","name":"L","notes":[]}\n```'), null);
+  assert.equal(splitPagePaste('pregunta;respuesta\notra;cosa'), null);
+  assert.throws(() => splitPagePaste('# Tema\n```json\n{"notes": [{"a" 1}]}\n```'), /línea/);
+});
+
+test('sectionBlockId: el título igual (sin acentos, numeración ni negritas) o el que lo contiene', () => {
+  const blocks = [{ id: 'a', type: 'h2', text: '1. **Fase luminosa**' }, { id: 'b', type: 'p', text: 'Fases' }, { id: 'c', type: 'h2', text: 'Ciclo de Calvin (fase oscura)' }];
+  assert.equal(sectionBlockId(blocks, 'Fase luminosa'), 'a');
+  assert.equal(sectionBlockId(blocks, 'fase LUMINOSA'), 'a');
+  assert.equal(sectionBlockId(blocks, 'Ciclo de Calvin'), 'c');
+  assert.equal(sectionBlockId(blocks, 'Fases'), null);
+  assert.equal(sectionBlockId(blocks, ''), null);
+});

@@ -172,6 +172,7 @@ export function notesToDeck(data) {
       note(n, label, `solo crea ${active.length} de ${type.templates.length} preguntas: para «${miss.name}» falta ${missingFor(type, miss, fields)}`, false);
     }
     const hint = typeof raw.hint === 'string' ? raw.hint.trim().slice(0, 500) : '';
+    const section = typeof raw.section === 'string' ? raw.section.trim().slice(0, 200) : '';
     const tags = (Array.isArray(raw.tags) ? raw.tags : typeof raw.tags === 'string' ? raw.tags.split(',') : [])
       .map(t => String(t ?? '').trim().replace(/^#/, '').slice(0, 40)).filter(Boolean);
     for (const t of tags) if (!tagNames.has(t.toLocaleLowerCase())) tagNames.set(t.toLocaleLowerCase(), t);
@@ -180,7 +181,7 @@ export function notesToDeck(data) {
       const sum = summarize(type, tpl, fields);
       cards.push({
         front: sum.front.slice(0, 2000) || '—', back: sum.back.slice(0, 2000) || '—', note: sum.note.slice(0, 2000),
-        type_id: type.id, template: tpl.id, fields, note_id: `n${n}`, hint, tagNames: tags,
+        type_id: type.id, template: tpl.id, fields, note_id: `n${n}`, hint, tagNames: tags, section,
       });
     }
   });
@@ -196,4 +197,53 @@ export function notesToDeck(data) {
     description: String(meta.description || '').trim().slice(0, 300),
     lang, cards, notes, types: [], tagNames: [...tagNames.values()], issues,
   };
+}
+
+/* ---------------- Apunte + preguntas (lo que devuelve una IA para un apunte) ---------------- */
+
+// «Lo que le pides a una IA para un apunte»: el apunte en Markdown, que empieza por «# Título», y debajo las
+// preguntas en un bloque ```json (formato flaski-notes, cada nota con "section": el apartado del que sale).
+// También vale el JSON solo con "page": "…Markdown…". Devuelve { md, data } (data: el JSON o null) o null si
+// no es un apunte (una lista, unas columnas…). Si el JSON está mal, lanza el mismo error que parsePasted.
+export function splitPagePaste(text) {
+  const raw = String(text ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const fences = [...raw.matchAll(/```([\w-]*)[ \t]*\n([\s\S]*?)\n?```/g)];
+  const json = fences.findLast(m => /^(json)?$/i.test(m[1]) && /^\s*[{[]/.test(m[2]));
+  let outside = json ? raw.slice(0, json.index) + raw.slice(json.index + json[0].length) : raw;
+  // El apunte dentro de su propio bloque ```markdown
+  const mdFence = /```(?:markdown|md)[ \t]*\n([\s\S]*?)\n```/i.exec(outside);
+  if (mdFence) outside = mdFence[1];
+  let data = null;
+  if (json) data = parsePasted(json[0]).data;
+  else if (!/^#\s/m.test(outside) && /^\s*[{[]/.test(raw.trim())) {
+    try { data = parsePasted(raw).data; } catch { return null; }
+  }
+  const start = outside.search(/^#\s+\S/m);
+  let md = start >= 0 ? outside.slice(start).trim() : '';
+  if (!md && data && !Array.isArray(data)) md = Array.isArray(data.page) ? data.page.join('\n') : typeof data.page === 'string' ? data.page.trim() : '';
+  if (!md) return null;
+  return { md, data };
+}
+
+// El bloque de un apartado: el título (h1-h3) con ese texto; si no, el que lo contiene. null si no hay ninguno
+const plainKey = s => String(s ?? '').replace(/[*_`#[\]]/g, '').replace(/^\s*\d+[.)]\s*/, '').toLocaleLowerCase()
+  .replace(/ñ/g, '\u0001').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\u0001/g, 'ñ').replace(/\s+/g, ' ').trim();
+export function sectionBlockId(blocks, section) {
+  const k = plainKey(section);
+  if (!k) return null;
+  const heads = (blocks || []).filter(b => /^h[1-3]$/.test(b.type)).map(b => [b, plainKey(b.text)]);
+  const hit = heads.find(([, t]) => t === k) || heads.find(([, t]) => t.length > 3 && (t.includes(k) || k.includes(t)));
+  return hit ? hit[0].id : null;
+}
+
+// Las notas de una lista ya leída (notesToDeck), una por nota, para crearlas unidas a un apunte:
+// [{ typeId, fields, hint, section, cards }]
+export function notesOf(deck) {
+  const out = new Map();
+  for (const c of deck.cards) {
+    const k = c.note_id || Symbol();
+    if (out.has(k)) { out.get(k).cards++; continue; }
+    out.set(k, { typeId: c.type_id, fields: c.fields, hint: c.hint || '', section: c.section || '', cards: 1 });
+  }
+  return [...out.values()];
 }

@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 // Qué pruebas (tests/e2e/<nombre>.spec.js) mira cada pantalla
 const PANTALLAS = {
-  apuntes: ['apuntes', 'bloques', 'editor-apunte', 'apunte-repasar', 'apunte-ancho', 'formato', 'remates-pasada', 'exportar', 'remates-archivos', 'sugerencias', 'sugerencias-mazo', 'remates-paso5'],
+  apuntes: ['apuntes', 'apuntes-ia', 'bloques', 'editor-apunte', 'apunte-repasar', 'apunte-ancho', 'formato', 'remates-pasada', 'exportar', 'remates-archivos', 'sugerencias', 'sugerencias-mazo', 'remates-paso5'],
   tanda: ['antes-del-push', 'estudio', 'tanda-corta', 'tanda-tipos', 'remates-tanda', 'remates-repaso', 'deslizar', 'entender', 'remates-correccion', 'aleman'],
   tipos: ['tipos', 'tipos-nuevos', 'kanji', 'remates-kanji', 'furigana', 'voz'],
   editor: ['remates-editor', 'remates-preguntas', 'guardar-y-otra', 'tipos'],
@@ -17,7 +17,7 @@ const PANTALLAS = {
   simulacro: ['simulacro'],
   mapa: ['mapa'],
   biblioteca: ['lista', 'remates-biblioteca', 'buscar-borrar', 'papelera', 'iconos'],
-  explorar: ['explorar', 'explorar-tema', 'safari-tema', 'tema-memoria', 'remates-plan'],
+  explorar: ['explorar', 'ia', 'apuntes-ia', 'explorar-tema', 'safari-tema', 'tema-memoria', 'remates-plan'],
   bienvenida: ['bienvenida', 'novedades'],
   perfil: ['perfil-ajustes', 'datos', 'pantallas', 'recordatorio'],
   amigos: ['amigos'],

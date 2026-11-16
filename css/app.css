@@ -313,6 +313,11 @@ textarea.paste-box{width:100%;min-height:180px;resize:vertical;font-family:ui-mo
 .ai-help > .lu{flex:none;color:var(--tag-yellow);margin-top:1px}
 .ai-help p{margin:0 0 8px}
 .ai-help .btnrow{align-items:center}
+.ai-steps{margin:4px 0 10px;padding-left:22px;font-size:14px;color:var(--muted)}
+.ai-steps li{margin:0 0 6px}
+.ai-steps li::marker{color:var(--fg);font-weight:600}
+.ai-where{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.ai-where .lu{flex:none}
 /* Notas que se saltan al importar y avisos */
 .issues-box{border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;font-size:14px}
 .issues-box summary{cursor:pointer;font-weight:500}

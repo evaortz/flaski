@@ -225,11 +225,13 @@ function renderFolder(folder) {
 export function createMenuHTML() {
   return `<h2 class="sheet-hand">Crear</h2><div class="lib-pick">
     <button data-act="new-page">${icon('file-text', { size: 22 })}<span><b>Apunte</b><small>Escribe o pega tus apuntes</small></span></button>
-    <button data-act="new-deck">${icon('copy', { size: 22 })}<span><b>Lista</b><small>Preguntas para repasar</small></span></button></div>`;
+    <button data-act="new-deck">${icon('copy', { size: 22 })}<span><b>Lista</b><small>Preguntas para repasar</small></span></button>
+    <button data-act="ai-page">${icon('sparkles', { size: 22 })}<span><b>Apunte con IA</b><small>Una IA te prepara el apunte y sus preguntas</small></span></button></div>`;
 }
 export function importMenuHTML() {
   return `<h2 class="sheet-hand">Importar</h2><div class="lib-pick">
     <button data-act="import-notes">${icon('file-text', { size: 22 })}<span><b>Apuntes</b><small>Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian</small></span></button>
     <button data-act="import">${icon('copy', { size: 22 })}<span><b>Listas</b><small>CSV, mazo de Anki o archivo de Flaski</small></span></button>
-    <button data-act="paste">${icon('download', { size: 22 })}<span><b>Pegar preguntas</b><small>Texto o JSON copiado</small></span></button></div>`;
+    <button data-act="paste">${icon('download', { size: 22 })}<span><b>Pegar</b><small>Una lista o un apunte de una IA, o columnas copiadas</small></span></button>
+    <button data-act="ai-page">${icon('sparkles', { size: 22 })}<span><b>Apunte con IA</b><small>Una IA te prepara el apunte y sus preguntas</small></span></button></div>`;
 }

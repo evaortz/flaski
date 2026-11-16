@@ -26,6 +26,7 @@ import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, pre
 import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
+import { aiCardsSheet, aiCopyOpts, previewCardsForPage, previewPastedPage, aiImport } from './pantallas/apuntes-ia.js';
 import { setSugHidden, openSuggestions, refreshSuggestions, drawSuggestions, hideSuggestion, swapSuggestion, scheduleSugMarks, paintSugMarks, redrawSuggestions, openSugEditor, saveSugEditor, readSugEdit, createSuggested } from './pantallas/sugerencias.js';
 import { renderProfile, renderStats, getPref, setPref, savePrefsSoon, seg, sw, numIn, PUSH_ASK, pushAllow, setRemind, renderSettings, prefChanged, backupData, restoreBackup, saveProfileForm, nameSheet, creditsSheet, clearSettingFind } from './pantallas/perfil.js';
 import { qsCheck, qsSkip, qsInsert, rvOn, startReview, stopReview, rvReveal, rvGrade, rvMake, rvKey, rvLeave, rvOffer, rvMakePending } from './pantallas/apuntes-repaso.js';
@@ -554,6 +555,7 @@ document.addEventListener('click', async e => {
     case 'page-menu': return openSheet(`<h2>${esc(pageTitle(curPage()))}</h2>
       <ul class="list linklist">
         <li><button class="row-link" data-act="suggest-cards">${icon('sugerencia', { size: 20 })}<span><b>Sugerir preguntas</b><small>Propone preguntas a partir de las definiciones, negritas, tablas y listas</small></span></button></li>
+        <li><button class="row-link" data-act="ai-cards">${icon('sparkles', { size: 20 })}<span><b>Preguntas con IA</b><small>Copia el apunte para tu IA y pega las preguntas que te haga, cada una unida a su apartado</small></span></button></li>
         <li><button class="row-link" data-act="import-into-page">${icon('upload', { size: 20 })}<span><b>Importar…</b><small>PDF, Word, Markdown, HTML o CSV · ${curPage().blocks.some(b => b.text.trim() || b.type === 'img' || b.type === 'hr') ? 'se añade al final de este apunte' : 'se convierte en este apunte'}</small></span></button></li>
         <li><button class="row-link" data-p2="entuplan" data-key="page:${curPage().id}">${icon('target', { size: 20 })}<span><b>En tu plan</b><small>Examen, fechas y cuánto entra</small></span></button></li>
         <li><button class="row-link" data-act="export-page">${icon('download', { size: 20 })}<span><b>Exportar…</b><small>Markdown, Word, PDF o página web</small></span></button></li>
@@ -701,11 +703,19 @@ document.addEventListener('click', async e => {
     case 'paste': return pasteSheet();
     case 'paste-preview': {
       S.pasteText = $('#pasteText').value;
-      try { previewImport(parsePasted(S.pasteText), { source: 'pegado', baseName: 'Lista pegada' }); }
+      try { if (!previewPastedPage(S.pasteText)) previewImport(parsePasted(S.pasteText), { source: 'pegado', baseName: 'Lista pegada' }); }
       catch (err) { const el = $('#pasteError'); el.textContent = err.message || 'No se ha podido leer lo pegado.'; el.hidden = false; }
       return;
     }
-    case 'copy-ai-guide': return copyAiGuide(b);
+    case 'copy-ai-guide': return copyAiGuide(b, aiCopyOpts(b.dataset.ai));
+    case 'ai-page': return pasteSheet({ mode: 'page' });
+    case 'ai-cards': return aiCardsSheet();
+    case 'ai-cards-preview': {
+      try { previewCardsForPage($('#pasteText').value); }
+      catch (err) { const el = $('#pasteError'); el.textContent = err.message || 'No se ha podido leer lo pegado.'; el.hidden = false; }
+      return;
+    }
+    case 'ai-import': return aiImport(b);
     case 'download-ai-guide': {
       const text = await loadAiGuide();
       if (!text) return toast('No se han podido cargar las instrucciones. Revisa la conexión.');
