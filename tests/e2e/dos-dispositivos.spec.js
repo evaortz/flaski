@@ -95,3 +95,26 @@ test('apuntes: si otro dispositivo lo cambió, lo suyo se queda y lo de aquí va
   expect(here).toEqual(expect.arrayContaining([['Tema 1', 'Del ordenador'], ['Tema 1 (copia de este dispositivo)', 'Hola (errata corregida)']]));
   expect(here).toHaveLength(2);
 });
+
+// Deshacer en el Plan: lo que el cambio añadió (un examen, un día especial) ya estaba en la nube; al juntar se unen
+// por id, así que sin marca de borrado volvía al recargar o en el otro dispositivo
+test('Plan: deshacer «añadir un examen» también lo quita de la nube y no vuelve al recargar', async ({ page }) => {
+  const srv = await mockCloud(page);
+  await openCloud(page);
+  await page.evaluate(async () => {
+    const { commitPlan } = await import('/js/pantallas/plan-guardar.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    commitPlan('Examen de Turco', p => {
+      p.exams.push({ id: 'ex-turco', name: 'Turco', scope: { folders: [], decks: ['d0000000-0000-4000-8000-000000000001'], pages: [] }, date: addDays(dayKey(), 30), order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [], lastWeek: false, after: null, retention: 0.9 });
+      p.time.special = [...(p.time.special || []), { id: 'puente', label: 'Puente', from: addDays(dayKey(), 3), to: addDays(dayKey(), 4), minutes: 0, at: Date.now() }];
+    });
+  });
+  const cloudPlan = () => srv.settings?.prefs?.plan;
+  await expect.poll(() => (cloudPlan()?.exams || []).some(e => e.id === 'ex-turco' && !e.deleted), { timeout: 10000 }).toBe(true);
+  await page.locator('#toast .ta-btn').click();
+  await expect.poll(() => (cloudPlan()?.exams || []).find(e => e.id === 'ex-turco')?.deleted, { timeout: 10000 }).toBe(true);
+  expect(cloudPlan().time.special.find(s => s.id === 'puente')?.deleted).toBe(true);
+  await page.reload();
+  await expect(page.locator('#main :is(.spin, .skel)')).toHaveCount(0);
+  const live = await page.evaluate(async () => { const { plan2 } = await import('/js/plan2-app.js'); const p = plan2(); return [(p.exams || []).filter(e => !e.deleted).map(e => e.id), (p.time?.special || []).filter(s => !s.deleted).map(s => s.id)]; });
+  expect(live).toEqual([[], []]);
+});
