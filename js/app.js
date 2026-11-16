@@ -159,7 +159,8 @@ document.addEventListener('click', async e => {
   // Plan de estudio, exámenes y simulacros: sus botones llevan data-pl o data-sim
   if (ds.sim) return simClick(b, e);
   if (ds.p2) return planAction(b);   // el plan de estudio (pantallas/plan-*.js)
-  if (ds.nav) { if (S.view === 'study') S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
+  // La barra de abajo (o cualquier salto a otra sección) deja la tanda, también si se había ido a ver un apunte
+  if (ds.nav) { S.session = null; return go(ds.nav, ds.nav === 'deck' ? {} : { cardQuery: '' }); }
   if (ds.nfmt) return formatSelection(ds.nfmt, ds.color);
   if (ds.bop) return blockAction(ds.bop);
   if (ds.helpTab) return showHelpTab(ds.helpTab);
