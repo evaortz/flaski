@@ -26,6 +26,7 @@ import { dayKey } from '../plan.js';
 import { NEWS_VERSION, hasNews } from '../news.js';
 import { friendsBadge, loadFriends } from './amigos.js';
 import { trashSummary } from './papelera.js';
+import { hasJapanese } from '../ja/saber.js';
 
 /* ===================== perfil ===================== */
 // Cabecera (nombre con lápiz, racha y comodín, 4 cifras), «Tu estudio», «Flaski», la cuenta y, al final,
@@ -301,6 +302,9 @@ export function renderSettings() {
       ${setRow('Una nueva por nota', 'Si una nota tiene ida y vuelta, solo sale una por tanda.', sw('study.burySiblings'), { keys: 'hermanas inversa' })}
       ${setRow('Ayuda de atajos de teclado', 'Muestra debajo de la pregunta qué teclas puedes usar.', sw('study.shortcuts'), { keys: 'teclas teclado' })}
       ${canVibrate() ? setRow('Vibración', 'Una vibración muy breve al responder y al trazar kanji o hanzi.', sw('study.haptics')) : ''}
+      ${hasJapanese() ? `${setRow('Japonés · furigana', '«Lo que no sé»: la lectura sale encima de los kanji que aún no te sabes leer y desaparece cuando ya los dominas.', seg('ja.furigana', [['auto', 'Lo que no sé'], ['always', 'Siempre'], ['never', 'Nunca']]), { keys: 'japones lectura kanji' })}
+      ${setRow('Japonés · marcar la entonación', 'Una línea sobre la palabra indica qué sílabas suenan más agudas.', sw('ja.tono'), { keys: 'japones acento tono' })}
+      ${setRow('Japonés · partículas en color', 'は, を, で, に… cada una de un color, según lo que hace en la frase. Tócala para ver qué hace.', sw('ja.particulas'), { keys: 'japones gramatica' })}` : ''}
       ${canAudio() ? setRow('Efectos de sonido', 'Un tono suave al responder según la valoración («Bien», «Fácil», «Otra vez»).', `<span class="btnrow">${sw('study.sound')}<button type="button" class="ghost small-btn" data-act="test-sound">Probar</button></span>`, { keys: 'sonido sonidos' }) : ''}`)}
     ${sec('s-remind', () => remindRows())}
     ${sec('s-voice', () => `

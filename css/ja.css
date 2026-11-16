@@ -88,3 +88,34 @@
 .kn-two{display:flex;gap:10px}
 .kn-two span{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:14px;padding:8px}
 .kn-two b{font-family:"Klee One",var(--font-ja,serif);font-weight:600;font-size:46px;line-height:1.1}
+/* Frases y gramática: partículas en color, la frase desmontada, la entonación y la familia de un verbo */
+.ja-pt{border-radius:6px;padding:0 3px;margin:0 1px;font-weight:500;cursor:pointer}
+.ja-pt-coral{background:#FF9F92;color:#4A1410}
+.ja-pt-yellow{background:#FFC36B;color:#4A2E00}
+.ja-pt-green{background:#8EE3B5;color:#0E3B25}
+.ja-pt-blue{background:#9ED4FF;color:#0B2E4A}
+.ja-pt-gray{background:var(--soft);color:var(--fg)}
+.ja-pt-verb{background:var(--fg);color:var(--bg)}
+.kj-big.ja-pt-coral,.kj-big.ja-pt-yellow,.kj-big.ja-pt-green,.kj-big.ja-pt-blue{font-family:"Klee One",var(--font-ja,serif)}
+.ja-line{margin:0;font-size:17px;line-height:2}
+.ja-u{border-bottom:3px solid;padding-bottom:1px;margin-right:2px;background:none!important;color:inherit!important}
+.ja-u.ja-pt-coral{border-color:#FF9F92}.ja-u.ja-pt-yellow{border-color:#FFC36B}.ja-u.ja-pt-green{border-color:#8EE3B5}.ja-u.ja-pt-blue{border-color:#9ED4FF}.ja-u.ja-pt-gray{border-color:var(--line)}.ja-u.ja-pt-verb{border-color:var(--fg)}
+.ja-chunks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.ja-chunks li{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.ja-chunks li > span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ja-dot{width:12px;height:12px;border-radius:6px;flex:none;margin-top:6px;display:block}
+.ja-ch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ja-ch b{font-size:19px;font-weight:500}
+.ja-ch small,.ja-chunks small{font-size:12px;color:var(--muted)}
+.ja-role{font-style:normal;font-size:11px;font-weight:600;border-radius:10px;padding:2px 8px}
+.ja-pitch{display:inline-flex;align-items:stretch;font-size:14px;line-height:1;margin-left:8px;vertical-align:middle}
+.ja-pitch > span{padding:3px 3px 5px}
+.ja-pitch .hi{border-top:2px solid currentColor}
+.ja-pitch .lo{border-bottom:2px solid currentColor;padding:5px 3px 3px}
+.ja-pitch .step{border-left:2px solid currentColor}
+.ja-more{margin:8px 0 0}
+.ja-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ja-form{display:flex;flex-direction:column;gap:2px;border-radius:14px;padding:10px 12px;border:1.5px solid var(--line)}
+.ja-form b{font-size:18px;font-weight:500}
+.ja-form small{font-size:11px;color:var(--muted)}
+.vf-ok{background:#DDF6E8;border-color:#8EE3B5}.vf-mid{background:#FFEBC7;border-color:#FFC36B}.vf-bad{background:#FFE1DC;border-color:#FF9F92}.vf-no{border-style:dashed}

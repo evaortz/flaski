@@ -237,6 +237,13 @@ export const BUILTIN_TYPES = [
       { id: 't2', name: 'Escribirlo (letras → kana a mano)', mode: 'draw', front: ['r'], back: ['t'], answer: 'c', guide: false },
     ],
   },
+  {
+    // Las formas de un verbo de japonés: las crea Flaski desde «Ver sus formas» (lista «Verbos · formas»)
+    id: 'ja-verbo', builtin: true, auto: true, scope: ['ja'], name: 'Forma de verbo (automático)', icon: '', lucide: 'table',
+    description: 'Una forma de un verbo: la escribes y, si fallas, sale la regla.',
+    fields: [F('q', 'Pregunta'), F('v', 'Verbo', { lang: 'ja-JP' }), F('a', 'Forma', { lang: 'ja-JP' }), F('n', 'Regla'), F('f', 'Qué forma')],
+    templates: [{ id: 't1', name: 'Escribir la forma', mode: 'type', front: ['q'], back: ['n'], answer: 'a' }],
+  },
 ];
 
 /* ---------------- Idioma del mazo ---------------- */

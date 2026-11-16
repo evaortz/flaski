@@ -19,7 +19,7 @@ const SHELL = [
   './js/srs.js',
   './js/tanda.js',
   './js/atrasos.js',
-  './js/plan2.js', './js/plan2-migrar.js', './js/plan2-app.js', './js/pantallas/plan-tiempo.js', './css/plan2.css', './css/ja.css', './js/pantallas/ja-tanda.js', './js/pantallas/ja-kanji.js', './js/pantallas/ja-kana.js', './js/ja/kana.js',
+  './js/plan2.js', './js/plan2-migrar.js', './js/plan2-app.js', './js/pantallas/plan-tiempo.js', './css/plan2.css', './css/ja.css', './js/pantallas/ja-tanda.js', './js/pantallas/ja-kanji.js', './js/pantallas/ja-kana.js', './js/ja/kana.js', './js/ja/pintar.js', './js/pantallas/ja-frase.js',
   './js/pantallas/plan-ui.js', './js/pantallas/plan-inicio.js', './js/pantallas/plan-examen.js', './js/pantallas/plan-nuevo.js', './js/pantallas/plan-reparto.js', './js/pantallas/plan-hojas.js', './js/pantallas/plan-ajustes.js', './js/pantallas/plan-acciones.js', './js/pantallas/plan-guardar.js', './js/pantallas/plan-tema.js', './js/pantallas/plan-semana.js',
   './js/prefs.js',
   './js/stats.js',

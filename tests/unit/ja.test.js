@@ -79,3 +79,16 @@ test('partículas sin diccionario: solo las seguras', () => {
   assert.deepEqual(particlesByRule('私は毎朝図書館で本を読みます').map(p => p.p), ['は', 'で', 'を']);
   assert.deepEqual(particlesByRule('はなを見る').map(p => p.p), ['を']);   // は de はな no es partícula
 });
+
+test('pintar: furigana solo en lo que no sabes, partículas en color y la línea de la entonación', async () => {
+  const { jaHTML, pitchPattern, moras } = await import('../../js/ja/pintar.js');
+  const html = '<ruby>私<rt>わたし</rt></ruby>は<ruby>図書館<rt>としょかん</rt></ruby>で本を読みます';
+  const auto = jaHTML(html, { furi: 'auto', needsRuby: b => b !== '私' });
+  assert.ok(!auto.includes('<rt>わたし</rt>') && auto.includes('<rt>としょかん</rt>'));
+  assert.ok(!jaHTML(html, { furi: 'never' }).includes('<ruby>'));
+  const pts = [...jaHTML(html, { particles: true }).matchAll(/data-pt="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(pts, ['は', 'で', 'を']);
+  assert.deepEqual(moras('きょうしつ'), ['きょ', 'う', 'し', 'つ']);
+  assert.deepEqual(pitchPattern('としょかん', 2).map(x => x.hi), [false, true, false, false]);
+  assert.deepEqual(pitchPattern('さくら', 0).map(x => x.hi), [false, true, true]);
+});

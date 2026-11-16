@@ -18,6 +18,9 @@ import { openSheet, charsFor, hasRuby } from './editor.js';
 import { go } from '../app.js';
 import { studyOk, arrangeFresh, jaCardState, jaFace, noteBefore, jaDoneHTML } from './ja-tanda.js';
 import { kanaAnswerExtra } from './ja-kana.js';
+import { jaHTML } from '../ja/pintar.js';
+import { needsRuby } from '../ja/saber.js';
+import { particlesByRule } from '../ja/particulas.js';
 
 /* ===================== estudio ===================== */
 /* ---------- Tipos de tarjeta: utilidades ---------- */
@@ -81,7 +84,11 @@ export function faceHTML(model, st, { preview = false } = {}) {
     // Un kanji suelto (o dos caracteres CJK), muy grande; las lecturas en kana, al tamaño del texto
     const kanji = main && [...plain].length <= 2 && [...plain].every(isCJK);
     const size = !main ? (/^[぀-ヿ・ー\s、,]+$/.test(plain) ? ' fld-kana' : '') : kanji ? ' fld-cjk fld-kanji' + ja : [...plain].some(isCJK) ? ' fld-cjk' + ja : isShortText(plain) ? ' fld-short' : '';
-    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}">${label}<div class="fld-v"><span class="fld-t">${fmt(v)}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${extra}</div></div>`;
+    // Japonés: furigana solo en lo que no sabes, partículas en color y, en las frases, «Desmontar la frase»
+    const J = S.prefs.ja || {}, isJa = /^ja/.test(lang);
+    const html = isJa ? jaHTML(fmt(v), { furi: J.furigana === 'always' || J.furigana === 'never' ? J.furigana : 'auto', needsRuby, particles: J.particulas !== false }) : fmt(v);
+    const frase = isJa && !preview && [...plain].length >= 6 && [...plain].length <= 60 && particlesByRule(plain).length ? `<button type="button" class="say" data-act="ja-frase" data-fid-s="${id}" aria-label="Desmontar la frase" title="Desmontar la frase">${icon('blocks', { size: 18 })}</button>` : '';
+    return `<div class="fld ${main ? 'fld-main' : 'fld-sub'}${size}" data-fid="${id}">${label}<div class="fld-v"><span class="fld-t">${html}</span>${extra.includes('data-say') ? '' : say(id)}${strokesBtn(id)}${frase}${extra}</div></div>`;
   };
   // Botón «orden de trazos» en campos cortos con kanji/hanzi
   const strokesBtn = id => {
@@ -817,6 +824,8 @@ export function renderStudy() {
     if (!st.hinted && !S.prefs.study.swipeShown && swipeHintsDue()) { st.hinted = true; S.prefs.study.swipeShown = true; savePrefsSoon(); showSwipeHints(sw || {}); }
   }
   if (hooks.plan2) holdWhy(main.querySelector('article.card'), c);
+  // Japonés: la entonación de la palabra y, si es un verbo, «Ver sus formas»
+  if (/^ja/.test(deckLang(c.deck_id))) import('./ja-frase.js').then(m => m.decorate(c, model, ses.revealed)).catch(() => {});
 }
 // Plan nuevo: al mantener pulsada la pregunta, una línea dice por qué sale («Toca repasarla hoy», «Es nueva de T3»)
 function holdWhy(el, c) {

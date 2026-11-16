@@ -122,6 +122,9 @@ document.addEventListener('click', async e => {
     if (sg) return sortAction('group', +sg.dataset.sortGroup);
     const rb = e.target.closest('.ruby-hide ruby');
     if (rb) { rb.classList.toggle('peek'); return; }
+    // Japonés: tocar una partícula en color abre su hoja (qué hace, ejemplos, con cuál se confunde)
+    const pt = e.target.closest('[data-pt]');
+    if (pt) { const fld = pt.closest('.fld-t'), txt = fld ? [...fld.childNodes].map(n => (n.nodeName === 'RUBY' ? n.firstChild?.textContent || '' : n.textContent)).join('') : ''; return import('./pantallas/ja-frase.js').then(m => m.particleSheet(pt.dataset.pt, txt.trim())); }
     // Enlace a otro apunte: se abre (mientras se escribe en el bloque, con Ctrl+clic)
     const wl = e.target.closest('a.wl');
     if (wl) {
@@ -383,6 +386,13 @@ document.addEventListener('click', async e => {
     // Un kanji nuevo, presentado: cuenta como un primer «Bien»
     case 'ja-intro': reveal(); return grade(3);
     case 'kj-strokes': return strokesSheet(b.dataset.kjS, 'ja-JP');
+    case 'ja-frase': {
+      const c = S.cards.get(S.session?.queue[0]);
+      return c && import('./pantallas/ja-frase.js').then(m => m.fraseSheet(String(c.fields?.[b.dataset.fidS] || ''), c.id));
+    }
+    case 'ja-ordenar': return import('./pantallas/ja-frase.js').then(m => m.orderCard());
+    case 'ja-verbo': return import('./pantallas/ja-frase.js').then(m => m.verbSheet(b.dataset.w, b.dataset.cls));
+    case 'ja-verbo-crear': return import('./pantallas/ja-frase.js').then(m => m.createVerbCards(b.dataset.w, b.dataset.cls));
     case 'kana-table': return import('./pantallas/ja-kana.js').then(m => m.kanaTable());
     case 'kana-start': return import('./pantallas/ja-kana.js').then(m => m.startKana(b.dataset.alpha));
     case 'kana-weak': return import('./pantallas/ja-kana.js').then(m => m.weak(b.dataset.alpha));
