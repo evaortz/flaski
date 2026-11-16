@@ -3,7 +3,7 @@ import { digest } from '../sha256.js';
 import * as api from '../api.js';
 import { toRow, progressCols } from '../rows.js';
 import { schedule, ALGO_PRESETS } from '../srs.js';
-import { loadPrefs, algoFor, applyLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS } from '../prefs.js';
+import { loadPrefs, algoFor, applyLook, ACCENTS, FONTS, CARD_SIZES, ALGO_FIELDS, prefsChanges } from '../prefs.js';
 import { statsView, drawStats } from '../stats.js';
 import { pushBlocker, BLOCKER_TEXT, syncPush } from '../push.js';
 import { PG_PERIODS, streaks, scrollChartsToEnd } from '../charts.js';
@@ -156,10 +156,14 @@ export function savePrefsSoon() {
 }
 function savePrefsNow() {
   clearTimeout(prefsTimer); prefsTimer = null;
-  api.saveSettings(S.uid, S.newPerDay, S.prefs).then(() => savedBadge('done')).catch(e => { savedBadge('hide'); fail(e); });
+  // Solo lo que cambiaste aquí desde lo cargado (o lo último enviado): lo demás se queda como esté en la nube
+  const changed = S.prefsBase ? prefsChanges(S.prefsBase, S.prefs) : undefined;
+  S.prefsBase = structuredClone(S.prefs);
+  api.saveSettings(S.uid, S.newPerDay, S.prefs, changed).then(() => savedBadge('done')).catch(e => { savedBadge('hide'); fail(e); });
 }
 // Si la app se cierra o pasa a segundo plano con un cambio aún sin guardar, se guarda ya
 function flushPrefs() { if (prefsTimer) savePrefsNow(); }
+export const prefsPending = () => !!prefsTimer;
 addEventListener('pagehide', flushPrefs);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPrefs(); });
 // Controles reutilizables (todos guardan solos al cambiar)

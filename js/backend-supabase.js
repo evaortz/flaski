@@ -28,11 +28,12 @@ const send = {
   removeImage: async (uid, id) => { const { error } = await sb.storage.from('media').remove([`${uid}/${id}`]); if (error) throw error; },
   // Las listas que se juntan por id (simulacros, días especiales, etapas) se unen con lo que ya hay en la
   // nube, para no perder lo creado en otro dispositivo
-  saveSettings: async (uid, new_per_day, prefs) => {
+  // changed: las rutas que se cambiaron en este dispositivo (lo demás se queda como está en la nube)
+  saveSettings: async (uid, new_per_day, prefs, changed) => {
     const row = { user_id: uid, new_per_day };
     if (prefs) {
       const cur = await sb.from('settings').select('prefs').eq('user_id', uid).maybeSingle().then(check);
-      row.prefs = mergeSynced(cur?.prefs, prefs);
+      row.prefs = mergeSynced(cur?.prefs, prefs, changed);
     }
     return sb.from('settings').upsert(row).then(check);
   },

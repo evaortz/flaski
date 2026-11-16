@@ -129,3 +129,16 @@ test('borrar una imagen sin conexión queda pendiente, una sola vez, y se envía
   assert.equal(await box.flush(), true);
   assert.deepEqual(srv.got, [['removeImage', 'u', 'img1'], ['removeImage', 'u', 'img2']]);
 });
+
+// Sin red, varios guardados de ajustes se quedan en uno: con los cambios de todos (si no, al volver la red solo
+// subiría lo del último y lo de antes se quedaría como en la nube)
+test('ajustes pendientes: el último, con las rutas cambiadas de todos; si alguno no las trae, todo', async () => {
+  const off = { run: async () => { throw new TypeError('Failed to fetch'); } };
+  const box = createOutbox({ key: 'k', run: off.run, storage: memory() });
+  await box.push('saveSettings', 'u', 15, { a: 1 }, [['a']]);
+  await box.push('saveSettings', 'u', 15, { a: 1, b: 2 }, [['b']]);
+  assert.deepEqual(box.items.map(x => x.args[3]), [[['a'], ['b']]]);
+  await box.push('saveSettings', 'u', 15, { a: 1, b: 3 });
+  await box.push('saveSettings', 'u', 15, { a: 1, b: 4 }, [['b']]);
+  assert.equal(box.items.length, 1); assert.equal(box.items[0].args[3] ?? null, null);
+});

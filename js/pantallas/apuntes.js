@@ -57,6 +57,7 @@ function savedState(state) {
 function flushPages() {
   for (const [id, t] of pageTimers) { clearTimeout(t); pageTimers.delete(id); const p = S.pages.get(id); if (p) api.savePage(pageRow(p)).catch(() => {}); }
 }
+export const pagesPending = () => pageTimers.size > 0;
 addEventListener('pagehide', flushPages);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPages(); });
 

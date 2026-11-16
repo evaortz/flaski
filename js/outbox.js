@@ -30,7 +30,12 @@ export function createOutbox({ key, run, storage = globalThis.localStorage, retr
     if (op === 'saveProgress' || op === 'clearProgress') {
       return q.filter(x => !((x.op === 'saveProgress' || x.op === 'clearProgress') && x.args[1] === args[1]));
     }
-    if (op === 'saveSettings') return q.filter(x => x.op !== 'saveSettings');
+    // saveSettings(uid, n, prefs, cambios): la última, con los cambios de todas (sin lista en alguna: todo)
+    if (op === 'saveSettings') {
+      const old = q.filter(x => x.op === 'saveSettings');
+      if (Array.isArray(args[3])) args[3] = old.every(x => Array.isArray(x.args[3])) ? [...old.flatMap(x => x.args[3]), ...args[3]] : undefined;
+      return q.filter(x => x.op !== 'saveSettings');
+    }
     // savePage(página entera): solo cuenta la última versión de cada página
     if (op === 'savePage') return q.filter(x => !(x.op === 'savePage' && x.args[0]?.id === args[0]?.id));
     // removeImage(uid, id): borrar la misma imagen dos veces es lo mismo que una

@@ -25,10 +25,10 @@ import { splitTrash, purgeExpired } from './papelera.js';
 import { nativeLang, langLabel, getType } from './estudio.js';
 import { plural } from './mazos.js';
 import { openPublicPreview, openBuiltinPreview, pasteSheet } from './explorar.js';
-import { newPage, readPdfFile, fileToPages, savePageSoon } from './apuntes.js';
+import { newPage, readPdfFile, fileToPages, savePageSoon, pagesPending } from './apuntes.js';
 import { suggestFor, makeSuggested, firstPicks, temaFirst, temaPicks, openSuggestions, blockFor } from './sugerencias.js';
 import { startSession } from './estudio.js';
-import { savePrefsSoon, seg, pushAutoSync } from './perfil.js';
+import { savePrefsSoon, seg, pushAutoSync, prefsPending } from './perfil.js';
 import { cardForm, dedupeTypes, migrateDeckLangs } from './editor.js';
 import { loadFriends, inviteSheet } from './amigos.js';
 import { go, render } from '../app.js';
@@ -177,6 +177,7 @@ function applyData(d) {
   S.name = d.profile?.display_name || '';
   S.newPerDay = d.settings?.new_per_day ?? 15;
   S.prefs = loadPrefs(d.settings?.prefs);
+  S.prefsBase = structuredClone(S.prefs);   // lo que hay en la nube: al guardar, solo sube lo que cambie desde aquí
   applyLook(S.prefs.look); setBaseRate(S.prefs.study.rate);
   S.events = (d.events || []).map(e => ({ ...e, t: new Date(e.ts).getTime() }));
   S.decks = new Map(d.decks.map(x => [x.id, { tags: [], ...x }]));
@@ -515,7 +516,7 @@ function withPending(d, before = []) {
     else if (op === 'deleteEvent') evs.delete(args[0]);
     // bumpLog(uid, día, +1, total local de ese momento): el total ya incluye la respuesta
     else if (op === 'bumpLog' && args[2] > 0) log.set(args[1], Math.max(log.get(args[1]) || 0, args[3] || 0));
-    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ? mergeSynced(settings?.prefs, args[2]) : settings?.prefs };
+    else if (op === 'saveSettings') settings = { new_per_day: args[1], prefs: args[2] ? mergeSynced(settings?.prefs, args[2], args[3]) : settings?.prefs };
   }
   return {
     ...d, settings, progress: [...prog.values()], pages: [...pages.values()],
@@ -565,11 +566,31 @@ async function afterFlush(ok) {
   } catch {}
 }
 function retrySync() { if (api.offline && S.uid) api.offline.flush().then(afterFlush); }
+// Al volver a la app tras un rato fuera, lo de la nube: en otro dispositivo pudiste cambiar apuntes, listas o
+// ajustes, y con lo de ayer aquí se pisaría al guardar. No mientras estudias, editas o hay algo sin enviar
+const AWAY = 2 * 60e3;
+let hiddenAt = 0;
+const busy = () => S.loading || S.fromCache || S.pending > 0 || prefsPending() || pagesPending() || ['study', 'sim'].includes(S.view) || S.edit?.open
+  || !document.getElementById('sheet')?.hidden || !!document.activeElement?.closest?.('#main :is(textarea, input, [contenteditable="true"])');
+async function refreshData() {
+  if (!api.offline || !S.uid || !navigator.onLine || busy()) return;
+  try {
+    if (!(await api.offline.flush()) || busy()) return;
+    const s = await api.auth.session();
+    if (s?.user?.id !== S.uid) return;   // sin una sesión válida, Supabase devolvería listas vacías
+    const d = await api.loadAll(S.uid);
+    if (busy() || s.user.id !== S.uid) return;   // mientras se cargaba, empezaste algo: la próxima vez
+    applyData(withPending(d)); migrateDeckLangs(); netState(); saveSnap(); render();
+  } catch {}
+}
 addEventListener('online', () => { netState(); retrySync(); });
 addEventListener('offline', netState);
 setInterval(() => { if (S.pending || S.fromCache) retrySync(); }, 30e3);
 addEventListener('pagehide', saveSnap);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveSnap(); else retrySync(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); saveSnap(); return; }
+  if (hiddenAt && Date.now() - hiddenAt > AWAY) { hiddenAt = 0; refreshData(); } else retrySync();
+});
 
 export function onSignedOut() {
   // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre

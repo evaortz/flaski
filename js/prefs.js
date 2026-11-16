@@ -150,11 +150,30 @@ export function unionById(a = [], b = []) {
   }
   return [...m.values()];
 }
-// Junta las preferencias guardadas en la nube (older) con las de este dispositivo (newer): todo lo demás,
-// lo de este dispositivo
-export function mergeSynced(older, newer) {
+// Qué preferencias cambiaron desde base (lo cargado o lo último enviado): rutas ['look', 'theme'], hasta las hojas
+// (una lista cuenta entera). Así, al guardar, de este dispositivo solo va lo que tocaste aquí
+export function prefsChanges(base, cur, at = []) {
+  if (isObj(base) && isObj(cur)) return [...new Set([...Object.keys(base), ...Object.keys(cur)])].flatMap(k => prefsChanges(base[k], cur[k], [...at, k]));
+  return JSON.stringify(base) === JSON.stringify(cur) ? [] : [at];
+}
+// Lo de la nube (older) con esas rutas tomadas de este dispositivo (newer)
+export function withChanges(older, newer, paths) {
+  const out = isObj(older) ? structuredClone(older) : {};
+  for (const path of paths) {
+    if (!path.length) return structuredClone(newer);
+    let src = newer, dst = out;
+    for (const k of path.slice(0, -1)) { src = isObj(src) ? src[k] : undefined; if (!isObj(dst[k])) dst[k] = {}; dst = dst[k]; }
+    const k = path.at(-1), v = isObj(src) ? src[k] : undefined;
+    if (v === undefined) delete dst[k]; else dst[k] = structuredClone(v);
+  }
+  return out;
+}
+// Junta las preferencias guardadas en la nube (older) con las de este dispositivo (newer). changed: las rutas que
+// cambiaste aquí (prefsChanges); sin ellas, todo lo demás es lo de este dispositivo (lo de antes)
+export function mergeSynced(older, newer, changed) {
   if (!isObj(older)) return newer;
   if (!isObj(newer)) return older;
+  if (Array.isArray(changed)) newer = withChanges(older, newer, changed);
   // Lo que va a la nube lleva el plan con su espejo para las versiones viejas (ver withMirror)
   const out = { ...newer, plan: withMirror(mergePlan(older.plan, newer.plan)) };
   for (const [a, b] of SYNCED) {
