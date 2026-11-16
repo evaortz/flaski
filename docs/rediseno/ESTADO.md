@@ -897,3 +897,33 @@ De 280 pruebas, 81 llevan `@ambos` en el título (corren en «movil» y «escrit
 - 16 · sin voz en japonés: el altavoz lo dice; «Probar» dice qué idiomas de tus listas tienen voz · móvil · aviso de voz, flujo
 
 </details>
+
+## Auditoría de noviembre (16 nov · `flaski-v241`)
+Revisión de toda la app buscando fallos (datos y sincronización, Plan y CSS, pantallas, seguridad y accesibilidad). De más grave a menos. Cada arreglo lleva su prueba (la mayoría en `tests/e2e/auditoria.spec.js`) y su commit.
+
+**Arreglados**
+1. **XSS desde una lista compartida** (`explorar.js:181` → `api.js:importDeck`; `editor.js:adoptTypes`). Su `options.lang` y sus tipos de pregunta se copiaban tal cual y acababan sin escapar en `lang="…"`, `class="mode-…"`, `data-say="…"`… (`estudio.js:123/178/774`, `editor.js:429/431/784/788/1143`). Quien compartiera una lista retocada por la API podía ejecutar código en la cuenta de quien la añadiera (la sesión de Supabase está en `localStorage`). Ahora: el idioma solo si es de `LANGS`; los tipos pasan por `safeType` (`cardtypes.js`: ids sencillos, modos conocidos, plantillas que apuntan a sus campos), también los de un `.flaski.json`; y idioma y modo se escapan al pintar. Pruebas: `unit/tipos-seguros.test.js`, `e2e/lista-publica-segura.spec.js`.
+2. **Tu tiempo descolocado** (`plan2.css:325`). `.p2-wd` servía también para los días del Repaso de la semana y, al ir después, ponía cada día de Tu tiempo en columna. Los del domingo pasan a `.p2-wtile`.
+3. **Estudiar más con todo hecho** (lo pidió la persona usuaria). Con el día hecho o al día no había forma de seguir: el botón de una lista al día estaba apagado y Hoy decía «Vuelve mañana». Ahora «Estudiar más» (Hoy, Plan, final de tanda) y el botón de la lista sacan lo que quede de hoy, nuevas por encima del límite y repasos por adelantado (los que tocan antes primero, sin los vistos hoy). `e2e/estudiar-mas.spec.js`.
+4. **Tanda fantasma** (`app.js:162`). Desde «Ver en los apuntes», ir a otra sección con la barra dejaba `S.session` vivo: cualquier apunte ofrecía «Volver al estudio» a una tanda vieja y Novedades/bienvenida no salían.
+5. **«Deshacer» tras borrar en la tanda** (`app.js:756`). Si se valoraba la siguiente antes de deshacer, volvía la cola entera de antes: la recién valorada salía otra vez y contaba doble.
+6. **Modo local con dos pestañas** (`backend-local.js:27`). Cada pestaña guardaba su copia entera y pisaba lo de la otra (una lista creada en una desaparecía al responder en la otra). Ahora se escucha `storage`.
+7. **Plan con números viejos al archivar o mover una lista** (`plan2-app.js:96/147`). La memoria de `todayPlan`/`forecastNow` solo miraba cuántas listas y carpetas había.
+8. **Nuevo examen** (`plan-nuevo.js:73/127`): «faltan 1 días» → «falta 1 día»; y como el iPhone no respeta `min`, se podía guardar con fecha de hoy o pasada.
+9. **«Repartir lo que falta»** (`plan2.js:weekRecover`): sin semana usaba 10 min de base y no los de tu tanda; podía dejarte con menos tiempo.
+10. **Novedades tras cerrar sesión** (`cuenta.js:maybeNews`): si esperaban a que se cerrara la bienvenida, salían sobre la pantalla de entrar.
+11. **Estadísticas y cambio de hora** (`stats.js:58`): «90 días» cruzando el cambio de hora contaba un día de más (o perdía la primera hora). `unit/estadisticas-hora.test.js`.
+12. **Sin conexión, General Sans** (`sw.js`): las tres fuentes de títulos y gráficos no estaban en `SHELL`. `unit/sw.test.js` comprueba ahora todas las de `fonts.css` y que cada archivo de `SHELL` exista (uno que falte rompe la instalación entera).
+
+**Sin arreglar (y por qué)**
+- **Un dispositivo con datos viejos pisa lo nuevo de otro (nube)** — el más grave de los pendientes. La app carga los datos solo al entrar (`cuenta.js:onSignedIn`); al volver de segundo plano solo envía lo pendiente. `savePage` sube el apunte entero sin mirar `updated_at` y `saveSettings` sube todas las preferencias de este dispositivo (salvo exámenes, tiempo y reparto, que se unen). Ej.: el móvil abierto desde ayer; en el ordenador rehaces un apunte; en el móvil corriges una errata en ese apunte → se pierde lo del ordenador. Arreglo propuesto: recargar al volver a primer plano (si no hay nada pendiente ni se está editando), `savePage` condicionado a `updated_at` y `saveSettings` solo con lo que cambió. Es un cambio de diseño: mejor hablarlo antes.
+- **Deshacer en el Plan no viaja entre dispositivos** (`plan-guardar.js:undoTo`): deshacer «añadir un examen» o un día especial ya subido no deja marca de borrado y vuelve al recargar; deshacer un borrado puede quedar borrado. Necesita marcas `deleted` con fecha al deshacer.
+- **Imágenes pendientes y cambio de cuenta** (`media.js`): una imagen añadida sin red por A se sube a la carpeta de B si B entra después en el mismo dispositivo. Habría que guardar el `uid` en cada imagen pendiente.
+- **Recordatorios y cambio de cuenta** (`push_subs`): al cerrar sesión no se quita la suscripción; B no recibe avisos y A los recibe en el dispositivo de B. Llamar a `push.remove` al cerrar sesión.
+- **Contador del día doble** (`outbox.js` + `bump_review_log`): si la respuesta del servidor se pierde, el +1 se reintenta. Raro; necesita un id por repaso.
+- **Lista pública dentro de una carpeta en la papelera** sigue en Explorar (la política solo mira `decks.deleted_at`).
+- **`profiles` visible para todos** (`schema.sql:205`, `using (true)`): cualquier cuenta puede listar nombres de todas. Restringirlo afecta a Explorar y Amigos: necesita SQL nuevo y pensarlo.
+- **Accesibilidad**: etiquetas de la barra de abajo con `--faint` (≈2,5:1 de contraste); las hojas no mueven el foco al abrir en el móvil ni lo devuelven al cerrar, y `#sheetBody` no tiene nombre; `#exText` sin etiqueta.
+- **Plan, menores**: «En tu plan» de una subcarpeta de la carpeta de un examen dice «No tiene examen» (`plan-hojas.js:20`); la hoja de atrasos nombra hoy como día final cuando no hay (`plan-tiempo.js:239`); el día del examen «Para llegar» propone dejar temas para después; el historial puede decir «Sin examen:  poco» con una carpeta que ya no existe (`plan-reparto.js:137`); en 320–375 px los cinco niveles de «Sin examen» y los dos modos del examen pueden no caber (sin comprobar en el iPhone).
+- **Descartado tras mirarlo**: `inline.js`/`paste.js`/Anki/Explorar/Amigos escapan bien; las funciones `security definer` llevan `search_path` y comprueban `auth.uid()`; el esquema es repetible; la cola de envíos no pierde nada al recargar; `.p2-now` ya no choca.
+- **Supabase**: ningún arreglo necesita SQL nuevo; sigue haciendo falta ejecutar `schema.sql` antes del push (columna `deleted_at` de la papelera).

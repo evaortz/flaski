@@ -77,14 +77,14 @@ test('la primera tanda pregunta la duración; los atrasados primero (sin nuevas 
   await expect(left(page)).toContainText('pregunta 1 de');
 });
 
-test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!» y solo «Volver»', async ({ page }) => {
+test('si la tanda acaba con lo de hoy: «¡Todo hecho por hoy!», «Volver» y, para seguir, «Estudiar más»', async ({ page }) => {
   await seed(page, { due: 3, fresh: 0, study: { tandaAsked: true } });
   await expect(page.locator('#main .p2-legend')).toHaveText('3 repasos');
   await page.locator('#main .p2-go').click();
   for (let i = 0; i < 3; i++) { await page.locator('[data-act="reveal"]').click(); await page.locator('[data-grade="3"]').click(); }
   await expect(page.getByRole('heading', { name: '¡Todo hecho por hoy!' })).toBeVisible();
   await expect(page.locator('.done-left')).toHaveCount(0);
-  await expect(page.locator('.done-go button')).toHaveText(['Volver']);
+  await expect(page.locator('.done-go button')).toHaveText(['Volver', 'Estudiar más']);
   await page.getByRole('button', { name: 'Volver' }).click();
   await expect(page.locator('.hero-done')).toContainText('estás al día');
 });
