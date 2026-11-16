@@ -173,7 +173,12 @@ export function withChanges(older, newer, paths) {
 export function mergeSynced(older, newer, changed) {
   if (!isObj(older)) return newer;
   if (!isObj(newer)) return older;
-  if (Array.isArray(changed)) newer = withChanges(older, newer, changed);
+  if (Array.isArray(changed)) {
+    const mine = newer;
+    newer = withChanges(older, newer, changed);
+    // Con el plan de otra versión en la nube (la app vieja guardó su v1), el de aquí entero: mergePlan lo junta
+    if (isObj(mine.plan) && mine.plan.v !== older.plan?.v) newer.plan = structuredClone(mine.plan);
+  }
   // Lo que va a la nube lleva el plan con su espejo para las versiones viejas (ver withMirror)
   const out = { ...newer, plan: withMirror(mergePlan(older.plan, newer.plan)) };
   for (const [a, b] of SYNCED) {
