@@ -105,3 +105,14 @@ test('modo local: lo que se guarda en otra pestaña no se pierde al guardar en e
   const names = await page.evaluate(() => JSON.parse(localStorage.getItem('flaski-local-v1')).decks.map(d => d.name).sort());
   expect(names).toEqual(['De esta pestaña', 'De la otra pestaña', 'Turco']);
 });
+
+// Las Novedades esperan a que se cierre la bienvenida; si mientras tanto se cerraba sesión, salían sobre la
+// pantalla de entrar (y al cerrarlas intentaban guardar en una cuenta que ya no está)
+test('las Novedades que esperaban no salen tras cerrar sesión', async ({ page }) => {
+  await page.addInitScript(() => { try { if (!sessionStorage.getItem('news-t')) { sessionStorage.setItem('news-t', '1'); localStorage.removeItem('flaski-news-seen'); localStorage.removeItem('flaski-intro-done'); } } catch {} });
+  await page.goto('/');
+  await expect(page.locator('.ob').first()).toBeVisible();   // la bienvenida: las Novedades esperan
+  await page.evaluate(async () => { const { onSignedOut } = await import('/js/pantallas/cuenta.js'); onSignedOut(); document.querySelectorAll('.ob').forEach(x => x.remove()); });
+  await page.waitForTimeout(1500);
+  await expect(page.locator('.ob.news')).toHaveCount(0);
+});

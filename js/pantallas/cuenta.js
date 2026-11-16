@@ -320,7 +320,7 @@ function maybeNews() {
   let seen = '';
   try { seen = localStorage.getItem(NEWS_KEY) || ''; } catch { /* sin almacenamiento */ }
   const done = seen === NEWS_VERSION || S.prefs.seen?.news === NEWS_VERSION;
-  if (!hasNews() || S.noNews || S.session || S.recovery || seen === 'never' || (!NEWS_ALWAYS && done) || !navigator.onLine || S.fromCache) return;
+  if (!S.uid || !hasNews() || S.noNews || S.session || S.recovery || seen === 'never' || (!NEWS_ALWAYS && done) || !navigator.onLine || S.fromCache) return;
   // Con la bienvenida (o cualquier otra pantalla así) abierta, esperan a que se cierre y estés en Hoy
   if (document.querySelector('.ob') || S.view !== 'home') { newsLater(); return; }
   showNews({ mark: true });
@@ -575,6 +575,7 @@ export function onSignedOut() {
   // Los cambios sin enviar se quedan guardados con la cuenta: se envían la próxima vez que entre
   api.offline?.stop();
   clearTimeout(snapTimer);
+  clearInterval(newsWait); newsWait = 0;   // las Novedades que esperaban a que cerraras la bienvenida, ya no
   Object.assign(S, { uid: null, email: '', name: '', decks: new Map(), folders: new Map(), tags: new Map(), types: new Map(), cards: new Map(), progress: new Map(), log: {}, events: [], view: 'home', folderId: null, session: null, pub: null, loading: true, authMode: 'signin', fromCache: false, pending: 0, pages: new Map(), pageId: null, friends: null });
   netState();
   render();
