@@ -22,7 +22,7 @@ import { renderHome, tandaSheet } from './pantallas/inicio.js';
 import { getType, typeIn, cardModel, sayOrWarn, exitTarget, testVoices, pickMatch, sortAction, playListen, strokesSheet, startSession, startMore, shuffleTokens, renderStudy, reveal, grade, undo, ENT_MODES, toggleDictation } from './pantallas/estudio.js';
 import { plural, crumbs, renderDeck, importFile, addAnki, download, exportDeck, deckMenu, closeDeckMenu, fromNoteSheet, linkNoteSheet, linkPage } from './pantallas/mazos.js';
 import { renderLibrary, createMenuHTML, importMenuHTML } from './pantallas/biblioteca.js';
-import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, addPreview, dropPreviewTags } from './pantallas/explorar.js';
+import { renderExplore, exploreClick, openPublicPreview, openBuiltinPreview, previewImport, pasteSheet, loadAiGuide, copyText, copyAiGuide, addPreview, dropPreviewTags } from './pantallas/explorar.js';
 import { growTitle, fitCrumbs, pageCards, savePageSoon, noteCrumbs, pageFolder, CALLOUT_ICONS, blockHTML, renderPage, curPage, repaint, redrawBlocks, toggleFold, histRecord, histTravel, selRange, selIds, setBlockSel, clearBlockSel, blockAction, justSelected, drag, openOps, closeOps, openFind, closeFind, gotoFind, replaceFind, updateToc, gotoBlock, openWiki, wikiCheck, closeWikiMenu, editBlock, retypeBlock, blockKey, toggleColorMenu, toggleFmtMore, formatSelection, syncBlock, fold, openBlockMenu, closeBlockMenu, chooseBlockType, addImageBlock, removeImageBlock, newPage, importPdf, exportSheet, exportPage, exportAllNotes, setImportInto, cardFromSelection, blockCardsSheet } from './pantallas/apuntes.js';
 import { placeTblHandles, openTblMenu, closeTblMenu, tableEd, saveGrid, tableAction, tableKey } from './pantallas/apuntes-tablas.js';
 import { notesHelpSheet, showHelpTab } from './pantallas/apuntes-ayuda.js';
@@ -705,13 +705,7 @@ document.addEventListener('click', async e => {
       catch (err) { const el = $('#pasteError'); el.textContent = err.message || 'No se ha podido leer lo pegado.'; el.hidden = false; }
       return;
     }
-    case 'copy-ai-guide': {
-      // Se copia sin esperar a nada si ya está cargado: Safari solo deja copiar justo tras el toque
-      const text = S.aiGuide || await loadAiGuide();
-      if (!text) return toast('No se han podido cargar las instrucciones. Prueba con «Descargar».');
-      if (!await copyText(text, 'Instrucciones copiadas: pégalas en tu IA')) toast('No se ha podido copiar. Prueba con «Descargar».');
-      return;
-    }
+    case 'copy-ai-guide': return copyAiGuide(b);
     case 'download-ai-guide': {
       const text = await loadAiGuide();
       if (!text) return toast('No se han podido cargar las instrucciones. Revisa la conexión.');

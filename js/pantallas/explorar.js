@@ -200,7 +200,7 @@ function showPreview(byline) {
     ${(p.source === 'archivo' || p.source === 'pegado') && S.decks.size
       ? `<label for="destDeck">Añadir a</label><select id="destDeck"><option value="">Una lista nueva</option>${[...S.decks.values()].map(d => `<option value="${d.id}" ${S.view === 'deck' && d.id === S.deckId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>`
       : /^(incluido|compartido):/.test(p.source || '') && ownedDeck(p.source) ? '' : '<p class="muted small">Se copiará a tu cuenta: podrás editarlo y tu progreso será solo tuyo.</p>'}
-    ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}"></div>` : ''}
+    ${p.source === 'archivo' || p.source === 'pegado' ? `<div id="newDeckWrap" ${S.decks.size && S.view === 'deck' && S.deckId ? 'hidden' : ''}><label for="newDeckName">Nombre de la lista</label><input id="newDeckName" maxlength="80" value="${esc(p.name)}">${p.folder ? `<p class="muted small pv-folder">${icon('folder', { size: 14 })} Va a la carpeta «${esc(p.folder)}»${findFolder(p.folder) ? '' : ' (se crea)'}</p>` : ''}</div>` : ''}
     ${p.tagNames?.length > TOO_MANY_TAGS ? `<p class="muted small pv-tags">La IA ha puesto ${p.tagNames.length} etiquetas · <button type="button" class="link" data-act="drop-preview-tags">Quitarlas</button></p>` : ''}
     ${p.skipped ? `<p class="muted small">Se han saltado ${p.skipped} filas sin pregunta o sin respuesta.</p>` : ''}
     ${issuesHTML(p.issues)}
@@ -261,12 +261,76 @@ export function pasteSheet() {
   loadAiGuide();
 }
 export const AI_GUIDE_BTNS = () => `<span class="btnrow"><button type="button" class="ghost small-btn" data-act="copy-ai-guide">${icon('copy', { size: 16 })} Copiar instrucciones</button><button type="button" class="ghost small-btn" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button></span>`;
-export async function loadAiGuide() {
-  if (!S.aiGuide) { try { const r = await fetch('FORMATO-IA.md', { cache: 'no-cache' }); if (r.ok) S.aiGuide = await r.text(); } catch {} }
-  return S.aiGuide;
+let guideLoading = null;
+export function loadAiGuide() {
+  if (S.aiGuide) return Promise.resolve(S.aiGuide);
+  guideLoading ||= fetch('FORMATO-IA.md', { cache: 'no-cache' })
+    .then(r => (r.ok ? r.text() : ''))
+    .catch(() => '')
+    .then(t => { guideLoading = null; if (t) S.aiGuide = t; return S.aiGuide || ''; });
+  return guideLoading;
+}
+// Copiar al portapapeles. Se llama sin esperar a nada antes: Safari solo deja copiar justo tras el toque.
+// text puede ser una promesa (lo que aún se está cargando): se copia igual con ClipboardItem, que la espera
+// sin perder el toque. Si el navegador no deja (vistas web, sin permiso), se prueba con execCommand.
+export async function writeClipboard(text) {
+  const clip = navigator.clipboard;
+  if (typeof text !== 'string') {
+    if (clip?.write && window.ClipboardItem) {
+      try {
+        await clip.write([new ClipboardItem({ 'text/plain': Promise.resolve(text).then(t => { if (!t) throw new Error('vacío'); return new Blob([t], { type: 'text/plain' }); }) })]);
+        return true;
+      } catch {}
+    }
+    text = await text;
+    if (!text) return false;
+  }
+  try { await clip.writeText(text); return true; } catch {}
+  return legacyCopy(text);
+}
+function legacyCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.readOnly = true;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+  const prev = document.activeElement;
+  document.body.append(ta);
+  ta.focus({ preventScroll: true }); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  ta.remove(); prev?.focus?.({ preventScroll: true });
+  return ok;
 }
 export async function copyText(text, done) {
-  try { await navigator.clipboard.writeText(text); toast(done); return true; } catch { return false; }
+  if (!await writeClipboard(text)) return false;
+  toast(done); return true;
+}
+// «Copiar instrucciones»: copia la guía y lo dice en el propio botón (el aviso de abajo lo puede tapar el teclado).
+// Si no se puede copiar, enseña el texto para copiarlo a mano.
+export async function copyAiGuide(btn) {
+  const ok = await writeClipboard(S.aiGuide || loadAiGuide());
+  if (ok) {
+    toast('Instrucciones copiadas: pégalas en tu IA');
+    if (btn?.isConnected) {
+      const html = btn.innerHTML;
+      btn.innerHTML = `${icon('check', { size: 16 })} Copiadas`; btn.classList.add('is-done');
+      setTimeout(() => { if (btn.isConnected) { btn.innerHTML = html; btn.classList.remove('is-done'); } }, 2500);
+    }
+    return true;
+  }
+  const text = S.aiGuide || await loadAiGuide();
+  if (!text) { toast('No se han podido cargar las instrucciones. Revisa la conexión.'); return false; }
+  guideTextSheet(text, !!btn?.closest('#sheetBody'));
+  return false;
+}
+// El navegador no deja copiar: el texto entero, seleccionado, para copiarlo a mano (o descargarlo)
+function guideTextSheet(text, fromSheet) {
+  openSheet(`<h2>Copia las instrucciones</h2>
+    <p class="muted small">Este navegador no deja copiar solo. Mantén pulsado el texto (o Ctrl+C), elige «Copiar» y pégalo en tu IA.</p>
+    <textarea id="aiGuideText" class="paste-box" rows="10" readonly aria-label="Instrucciones para la IA">${esc(text)}</textarea>
+    <div class="btnrow"><button type="button" class="ghost" data-act="download-ai-guide">${icon('download', { size: 16 })} Descargar</button><span class="spacer"></span>
+      ${fromSheet ? '<button class="primary" data-act="paste">Volver</button>' : '<button class="primary" data-act="close-sheet">Hecho</button>'}</div>`);
+  const ta = $('#aiGuideText');
+  ta.focus({ preventScroll: true }); ta.select();
 }
 export async function addPreview(btn) {
   const p = S.preview;
@@ -303,11 +367,28 @@ export async function importParsed(p, dest = '') {
     for (const c of created) S.cards.set(c.id, c);
     return { deck: S.decks.get(dest), cards: created };
   }
-  const { deck, cards: made } = await api.importDeck(S.uid, { ...p, lang: p.lang || undefined, cards, typeMap });
+  const { folder: folderName, ...rest } = p;
+  let { deck, cards: made } = await api.importDeck(S.uid, { ...rest, lang: p.lang || undefined, cards, typeMap });
+  // «folder»: la carpeta donde va (la que tengas con ese nombre o una nueva, dentro de la que tengas abierta)
+  const folder = folderName ? await folderNamed(folderName) : null;
+  if (folder) deck = await api.updateDeck(deck.id, { folder_id: folder.id });
   S.decks.set(deck.id, { tags: [], ...deck });
   for (const c of made) S.cards.set(c.id, c);
   migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
   return { deck, cards: made };
+}
+const here = () => (S.view === 'decks' && S.folderId && S.folders.has(S.folderId) ? S.folderId : null);
+// La carpeta con ese nombre (primero dentro de la abierta, luego en cualquier sitio); si no hay, se crea
+export function findFolder(name) {
+  const all = [...S.folders.values()].filter(f => !f.deleted_at && fold(f.name).trim() === fold(name).trim());
+  return all.find(f => (f.parent_id || null) === here()) || all[0] || null;
+}
+async function folderNamed(name) {
+  const found = findFolder(name);
+  if (found) return found;
+  const f = await api.createFolder({ owner: S.uid, name: name.slice(0, 80), icon: '', color: '', position: Date.now() / 1000, parent_id: here() });
+  S.folders.set(f.id, f);
+  return f;
 }
 // Lee una de las listas incluidas en la app (decks/)
 export async function readBuiltin(file) {

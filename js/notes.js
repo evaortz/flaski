@@ -85,11 +85,36 @@ export const dropTags = d => ({ ...d, tagNames: [], cards: d.cards.map(c => ({ .
 const langLabel = id => LANGS.find(l => l.id === id)?.label || id;
 const langName = base => (LANGS.find(l => l.id.split('-')[0] === base)?.label || base).toLowerCase();
 
+// Campos que van «uno por línea». Las IAs los suelen mandar como lista (o como objeto): se escriben como espera
+// la app. lines: un elemento por línea · pairs: «a = b» · groups: «grupo: a, b» · effects: «efecto: sube»
+const LINE_FIELDS = {
+  sort: { g: 'groups' }, steps: { s: 'lines' }, match: { p: 'pairs' }, conj: { f: 'pairs' },
+  explain: { k: 'lines' }, whatif: { e: 'effects', k: 'lines' },
+};
+const str = x => (x == null || typeof x === 'object' ? '' : String(x).trim());
+const many = x => (Array.isArray(x) ? x.map(str).filter(Boolean).join(', ') : str(x));
+function lineText(v, kind) {
+  const sep = kind === 'pairs' ? ' = ' : ': ';
+  const line = x => {
+    if (Array.isArray(x)) return x.length >= 2 ? `${str(x[0])}${sep}${many(x.slice(1).length > 1 ? x.slice(1) : x[1])}` : str(x[0]);
+    if (x && typeof x === 'object') {
+      const a = str(x.a ?? x.name ?? x.group ?? x.person ?? x.persona ?? x.efecto ?? x.effect);
+      const b = many(x.b ?? x.items ?? x.form ?? x.forma ?? x.dir ?? x.direccion);
+      return a && b ? `${a}${sep}${b}` : '';
+    }
+    return str(x);
+  };
+  const out = Array.isArray(v) ? v.map(line) : Object.entries(v).map(([a, b]) => `${a.trim()}${sep}${many(b)}`);
+  return out.filter(Boolean).join('\n');
+}
 // Un valor de campo: texto. Las listas se unen como espera cada campo: las respuestas incorrectas de
-// opción múltiple con «; » y el resto con « / » (respuestas alternativas, piezas de ordenar).
-function fieldText(v, isWrong) {
+// opción múltiple con «; », los campos de una línea por elemento con saltos de línea y el resto con « / »
+// (respuestas alternativas, piezas de ordenar).
+function fieldText(v, isWrong, kind) {
+  if (kind && v && typeof v === 'object') return lineText(v, kind);
   if (Array.isArray(v)) return v.map(x => String(x ?? '').trim()).filter(Boolean).join(isWrong ? '; ' : ' / ');
   if (v && typeof v === 'object') return '';
+  if (typeof v === 'boolean') return v ? 'Verdadero' : 'Falso';
   return String(v ?? '').trim();
 }
 
@@ -137,7 +162,7 @@ export function notesToDeck(data) {
     const fields = {};
     for (const [k, v] of Object.entries(src)) {
       if (!known.has(k)) { note(n, label, `el campo «${k}» no existe en «${base.id}» y se ignora (campos: ${[...known.keys()].join(', ')})`, false); continue; }
-      const text = fieldText(v, wrongIds.has(k)).slice(0, 2000);
+      const text = fieldText(v, wrongIds.has(k), LINE_FIELDS[base.id]?.[k]).slice(0, 2000);
       if (text) fields[k] = text;
     }
     const active = activeTemplates(type, fields);
@@ -167,6 +192,7 @@ export function notesToDeck(data) {
 
   return {
     name: String(meta.name || 'Lista importada').trim().slice(0, 80) || 'Lista importada',
+    folder: typeof meta.folder === 'string' ? meta.folder.trim().slice(0, 80) : '',
     description: String(meta.description || '').trim().slice(0, 300),
     lang, cards, notes, types: [], tagNames: [...tagNames.values()], issues,
   };
