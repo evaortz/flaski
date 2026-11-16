@@ -962,3 +962,5 @@ Revisión de toda la app buscando fallos (datos y sincronización, Plan y CSS, p
   - el reparto de lecturas en palabras raras (sin dato, el paso 2 pregunta las lecturas del kanji);
   - Novedades de japonés (no se tocan: las de ahora son el vídeo).
 - **Supabase:** nada nuevo. Todo va en `cards`, `decks` y `prefs`.
+- **Batería completa** (`--workers=2`, rama `japones` con `main` juntado): 493 pasan, 13 omitidas, 0 fallos, a la primera (8,0 min). Antes, dos pasadas: la primera con 13 fallos esperados (la lista «Kanji» que sale en la demo y la presentación del kanji en la tanda; 5 eran de los apuntes de ejemplo con saltos de línea de Windows en esta copia) y la segunda con 1 (`tipos.spec.js`, igual).
+- Comprobado en el navegador (`?local`, móvil): la demo crea «Kanji» con sus 18 kanji, «Tus kanji», la ficha de 水 y la presentación de 食.

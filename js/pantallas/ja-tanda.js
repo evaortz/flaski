@@ -61,7 +61,7 @@ const kanjiDeck = () => [...S.decks.values()].find(d => d.options?.auto === 'kan
 export function kanjiFields(k) {
   const i = kanjiInfo(k) || {};
   const m = (i.es?.length ? i.es : (i.en || []).map(x => `${x} (en inglés)`)).slice(0, 3).join(', ');
-  return { k, m, kun: (i.kun || []).map(r => r.replace('.', '(') + (r.includes('.') ? ')' : '')).join('、'), on: (i.on || []).map(kata).join('、'), p: (i.p || []).join(' '), h: '' };
+  return { k, m, kun: [...new Set((i.kun || []).map(r => r.replace(/-/g, '')).map(r => r.replace('.', '(') + (r.includes('.') ? ')' : '')))].join('、'), on: [...new Set((i.on || []).map(r => kata(r.replace(/-/g, ''))))].join('、'), p: (i.p || []).join(' '), h: '' };
 }
 let syncing = null;
 // Crea las preguntas de los kanji nuevos de tus palabras (una vez por kanji). Devuelve cuántos ha creado
@@ -122,6 +122,15 @@ export const stepDots = dots;
 const pieceChips = p => String(p || '').split(/\s+/).filter(Boolean).map(x => `<span class="kj-piece"><b lang="ja">${esc(x)}</b>${PIECES[x] ? `<small>${esc(PIECES[x])}</small>` : ''}</span>`).join('<span class="kj-plus" aria-hidden="true">+</span>');
 const wordChips = (k, skip = '') => (jaKanjiWords().get(k) || []).filter(w => w !== skip).slice(0, 6).map(w => jaWords().get(w)).filter(Boolean)
   .map(w => `<span class="kj-word"><b lang="ja">${esc(w.word)}</b>${w.reading ? `<small lang="ja">${esc(w.reading)}</small>` : ''}</span>`).join('');
+// ¿La siguiente de la tanda es una palabra con este kanji? (después de la presentación y de otros kanji nuevos)
+function nextUses(k) {
+  for (const id of (S.session?.queue || []).slice(1)) {
+    const c = S.cards.get(id);
+    if (c?.type_id === KANJI_TYPE && !S.progress.get(c.id)) continue;
+    return !!(c && wordOfCard(c)?.includes(k));
+  }
+  return false;
+}
 // La cara de una pregunta de kanji, o null para la de siempre
 export function jaFace(c, model, st) {
   if (c?.type_id !== KANJI_TYPE) return null;
@@ -129,7 +138,7 @@ export function jaFace(c, model, st) {
   if (st.intro) {
     const ws = wordChips(k);
     return {
-      front: `<div class="kj-intro"><span class="kj-new">Kanji nuevo</span><p class="kj-lead">La siguiente palabra lleva un kanji que aún no conoces. Primero, el kanji:</p>
+      front: `<div class="kj-intro"><span class="kj-new">Kanji nuevo</span><p class="kj-lead">${nextUses(k) ? 'La siguiente palabra lleva un kanji que aún no conoces. Primero, el kanji:' : 'Un kanji de tus palabras que aún no conoces:'}</p>
         <div class="kj-hero"><span class="kj-big" lang="ja">${esc(k)}</span><span class="kj-mean"><small>significa</small><b>${esc(f.m || '')}</b></span></div>
         ${f.p ? `<div class="kj-box"><small>Para recordarlo, sus piezas</small><div class="kj-pieces">${pieceChips(f.p)}</div>${f.h ? `<p class="kj-story">${fmt(f.h)}</p>` : ''}</div>` : ''}
         ${ws ? `<div class="kj-box"><small>Lo vas a ver en estas palabras de tus listas</small><div class="kj-words">${ws}</div></div>` : ''}
