@@ -144,7 +144,7 @@ test('migración: los mazos antiguos reciben su idioma y desaparecen las copias 
   await page.addInitScript(v => { if (!localStorage.getItem('flaski-local-v1')) localStorage.setItem('flaski-local-v1', v); }, JSON.stringify(db));
   await openApp(page);
   const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('flaski-local-v1')));
-  await expect.poll(async () => (await stored()).decks.map(d => `${d.id}:${d.options.lang}`)).toEqual(['d-tr:tr-TR', 'd-ja:ja-JP', 'd-hist:', 'd-de:de-DE']);
+  await expect.poll(async () => (await stored()).decks.filter(d => !d.options.auto).map(d => `${d.id}:${d.options.lang}`)).toEqual(['d-tr:tr-TR', 'd-ja:ja-JP', 'd-hist:', 'd-de:de-DE']);   // (sin la lista «Kanji», que sale sola)
   await expect.poll(async () => (await stored()).types.length).toBe(0);
   expect((await stored()).cards.find(c => c.id === 'c2').type_id).toBe('vocab');
 
