@@ -105,6 +105,50 @@ Estos campos llevan varios elementos. Escríbelos como lista o como objeto JSON 
 - Si te dan apuntes o un texto, pregunta solo por lo que está en ellos.
 - Salvo que te pidan otra cosa, unas 20-40 notas por lista.
 
+## Apuntes con preguntas
+
+Si te piden un **apunte** (o te pasan material para convertirlo en apuntes), responde con dos partes, una detrás de otra:
+
+1. **El apunte en Markdown**, sin bloque de código alrededor. Empieza por `# Título` y separa los apartados con `## Apartado` (y `###` dentro de ellos). Vale: párrafos, listas con `-` o `1.`, casillas `- [ ]`, tablas con `|`, citas con `>`, destacados con `> [!NOTE] texto`, `**negrita**` y `*cursiva*`. Pon en negrita los términos clave y usa tablas para comparar.
+2. **Sus preguntas** en un bloque ```json con el formato de arriba. Cada nota lleva **section**: el título del apartado del que sale, escrito exactamente igual que en el apunte (sin los `##`). Así cada pregunta queda unida a su apartado y se puede estudiar apartado por apartado.
+
+Si te pasan un apunte que ya existe y te piden solo sus preguntas, responde solo con el bloque ```json, con **section** en cada nota.
+
+Un apunte de ejemplo: primero el Markdown…
+
+```markdown
+# La fotosíntesis
+
+## Qué es
+La **fotosíntesis** es el proceso con el que las plantas convierten la luz en energía química.
+
+| Entra | Sale |
+| --- | --- |
+| Agua y CO₂ | Glucosa y oxígeno |
+
+## Fases
+1. **Fase luminosa**: en los tilacoides; produce ATP y libera oxígeno.
+2. **Fase oscura** (ciclo de Calvin): en el estroma; fija el CO₂ y forma glucosa.
+```
+
+…y justo debajo, sus preguntas:
+
+```json
+{
+  "format": "flaski-notes",
+  "version": 1,
+  "name": "La fotosíntesis",
+  "folder": "Biología",
+  "notes": [
+    { "type": "basic", "section": "Qué es", "fields": { "q": "¿Qué gas libera la fotosíntesis?", "a": "Oxígeno" } },
+    { "type": "match", "section": "Fases", "fields": { "t": "Une cada fase con dónde ocurre", "p": { "Fase luminosa": "tilacoides", "Fase oscura": "estroma" } } },
+    { "type": "explain", "section": "Fases", "fields": { "q": "¿Por qué la fase oscura necesita la luminosa?", "k": ["Usa el ATP que produce la fase luminosa", "Sin ese ATP no puede fijar el CO₂"] } }
+  ]
+}
+```
+
+Este ejemplo crea 3 tarjetas.
+
 ## Más ejemplos
 
 Biología, con tipos para entender y no solo memorizar:
