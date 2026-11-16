@@ -92,3 +92,14 @@ test('pintar: furigana solo en lo que no sabes, partículas en color y la línea
   assert.deepEqual(pitchPattern('としょかん', 2).map(x => x.hi), [false, true, false, false]);
   assert.deepEqual(pitchPattern('さくら', 0).map(x => x.hi), [false, true, true]);
 });
+
+test('leer: la palabra con furigana en sus kanji y los subtítulos emparejados por tiempo', async () => {
+  const { rubyWord, parseSubs, pairSubs } = await import('../../js/ja/leer.js');
+  assert.equal(rubyWord('走る', 'はしる'), '走[はし]る');
+  assert.equal(rubyWord('予約', 'よやく'), '予約[よやく]');
+  assert.equal(rubyWord('すし', 'すし'), 'すし');
+  const ja = parseSubs('1\n00:02:14,000 --> 00:02:16,000\nちょっと<i>待って</i>\n\n2\n00:05:40,500 --> 00:05:42,000\nそれは無理だよ。\n');
+  assert.deepEqual(ja.map(x => [x.time, x.text]), [['02:14', 'ちょっと待って'], ['05:40', 'それは無理だよ。']]);
+  const es = parseSubs('WEBVTT\n\n00:02:15.000 --> 00:02:16.000\nEspera\n\n00:09:00.000 --> 00:09:02.000\nOtra cosa\n');
+  assert.deepEqual(pairSubs(ja, es).map(x => x.es), ['Espera', '']);
+});

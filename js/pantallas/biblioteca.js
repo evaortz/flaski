@@ -231,5 +231,6 @@ export function importMenuHTML() {
   return `<h2 class="sheet-hand">Importar</h2><div class="lib-pick">
     <button data-act="import-notes">${icon('file-text', { size: 22 })}<span><b>Apuntes</b><small>Word, PDF, Markdown, HTML, CSV o un .zip de Notion u Obsidian</small></span></button>
     <button data-act="import">${icon('copy', { size: 22 })}<span><b>Listas</b><small>CSV, mazo de Anki o archivo de Flaski</small></span></button>
-    <button data-act="paste">${icon('download', { size: 22 })}<span><b>Pegar preguntas</b><small>Texto o JSON copiado</small></span></button></div>`;
+    <button data-act="paste">${icon('download', { size: 22 })}<span><b>Pegar preguntas</b><small>Texto o JSON copiado</small></span></button>
+    <button data-act="import-subs">${icon('file-text', { size: 22 })}<span><b>Subtítulos de una serie</b><small>.srt o .vtt en japonés, para leerlos y sacar palabras</small></span></button></div>`;
 }

@@ -119,3 +119,35 @@
 .ja-form b{font-size:18px;font-weight:500}
 .ja-form small{font-size:11px;color:var(--muted)}
 .vf-ok{background:#DDF6E8;border-color:#8EE3B5}.vf-mid{background:#FFEBC7;border-color:#FFC36B}.vf-bad{background:#FFE1DC;border-color:#FF9F92}.vf-no{border-style:dashed}
+/* Leer japonés de verdad: el modo lectura de un apunte */
+.rd{display:flex;flex-direction:column;gap:14px}
+.rd h2{margin:0}
+.rd-sum{display:flex;flex-direction:column;gap:10px;background:var(--soft);border-radius:18px;padding:14px 16px}
+.rd-big{display:flex;align-items:baseline;gap:10px}
+.rd-big b{font-family:"Gochi Hand",var(--font);font-weight:400;font-size:48px;line-height:.9}
+.rd-big span{font-size:14px}
+.rd-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px}
+.rd-bar i{display:block;height:100%}
+.rd-known{background:var(--fg)}
+.rd-learning{background:#FFC36B}
+.rd-key .rd-new,.rd-bar .rd-new{background:#FF9F92}
+.rd-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px}
+.rd-key span{display:flex;align-items:center;gap:6px}
+.rd-key i{width:10px;height:10px;border-radius:3px;display:block}
+.rd-filter{display:flex;gap:4px;background:var(--soft);border-radius:20px;padding:3px;align-self:flex-start;flex-wrap:wrap}
+.rd-filter button{height:34px;padding:0 12px;border-radius:17px;border:0;background:transparent;color:var(--fg);font:inherit;font-size:13px;cursor:pointer}
+.rd-filter button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.rd-text{font-size:19px;line-height:2.25}
+.rd-text p{margin:0 0 10px}
+.rd-text p small{display:block;font-size:13px;line-height:1.4;color:var(--muted)}
+.rd-w{font:inherit;color:inherit;padding:0 1px;border:0;background:none}
+button.rd-w{cursor:pointer}
+.rd-new{background:#FFE1DC;border-bottom:2px solid #FF9F92;border-radius:3px;color:#4A1410}
+.rd-learning.rd-w{border-bottom:3px solid #FFC36B}
+.rd-h{margin:6px 0 0;font-family:"Gochi Hand",var(--font);font-weight:400;font-size:26px}
+.rd-list{list-style:none;margin:0;padding:0}
+.rd-list button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rd-list b{font-size:20px;font-weight:500;min-width:64px}
+.rd-list button > span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.rd-list small{font-size:12px;color:var(--muted)}
+.rd-wbig{width:auto;min-width:110px;padding:0 14px;font-size:56px}

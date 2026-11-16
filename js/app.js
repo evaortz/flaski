@@ -220,6 +220,8 @@ document.addEventListener('click', async e => {
   // Japonés: un kanji (Tus kanji, la ficha) y los filtros de Tus kanji
   if (ds.kj !== undefined) return import('./pantallas/ja-kanji.js').then(m => m.kanjiSheet(ds.kj));
   if (ds.kjf !== undefined) { S.kjFilter = ds.kjf; return render(); }
+  if (ds.rd !== undefined) return import('./pantallas/ja-leer.js').then(m => m.wordSheet(ds.rd, ds.rdL));
+  if (ds.rdOnly !== undefined) return import('./pantallas/ja-leer.js').then(m => m.showOnlyOne(ds.rdOnly === '1'));
   if (ds.kana !== undefined) return import('./pantallas/ja-kana.js').then(m => m.kanaSheet(ds.kana));
   if (ds.kanaAlpha !== undefined) return import('./pantallas/ja-kana.js').then(m => m.kanaTable(ds.kanaAlpha));
   if (ds.choice !== undefined) { const st = S.session?.st; if (st?.choice && !S.session.revealed) { st.choice.picked = +ds.choice; reveal(); } return; }
@@ -393,6 +395,12 @@ document.addEventListener('click', async e => {
     case 'ja-ordenar': return import('./pantallas/ja-frase.js').then(m => m.orderCard());
     case 'ja-verbo': return import('./pantallas/ja-frase.js').then(m => m.verbSheet(b.dataset.w, b.dataset.cls));
     case 'ja-verbo-crear': return import('./pantallas/ja-frase.js').then(m => m.createVerbCards(b.dataset.w, b.dataset.cls));
+    case 'ja-leer': return import('./pantallas/ja-leer.js').then(m => m.readSheet(S.pageId));
+    case 'rd-learn': return import('./pantallas/ja-leer.js').then(m => m.learn(b.dataset.w, b.dataset.l));
+    case 'rd-know': return import('./pantallas/ja-leer.js').then(m => m.knowIt(b.dataset.w));
+    case 'rd-all': return import('./pantallas/ja-leer.js').then(m => m.learnAll());
+    case 'import-subs': return import('./pantallas/ja-leer.js').then(m => m.subsSheet());
+    case 'subs-go': return import('./pantallas/ja-leer.js').then(m => m.subsGo());
     case 'kana-table': return import('./pantallas/ja-kana.js').then(m => m.kanaTable());
     case 'kana-start': return import('./pantallas/ja-kana.js').then(m => m.startKana(b.dataset.alpha));
     case 'kana-weak': return import('./pantallas/ja-kana.js').then(m => m.weak(b.dataset.alpha));

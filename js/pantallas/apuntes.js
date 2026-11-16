@@ -23,6 +23,7 @@ import { go } from '../app.js';
 import { TBL_EMPTY, placeTblHandles, tblAlign, editTable, commitTable, tablePaste } from './apuntes-tablas.js';
 import { suggestFor, openSuggestions, scheduleSugMarks } from './sugerencias.js';
 import { sentences, plainText } from '../suggest.js';
+import { canRead } from './ja-leer.js';
 
 /* ===================== apuntes ===================== */
 // Tarjetas vinculadas a cada bloque de una página: block_id → [tarjetas]
@@ -186,6 +187,7 @@ export function renderPage() {
         <button type="button" class="iconbtn" data-act="pg-redo" aria-label="Rehacer" title="Rehacer (Ctrl+Mayús+Z)" disabled>${icon('redo-2', { size: 18 })}</button></span>
       <button type="button" class="iconbtn pg-tocbtn" data-act="toc" aria-label="Índice" title="Índice del apunte" aria-haspopup="true" hidden>${icon('list', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="find" aria-label="Buscar en el apunte" title="Buscar y reemplazar (Ctrl+F)">${icon('search', { size: 18 })}</button>
+      ${canRead(p) ? `<button type="button" class="ghost small-btn" data-act="ja-leer" aria-label="Leer" title="Cuánto entiendes de este texto y sus palabras nuevas">${icon('book-open-check', { size: 15 })} <span>Leer</span></button>` : ''}
       <button type="button" class="ghost small-btn pg-suggest" data-act="suggest-cards" aria-label="Sugerir preguntas" title="Propone preguntas a partir de este apunte">${icon('sugerencia', { size: 15 })} <span>Sugerir preguntas</span></button>
       <button type="button" class="iconbtn" data-act="notes-help" aria-label="Formato y atajos" title="Formato y atajos">${icon('circle-help', { size: 18 })}</button>
       <button type="button" class="iconbtn" data-act="page-menu" aria-label="Más opciones" title="Más opciones">${icon('ellipsis', { size: 18 })}</button></div>
