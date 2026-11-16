@@ -96,4 +96,8 @@ test('recuperar la semana: lo que falta, repartido en los días que estudias de 
   assert.equal(weekRecover(busy, r, undefined, SUN).days.length, 5);
   // Sin nada que recuperar, nada
   assert.equal(weekRecover(S.plan, { ...r, missing: 0 }, undefined, SUN), null);
+  // Sin semana (un plan de antes), los días son los de tu tanda: se suman a ella, no a 10 min
+  const noWeek = { ...S.plan, time: { ...S.plan.time, week: null } };
+  const rec20 = weekRecover(noWeek, r, { secNew: 40, secReview: 12 }, SUN, 20);
+  assert.equal(rec20.special[0].minutes, 20 + rec20.more);
 });

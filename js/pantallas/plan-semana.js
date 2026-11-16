@@ -129,7 +129,7 @@ function daysText(ks) {
   return n.length === 1 ? n[0] : `${n.slice(0, -1).join(', ')} y ${n.at(-1)}`;
 }
 function recoverNow(r) {
-  const rec = weekRecover(plan2(), r, forecastNow().pace, dayKey());
+  const rec = weekRecover(plan2(), r, forecastNow().pace, dayKey(), S.prefs.study.tandaMin);
   if (!rec) return null;
   const p = { ...plan2(), time: { ...plan2().time, special: [...(plan2().time?.special || []), ...rec.special] } };
   const e = forecast({ ...stateNow(), plan: p }).exams.find(x => x.id === r.exam?.id);
@@ -157,7 +157,7 @@ export function renderWeek() {
 }
 function seen() { const p = editPlan2(); p.weekly = { ...(p.weekly || { on: true }), seen: dayKey() }; savePrefsSoon(); }
 function weekDone() {
-  const r = reviewNow(), rec = S.p2Week !== 'keep' && r.behind && r.missing ? weekRecover(plan2(), r, forecastNow().pace, dayKey()) : null;
+  const r = reviewNow(), rec = S.p2Week !== 'keep' && r.behind && r.missing ? weekRecover(plan2(), r, forecastNow().pace, dayKey(), S.prefs.study.tandaMin) : null;
   S.p2Week = null;
   seen();
   if (rec) commitPlan(`Recuperas la semana: ${plural(rec.perDay, 'nueva', 'nuevas')} más al día, ${daysText(rec.days)}`, p => { p.time.special = [...(p.time.special || []), ...rec.special]; }, { redraw: false });

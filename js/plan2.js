@@ -724,17 +724,18 @@ export function weekReview({ fc, plan, snap, progress, events = [], late = 0, fa
     reviewsDone: Math.max(0, answers - newDone), late, exam, behind };
 }
 // weekRecover(plan, review, pace, today): «Repartir las N que faltan en la semana»: los días que estudias de la
-// semana que viene (sin los que ya tienen un día especial), con unos minutos más cada uno para N/días nuevas más
-export function weekRecover(plan, review, pace = PACE_DEFAULT, today) {
+// semana que viene (sin los que ya tienen un día especial), con unos minutos más cada uno para N/días nuevas más.
+// fallbackMin: los minutos de un día sin semana (los de la tanda de Ajustes), como en el resto del plan
+export function weekRecover(plan, review, pace = PACE_DEFAULT, today, fallbackMin = 10) {
   const days = [];
   for (let i = 1; i <= 7; i++) {
     const k = addDays(today, i);
-    if (specialOn(plan?.time?.special, k) || !(minutesOn(plan, k) > 0)) continue;
+    if (specialOn(plan?.time?.special, k) || !(minutesOn(plan, k, fallbackMin) > 0)) continue;
     days.push(k);
   }
   if (!review.missing || !days.length) return null;
   const perDay = Math.ceil(review.missing / days.length), more = Math.max(1, Math.ceil((perDay * (Number(pace.secNew) || PACE_DEFAULT.secNew)) / 60));
   const at = Date.now();
-  const special = days.map(k => ({ id: 'rec-' + k, label: 'Recuperar la semana', from: k, to: k, minutes: minutesOn(plan, k) + more, at }));
+  const special = days.map(k => ({ id: 'rec-' + k, label: 'Recuperar la semana', from: k, to: k, minutes: minutesOn(plan, k, fallbackMin) + more, at }));
   return { days, perDay, more, special };
 }
