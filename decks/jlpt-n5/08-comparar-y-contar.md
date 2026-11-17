@@ -112,7 +112,10 @@ La cantidad va **justo delante del verbo**, sin partícula: **cosa を + cantida
     { "type": "order", "section": "Cantidad + verbo", "fields": { "f": "たまごを / みっつ / 買[か]いました", "t": "He comprado tres huevos." } },
     { "type": "truefalse", "section": "Cantidad + verbo", "fields": { "s": "«きってを ごまいを ください» es correcto.", "v": "F", "n": "La cantidad va sin partícula: きってを ごまい ください." } },
     { "type": "clozechoice", "section": "Solo: だけ", "fields": { "x": "あさは コーヒー{{だけ}} 飲[の]みます。", "w": ["より", "ほう", "の"], "e": "Por la mañana solo tomo café: だけ detrás de lo que limitas." } },
-    { "type": "clozechoice", "section": "Más o menos: くらい y ぐらい", "fields": { "x": "いえから 駅[えき]まで じゅっぷん{{ぐらい}} かかります。", "w": ["より", "ほう", "ごろ"], "e": "Unos diez minutos: ぐらい (o くらい) con duraciones. ごろ es para la hora del reloj." } }
+    { "type": "clozechoice", "section": "Más o menos: くらい y ぐらい", "fields": { "x": "いえから 駅[えき]まで じゅっぷん{{ぐらい}} かかります。", "w": ["より", "ほう", "ごろ"], "e": "Unos diez minutos: ぐらい (o くらい) con duraciones. ごろ es para la hora del reloj." } },
+    { "type": "sort", "section": "Según la forma: まい, ほん, にん, さつ, こ", "fields": { "q": "¿Con qué contador se cuenta?", "g": { "〜まい (planas)": ["かみ", "シャツ", "きって"], "〜ほん (largas)": ["えんぴつ", "かさ", "ペン"], "〜さつ (libros)": ["じしょ", "ノート"] } } },
+    { "type": "number", "section": "Según la forma: まい, ほん, にん, さつ, こ", "fields": { "q": "えんぴつが ろっぽん あります。¿Cuántos lápices hay?", "a": "6", "u": "lápices", "n": "ほん con el 6 suena ろっぽん." } },
+    { "type": "number", "section": "Según la forma: まい, ほん, にん, さつ, こ", "fields": { "q": "学生[がくせい]が よにん います。¿Cuántos estudiantes hay?", "a": "4", "u": "estudiantes", "n": "Cuatro personas: よにん (no «よんにん»)." } }
   ]
 }
 ```

@@ -75,7 +75,9 @@ Para situar algo: **objeto + の + posición + に**.
     { "type": "match", "section": "Arriba, abajo, delante…", "fields": { "t": "Une cada palabra con su posición", "p": { "上[うえ]": "encima", "下[した]": "debajo", "前[まえ]": "delante", "後[うし]ろ": "detrás", "となり": "al lado" } } },
     { "type": "order", "section": "Arriba, abajo, delante…", "fields": { "f": "かばんは / いすの / 下[した]に / あります", "t": "El bolso está debajo de la silla." } },
     { "type": "clozechoice", "section": "Y cosas así: 〜や〜など", "fields": { "x": "かばんの 中[なか]に 本[ほん]{{や}} ノートなどが あります。", "w": ["を", "が", "で"], "e": "や: ejemplos, la lista sigue." } },
-    { "type": "truefalse", "section": "Y cosas así: 〜や〜など", "fields": { "s": "«本[ほん]と ノートが あります» dice que hay un libro y un cuaderno, y nada más.", "v": "V", "n": "と une la lista completa; や, solo ejemplos." } }
+    { "type": "truefalse", "section": "Y cosas así: 〜や〜など", "fields": { "s": "«本[ほん]と ノートが あります» dice que hay un libro y un cuaderno, y nada más.", "v": "V", "n": "と une la lista completa; や, solo ejemplos." } },
+    { "type": "sort", "section": "Hay: あります y います", "fields": { "q": "¿Con cuál se dice que hay…?", "g": { "います": ["ねこ", "いぬ", "先生[せんせい]", "こども"], "あります": ["本[ほん]", "つくえ", "車[くるま]", "木[き]"] }, "n": "Personas y animales, います; cosas y plantas (un árbol también), あります." } },
+    { "type": "cloze", "section": "Dónde está: 〜は〜に あります", "fields": { "x": "つくえの 上[うえ]{{に}} 本[ほん]{{が}} あります。", "e": "Hay un libro encima de la mesa: el sitio con に y lo que hay con が." } }
   ]
 }
 ```

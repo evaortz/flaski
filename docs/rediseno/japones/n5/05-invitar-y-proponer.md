@@ -75,7 +75,10 @@ La respuesta larga a もう〜ましたか es **まだ + verbo en forma て + �
     { "type": "clozechoice", "section": "Ya y todavía: もう y まだ", "fields": { "x": "A: もう ひるごはんを 食[た]べましたか。 B: いいえ、{{まだ}}です。", "w": ["もう", "なにも", "だれも"], "e": "Aún no: まだです." } },
     { "type": "truefalse", "section": "Ya y todavía: もう y まだ", "fields": { "s": "«もう 食[た]べました» significa «ya he comido».", "v": "V", "n": "もう con el verbo en pasado: ya." } },
     { "type": "choice", "section": "Todavía no lo he hecho: まだ〜ていません", "fields": { "q": "«Ese libro todavía no lo he leído»", "a": "その 本[ほん]は まだ 読[よ]んで いません。", "w": ["その 本[ほん]は まだ 読[よ]みませんでした。", "その 本[ほん]は もう 読[よ]みました。", "その 本[ほん]は まだ 読[よ]みます。"], "n": "Todavía no: まだ + forma て + いません." } },
-    { "type": "typing", "section": "Todavía no lo he hecho: まだ〜ていません", "fields": { "q": "Completa: いいえ、まだ ＿。 (todavía no lo he comido; la forma て de 食[た]べます es 食[た]べて)", "a": "たべて いません / たべていません", "n": "まだ + 食[た]べて + いません." } }
+    { "type": "typing", "section": "Todavía no lo he hecho: まだ〜ていません", "fields": { "q": "Completa: いいえ、まだ ＿。 (todavía no lo he comido; la forma て de 食[た]べます es 食[た]べて)", "a": "たべて いません / たべていません", "n": "まだ + 食[た]べて + いません." } },
+    { "type": "sort", "section": "¿Te ayudo?: 〜ましょうか", "fields": { "q": "¿Qué forma usas?", "g": { "〜ませんか (invitas al otro)": ["Propones a una amiga ir juntas al cine", "Invitas a un compañero a comer contigo"], "〜ましょうか (te ofreces tú)": ["Ves a alguien con mucho equipaje y te ofreces a llevarlo", "Hace calor y te ofreces a abrir tú la ventana"] } } },
+    { "type": "cloze", "section": "Ya y todavía: もう y まだ", "fields": { "x": "A: {{もう::ya}} ひるごはんを 食[た]べましたか。 B: いいえ、{{まだ::todavía no}}です。", "e": "¿Ya has comido? No, todavía no." } },
+    { "type": "cloze", "section": "Vamos a…: 〜ましょう", "fields": { "x": "A: あした いっしょに 出[で]かけませんか。 B: ええ。じゃ、十時[じゅうじ]{{に}} 駅[えき]の 前[まえ]{{で}} 会[あ]い{{ましょう::vamos a}}。", "e": "Aceptas y propones: quedamos a las diez delante de la estación." } }
   ]
 }
 ```

@@ -78,7 +78,10 @@ Dos partículas pequeñas que dan tono:
     { "type": "order", "section": "De: N の N", "fields": { "f": "わたしは / さくら大学[だいがく]の / 学生[がくせい] / です", "t": "Soy estudiante de la Universidad Sakura." } },
     { "type": "truefalse", "section": "Llamar a alguien: さん", "fields": { "s": "Para presentarte puedes decir «マリアさんです».", "v": "F", "n": "さん nunca va con tu propio nombre." } },
     { "type": "clozechoice", "section": "Al final de la frase: ね y よ", "fields": { "x": "A: いい 天気[てんき]です{{ね}}。 B: ええ、そうですね。", "w": ["を", "に", "も"], "e": "Los dos lo veis: buscas que el otro esté de acuerdo." } },
-    { "type": "clozechoice", "section": "Al final de la frase: ね y よ", "fields": { "x": "A: この 本[ほん]を 読[よ]みましたか。 B: いいえ。 A: おもしろいです{{よ}}。", "w": ["ね", "を", "に"], "e": "B no lo ha leído: le das una información que no tiene." } }
+    { "type": "clozechoice", "section": "Al final de la frase: ね y よ", "fields": { "x": "A: この 本[ほん]を 読[よ]みましたか。 B: いいえ。 A: おもしろいです{{よ}}。", "w": ["ね", "を", "に"], "e": "B no lo ha leído: le das una información que no tiene." } },
+    { "type": "cloze", "section": "De: N の N", "fields": { "x": "わたし{{は}} 学生[がくせい]です。ナタリーさん{{も}} さくら大学[だいがく]{{の}} 学生[がくせい]です。", "e": "Soy estudiante. Natalie también es estudiante de la Universidad Sakura." } },
+    { "type": "match", "section": "No es: じゃありません", "fields": { "t": "Une cada frase con su significado", "p": { "学生[がくせい]です": "es estudiante", "学生[がくせい]じゃ ありません": "no es estudiante", "学生[がくせい]ですか": "¿es estudiante?" } } },
+    { "type": "sort", "section": "Al final de la frase: ね y よ", "fields": { "q": "¿Qué pones al final: ね o よ?", "g": { "ね (los dos lo sabéis)": ["Los dos veis que hace buen tiempo", "Buscas que el otro te dé la razón"], "よ (el otro no lo sabe)": ["Le cuentas a alguien algo que no sabe", "Avisas a alguien de que su tren ya ha llegado"] } } }
   ]
 }
 ```

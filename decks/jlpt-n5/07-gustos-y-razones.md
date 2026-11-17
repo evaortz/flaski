@@ -82,7 +82,10 @@ Para decir lo que te gusta: **persona は + cosa が + すきです**. Lo que gu
     { "type": "order", "section": "Porque: から", "fields": { "f": "さむいです / から / いえに / います", "t": "Hace frío, así que me quedo en casa." } },
     { "type": "choice", "section": "¿Por qué?: どうして", "fields": { "q": "A: どうして きのう 来[き]ませんでしたか。 B: …", "a": "いそがしかったからです。", "w": ["いそがしかったですからです。", "いそがしいでしたからです。", "はい、いそがしかったです。"], "n": "Delante de からです, el adjetivo va sin です." } },
     { "type": "typing", "section": "¿Por qué?: どうして", "fields": { "q": "¿Cómo se pregunta «por qué»? (en hiragana)", "a": "どうして / なぜ", "n": "なぜ significa lo mismo y suena más formal." } },
-    { "type": "clozechoice", "section": "Porque, más suave: ので (puente al N4)", "fields": { "x": "雨[あめ]{{な}}ので、いえで えいがを 見[み]ます。", "w": ["の", "だ", "で"], "e": "Detrás de un nombre, なので: 雨[あめ]なので." } }
+    { "type": "clozechoice", "section": "Porque, más suave: ので (puente al N4)", "fields": { "x": "雨[あめ]{{な}}ので、いえで えいがを 見[み]ます。", "w": ["の", "だ", "で"], "e": "Detrás de un nombre, なので: 雨[あめ]なので." } },
+    { "type": "sort", "section": "Me gusta: すきです y きらいです", "fields": { "q": "¿Adjetivo な o adjetivo い?", "g": { "Adjetivo な": ["すき", "きらい", "じょうず", "へた", "ひま"], "Adjetivo い": ["さむい", "いそがしい", "いたい", "つめたい"] }, "n": "きらい acaba en い, pero es un adjetivo な: きらいな たべもの, きらいじゃありません." } },
+    { "type": "sort", "section": "Entender: わかります", "fields": { "q": "¿Con 分[わ]かります o con 分[わ]かりません?", "g": { "Con afirmativo": ["よく", "だいたい", "すこし"], "Con negativo": ["あまり", "ぜんぜん"] }, "n": "あまり y ぜんぜん piden el verbo en negativo." } },
+    { "type": "cloze", "section": "Porque: から", "fields": { "x": "今日[きょう]は さむいです{{から}}、いえ{{に}} います。", "e": "Hoy hace frío, así que me quedo en casa. Razón + から; donde estás, に." } }
   ]
 }
 ```

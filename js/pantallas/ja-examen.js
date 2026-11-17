@@ -10,6 +10,8 @@ import { fixes, liveExams } from '../plan2.js';
 import { commitPlan } from './plan-guardar.js';
 import { longDay, daysLeft } from './plan-ui.js';
 import { rubyWord } from '../ja/leer.js';
+import { readingTraps } from '../ja/trampas.js';
+import { plainJa, reading, isKanji } from '../ja/texto.js';
 import { LEVELS, jlptSittings } from '../ja/niveles.js';
 import { missingWords } from './ja-nivel.js';
 import { go } from '../app.js';
@@ -29,10 +31,27 @@ export function autoFix(id, state = stateNow()) {
   return { option };
 }
 
+// «¿Cómo se lee?» como en el examen: la palabra con kanji y cuatro lecturas, tres de ellas trampa
+const readingNote = ({ k, kana, es }) => ({ type: 'choice', fields: { q: `¿Cómo se lee ${k}?`, a: kana, w: readingTraps(kana).join('; '), n: `${k} (${kana}): ${es}` } });
+// Las palabras con kanji de la lista del JLPT que aún no tienen su «¿cómo se lee?» (listas hechas antes de esto)
+function pendingReadings(deck) {
+  if (!deck) return [];
+  const cards = [...S.cards.values()].filter(c => c.deck_id === deck.id), have = new Set(cards.filter(c => c.type_id === 'choice').map(c => c.fields?.a + '|' + c.fields?.q));
+  const out = new Map();
+  for (const c of cards) {
+    if (c.type_id !== 'vocab' || !c.fields?.w) continue;
+    const k = plainJa(c.fields.w), kana = reading(c.fields.w);
+    if (![...k].some(isKanji) || !kana || out.has(k) || have.has(`${kana}|¿Cómo se lee ${k}?`)) continue;
+    out.set(k, { k, kana, es: c.fields.t || '' });
+  }
+  return [...out.values()];
+}
+
 export async function jlptSheet(lvl = 'n5') {
   const t = dayKey(), sit = jlptSittings(t), ex = liveExams(plan2()).find(e => e.id === examId(lvl));
   S.jx = { lvl, date: ex?.date && ex.date > t ? ex.date : sit[0], other: false, onlyExam: true, missing: null };
   S.jx.missing = await missingWords(lvl);
+  S.jx.readings = pendingReadings(deckOf(lvl));
   draw();
 }
 export function jlptInput(patch) { Object.assign(S.jx, patch); draw(); }
@@ -50,10 +69,10 @@ function draw() {
       ${x.other ? `<label class="p2-date">${icon('calendar', { size: 20 })}<input type="date" data-jx-day min="${addDays(t, 1)}" value="${x.date}" aria-label="Fecha del examen"></label>` : ''}
       <p class="muted small">Se hace el primer domingo de julio y de diciembre. Mira la fecha en tu resguardo.</p></section>
     <section><h3 class="rd-h">¿Qué entra?</h3>
-      <p>${n ? `Las <b>${n}</b> palabras del ${L.name} que no tienes en tus listas, en ${deck ? `tu lista «${esc(deck.name)}»` : `una lista nueva, «JLPT ${L.name} · lo que te falta»`}.` : `Ya tienes todas las palabras del ${L.name} en tus listas.`} Lo que ya tienes sigue donde está y cuenta igual.</p>
-      <div class="set-row"><div class="set-l"><b id="jx-only">Solo como en el examen</b><small>Del japonés al significado, sin escribir: la mitad de preguntas.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="jx-only" data-jx-only ${x.onlyExam ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div></section>
+      <p>${n ? `Las <b>${n}</b> palabras del ${L.name} que no tienes en tus listas, en ${deck ? `tu lista «${esc(deck.name)}»` : `una lista nueva, «JLPT ${L.name} · lo que te falta»`}.` : `Ya tienes todas las palabras del ${L.name} en tus listas.`} Lo que ya tienes sigue donde está y cuenta igual.${x.readings?.length ? ` Además, ${x.readings.length} preguntas de «¿cómo se lee?» para las palabras de tu lista que llevan kanji.` : ''}</p>
+      <div class="set-row"><div class="set-l"><b id="jx-only">Solo como en el examen</b><small>Del japonés al significado y, si lleva kanji, «¿cómo se lee?» con lecturas trampa, como en el examen. Sin escribir.</small></div><div class="set-c"><label class="switch"><input type="checkbox" role="switch" aria-labelledby="jx-only" data-jx-only ${x.onlyExam ? 'checked' : ''}><span class="slider" aria-hidden="true"></span></label></div></div></section>
     <p class="muted small">Si así no llegas, Flaski sube solo las nuevas de cada día y te lo dice. Se puede deshacer.</p>
-    <div class="btnrow"><button class="ghost" data-act="close-sheet">Ahora no</button><span class="spacer"></span><button class="primary" data-act="jx-save" ${isDay(x.date) && x.date > t && n ? '' : 'disabled'}>Preparar el examen</button></div></div>`, { full: true });
+    <div class="btnrow"><button class="ghost" data-act="close-sheet">Ahora no</button><span class="spacer"></span><button class="primary" data-act="jx-save" ${isDay(x.date) && x.date > t && (n || x.readings?.length) ? '' : 'disabled'}>Preparar el examen</button></div></div>`, { full: true });
 }
 
 export async function jlptSave() {
@@ -62,7 +81,8 @@ export async function jlptSave() {
   try {
     const { notesToDeck } = await import('../notes.js'), { importParsed } = await import('./explorar.js'), api = await import('../api.js');
     const p = notesToDeck({ name: `JLPT ${L.name} · lo que te falta`, folder: `JLPT ${L.name}`, lang: 'ja-JP',
-      notes: x.missing.map(w => ({ type: 'vocab', fields: { w: w.k ? rubyWord(w.k, w.kana) : w.kana, t: w.es, p: '', e: '', n: '' } })) });
+      notes: [...x.missing.map(w => ({ type: 'vocab', fields: { w: w.k ? rubyWord(w.k, w.kana) : w.kana, t: w.es, p: '', e: '', n: '' } })),
+        ...[...x.missing.filter(w => w.k && [...w.k].some(isKanji)), ...(x.readings || [])].map(readingNote)] });
     if (x.onlyExam) p.cards = p.cards.filter(c => c.template === 't1');
     const dest = deckOf(x.lvl)?.id || '';
     const { deck } = await importParsed(p, dest);

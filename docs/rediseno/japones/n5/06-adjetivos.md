@@ -105,7 +105,10 @@ Para decir dos cosas de lo mismo con «y», el primer adjetivo cambia: los い q
     { "type": "clozechoice", "section": "Pero: が y けど", "fields": { "x": "この へやは ひろいです{{が}}、高[たか]いです。", "w": ["を", "も", "や"], "e": "Es amplia, pero cara: が detrás de です une dos ideas opuestas." } },
     { "type": "order", "section": "Y (entre adjetivos): くて y で", "fields": { "f": "この / 店[みせ]は / 安[やす]くて / おいしいです", "t": "Este restaurante es barato y se come bien." } },
     { "type": "typing", "section": "Y (entre adjetivos): くて y で", "fields": { "q": "Forma con «y» (くて) de いい", "a": "よくて", "n": "いい → よくて, nunca «いくて»." } },
-    { "type": "clozechoice", "section": "Y además: そして", "fields": { "x": "この へやは ひろいです。{{そして}}、あかるいです。", "w": ["でも", "どんな", "あまり"], "e": "Las dos cosas son buenas: se añade, no se opone." } }
+    { "type": "clozechoice", "section": "Y además: そして", "fields": { "x": "この へやは ひろいです。{{そして}}、あかるいです。", "w": ["でも", "どんな", "あまり"], "e": "Las dos cosas son buenas: se añade, no se opone." } },
+    { "type": "sort", "section": "Dos tipos: い y な", "fields": { "q": "Reparte los adjetivos", "g": { "Adjetivos い": ["たかい", "やすい", "おいしい", "おおきい"], "Adjetivos な": ["きれい", "きらい", "ゆうめい", "しずか"] }, "n": "きれい, きらい y ゆうめい acaban en い, pero son な." } },
+    { "type": "conj", "section": "Adjetivos い: presente, negativo y pasado", "fields": { "v": "高[たか]い", "k": "Formas del adjetivo い", "t": "caro, alto", "f": { "presente": "たかいです", "negativo": "たかくないです / たかくありません", "pasado": "たかかったです", "pasado negativo": "たかくなかったです / たかくありませんでした" } } },
+    { "type": "cloze", "section": "Y (entre adjetivos): くて y で", "fields": { "x": "この へやは ひろ{{くて}}、しずか{{で}}、あかるいです。", "e": "Esta habitación es amplia, tranquila y luminosa: い → くて; な → で." } }
   ]
 }
 ```

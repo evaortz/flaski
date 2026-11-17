@@ -81,7 +81,10 @@ Para decir **a qué** vas: el verbo sin ます (o un nombre de acción, como か
     { "type": "choice", "section": "Ir a hacer algo: 〜に いきます", "fields": { "q": "«He venido a Japón a estudiar japonés»", "a": "日本[にほん]へ 日本語[にほんご]を べんきょうしに 来[き]ました。", "w": ["日本[にほん]へ 日本語[にほんご]を べんきょうするに 来[き]ました。", "日本[にほん]へ 日本語[にほんご]を べんきょうしたい 来[き]ました。", "日本語[にほんご]へ 日本[にほん]を べんきょうしに 来[き]ました。"], "n": "El verbo sin ます + に: べんきょうします → べんきょうしに." } },
     { "type": "clozechoice", "section": "Pienso hacerlo: つもり", "fields": { "x": "なつやすみに 日本[にほん]へ {{いく}} つもりです。", "w": ["いきます", "いって", "いきたい"], "e": "つもり va detrás de la forma de diccionario." } },
     { "type": "typing", "section": "Pienso hacerlo: つもり", "fields": { "q": "«Pienso no comprarlo» con かう + つもり", "a": "かわない つもりです / かわないつもりです / かわない つもり / かわないつもり", "n": "La forma ない de かう es かわない (う → わ)." } },
-    { "type": "truefalse", "section": "Pienso hacerlo: つもり", "fields": { "s": "«来年[らいねん] けっこんします つもりです» es correcto.", "v": "F", "n": "つもり no va con ます: けっこんする つもりです." } }
+    { "type": "truefalse", "section": "Pienso hacerlo: つもり", "fields": { "s": "«来年[らいねん] けっこんします つもりです» es correcto.", "v": "F", "n": "つもり no va con ます: けっこんする つもりです." } },
+    { "type": "conj", "section": "Quiero hacer algo: 〜たい", "fields": { "v": "のみます", "k": "Con たい", "t": "beber", "f": { "Quiero": "のみたいです / のみたい", "No quiero": "のみたくないです / のみたくない / のみたくありません", "Quería": "のみたかったです / のみたかった" }, "n": "たい funciona como un adjetivo い: たくない, たかった." } },
+    { "type": "sort", "section": "Quiero hacer algo: 〜たい", "fields": { "q": "¿Se dice con ほしい o con たい?", "g": { "〜が ほしいです (cosas)": ["カメラ", "くるま", "じてんしゃ"], "〜たいです (acciones)": ["みる", "かう", "いく"] }, "n": "カメラが ほしいです, pero みたいです, かいたいです, いきたいです." } },
+    { "type": "cloze", "section": "Pienso hacerlo: つもり", "fields": { "x": "なつやすみに 日本[にほん]へ {{いく::いきます}} つもりです。たばこは もう {{すわない::no すいます}} つもりです。", "e": "En verano pienso ir a Japón. No pienso volver a fumar. つもり va detrás de la forma de diccionario o de la forma ない." } }
   ]
 }
 ```

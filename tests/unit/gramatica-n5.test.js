@@ -40,7 +40,7 @@ for (const f of files) {
     const heads = [...md.matchAll(/^## (.+)$/gm)].map(m => m[1].trim());
     assert.ok(heads.length >= 3, 'tres apartados o más');
     const notes = data.notes;
-    assert.ok(notes.length >= 8 && notes.length <= 18, `${notes.length} preguntas`);
+    assert.ok(notes.length >= 8 && notes.length <= 22, `${notes.length} preguntas`);
     for (const n of notes) {
       assert.ok(heads.includes(n.section), `«${n.section}» no es un apartado de ${f}`);
       assert.equal(n.tags, undefined);

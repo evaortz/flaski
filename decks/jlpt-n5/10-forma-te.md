@@ -98,7 +98,9 @@ Para contar varias acciones en orden, todas van en forma て menos **la última*
     { "type": "choice", "section": "Prohibir: 〜ては いけません", "fields": { "q": "A: ここで たばこを すっても いいですか。 B: … (no se puede)", "a": "いいえ、すっては いけません。", "w": ["いいえ、すっても いいです。", "はい、すっては いけません。", "いいえ、すって ください。"], "n": "A alguien de fuera, más amable: すみません、ちょっと…" } },
     { "type": "clozechoice", "section": "Prohibir: 〜ては いけません", "fields": { "x": "としょかんで しゃしんを とって{{は}} いけません。", "w": ["を", "が", "に"], "e": "Prohibir: forma て + は いけません." } },
     { "type": "order", "section": "Después de: 〜てから", "fields": { "f": "ばんごはんを / 食[た]べてから / テレビを / 見[み]ます", "t": "Después de cenar, veo la tele." } },
-    { "type": "clozechoice", "section": "Una acción tras otra: 〜て、〜て", "fields": { "x": "あさ {{おきて}}、シャワーを あびて、会社[かいしゃ]へ 行[い]きます。", "w": ["おきます", "おきって", "おきで"], "e": "Todas en forma て menos la última: おきる → おきて." } }
+    { "type": "clozechoice", "section": "Una acción tras otra: 〜て、〜て", "fields": { "x": "あさ {{おきて}}、シャワーを あびて、会社[かいしゃ]へ 行[い]きます。", "w": ["おきます", "おきって", "おきで"], "e": "Todas en forma て menos la última: おきる → おきて." } },
+    { "type": "sort", "section": "Cómo se hace la forma て", "fields": { "q": "¿De qué grupo es cada verbo?", "g": { "Grupo 1": ["かえる", "はいる", "はしる", "かく", "のむ"], "Grupo 2": ["たべる", "みる", "おきる"], "Grupo 3": ["する", "くる"] }, "n": "かえる, はいる y はしる acaban en る, pero son del grupo 1: かえって, はいって, はしって." } },
+    { "type": "conj", "section": "Pedir: 〜て ください", "fields": { "v": "のむ", "k": "Con la forma て", "t": "beber", "f": { "Bebe, por favor": "のんでください / のんで ください", "Estoy bebiendo": "のんでいます / のんで います", "¿Puedo beber?": "のんでもいいですか / のんでも いいですか", "No se puede beber": "のんではいけません / のんでは いけません" }, "n": "のむ → のんで, y detrás ください, います, も いいですか o は いけません." } }
   ]
 }
 ```

@@ -138,7 +138,9 @@ Para decir «la persona que…», «el libro que…», la frase va entera **dela
     { "type": "clozechoice", "section": "Frases que describen un nombre", "fields": { "x": "これは きのう わたし{{が}} 買[か]った 本[ほん]です。", "w": ["は", "を", "で"], "e": "Dentro de la frase que describe, quien lo hace va con が." } },
     { "type": "order", "section": "Frases que describen un nombre", "fields": { "f": "めがねを / かけている / 人[ひと]は / たなかさんです", "t": "La persona que lleva gafas es Tanaka." } },
     { "type": "clozechoice", "section": "Cuando: とき (puente al N4)", "fields": { "x": "こども{{の}} とき、よく この こうえんで あそびました。", "w": ["な", "が", "に"], "e": "Nombre + の とき." } },
-    { "type": "clozechoice", "section": "Después de: あとで (puente al N4)", "fields": { "x": "しごとが {{おわった}} 後[あと]で、ともだちと ごはんを 食[た]べます。", "w": ["おわる", "おわって", "おわらない"], "e": "Después de: siempre forma た, aunque hable del futuro." } }
+    { "type": "clozechoice", "section": "Después de: あとで (puente al N4)", "fields": { "x": "しごとが {{おわった}} 後[あと]で、ともだちと ごはんを 食[た]べます。", "w": ["おわる", "おわって", "おわらない"], "e": "Después de: siempre forma た, aunque hable del futuro." } },
+    { "type": "conj", "section": "Hablar en llano", "fields": { "v": "いきます", "k": "En llano", "t": "ir", "f": { "いきます": "いく", "いきません": "いかない", "いきました": "いった", "いきませんでした": "いかなかった" }, "n": "いく es la excepción en el pasado: いった, no «いいた»." } },
+    { "type": "cloze", "section": "Después de: あとで (puente al N4)", "fields": { "x": "ごはんを {{たべる::たべます}} 前[まえ]に てを あらって、{{たべた::たべます}} 後[あと]で はを みがきます。", "e": "Antes de comer me lavo las manos y, después de comer, me lavo los dientes. まえに con diccionario; あとで con た." } }
   ]
 }
 ```

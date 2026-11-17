@@ -73,7 +73,11 @@ Algunos números cambian de sonido al juntarse:
     { "type": "choice", "section": "De quién: の", "fields": { "q": "«Este paraguas es mío»", "a": "この かさは わたしのです。", "w": ["この かさは わたしです。", "これ かさは わたしのです。", "この かさの わたしです。"], "n": "Mío: わたしの, sin repetir かさ." } },
     { "type": "clozechoice", "section": "Cuánto cuesta: いくら", "fields": { "x": "A: この とけいは {{いくら}}ですか。 B: 三千円[さんぜんえん]です。", "w": ["なん", "どこ", "だれ"], "e": "Para el precio: いくら." } },
     { "type": "typing", "section": "Cuánto cuesta: いくら", "fields": { "q": "Escribe en hiragana: 300", "a": "さんびゃく", "n": "Detrás de さん, ひゃく suena びゃく." } },
-    { "type": "choice", "section": "Cuánto cuesta: いくら", "fields": { "q": "¿Cómo se dice 8000?", "a": "はっせん", "w": ["はちせん", "はっぜん", "はちぜん"] } }
+    { "type": "choice", "section": "Cuánto cuesta: いくら", "fields": { "q": "¿Cómo se dice 8000?", "a": "はっせん", "w": ["はちせん", "はっぜん", "はちぜん"] } },
+    { "type": "sort", "section": "Aquí, ahí, allí: ここ, そこ, あそこ", "fields": { "q": "Reparte las palabras", "g": { "Una cosa, sola": ["これ", "それ", "あれ"], "Delante de un nombre": ["この", "その", "あの"], "Un sitio": ["ここ", "そこ", "あそこ"] } } },
+    { "type": "cloze", "section": "De quién: の", "fields": { "x": "A: {{この::este}} 本[ほん]は {{だれ::quién}}のですか。 B: わたし{{の}}です。", "e": "¿De quién es este libro? Es mío." } },
+    { "type": "number", "section": "Cuánto cuesta: いくら", "fields": { "q": "¿Cuánto es さんびゃくごじゅう えん?", "a": "350", "u": "yenes" } },
+    { "type": "number", "section": "Cuánto cuesta: いくら", "fields": { "q": "¿Cuánto es はっぴゃく えん?", "a": "800", "u": "yenes", "n": "Detrás de はち, ひゃく suena ぴゃく: はっぴゃく." } }
   ]
 }
 ```

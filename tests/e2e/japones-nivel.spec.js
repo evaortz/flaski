@@ -64,9 +64,11 @@ test('Prepárate el N5: lo que falta va a una lista nueva, solo como en el exame
     const ex = S.prefs.plan.exams.find(e => e.id === 'ex-jlpt-n5');
     const { forecastNow } = await import('/js/plan2-app.js');
     const verdict = forecastNow().exams.find(e => e.id === 'ex-jlpt-n5')?.verdict;
-    return { name: d.name, folder, n: cards.length, t2: cards.filter(c => c.template === 't2').length, aru: cards.find(c => c.fields.t && c.fields.w === '会[あ]う') ? 1 : 0, w: cards.find(c => c.fields.w?.startsWith('明'))?.fields.w, exam: ex && { date: ex.date, folder: ex.scope.folders[0] === d.folder_id, first: ex.order[0] === d.id }, cap: S.prefs.plan.caps?.newPerDay, verdict };
+    const rd = cards.find(c => c.type_id === 'choice' && c.fields.q === '¿Cómo se lee 明るい?');
+    return { name: d.name, folder, n: cards.filter(c => c.type_id === 'vocab').length, reads: cards.filter(c => c.type_id === 'choice').length, rd: rd && { a: rd.fields.a, w: rd.fields.w.split('; ').length, ok: !rd.fields.w.includes('あかるい;') && !rd.fields.w.split('; ').includes('あかるい') }, t2: cards.filter(c => c.template === 't2').length, aru: cards.find(c => c.fields.t && c.fields.w === '会[あ]う') ? 1 : 0, w: cards.find(c => c.fields.w?.startsWith('明'))?.fields.w, exam: ex && { date: ex.date, folder: ex.scope.folders[0] === d.folder_id, first: ex.order[0] === d.id }, cap: S.prefs.plan.caps?.newPerDay, verdict };
   });
-  expect(r).toMatchObject({ name: 'JLPT N5 · lo que te falta', folder: 'JLPT N5', n: 680, t2: 0, aru: 0, w: '明[あか]るい', exam: { date: day, folder: true, first: true } });
+  expect(r).toMatchObject({ name: 'JLPT N5 · lo que te falta', folder: 'JLPT N5', n: 680, rd: { a: 'あかるい', w: 3, ok: true }, t2: 0, aru: 0, w: '明[あか]るい', exam: { date: day, folder: true, first: true } });
+  expect(r.reads).toBeGreaterThan(500);                       // «¿cómo se lee?» de las que llevan kanji
   expect(r.cap).toBeGreaterThan(5);
   expect(r.cap).toBeLessThanOrEqual(30);
   expect(r.verdict).not.toBe('no');
@@ -81,4 +83,23 @@ test('Tu japonés solo sale en Perfil si estudias japonés', async ({ page, seed
   await nav(page, 'Perfil');
   await expect(page.locator('#main [data-nav="stats"]').first()).toBeVisible();
   await expect(page.locator('#main [data-act="ja-nivel"]')).toHaveCount(0);
+});
+
+test('con un examen JLPT por delante, «lo sabes» es lo que recordarás ese día (no a 3 semanas)', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Japonés', lang: 'ja-JP', studied: { due: 5, interval: 15 }, notes: [
+    { type: 'vocab', fields: { w: '会[あ]う', t: 'quedar', p: '', e: '', n: '' } },
+    { type: 'vocab', fields: { w: '青[あお]い', t: 'azul', p: '', e: '', n: '' } }] }] });
+  await openApp(page);
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-act="ja-nivel"]').click();
+  const sh = page.locator('#sheetBody .jn');
+  await expect(sh.locator('[data-jnk="w"]')).toContainText('0 de 684');      // a 3 semanas, 15 días de memoria no llegan
+  await expect(sh).toContainText('Lo que recordarás dentro de 3 semanas');
+  await page.evaluate(async () => {
+    const { editPlan2 } = await import('/js/plan2-app.js'); const { dayKey, addDays } = await import('/js/plan.js');
+    editPlan2().exams.push({ id: 'ex-jlpt-n5', name: 'JLPT N5', scope: { folders: [], decks: [], pages: [] }, date: addDays(dayKey(), 10), lastWeek: false, after: 'pause', order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [] });
+  });
+  await sh.locator('[data-jn="n5"]').click();
+  await expect(sh.locator('[data-jnk="w"]')).toContainText('2 de 684');      // el examen es en 10 días: sí
+  await expect(sh).toContainText(/recordarás el \d+ de [a-z]+, el día de tu examen/);
 });

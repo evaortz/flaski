@@ -109,7 +109,11 @@ Cuando alguien te da algo **a ti** (o a alguien de tu familia), no se usa あげ
     { "type": "clozechoice", "section": "Con quién: と", "fields": { "x": "ともだち{{と}} えいがを 見[み]ました。", "w": ["を", "へ", "で"], "e": "Con quién: と." } },
     { "type": "choice", "section": "Algo, nada, nadie: なにか, なにも, だれも", "fields": { "q": "A: なにか 買[か]いましたか。 B: いいえ、…", "a": "なにも 買[か]いませんでした。", "w": ["なにも 買[か]いました。", "なにか 買[か]いました。", "だれも 買[か]いませんでした。"], "n": "«Nada» es なにも, con el verbo en negativo." } },
     { "type": "choice", "section": "Dar y recibir: あげます y もらいます", "fields": { "q": "«Le regalé flores a una amiga»", "a": "わたしは ともだちに 花[はな]を あげました。", "w": ["わたしは ともだちに 花[はな]を もらいました。", "わたしは ともだちを はなに あげました。", "わたしは ともだちで 花[はな]を あげました。"], "n": "Quien da, は; quien recibe, に; lo que se da, を." } },
-    { "type": "truefalse", "section": "Me dan: くれます (puente al N4)", "fields": { "s": "Para decir «un amigo me dio un libro», lo natural es «ともだちは わたしに 本[ほん]を あげました».", "v": "F", "n": "Hacia ti no se usa あげます: ともだちが 本[ほん]を くれました。" } }
+    { "type": "truefalse", "section": "Me dan: くれます (puente al N4)", "fields": { "s": "Para decir «un amigo me dio un libro», lo natural es «ともだちは わたしに 本[ほん]を あげました».", "v": "F", "n": "Hacia ti no se usa あげます: ともだちが 本[ほん]を くれました。" } },
+    { "type": "conj", "section": "Las cuatro formas: ます, ません, ました, ませんでした", "fields": { "v": "飲[の]みます", "k": "Formas de ます", "t": "beber", "f": { "presente": "のみます", "negativo": "のみません", "pasado": "のみました", "pasado negativo": "のみませんでした" } } },
+    { "type": "sort", "section": "A qué hora: に", "fields": { "q": "¿Llevan に?", "g": { "Con に": ["六時[ろくじ]", "九時半[くじはん]", "三月[さんがつ]"], "Sin partícula": ["今日[きょう]", "あした", "毎日[まいにち]", "きのう"] }, "n": "Una hora o una fecha concreta, に; las palabras que dependen de hoy (今日[きょう], あした, きのう) y 毎日[まいにち], sin nada." } },
+    { "type": "cloze", "section": "Con quién: と", "fields": { "x": "ともだち{{と::con}} 駅[えき]{{で}} ひるごはん{{を}} 食[た]べました。", "e": "Comí con un amigo en la estación." } },
+    { "type": "number", "section": "Desde y hasta: から〜まで", "fields": { "q": "九時[くじ]から 五時[ごじ]まで はたらきます。¿Cuántas horas trabaja?", "a": "8", "u": "horas" } }
   ]
 }
 ```

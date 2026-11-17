@@ -109,7 +109,9 @@ Para decir que **sabes** o **puedes** hacer algo: forma de diccionario + **こ�
     { "type": "choice", "section": "Antes de: まえに", "fields": { "q": "«Antes del trabajo me tomo un café»", "a": "しごとの 前[まえ]に コーヒーを 飲[の]みます。", "w": ["しごと 前[まえ]に コーヒーを 飲[の]みます。", "しごとが 前[まえ]に コーヒーを 飲[の]みます。", "しごとの 前[まえ]で コーヒーを 飲[の]みます。"], "n": "Con un nombre: nombre + の まえに." } },
     { "type": "clozechoice", "section": "Tener que: なければ なりません (puente al N4)", "fields": { "x": "ここに 名前[なまえ]を {{かかなければ}} なりません。", "w": ["かかないで", "かかなくても", "かいても"], "e": "Obligación: forma ない con なければ + なりません." } },
     { "type": "choice", "section": "No hace falta: なくても いいです (puente al N4)", "fields": { "q": "«Mañana no hace falta que vengas»", "a": "あしたは 来[こ]なくても いいです。", "w": ["あしたは 来[こ]なければ なりません。", "あしたは 来[こ]ないで ください。", "あしたは 来[き]ては いけません。"], "n": "No hace falta no es prohibir: なくても いいです." } },
-    { "type": "clozechoice", "section": "Saber o poder: ことが できます (puente al N4)", "fields": { "x": "わたしは およぐ こと{{が}} できます。", "w": ["を", "に", "で"], "e": "Saber o poder: forma de diccionario + ことが できます." } }
+    { "type": "clozechoice", "section": "Saber o poder: ことが できます (puente al N4)", "fields": { "x": "わたしは およぐ こと{{が}} できます。", "w": ["を", "に", "で"], "e": "Saber o poder: forma de diccionario + ことが できます." } },
+    { "type": "sort", "section": "La forma de diccionario", "fields": { "q": "¿De qué grupo es cada verbo?", "g": { "Grupo 1": ["かえります", "のみます", "かいます", "まちます"], "Grupo 2": ["たべます", "ねます", "みます", "おきます", "あびます"], "Grupo 3": ["します", "きます"] }, "n": "Sonido e antes de ます: grupo 2. みます, おきます y あびます también lo son, aunque lleven sonido i." } },
+    { "type": "conj", "section": "Cómo se hace la forma ない", "fields": { "v": "かえります", "k": "Diccionario y forma ない", "t": "volver", "f": { "Diccionario": "かえる", "ない": "かえらない", "No vuelvas, por favor": "かえらないでください / かえらないで ください", "Tengo que volver": "かえらなくてはいけません / かえらなくては いけません" }, "n": "かえる es del grupo 1: る pasa a ら, かえらない (no «かえない»)." } }
   ]
 }
 ```

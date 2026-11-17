@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rÃ¡pido y sin conexiÃ³n.
 // Cuando cambies cualquier archivo de la app, sube el nÃºmero de versiÃ³n
 // para que los mÃ³viles descarguen la versiÃ³n nueva.
-const VERSION = 'flaski-v252';
+const VERSION = 'flaski-v253';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const JA = 'flaski-ja-v1';      // datos de japonÃ©s (data/ja/): se guardan la primera vez que se piden
@@ -19,7 +19,7 @@ const SHELL = [
   './js/srs.js',
   './js/tanda.js',
   './js/atrasos.js',
-  './js/plan2.js', './js/plan2-migrar.js', './js/plan2-app.js', './js/pantallas/plan-tiempo.js', './css/plan2.css', './css/ja.css', './js/pantallas/ja-tanda.js', './js/pantallas/ja-kanji.js', './js/pantallas/ja-kana.js', './js/ja/kana.js', './js/ja/pintar.js', './js/pantallas/ja-frase.js', './js/pantallas/ja-leer.js', './js/ja/leer.js', './js/pantallas/ja-nivel.js', './js/pantallas/ja-examen.js', './js/pantallas/ja-curso.js', './js/pantallas/ja-intro.js', './js/ja/niveles.js',
+  './js/plan2.js', './js/plan2-migrar.js', './js/plan2-app.js', './js/pantallas/plan-tiempo.js', './css/plan2.css', './css/ja.css', './js/pantallas/ja-tanda.js', './js/pantallas/ja-kanji.js', './js/pantallas/ja-kana.js', './js/ja/kana.js', './js/ja/pintar.js', './js/pantallas/ja-frase.js', './js/pantallas/ja-leer.js', './js/ja/leer.js', './js/pantallas/ja-nivel.js', './js/pantallas/ja-examen.js', './js/pantallas/ja-curso.js', './js/pantallas/ja-intro.js', './js/ja/niveles.js', './js/ja/trampas.js',
   './js/pantallas/plan-ui.js', './js/pantallas/plan-inicio.js', './js/pantallas/plan-examen.js', './js/pantallas/plan-nuevo.js', './js/pantallas/plan-reparto.js', './js/pantallas/plan-hojas.js', './js/pantallas/plan-ajustes.js', './js/pantallas/plan-acciones.js', './js/pantallas/plan-guardar.js', './js/pantallas/plan-tema.js', './js/pantallas/plan-semana.js',
   './js/prefs.js',
   './js/stats.js',
