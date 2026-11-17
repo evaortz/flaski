@@ -306,7 +306,7 @@ export function typeSegs(sel, deckId, attr = 'data-set-type') {
 const TYPE_GROUPS = [
   ['Recordar', ['basic', 'reverse', 'vocab', 'de-noun']],
   ['Escribir', ['typing', 'kanji', 'handwrite', 'listen', 'conj', 'number']],
-  ['Elegir', ['choice', 'truefalse', 'clozechoice']],
+  ['Elegir', ['choice', 'truefalse', 'clozechoice', 'oido']],
   ['Completar', ['cloze']],
   ['Relacionar y ordenar', ['match', 'sort', 'order', 'steps']],
   ['Entender', ['explain', 'whatif']],

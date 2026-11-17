@@ -14,7 +14,7 @@ const busy = () => !!document.querySelector('.ob, .news') || S.view !== 'home' |
 
 let wait = 0;
 export function maybeJaIntro() {
-  if (!S.uid || S.recovery || S.fromCache || !navigator.onLine || !hasJapanese() || seen()) return;
+  if (!S.uid || S.noNews || S.recovery || S.fromCache || !navigator.onLine || !hasJapanese() || seen()) return;
   if (busy()) {
     if (!wait) wait = setInterval(() => { if (busy()) return; clearInterval(wait); wait = 0; maybeJaIntro(); }, 700);
     return;

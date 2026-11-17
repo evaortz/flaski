@@ -11,7 +11,7 @@ import { trimSims } from '../prefs.js';
 import { decksUnder, childrenOf, folderKey, dayKey } from '../plan.js';
 import { $, main, S, esc, fmt, plain, toast, cardList, hooks } from '../comun.js';
 import { plural } from './mazos.js';
-import { cardModel, faceHTML, clozeChoices, startSession } from './estudio.js';
+import { cardModel, faceHTML, clozeChoices, startSession, playListen, SPEAK_ICON } from './estudio.js';
 import { openSheet, closeSheet } from './editor.js';
 import { savePrefsSoon } from './perfil.js';
 import { mapModel } from './mapa.js';
@@ -172,9 +172,12 @@ function questionHTML() {
   const model = c ? cardModel(c) : null;
   const face = model ? faceHTML(model, { id: c.id, revealed: false, hint: false, typed: null, choice: null }) : { front: '<p>Esta pregunta ya no existe.</p>' };
   const last = sim.cur === sim.qs.length - 1;
-  let ask = '';
-  if (q.kind === 'choice') ask = `<div class="choices sm-choices">${q.opts.map((o, i) => `<button type="button" class="choice${q.ans === i ? ' picked' : ''}" data-sim="pick" data-i="${i}"><span class="ckey">${LETTERS[i]}</span><span>${fmt(o)}</span></button>`).join('')}</div>`;
-  else if (q.kind === 'typed') ask = `<div class="typed sm-typed"><input id="simTyped" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escribe la respuesta" aria-label="Tu respuesta" value="${esc(q.ans || '')}"></div>`;
+  // «De oído»: se escucha (la primera vez que sale, sola)
+  let ask = model?.tpl.listen ? `<div class="listen-box"><button type="button" class="listen-btn" data-sim="listen" data-rate="1" aria-label="Escuchar">${SPEAK_ICON}<span>Escuchar</span></button>
+    <button type="button" class="ghost small-btn" data-sim="listen" data-rate="0.6">${icon('snail', { size: 16 })} Más despacio</button></div>` : '';
+  if (model?.tpl.listen && !q.heard) { q.heard = true; setTimeout(() => playListen(model, 1), 0); }
+  if (q.kind === 'choice') ask += `<div class="choices sm-choices">${q.opts.map((o, i) => `<button type="button" class="choice${q.ans === i ? ' picked' : ''}" data-sim="pick" data-i="${i}"><span class="ckey">${LETTERS[i]}</span><span>${fmt(o)}</span></button>`).join('')}</div>`;
+  else if (q.kind === 'typed') ask += `<div class="typed sm-typed"><input id="simTyped" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escribe la respuesta" aria-label="Tu respuesta" value="${esc(q.ans || '')}"></div>`;
   else if (q.kind === 'number') ask = `<div class="typed sm-typed"><input id="simTyped" inputmode="decimal" autocomplete="off" placeholder="Tu respuesta" aria-label="Tu respuesta" value="${esc(q.ans || '')}">${model?.fields.u ? `<span>${esc(model.fields.u)}</span>` : ''}</div>`;
   else ask = `<p class="sm-flipnote">Piensa la respuesta. Al entregar verás la buena y dirás si la sabías.</p><button type="button" class="sm-mark${q.ans === 'seen' ? ' on' : ''}" data-sim="think">${q.ans === 'seen' ? 'Pensada ✓' : 'Ya la he pensado'}</button>`;
   const topic = c ? S.decks.get(c.deck_id)?.name || '' : '';
@@ -250,6 +253,8 @@ function finish() {
   const now = Date.now();
   const rec = { id: sim.id, exam: sim.exam, at: now, done: now, date: dayKey(now), name: sim.name, settings: sim.settings, n, min: Math.max(1, Math.round(elapsed(sim) / 60e3)), score, ok, bad, blank,
     topics: [...byTopic.values()], qs: sim.qs.map((q, i) => [q.id, answerText(q).slice(0, 80), q.flag ? 1 : 0, res[i], q.kind === 'choice' ? q.correct : null]) };
+  const jl = jlptScore(sim.qs, res);
+  if (jl) rec.jlpt = jl;
   S.prefs.sims = trimSims([...(S.prefs.sims || []), rec]);
   savePrefsSoon();
   // Cada fallo sale en la tanda de mañana (si tocaba más tarde), sin cambiar su intervalo
@@ -264,6 +269,32 @@ function finish() {
   S.sim = null; save();
   S.simShow = { id: rec.id, mode: 'result' };
   renderSim(); scrollTo(0, 0);
+}
+
+/* ---------------- la nota del JLPT ---------------- */
+// Si las preguntas son de una carpeta «JLPT N5» (o N4): la nota como en el examen, orientativa. Lenguaje
+// (vocabulario, gramática y lectura) sobre 120 y comprensión oral sobre 60, cada parte con su mínimo (38 y 19)
+// y el total con el suyo (80 en el N5, 90 en el N4)
+export const JLPT_PASS = { N5: 80, N4: 90 }, JLPT_MIN = { lang: 38, oido: 19 };
+function jlptScore(qs, res) {
+  const lvlOf = id => { const d = S.decks.get(S.cards.get(id)?.deck_id); return /^JLPT (N[45])\b/.exec(S.folders.get(d?.folder_id)?.name || '')?.[1] || ''; };
+  const lvls = new Set(qs.map(q => lvlOf(q.id)));
+  if (lvls.size !== 1 || lvls.has('')) return null;
+  const lvl = [...lvls][0], part = { lang: [0, 0], oido: [0, 0] };
+  qs.forEach((q, i) => { const c = S.cards.get(q.id), m = c && cardModel(c), k = m && (m.tpl.listen || m.tpl.mode === 'listen') ? 'oido' : 'lang'; part[k][1]++; if (res[i] === 'o') part[k][0]++; });
+  const lang = Math.round((part.lang[0] / Math.max(1, part.lang[1])) * 120), oido = part.oido[1] ? Math.round((part.oido[0] / part.oido[1]) * 60) : null;
+  const total = lang + (oido ?? 0), pass = oido != null && total >= JLPT_PASS[lvl] && lang >= JLPT_MIN.lang && oido >= JLPT_MIN.oido;
+  return { lvl, lang, oido, total, pass };
+}
+function jlptHTML(j) {
+  const bar = (label, v, of, min) => `<div class="sm-jl-part"><div><b>${label}</b><span>${v == null ? 'sin preguntas' : `${v} de ${of}`}</span></div>
+    <span class="sm-jl-bar" aria-hidden="true"><i style="width:${v == null ? 0 : Math.round((v / of) * 100)}%"></i><em style="left:${Math.round((min / of) * 100)}%"></em></span>
+    <small>${v == null ? 'Añade preguntas de «De oído» para medirla' : `mínimo ${min} · ${v >= min ? 'lo pasas' : `te faltan ${min - v}`}`}</small></div>`;
+  return `<section class="sm-jl"><h2 class="sm-h2">Como en el JLPT ${j.lvl}</h2>
+    <p class="sm-jl-v ${j.pass ? 'ok' : 'no'}">${j.oido == null ? 'Sin oído no se puede saber si aprobarías' : j.pass ? 'Hoy aprobarías' : 'Hoy aún no aprobarías'}</p>
+    <p class="sm-jl-t"><b>${j.total}</b> de 180 · hacen falta ${JLPT_PASS[j.lvl]}</p>
+    ${bar('Vocabulario, gramática y lectura', j.lang, 120, JLPT_MIN.lang)}${bar('Comprensión oral', j.oido, 60, JLPT_MIN.oido)}
+    <p class="sm-jl-note">Nota orientativa: el JLPT usa su propia escala. La lectura de textos largos no entra aquí; practícala con «Leer» en un apunte.</p></section>`;
 }
 
 /* ---------------- la nota y las respuestas ---------------- */
@@ -283,6 +314,7 @@ function resultHTML() {
     <div class="sm-score"><b>${dec(r.score)}</b><span>sobre 10</span></div>
     ${ctx ? `<p class="sm-ctx">${ctx}</p>` : ''}
     <div class="sm-kpis"><div><b>${r.ok}</b><small>${r.ok === 1 ? 'acierto' : 'aciertos'}</small></div><div class="bad"><b>${r.bad}</b><small>${r.bad === 1 ? 'fallo' : 'fallos'}</small></div><div><b>${r.blank}</b><small>en blanco</small></div></div>
+    ${r.jlpt ? jlptHTML(r.jlpt) : ''}
     ${pen ? `<p class="sm-pen">Los fallos restan ${penText(pen)}: ${r.ok} − ${r.bad} ÷ ${pen} = ${net < 0 ? `−${dec(-net)} netas · la nota no baja de 0` : `${dec(net)} netas de ${r.n}`}.${r.bad && r.blank && r.score > 0 ? ` Dejaste ${r.blank} en blanco: si hubieras fallado esas, restarían ${dec(Math.round((r.blank / pen) * 100) / 100)} más.` : ''}</p>` : ''}
     <h2 class="sm-h2">Por tema</h2>
     <ul class="sm-topics">${r.topics.map(t => { const n = t.o + t.x + t.b; return `<li><div><span>${esc(t.name)}</span><span>${t.o} de ${n}</span></div><div class="sm-tb"><i class="o" style="width:${(100 * t.o) / n}%"></i><i class="x" style="width:${(100 * t.x) / n}%"></i><i class="b" style="width:${(100 * t.b) / n}%"></i></div></li>`; }).join('')}</ul>
@@ -370,6 +402,7 @@ export function simClick(b) {
     case 'continue': S.sim = pendingSim(); S.simShow = null; closeSheet(); if (S.sim) { S.sim.since = null; go('sim'); } return;
     case 'discard': S.sim = null; save(); closeSheet(); return toast('Simulacro descartado');
     case 'pick': sim.qs[sim.cur].ans = sim.qs[sim.cur].ans === Number(ds.i) ? null : Number(ds.i); save(); return renderSim();
+    case 'listen': { const c = S.cards.get(sim.qs[sim.cur].id); if (c) playListen(cardModel(c), Number(ds.rate) || 1); return; }
     case 'think': sim.qs[sim.cur].ans = sim.qs[sim.cur].ans === 'seen' ? null : 'seen'; save(); return renderSim();
     case 'blank': sim.qs[sim.cur].ans = null; save(); return move(1);
     case 'flag': sim.qs[sim.cur].flag = !sim.qs[sim.cur].flag; save(); return renderSim();

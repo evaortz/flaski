@@ -202,3 +202,23 @@ button.rd-w{cursor:pointer}
 .jin-ic.c1{background:#FFE1DC;color:#4A1410}.jin-ic.c2{background:#DDF0FF;color:#0B2E4A}.jin-ic.c3{background:#D7F5E5;color:#0E3B25}
 .jin-btns{display:flex;flex-direction:column;align-items:stretch;gap:6px}
 .jin-btns .link{min-height:44px}
+/* Simulacro · la nota como en el JLPT (en el azul del simulacro) */
+.sm-jl{display:flex;flex-direction:column;gap:12px;margin:6px 0 18px}
+.sm-jl-v{margin:0;font-family:"Gochi Hand",var(--font);font-size:32px;line-height:1}
+.sm-jl-t{margin:0;font-size:14px}.sm-jl-t b{font-size:22px}
+.sm-jl-part{display:flex;flex-direction:column;gap:6px}
+.sm-jl-part > div{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.sm-jl-part small,.sm-jl-note{font-size:12px;opacity:.85;margin:0}
+.sm-jl-bar{position:relative;display:block;height:10px;border-radius:5px;background:rgba(255,255,255,.22)}
+.sm-jl-bar i{display:block;height:100%;border-radius:5px;background:currentColor}
+.sm-jl-bar em{position:absolute;top:-4px;bottom:-4px;width:2px;background:#FF9F92}
+/* La lista «Kanji»: «Tus kanji» arriba, a lo ancho; las preguntas, plegadas debajo */
+.dk-fold > summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;font-weight:600}
+.dk-fold > summary small{font-weight:400;color:var(--muted)}
+.dk-fold[open] > summary{margin-bottom:12px}
+.dk-fold > *:not(summary){margin-bottom:14px}
+@media (min-width:1240px){
+  .dk-kanji .kj-col{grid-column:1;grid-row:3}
+  .dk-kanji .dk-qs{grid-row:4 / 6}
+  .dk-kanji .dk-notes{grid-row:4}
+}

@@ -393,6 +393,7 @@ document.addEventListener('click', async e => {
     case 'reload': S.uid = null; return onSignedIn(await api.auth.session());
     case 'sample-data': return loadSampleData(b);
     case 'reveal': return reveal(!!b.dataset.giveup);
+    case 'no-audio': return import('./pantallas/estudio.js').then(m => m.noAudio());
     // Un kanji nuevo, presentado: cuenta como un primer «Bien»
     case 'ja-intro': reveal(); return grade(3, { count: false });
     case 'kj-strokes': return strokesSheet(b.dataset.kjS, 'ja-JP');

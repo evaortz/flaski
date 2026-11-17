@@ -1,7 +1,7 @@
 // Service worker: guarda la app para que abra rÃ¡pido y sin conexiÃ³n.
 // Cuando cambies cualquier archivo de la app, sube el nÃºmero de versiÃ³n
 // para que los mÃ³viles descarguen la versiÃ³n nueva.
-const VERSION = 'flaski-v249';
+const VERSION = 'flaski-v251';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
 const JA = 'flaski-ja-v1';      // datos de japonÃ©s (data/ja/): se guardan la primera vez que se piden

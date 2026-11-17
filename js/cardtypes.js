@@ -190,6 +190,14 @@ export const BUILTIN_TYPES = [
     templates: [{ id: 't1', name: 'Dictado', mode: 'listen', front: [], back: ['t', 'n'], answer: 'x' }],
   },
   {
+    // Escuchar y elegir: suena la frase (la voz del dispositivo) y se elige entre cuatro; al responder, se ve lo que decía
+    id: 'oido', builtin: true, scope: 'lang', name: 'De oído', icon: '', lucide: 'headphones',
+    description: 'Escuchas una frase y eliges la respuesta entre cuatro: precios, horas, fechas, qué pide…',
+    fields: [F('x', 'Lo que se escucha', { lang: STUDY }), F('q', 'Pregunta', { lang: NATIVE, help: 'Ej.: ¿A qué hora empieza?' }), F('a', 'Respuesta correcta'),
+      F('w', 'Respuestas incorrectas (opcional)', { help: 'Separadas por ;' }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Nota')],
+    templates: [{ id: 't1', name: 'Escuchar y elegir', mode: 'choice', listen: 'x', front: ['q'], back: ['x', 't', 'n'], answer: 'a', wrong: 'w' }],
+  },
+  {
     id: 'order', builtin: true, scope: 'lang', name: 'Ordenar frase', icon: '', lucide: 'blocks',
     description: 'Colocas las palabras en el orden correcto. Ideal para practicar el orden de la frase.',
     fields: [F('f', 'Frase correcta', { lang: STUDY, help: 'Se separa por espacios. Para elegir tú las piezas, sepáralas con « / »: Ben / eve / gidiyorum' }), F('t', 'Traducción', { lang: NATIVE }), F('n', 'Nota')],

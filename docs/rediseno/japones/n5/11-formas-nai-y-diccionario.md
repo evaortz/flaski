@@ -15,8 +15,8 @@ La forma **ない** es el «no» llano de un verbo: のまない es «no bebo»,
 | 2 | たべる · みる · おきる | たべない · みない · おきない |
 | 3 | する · くる | しない · こない |
 
-- コーヒーは のまない。 — No tomo café.
-- きょうは がっこうへ いかない。 — Hoy no voy a clase.
+- コーヒーは 飲[の]まない。 — No tomo café.
+- 今日[きょう]は 学校[がっこう]へ 行[い]かない。 — Hoy no voy a clase.
 
 > [!NOTE] Ojo: う pasa a わ, no a あ: かう → かわない (nunca «かあない»). Y ある no es «あらない»: su forma ない es solo **ない**.
 
@@ -31,8 +31,8 @@ Es la forma básica del verbo, la que viene en el diccionario y la que se usa al
 
 Los verbos con sonido *e* antes de ます son siempre del grupo 2 (たべます, ねます). Con sonido *i* suelen ser del grupo 1, salvo します y きます (grupo 3) y unos pocos del grupo 2 que hay que aprender: みます, おきます, います, かります, あびます, できます.
 
-- まいにち にほんごを べんきょうする。 — Estudio japonés todos los días.
-- あした ともだちが くる。 — Mañana viene un amigo.
+- 毎日[まいにち] 日本語[にほんご]を べんきょうする。 — Estudio japonés todos los días.
+- あした ともだちが 来[く]る。 — Mañana viene un amigo.
 
 > [!NOTE] Ojo: きます («venir») da **くる**, no «きる». Y かえります parece del grupo 2 en diccionario (かえる), pero es del grupo 1: su forma ない es かえらない.
 
@@ -49,7 +49,7 @@ Para pedir a alguien que **no** haga algo: forma ない + **でください**. E
 Para decir que algo **hay que hacerlo**: forma ない, se cambia ない por **なくては** y se añade **いけません**. Literalmente, «si no lo hago, no está bien». Entre amigos se acorta a **なくちゃ**, a menudo sin nada detrás.
 
 - あした はやく おきなくては いけません。 — Mañana tengo que levantarme pronto.
-- まいにち くすりを のまなくては いけません。 — Tengo que tomar la medicina todos los días.
+- 毎日[まいにち] くすりを 飲[の]まなくては いけません。 — Tengo que tomar la medicina todos los días.
 - もう かえらなくちゃ。 — Ya me tengo que ir a casa.
 
 > [!NOTE] Ojo: «no tengo que» no se dice negando esta forma. Para «no hace falta» hay otra: なくても いいです (más abajo).
@@ -57,22 +57,22 @@ Para decir que algo **hay que hacerlo**: forma ない, se cambia ない por **�
 ## Antes de: まえに
 Para decir **antes de** hacer algo: forma de diccionario + **まえに**. Con un nombre: nombre + **の まえに**. El verbo va siempre en diccionario, aunque la frase hable del pasado.
 
-- ねる まえに シャワーを あびます。 — Me ducho antes de acostarme.
-- にほんへ くる まえに、にほんごを べんきょうしました。 — Antes de venir a Japón estudié japonés.
-- しごとの まえに コーヒーを のみます。 — Antes del trabajo me tomo un café.
+- ねる 前[まえ]に シャワーを あびます。 — Me ducho antes de acostarme.
+- 日本[にほん]へ 来[く]る 前[まえ]に、日本語[にほんご]を べんきょうしました。 — Antes de venir a Japón estudié japonés.
+- しごとの 前[まえ]に コーヒーを 飲[の]みます。 — Antes del trabajo me tomo un café.
 
 > [!NOTE] Ojo: nunca «きた まえに». Aunque ya hayas venido, se dice くる まえに.
 
 ## Tener que: なければ なりません (puente al N4)
 Significa lo mismo que なくては いけません: forma ない, se cambia ない por **なければ** y se añade **なりません**. Suena un poco más formal, como una obligación general (normas, trámites). Hablando, se acorta a **なきゃ**.
 
-- ここに なまえを かかなければ なりません。 — Aquí hay que escribir el nombre.
-- きょうは しゅくだいを しなければ なりません。 — Hoy tengo que hacer los deberes.
+- ここに 名前[なまえ]を 書[か]かなければ なりません。 — Aquí hay que escribir el nombre.
+- 今日[きょう]は しゅくだいを しなければ なりません。 — Hoy tengo que hacer los deberes.
 
 ## No hace falta: なくても いいです (puente al N4)
 Para decir que **no hace falta** hacer algo: forma ない, se cambia ない por **なくても** y se añade **いいです**. Es lo contrario de «tener que».
 
-- あしたは こなくても いいです。 — Mañana no hace falta que vengas.
+- あしたは 来[こ]なくても いいです。 — Mañana no hace falta que vengas.
 - A: くつを ぬがなくても いいですか。 — ¿No hace falta quitarse los zapatos?
 - B: いいえ、ぬいで ください。 — Sí, quítatelos, por favor. (いいえ dice que la pregunta no es así: sí hace falta)
 
@@ -83,7 +83,7 @@ Para decir que **sabes** o **puedes** hacer algo: forma de diccionario + **こ�
 
 - わたしは およぐ ことが できます。 — Sé nadar.
 - ここで しゃしんを とる ことが できますか。 — ¿Se pueden hacer fotos aquí?
-- マリアさんは にほんごが できます。 — María sabe japonés.
+- マリアさんは 日本語[にほんご]が できます。 — María sabe japonés.
 
 > [!NOTE] Ojo: es こと**が** できます, no «ことを».
 
@@ -105,10 +105,10 @@ Para decir que **sabes** o **puedes** hacer algo: forma de diccionario + **こ�
     { "type": "order", "section": "No lo hagas: ないでください", "fields": { "f": "あしたの / しゅくだいを / わすれないで / ください", "t": "No te olvides de los deberes de mañana." } },
     { "type": "clozechoice", "section": "Tengo que: なくては いけません", "fields": { "x": "あした はやく {{おきなくては}} いけません。", "w": ["おきないで", "おきなくても", "おきる"], "e": "Tener que: forma ない con なくては + いけません." } },
     { "type": "typing", "section": "Tengo que: なくては いけません", "fields": { "q": "Dilo como entre amigos, acortado: いかなくては いけません", "a": "いかなくちゃ / いかなくちゃ いけない / いかなくちゃいけない", "n": "なくては se acorta a なくちゃ, y lo de detrás se suele callar." } },
-    { "type": "clozechoice", "section": "Antes de: まえに", "fields": { "x": "にほんへ {{くる}} まえに、にほんごを べんきょうしました。", "w": ["きた", "きて", "こない"], "e": "Antes de: siempre forma de diccionario, aunque la frase sea pasada." } },
-    { "type": "choice", "section": "Antes de: まえに", "fields": { "q": "«Antes del trabajo me tomo un café»", "a": "しごとの まえに コーヒーを のみます。", "w": ["しごと まえに コーヒーを のみます。", "しごとが まえに コーヒーを のみます。", "しごとの まえで コーヒーを のみます。"], "n": "Con un nombre: nombre + の まえに." } },
-    { "type": "clozechoice", "section": "Tener que: なければ なりません (puente al N4)", "fields": { "x": "ここに なまえを {{かかなければ}} なりません。", "w": ["かかないで", "かかなくても", "かいても"], "e": "Obligación: forma ない con なければ + なりません." } },
-    { "type": "choice", "section": "No hace falta: なくても いいです (puente al N4)", "fields": { "q": "«Mañana no hace falta que vengas»", "a": "あしたは こなくても いいです。", "w": ["あしたは こなければ なりません。", "あしたは こないで ください。", "あしたは きては いけません。"], "n": "No hace falta no es prohibir: なくても いいです." } },
+    { "type": "clozechoice", "section": "Antes de: まえに", "fields": { "x": "日本[にほん]へ {{くる}} 前[まえ]に、日本語[にほんご]を べんきょうしました。", "w": ["きた", "きて", "こない"], "e": "Antes de: siempre forma de diccionario, aunque la frase sea pasada." } },
+    { "type": "choice", "section": "Antes de: まえに", "fields": { "q": "«Antes del trabajo me tomo un café»", "a": "しごとの 前[まえ]に コーヒーを 飲[の]みます。", "w": ["しごと 前[まえ]に コーヒーを 飲[の]みます。", "しごとが 前[まえ]に コーヒーを 飲[の]みます。", "しごとの 前[まえ]で コーヒーを 飲[の]みます。"], "n": "Con un nombre: nombre + の まえに." } },
+    { "type": "clozechoice", "section": "Tener que: なければ なりません (puente al N4)", "fields": { "x": "ここに 名前[なまえ]を {{かかなければ}} なりません。", "w": ["かかないで", "かかなくても", "かいても"], "e": "Obligación: forma ない con なければ + なりません." } },
+    { "type": "choice", "section": "No hace falta: なくても いいです (puente al N4)", "fields": { "q": "«Mañana no hace falta que vengas»", "a": "あしたは 来[こ]なくても いいです。", "w": ["あしたは 来[こ]なければ なりません。", "あしたは 来[こ]ないで ください。", "あしたは 来[き]ては いけません。"], "n": "No hace falta no es prohibir: なくても いいです." } },
     { "type": "clozechoice", "section": "Saber o poder: ことが できます (puente al N4)", "fields": { "x": "わたしは およぐ こと{{が}} できます。", "w": ["を", "に", "で"], "e": "Saber o poder: forma de diccionario + ことが できます." } }
   ]
 }

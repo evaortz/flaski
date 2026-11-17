@@ -10,6 +10,15 @@
     "apuntes": 12
   },
   {
+    "file": "jlpt-n5/oido.json",
+    "lang": "ja-JP",
+    "name": "JLPT N5 · De oído",
+    "description": "Escuchas una frase con la voz del móvil y eliges la respuesta: precios, horas, fechas, días, cantidades y frases de cada día, como en la comprensión oral del N5.",
+    "count": 48,
+    "objetivo": "idiomas",
+    "icono": "耳"
+  },
+  {
     "file": "japones-demo.json",
     "lang": "ja-JP",
     "name": "Japonés · Demo de Flaski",

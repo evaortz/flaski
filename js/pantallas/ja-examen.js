@@ -75,7 +75,8 @@ export async function jlptSave() {
     commitPlan(`Examen JLPT ${L.name} guardado`, pl => {
       const old = pl.exams.find(e => e.id === id) || {};
       const e = { order: [], mode: 'seq', shares: {}, fixed: {}, known: [], exclude: [], boost: {}, retention: 0.9, retentionLast: 0.95, approx: false, ...old,
-        id, name: `JLPT ${L.name}`, scope: { folders: [], decks: [deck.id], pages: [] }, date: x.date, lastWeek: daysBetween(t, x.date) > 21, after: 'pause' };
+        // Toda la carpeta «JLPT N5»: las palabras, y lo que añadas de Explorar (la gramática, De oído) y sus kanji
+        id, name: `JLPT ${L.name}`, scope: deck.folder_id ? { folders: [deck.folder_id], decks: [], pages: [] } : { folders: [], decks: [deck.id], pages: [] }, order: [deck.id], date: x.date, lastWeek: daysBetween(t, x.date) > 21, after: 'pause' };
       delete e.deleted;
       const i = pl.exams.findIndex(y => y.id === id);
       if (i >= 0) pl.exams[i] = e; else pl.exams.push(e);

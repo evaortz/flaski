@@ -61,6 +61,7 @@ Este ejemplo crea 4 tarjetas.
 | `vocab` | Vocabulario: reconocer y escribir la palabra | `w`* palabra · `t`* traducción · `p` pronunciación · `e` ejemplo · `n` notas | 2 |
 | `conj` | Conjugar un verbo en un tiempo | `v`* verbo · `k` tiempo · `t` traducción · `f`* formas (persona = forma) · `n` notas | 1 |
 | `listen` | Dictado: se escucha y se escribe | `x`* texto que se escucha · `t` traducción · `n` nota | 1 |
+| `oido` | De oído: se escucha una frase y se elige la respuesta entre cuatro | `x`* lo que se escucha · `q`* pregunta · `a`* correcta · `w` incorrectas · `t` traducción · `n` nota | 1 |
 | `order` | Ordenar las piezas de una frase | `f`* frase correcta · `t` traducción · `n` nota | 1 |
 | `handwrite` | Dibujar la respuesta a mano (japonés, chino, coreano, árabe, griego, ruso) | `q`* pregunta · `a`* lo que hay que escribir · `n` nota | 1 |
 | `de-noun` | Solo alemán: elegir der/die/das y escribir el sustantivo | `g`* artículo (`der`, `die` o `das`) · `w`* palabra sin artículo, con mayúscula · `pl` plural · `t`* traducción · `n` notas | 2 |

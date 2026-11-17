@@ -79,3 +79,20 @@ test('paso 2: «¿cómo se lee aquí?» con la lectura del kanji en una de tus p
   await expect(page.locator('.kj-choices .choice.right')).toContainText(want);
   await expect(page.locator('.kj-why')).toContainText(`Aquí se lee ${want}`);
 });
+
+test('la lista «Kanji»: «Tus kanji» arriba y sus preguntas plegadas debajo @ambos', async ({ page, seed }) => {
+  await seed(JA);
+  await openApp(page);
+  await expect.poll(() => kanjiCards(page)).toHaveLength(9);
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-open]').filter({ hasText: 'Kanji' }).first().click();
+  const col = page.locator('#main .kj-col'), fold = page.locator('#main .dk-fold');
+  await expect(col).toBeVisible();
+  await expect(fold.locator('summary')).toContainText('Ver las 9 preguntas');
+  await expect(page.locator('#main #cardRows')).toBeHidden();
+  const [a, b] = [await col.boundingBox(), await fold.boundingBox()];
+  expect(a.y).toBeLessThan(b.y);                                   // los kanji, antes que las preguntas
+  await expect(page.locator('#main .kn-entry')).toHaveCount(0);   // la tabla de kana, en las listas de palabras
+  await fold.locator('summary').click();
+  await expect(page.locator('#main #cardRows li')).toHaveCount(9);
+});

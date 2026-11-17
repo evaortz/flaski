@@ -7,7 +7,7 @@ import { importImages } from '../media.js';
 import { $, main, S, esc, fmt, norm, fold, toast, fail, cardList } from '../comun.js';
 import { plural, parseDeckFile, download } from './mazos.js';
 import { openSheet, closeSheet, addTag, adoptTypes, migrateDeckLangs } from './editor.js';
-import { go } from '../app.js';
+import { go, render } from '../app.js';
 import { TEMAS, temaSource } from '../primera-vez.js';
 import { addTema } from './pruebas.js';
 import { readTema } from './cuenta.js';
@@ -377,6 +377,7 @@ export async function importParsed(p, dest = '') {
   if (dest) {
     const created = await api.importCards(S.uid, dest, cards, typeMap);
     for (const c of created) S.cards.set(c.id, c);
+    syncJa(dest);
     return { deck: S.decks.get(dest), cards: created };
   }
   const { folder: folderName, ...rest } = p;
@@ -387,7 +388,13 @@ export async function importParsed(p, dest = '') {
   S.decks.set(deck.id, { tags: [], ...deck });
   for (const c of made) S.cards.set(c.id, c);
   migrateDeckLangs();   // si el archivo no decía el idioma, se deduce
+  syncJa(deck.id);
   return { deck, cards: made };
+}
+// Una lista de japonés recién añadida: sus kanji entran ya en la lista «Kanji» (sin esperar a abrir la app otra vez)
+export function syncJa(deckId) {
+  if (!/^ja/.test(S.decks.get(deckId)?.options?.lang || '')) return;
+  import('./ja-tanda.js').then(m => m.syncKanji()).then(n => { if (n && ['home', 'deck', 'decks'].includes(S.view)) render(); }).catch(() => {});
 }
 const here = () => (S.view === 'decks' && S.folderId && S.folders.has(S.folderId) ? S.folderId : null);
 // La carpeta con ese nombre (primero dentro de la abierta, luego en cualquier sitio); si no hay, se crea
@@ -404,7 +411,8 @@ export async function folderNamed(name) {
 }
 // Lee una de las listas incluidas en la app (decks/)
 export async function readBuiltin(file) {
-  if (!/^[\w.-]+\.json$/.test(file)) throw new Error('Archivo no válido');
+  // Un archivo de decks/ (o de una subcarpeta suya, como jlpt-n5/oido.json), nunca fuera
+  if (!/^(?:[\w-]+\/)?[\w-][\w.-]*\.json$/.test(file) || file.includes('..')) throw new Error('Archivo no válido');
   const raw = await (await fetch('decks/' + file)).json();
   return isNotesDeck(raw) ? notesToDeck(raw) : parseDeckFile(raw);   // también en formato por notas
 }

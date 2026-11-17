@@ -27,7 +27,11 @@ const curso = {
 };
 fs.writeFileSync(path.join(to, 'index.json'), JSON.stringify(curso, null, 2) + '\n');
 const idxFile = path.join(root, 'decks/index.json');
-const idx = JSON.parse(fs.readFileSync(idxFile, 'utf8')).filter(d => d.file !== 'jlpt-n5/index.json');
-idx.unshift({ file: 'jlpt-n5/index.json', lang: 'ja-JP', name: curso.name, description: curso.description, count, objetivo: 'idiomas', icono: '文', apuntes: files.length });
+const idx = JSON.parse(fs.readFileSync(idxFile, 'utf8')).filter(d => !d.file.startsWith('jlpt-n5/'));
+// «De oído» (decks/jlpt-n5/oido.json, escrita a mano): una lista normal, a la carpeta «JLPT N5»
+const oido = JSON.parse(fs.readFileSync(path.join(to, 'oido.json'), 'utf8'));
+idx.unshift(
+  { file: 'jlpt-n5/index.json', lang: 'ja-JP', name: curso.name, description: curso.description, count, objetivo: 'idiomas', icono: '文', apuntes: files.length },
+  { file: 'jlpt-n5/oido.json', lang: 'ja-JP', name: oido.name, description: 'Escuchas una frase con la voz del móvil y eliges la respuesta: precios, horas, fechas, días, cantidades y frases de cada día, como en la comprensión oral del N5.', count: notesToDeck(oido).cards.length, objetivo: 'idiomas', icono: '耳' });
 fs.writeFileSync(idxFile, JSON.stringify(idx, null, 2) + '\n');
 console.log(files.length, 'apuntes,', count, 'preguntas');

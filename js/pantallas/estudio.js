@@ -121,12 +121,14 @@ export function faceHTML(model, st, { preview = false } = {}) {
 
   // Interacción antes de destapar
   let ask = '';
-  if (tpl.mode === 'listen' && !st.revealed) {
-    const has = !!fdef(tpl.answer)?.lang && ttsAvailable();
+  // Dictado y «De oído»: escuchar (también más despacio) y, si ahora no puedes, apartarlas un rato
+  if ((tpl.mode === 'listen' || tpl.listen) && !st.revealed) {
+    const has = !!fdef(tpl.listen || tpl.answer)?.lang && ttsAvailable();
     ask += `<div class="listen-box">
       <button type="button" class="listen-btn" data-listen="1" ${preview ? 'disabled' : ''} aria-label="Escuchar">${SPEAK_ICON}<span>Escuchar</span></button>
       <button type="button" class="ghost small-btn" data-listen="0.6" ${preview ? 'disabled' : ''}>${icon('snail', { size: 16 })} Más despacio</button></div>
-      ${has ? '' : '<p class="hint" style="text-align:center">Este campo no tiene idioma de audio o el dispositivo no tiene voces. Elige un idioma en «Gestionar tipos».</p>'}`;
+      ${has ? '' : '<p class="hint" style="text-align:center">Este campo no tiene idioma de audio o el dispositivo no tiene voces. Elige un idioma en «Gestionar tipos».</p>'}
+      ${preview ? '' : '<button type="button" class="link no-audio" data-act="no-audio">No puedo escuchar ahora</button>'}`;
   }
   if (tpl.mode === 'type' || tpl.mode === 'listen') {
     const lang = fdef(tpl.answer)?.lang || '';
@@ -144,7 +146,7 @@ export function faceHTML(model, st, { preview = false } = {}) {
   }
   if ((tpl.mode === 'choice' || tpl.mode === 'clozechoice') && st.choice) {
     const c = st.choice;
-    ask = `<div class="choices">${c.opts.map((o, i) => {
+    ask = `${tpl.listen && !st.revealed ? ask : ''}<div class="choices">${c.opts.map((o, i) => {
       let cls = '';
       if (st.revealed) cls = o === c.correct ? ' right' : i === c.picked ? ' wrong' : ' dim';
       return `<button type="button" class="choice${cls}" data-choice="${i}" ${st.revealed || preview ? 'disabled' : ''}><span class="ckey">${i + 1}</span><span>${fmt(o)}</span></button>`;
@@ -339,8 +341,19 @@ export function testVoices() {
 }
 /* ---------- Dictado y escritura a mano ---------- */
 export function playListen(model, rate = 1) {
-  const f = model.type.fields.find(x => x.id === model.tpl.answer);
-  if (f?.lang) sayOrWarn(model.fields[model.tpl.answer], f.lang, { rate: rate * 0.95 });
+  const id = model.tpl.listen || model.tpl.answer, f = model.type.fields.find(x => x.id === id);
+  if (f?.lang) sayOrWarn(model.fields[id], f.lang, { rate: rate * 0.95 });
+}
+// ¿Hay que escuchar para contestarla? (dictado y «De oído»)
+export const isListening = model => model.tpl.mode === 'listen' || !!model.tpl.listen;
+const NO_AUDIO_MIN = 15;
+// «No puedo escuchar ahora»: durante 15 minutos, las de escuchar se apartan de la tanda sin contar como falladas
+// (siguen pendientes y vuelven en la próxima)
+export function noAudio() {
+  S.noAudioUntil = Date.now() + NO_AUDIO_MIN * 60e3;
+  speechSynthesis?.cancel?.();
+  toast(`Sin audio durante ${NO_AUDIO_MIN} min: las preguntas de escuchar vuelven luego`);
+  if (S.session) { S.session.revealed = false; renderStudy(); }
 }
 async function mountDraw(st, model) {
   const area = $('#drawArea'), ctl = $('#drawCtl');
@@ -747,6 +760,8 @@ export function renderStudy() {
   const id = ses.queue[0];
   const c = S.cards.get(id);
   if (!c) { ses.queue.shift(); return renderStudy(); }
+  // «No puedo escuchar ahora»: las de escuchar se quedan para la próxima tanda
+  if (S.noAudioUntil > Date.now() && !ses.revealed && isListening(cardModel(c))) { ses.queue.shift(); return renderStudy(); }
   const p = S.progress.get(id);
   const st = cardState(c);
   st.revealed = ses.revealed;
@@ -797,7 +812,7 @@ export function renderStudy() {
     <div class="studyfoot"><span class="keys"${S.prefs.study.shortcuts ? '' : ' hidden'}>${['flip', 'cloze', 'occlusion'].includes(model.tpl.mode) ? 'Espacio: mostrar · ' : ['choice', 'clozechoice'].includes(model.tpl.mode) ? '1-4: elegir · ' : ''}1-4: valorar</span><span class="btnrow">${ses.undo ? '<button class="link" data-act="undo">Deshacer</button>' : ''}${ses.revealed && c.page_id && S.pages.has(c.page_id) ? `<button class="link" data-open-page="${c.page_id}" data-open-block="${esc(c.block_id || '')}">${icon('notebook-text', { size: 15 })} Ver en los apuntes</button>` : ''}<button class="link" data-card="${id}">Editar pregunta</button></span></div>`;
   if (!st.played) {
     st.played = true;
-    if (model.tpl.mode === 'listen') { if (S.prefs.study.autoplay) playListen(model, 1); }
+    if (isListening(model)) { if (S.prefs.study.autoplay) playListen(model, 1); }
     else speakFields(model, model.tpl.mode === 'cloze' ? [] : model.tpl.front);
   }
   if (!ses.revealed && model.tpl.mode === 'draw') mountDraw(st, model);

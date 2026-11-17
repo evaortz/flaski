@@ -64,12 +64,14 @@ test('Prepárate el N5: lo que falta va a una lista nueva, solo como en el exame
     const ex = S.prefs.plan.exams.find(e => e.id === 'ex-jlpt-n5');
     const { forecastNow } = await import('/js/plan2-app.js');
     const verdict = forecastNow().exams.find(e => e.id === 'ex-jlpt-n5')?.verdict;
-    return { name: d.name, folder, n: cards.length, t2: cards.filter(c => c.template === 't2').length, aru: cards.find(c => c.fields.t && c.fields.w === '会[あ]う') ? 1 : 0, w: cards.find(c => c.fields.w?.startsWith('明'))?.fields.w, exam: ex && { date: ex.date, decks: ex.scope.decks.length, deck: ex.scope.decks[0] === d.id }, cap: S.prefs.plan.caps?.newPerDay, verdict };
+    return { name: d.name, folder, n: cards.length, t2: cards.filter(c => c.template === 't2').length, aru: cards.find(c => c.fields.t && c.fields.w === '会[あ]う') ? 1 : 0, w: cards.find(c => c.fields.w?.startsWith('明'))?.fields.w, exam: ex && { date: ex.date, folder: ex.scope.folders[0] === d.folder_id, first: ex.order[0] === d.id }, cap: S.prefs.plan.caps?.newPerDay, verdict };
   });
-  expect(r).toMatchObject({ name: 'JLPT N5 · lo que te falta', folder: 'JLPT N5', n: 680, t2: 0, aru: 0, w: '明[あか]るい', exam: { date: day, decks: 1, deck: true } });
+  expect(r).toMatchObject({ name: 'JLPT N5 · lo que te falta', folder: 'JLPT N5', n: 680, t2: 0, aru: 0, w: '明[あか]るい', exam: { date: day, folder: true, first: true } });
   expect(r.cap).toBeGreaterThan(5);
   expect(r.cap).toBeLessThanOrEqual(30);
   expect(r.verdict).not.toBe('no');
+  // Los kanji de esas palabras entran ya en la lista «Kanji», sin tener que volver a abrir la app
+  await expect.poll(() => page.evaluate(async () => { const { S } = await import('/js/comun.js'); return [...S.cards.values()].filter(c => c.type_id === 'ja-kanji').length; }), { timeout: 15000 }).toBeGreaterThan(150);
   await expect(page.locator('#main')).toContainText('JLPT N5');
 });
 

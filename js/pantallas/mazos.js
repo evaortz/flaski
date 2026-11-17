@@ -126,7 +126,9 @@ export function renderDeck() {
   const withMap = all.length > 1 && hasMap(d.id);
   if (!withMap && mapOn(d.id)) S.mapView = null;
   const more = `<button class="dk-more" data-act="deck-menu" aria-label="Más opciones" aria-haspopup="menu" title="Más opciones">${icon('ellipsis', { size: 22 })}</button>`;
-  main.innerHTML = `<div class="dk">
+  // La lista «Kanji»: arriba «Tus kanji»; sus preguntas (tres por kanji), plegadas
+  const kj = d.options?.auto === 'kanji';
+  main.innerHTML = `<div class="dk${kj ? ' dk-kanji' : ''}">
     <div class="lib-top dk-top">
       <button class="back-round" data-folder="${fid || ''}" aria-label="Volver">${icon('chevron-left', { size: 20 })}</button>
       <nav class="crumbs" aria-label="Ruta">${[`<button class="crumb" data-folder="">Biblioteca</button>`, ...path.map((x, i) => `<button class="crumb${i === path.length - 1 ? ' crumb-cur' : ''}" data-folder="${x.id}">${esc(x.name)}</button>`)].join('<span class="sep" aria-hidden="true">›</span>')}</nav>
@@ -142,8 +144,8 @@ export function renderDeck() {
           <button class="dk-add" data-act="add-menu" aria-label="Añadir preguntas" aria-haspopup="menu" title="Añadir preguntas">${icon('plus', { size: 24 })}</button>${more}</div>
       </div>
     </header>
-    ${d.options?.auto === 'kanji' ? collectionHTML(d) : ''}
-    ${isJaDeck(d) ? `<p class="kn-entry"><button class="link" data-act="kana-table">${icon('languages', { size: 16 })} Tu tabla de hiragana y katakana</button></p>` : ''}
+    ${kj ? collectionHTML(d) : ''}
+    ${isJaDeck(d) && !kj ? `<p class="kn-entry"><button class="link" data-act="kana-table">${icon('languages', { size: 16 })} Tu tabla de hiragana y katakana</button></p>` : ''}
     ${all.length ? `<section class="dk-state" aria-labelledby="h-dkst"><h2 class="dk-h" id="h-dkst">Estado</h2>
       <span class="dk-bar" role="img" aria-label="${STAGES.map(([k, label]) => `${n[k]} ${label}`).join(', ')}">${STAGES.map(([k]) => (n[k] ? `<i class="cs-${k}" style="flex:${n[k]}"></i>` : '')).join('')}</span>
       <ul class="dk-key">${STAGES.map(([k, label]) => `<li class="cs-${k}"><b>${n[k]}</b><span><i aria-hidden="true"></i>${label}</span></li>`).join('')}</ul>
@@ -151,6 +153,7 @@ export function renderDeck() {
     <section class="dk-qs" aria-labelledby="h-dkqs">
       <div class="dk-qh"><h2 class="dk-h" id="h-dkqs">Preguntas</h2>
         ${withMap ? mapSeg(d.id, 'Lista') : ''}</div>
+      ${kj && all.length ? `<details class="dk-fold"${S.cardQuery ? ' open' : ''}><summary>Ver las ${all.length.toLocaleString('es')} preguntas <small>(tres por kanji)</small></summary>` : ''}
       ${withMap && mapOn(d.id) ? mapHTML(d.id) : all.length ? `<label class="lib-search dk-search">${icon('search', { size: 18 })}<input id="cardSearch" type="search" placeholder="Buscar en esta lista" aria-label="Buscar preguntas" value="${esc(S.cardQuery)}"></label>
       <div class="filters chips-scroll">${filters.filter(([k, , num]) => num || k === 'all' || k === f).map(([k, label, num]) => `<button class="fchip" data-cfilter="${k}" aria-pressed="${k === f}">${label} · ${num}</button>`).join('')}</div>
       <div class="org-bar"><label class="sort-inline">Orden: <select id="cardSort" aria-label="Ordenar las preguntas">${SORTS_CARDS.map(([k, label]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div>
@@ -159,6 +162,7 @@ export function renderDeck() {
       ${rows.length ? '' : '<p class="muted small">Ninguna pregunta coincide.</p>'}
       <div class="dk-foot${limited ? ' is-limited' : ''}"><span id="cardCount">${count}</span>${limited ? `<button class="link" data-act="cards-all">Ver todas<span class="dk-m"> las ${matching} preguntas</span></button>` : ''}</div>`
       : '<div class="empty"><p class="muted">Esta lista aún no tiene preguntas. Añádelas con el botón +.</p></div>'}
+      ${kj && all.length ? '</details>' : ''}
     </section>
     ${pages.length || S.pages.size ? `<section class="dk-notes" aria-labelledby="h-dknt"><div class="dk-nh"><h2 class="dk-h" id="h-dknt">Apuntes vinculados</h2>${pages.length ? `<span class="muted small">${pages.length}</span>` : ''}</div>
       ${pages.length ? `<ul class="dk-nlist">${pages.map(p => `<li><button class="dk-note" data-page="${p.id}"><span class="dk-nic" aria-hidden="true">${p.icon ? esc(p.icon) : icon('file-text', { size: 22 })}</span>
