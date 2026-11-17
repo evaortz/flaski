@@ -2,8 +2,8 @@
   "name": "JLPT N5 · Gramática",
   "folder": "JLPT N5",
   "lang": "ja-JP",
-  "count": 163,
-  "description": "Toda la gramática del N5 en 12 apuntes cortos, con ejemplos, tablas, la trampa de siempre y preguntas como las del examen: completar, ordenar y elegir.",
+  "count": 199,
+  "description": "Toda la gramática del N5 en 12 apuntes cortos, con ejemplos, tablas, la trampa de siempre y preguntas como las del examen (completar, ordenar y elegir), y 4 textos para leer con «Leer».",
   "source": "Temario contrastado con cuatro listas del N5 (JLPT Sensei, Bunpro, Minna no Nihongo I y TRY! N5) y con las preguntas de ejemplo oficiales. Explicaciones, ejemplos y preguntas escritos para Flaski; en cada apunte, la lección de Minna no Nihongo donde sale.",
   "titles": [
     "1 · Presentarse",
@@ -17,7 +17,11 @@
     "9 · Querer y planes",
     "10 · La forma て",
     "11 · Formas ない y de diccionario",
-    "12 · Forma た y hablar en llano"
+    "12 · Forma た y hablar en llano",
+    "Leer N5 · 1 · Mi día",
+    "Leer N5 · 2 · El fin de semana",
+    "Leer N5 · 3 · Un correo a una amiga",
+    "Leer N5 · 4 · El aviso de una tienda"
   ],
   "files": [
     "jlpt-n5/01-presentarse.md",
@@ -31,6 +35,10 @@
     "jlpt-n5/09-querer-y-planes.md",
     "jlpt-n5/10-forma-te.md",
     "jlpt-n5/11-formas-nai-y-diccionario.md",
-    "jlpt-n5/12-forma-ta-y-llana.md"
+    "jlpt-n5/12-forma-ta-y-llana.md",
+    "jlpt-n5/lecturas/L1-mi-dia.md",
+    "jlpt-n5/lecturas/L2-fin-de-semana.md",
+    "jlpt-n5/lecturas/L3-correo.md",
+    "jlpt-n5/lecturas/L4-aviso-tienda.md"
   ]
 }

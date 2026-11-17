@@ -3,11 +3,11 @@
     "file": "jlpt-n5/index.json",
     "lang": "ja-JP",
     "name": "JLPT N5 · Gramática",
-    "description": "Toda la gramática del N5 en 12 apuntes cortos, con ejemplos, tablas, la trampa de siempre y preguntas como las del examen: completar, ordenar y elegir.",
-    "count": 163,
+    "description": "Toda la gramática del N5 en 12 apuntes cortos, con ejemplos, tablas, la trampa de siempre y preguntas como las del examen (completar, ordenar y elegir), y 4 textos para leer con «Leer».",
+    "count": 199,
     "objetivo": "idiomas",
     "icono": "文",
-    "apuntes": 12
+    "apuntes": 16
   },
   {
     "file": "jlpt-n5/oido.json",
