@@ -55,3 +55,34 @@ test('subtítulos: un .srt en japonés (y otro en español) crean un apunte con 
   await expect(page.locator('#sheetBody .rd-text p').first()).toContainText('02:14');
   await expect(page.locator('#sheetBody .rd-text .rd-new[data-rd="町"]')).toBeVisible();   // nueva, con su lectura encima
 });
+
+test('@ambos leer y la tabla de kana: con margen, bajan hasta el final, y la palabra cabe en su cuadro', async ({ page, seed }) => {
+  await seed(JA);
+  await openApp(page);
+  await openPage(page, 'El tren bala');
+  await page.locator('#main [data-act="ja-leer"]').click();
+  const rd = page.locator('#sheetBody > .rd');
+  await expect(rd.locator('.rd-big')).toBeVisible();
+  const box = async loc => loc.evaluate(el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return { left: r.left, pad: parseFloat(s.paddingLeft), sh: el.scrollHeight, ch: el.clientHeight, oy: s.overflowY }; });
+  const b = await box(rd);
+  expect(b.pad).toBeGreaterThanOrEqual(16);
+  expect(b.oy).toBe('auto');
+  // Baja por dentro hasta el botón del final, sin que Playwright tenga que moverla
+  await rd.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect(rd.locator('.btnrow [data-act="close-sheet"]')).toBeInViewport();
+  // La palabra nueva (dos kanji) dentro de su cuadro
+  await rd.evaluate(el => { el.scrollTop = 0; });
+  await page.locator('#sheetBody .rd-text [data-rd="予約"]').first().click();
+  const fits = await page.locator('#sheetBody .rd-wbig').evaluate(el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1);
+  expect(fits).toBe(true);
+  await page.keyboard.press('Escape');
+  // La tabla de kana, también con margen
+  await nav(page, 'Biblioteca');
+  await page.locator('#main [data-open]').filter({ hasText: 'Japonés N5' }).first().click();
+  await page.locator('#main [data-act="kana-table"]').click();
+  const kn = page.locator('#sheetBody > .kn-sheet');
+  await expect(kn.locator('.kn-grid')).toBeVisible();
+  expect((await box(kn)).pad).toBeGreaterThanOrEqual(16);
+  await kn.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect(kn.locator('[data-act="close-sheet"]').last()).toBeInViewport();
+});

@@ -1,10 +1,10 @@
-// Service worker: guarda la app para que abra rápido y sin conexión.
-// Cuando cambies cualquier archivo de la app, sube el número de versión
-// para que los móviles descarguen la versión nueva.
-const VERSION = 'flaski-v244';
+// Service worker: guarda la app para que abra rÃ¡pido y sin conexiÃ³n.
+// Cuando cambies cualquier archivo de la app, sube el nÃºmero de versiÃ³n
+// para que los mÃ³viles descarguen la versiÃ³n nueva.
+const VERSION = 'flaski-v245';
 const STROKES = 'flaski-strokes-v1';
 const FONTS = 'flaski-fonts-v1';
-const JA = 'flaski-ja-v1';      // datos de japonés (data/ja/): se guardan la primera vez que se piden
+const JA = 'flaski-ja-v1';      // datos de japonÃ©s (data/ja/): se guardan la primera vez que se piden
 const SHELL = [
   './',
   './index.html',
@@ -33,7 +33,7 @@ const SHELL = [
   './js/handwriting.js',
   './js/icons.js', './js/dibujos.js', './js/primera-vez.js',
   './js/ja/texto.js', './js/ja/datos.js', './js/ja/lecturas.js', './js/ja/verbos.js', './js/ja/palabras.js', './js/ja/particulas.js', './js/ja/saber.js',
-  './img/novedades/flaski-asi-es.jpg',   // el póster del vídeo de Novedades (el .mp4, no: ver el fetch de abajo)
+  './img/novedades/flaski-asi-es.jpg',   // el pÃ³ster del vÃ­deo de Novedades (el .mp4, no: ver el fetch de abajo)
   './temas/constitucion-titulo-preliminar.md', './temas/por-que-se-te-olvidan-las-cosas.md', './temas/tema-curva-olvido.svg', './temas/tema-repasos.svg',
   './js/vendor/hanzi-writer.min.js',
   './js/vendor/supabase.js',
@@ -75,8 +75,8 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Datos de japonés (kanji y diccionario troceado): solo se piden si hay listas de japonés. La primera vez se
-// guardan y desde entonces funcionan sin conexión (si cambian, se sube JA)
+// Datos de japonÃ©s (kanji y diccionario troceado): solo se piden si hay listas de japonÃ©s. La primera vez se
+// guardan y desde entonces funcionan sin conexiÃ³n (si cambian, se sube JA)
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin || !u.pathname.includes('/data/ja/')) return;
@@ -89,8 +89,8 @@ self.addEventListener('fetch', e => {
   }));
 });
 
-// Trazos de kanji/hanzi (jsDelivr): nunca cambian, así que se guardan la primera vez
-// y desde entonces funcionan sin conexión.
+// Trazos de kanji/hanzi (jsDelivr): nunca cambian, asÃ­ que se guardan la primera vez
+// y desde entonces funcionan sin conexiÃ³n.
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method === 'GET' && u.hostname === 'cdn.jsdelivr.net' && u.pathname.includes('hanzi-writer-data')) {
@@ -105,7 +105,7 @@ self.addEventListener('fetch', e => {
 });
 
 // Klee One (Google Fonts): su hoja de estilos, primero la red y si falla la guardada; los archivos de la
-// fuente no cambian, así que se guardan la primera vez y desde entonces funcionan sin conexión.
+// fuente no cambian, asÃ­ que se guardan la primera vez y desde entonces funcionan sin conexiÃ³n.
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
@@ -124,17 +124,17 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// Archivos de la propia app: primero la red (para tener siempre lo último), si falla, la copia guardada.
-// A la red se pregunta siempre (cache: 'no-cache'): una copia vieja en la caché del navegador mezclaría
-// módulos de dos versiones. Todo lo demás (Supabase, otras fuentes, librerías) va directo a la red.
+// Archivos de la propia app: primero la red (para tener siempre lo Ãºltimo), si falla, la copia guardada.
+// A la red se pregunta siempre (cache: 'no-cache'): una copia vieja en la cachÃ© del navegador mezclarÃ­a
+// mÃ³dulos de dos versiones. Todo lo demÃ¡s (Supabase, otras fuentes, librerÃ­as) va directo a la red.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  // Los vídeos (img/novedades/*.mp4) no pasan por aquí ni se guardan: van directos a la red, sin respondWith.
-  // Safari en el iPhone los pide por trozos (cabecera Range) y una respuesta entera sacada de la caché no se reproduce
+  // Los vÃ­deos (img/novedades/*.mp4) no pasan por aquÃ­ ni se guardan: van directos a la red, sin respondWith.
+  // Safari en el iPhone los pide por trozos (cabecera Range) y una respuesta entera sacada de la cachÃ© no se reproduce
   if (url.pathname.endsWith('.mp4')) return;
-  if (url.pathname.includes('/data/ja/')) return;   // (los datos de japonés, en su caché: arriba)
-  // (una petición de navegación no se puede copiar con opciones: se pide por su dirección)
+  if (url.pathname.includes('/data/ja/')) return;   // (los datos de japonÃ©s, en su cachÃ©: arriba)
+  // (una peticiÃ³n de navegaciÃ³n no se puede copiar con opciones: se pide por su direcciÃ³n)
   const fresh = e.request.mode === 'navigate' ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request, { cache: 'no-cache' });
   e.respondWith(
     fresh
@@ -149,7 +149,7 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Recordatorio diario: el aviso llega aunque la app esté cerrada (ver js/push.js)
+// Recordatorio diario: el aviso llega aunque la app estÃ© cerrada (ver js/push.js)
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
@@ -158,7 +158,7 @@ self.addEventListener('push', e => {
     icon: './icons/flaski-icono-192.png', badge: './icons/favicon-32.png', data: { url: d.url || './' },
   }));
 });
-// Al tocar el aviso: la app, si ya está abierta; si no, se abre
+// Al tocar el aviso: la app, si ya estÃ¡ abierta; si no, se abre
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = new URL(e.notification.data?.url || './', self.registration.scope).href;

@@ -121,6 +121,10 @@
 .vf-ok{background:#DDF6E8;border-color:#8EE3B5}.vf-mid{background:#FFEBC7;border-color:#FFC36B}.vf-bad{background:#FFE1DC;border-color:#FF9F92}.vf-no{border-style:dashed}
 /* Leer japonés de verdad: el modo lectura de un apunte */
 .rd{display:flex;flex-direction:column;gap:14px}
+/* Leer y la tabla de kana ocupan toda la pantalla: con su margen y bajando por dentro */
+.sheet.sheet-full .sheet-card > :is(.rd,.kn-sheet){flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;
+  padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet.sheet-full .sheet-card > :is(.rd,.kn-sheet) > *{flex:none}
 .rd h2{margin:0}
 .rd-sum{display:flex;flex-direction:column;gap:10px;background:var(--soft);border-radius:18px;padding:14px 16px}
 .rd-big{display:flex;align-items:baseline;gap:10px}
@@ -150,4 +154,4 @@ button.rd-w{cursor:pointer}
 .rd-list b{font-size:20px;font-weight:500;min-width:64px}
 .rd-list button > span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
 .rd-list small{font-size:12px;color:var(--muted)}
-.rd-wbig{width:auto;min-width:110px;padding:0 14px;font-size:56px}
+.kj-sheet .rd-wbig{width:auto;min-width:110px;max-width:62%;padding:0 14px;font-size:56px;white-space:nowrap;box-sizing:border-box}

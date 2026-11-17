@@ -72,3 +72,21 @@ test('la familia de un verbo: sus formas y «Practicar sus formas» crea sus pre
   const forms = await page.evaluate(async () => [...(await import('/js/comun.js')).S.cards.values()].filter(c => c.type_id === 'ja-verbo').map(c => c.fields.a).sort());
   expect(forms).toEqual(['飲まない', '飲みます', '飲んだ', '飲んで']);
 });
+
+test('al desmontar la frase, tus palabras mandan: 本 es «libro» (ほん), y 飲む dice tu traducción', async ({ page, seed }) => {
+  await seed({ decks: [{ name: 'Japonés N5', lang: 'ja-JP', notes: [
+    ...JA.decks[0].notes,
+    { type: 'vocab', fields: { w: '本[ほん]', t: 'libro', p: '', e: '', n: '' } },
+  ] }] });
+  await openApp(page);
+  await study(page, '図書館', { reveal: true });
+  await page.locator('[data-fid="e"] [data-act="ja-frase"]').click();
+  const row = page.locator('#sheetBody .ja-chunks li').filter({ hasText: '本を' });
+  await expect(row).toContainText('ほんを');
+  await expect(row).toContainText('libro');
+  await expect(row).not.toContainText('origin');
+  await page.keyboard.press('Escape');
+  await study(page, '飲', { reveal: true });
+  await page.locator('[data-act="ja-verbo"]').click();
+  await expect(page.locator('#sheetBody .kj-sheet > p').first()).toContainText('beber');
+});

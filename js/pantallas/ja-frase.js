@@ -7,13 +7,26 @@ import { openSheet, closeSheet } from './editor.js';
 import { PARTICLES, particlesByRule } from '../ja/particulas.js';
 import { tokenize, readingOf } from '../ja/palabras.js';
 import { lookup } from '../ja/datos.js';
-import { plainJa, reading as rubyReading, hira, isKana, RUBY } from '../ja/texto.js';
+import { plainJa, reading as rubyReading, hira, isKana, jaCount, RUBY } from '../ja/texto.js';
 import { verbClass, conjugate, FORMS, N5_FORMS, ruleOf } from '../ja/verbos.js';
 import { pitchHTML } from '../ja/pintar.js';
-import { isJaDeck, VERB_TYPE } from '../ja/saber.js';
+import { isJaDeck, jaWords, VERB_TYPE } from '../ja/saber.js';
 
 const ROLE = { と: 'con quién', で: 'dónde o con qué', を: 'qué', に: 'a dónde o cuándo', は: 'de qué se habla', が: 'quién o qué', の: 'de quién o de qué', へ: 'hacia dónde', から: 'desde', まで: 'hasta', も: 'también', や: 'y otros', か: 'pregunta' };
 const meaningOf = e => (e?.es?.length ? e.es.slice(0, 2).join(', ') : e?.en?.length ? `${e.en.slice(0, 2).join(', ')} (en inglés)` : '');
+const firstMeaning = e => (e?.es?.length ? e.es[0] : e?.en?.length ? `${e.en[0]} (en inglés)` : '');
+// Una palabra de tus listas: su lectura y tu traducción van por delante de las del diccionario
+function ownWord(word) {
+  const w = word && jaWords().get(word), c = w && S.cards.get(w.cards[0]);
+  if (!c) return null;
+  const f = c.fields || {}, t = f.t || f.m || Object.values(f).find(v => v && typeof v === 'string' && !jaCount(v)) || '';
+  return { reading: w.reading, mean: plainJa(t).split(/[\n;]/)[0].trim() };
+}
+// Pone primero la entrada del diccionario que se lee así
+function preferReading(t, r) {
+  const i = r ? t.entries.findIndex(e => e.r.some(x => hira(x) === r)) : -1;
+  if (i > 0) t.entries = [t.entries[i], ...t.entries.filter((_, j) => j !== i)];
+}
 
 // Frases de ejemplo de tus listas de japonés que llevan la partícula (como mucho n)
 function examples(p, n = 2) {
@@ -43,8 +56,14 @@ export function particleSheet(p, sentence = '') {
 }
 
 // Una frase en trozos, cada uno acabado en su partícula: [{ text, reading, mean, role, color, note }]
-export async function chunksOf(sentence) {
+export async function chunksOf(sentence, raw = sentence) {
   const toks = await tokenize(sentence), out = [];
+  // Las lecturas que trae la propia frase (図書館[としょかん]) y las de tus palabras deciden qué palabra es
+  const ruby = new Map([...String(raw).matchAll(RUBY)].map(m => [m[1], hira(m[2])]));
+  for (const t of toks) if (t.kind === 'word') {
+    t.own = ownWord(t.base) || ownWord(t.s);
+    preferReading(t, ruby.get(t.s) || t.own?.reading);
+  }
   let cur = [];
   const close = () => { if (cur.length) out.push(cur); cur = []; };
   for (const t of toks) {
@@ -60,7 +79,7 @@ export async function chunksOf(sentence) {
     const text = ts.map(t => t.s).join('').replace(/[。！？!?]$/, '');
     return {
       text, reading: words.map(t => (t.kind === 'word' ? (t === head && t.s !== t.base ? '' : readingOf(t)) || t.s : t.s)).join(''),
-      mean: content.filter(t => t.kind === 'word').map(t => meaningOf(t.entries[0]).split(',')[0]).filter(Boolean).join(' · '), role: p ? ROLE[p] || '' : verb ? 'la acción' : '',
+      mean: content.filter(t => t.kind === 'word').map(t => t.own?.mean || firstMeaning(t.entries[0])).filter(Boolean).join(' · '), role: p ? ROLE[p] || '' : verb ? 'la acción' : '',
       color: p ? PARTICLES[p].color : verb ? 'verb' : 'gray',
       note: verb && head.reason ? `${head.base} en ${head.reason}` : '',
     };
@@ -70,7 +89,7 @@ export async function chunksOf(sentence) {
 export async function fraseSheet(sentence, cardId = '') {
   const s = plainJa(sentence);
   openSheet('<div class="kj-sheet"><div class="spin" aria-label="Cargando"></div></div>');
-  const cs = await chunksOf(s);
+  const cs = await chunksOf(s, sentence);
   S.jaFrase = { text: s, chunks: cs.map(c => c.text), cardId };
   openSheet(`<div class="kj-sheet"><h2 class="sheet-hand">La frase, por piezas</h2>
     <div class="kj-box"><p lang="ja" class="ja-line">${cs.map(c => `<span class="ja-u ja-pt-${c.color}">${esc(c.text)}</span>`).join('')}</p></div>
@@ -125,11 +144,11 @@ function formState(w, form) {
   return (p.interval || 0) >= 7 ? 'ok' : 'mid';
 }
 export async function verbSheet(w, cls) {
-  const es = await lookup(w), e = es.find(x => verbClass(x.p) === cls) || es[0], f = conjugate(w, cls);
+  const es = await lookup(w), e = es.find(x => verbClass(x.p) === cls) || es[0], f = conjugate(w, cls), own = ownWord(w);
   if (!f) return;
   const worst = FORMS.filter(x => formState(w, x.id) === 'bad')[0];
   openSheet(`<div class="kj-sheet"><h2 class="sheet-hand">La familia de <span lang="ja">${esc(w)}</span></h2>
-    <p class="muted small">${esc(meaningOf(e))} · ${cls === 'v1' ? 'verbo en る: quitas る y añades' : cls === 'v5' ? `verbo en う: la última sílaba (${esc(w.at(-1))}) cambia` : cls === 'vs' ? 'con する' : 'verbo irregular'}</p>
+    <p class="muted small">${esc(own?.mean || meaningOf(e))} · ${cls === 'v1' ? 'verbo en る: quitas る y añades' : cls === 'v5' ? `verbo en う: la última sílaba (${esc(w.at(-1))}) cambia` : cls === 'vs' ? 'con する' : 'verbo irregular'}</p>
     <div class="ja-forms">${FORMS.map(x => `<div class="ja-form vf-${formState(w, x.id)}"><small>${esc(x.name)}</small><b lang="ja">${esc(f[x.id])}</b><small>${esc(ruleOf(w, cls, x.id) || '')}</small></div>`).join('')}</div>
     ${worst ? `<div class="kj-confuse"><span>La que más fallas: <b>${esc(worst.name)}</b>. ${esc(ruleOf(w, cls, worst.id))}.</span></div>` : ''}
     <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button>

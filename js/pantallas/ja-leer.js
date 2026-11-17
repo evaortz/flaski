@@ -95,7 +95,7 @@ export function wordSheet(word, li) {
   const t = w.t, e = t.entries?.[0], line = R.lines[li ?? w.line], sent = sentenceOf(line, t.s), decks = jaDecks();
   const ks = [...word].filter(isKanji);
   openSheet(`<div class="kj-sheet">
-    <div class="kj-hero"><span class="kj-big rd-wbig" lang="ja">${esc(word)}</span><span class="kj-mean"><b>${esc(meaningOf(e) || 'No está en el diccionario')}</b><small lang="ja">${esc(readingOf(t))}</small></span></div>
+    <div class="kj-hero"><span class="kj-big rd-wbig" lang="ja" style="font-size:${[56, 56, 56, 44, 36][[...word].length] || 28}px">${esc(word)}</span><span class="kj-mean"><b>${esc(meaningOf(e) || 'No está en el diccionario')}</b><small lang="ja">${esc(readingOf(t))}</small></span></div>
     <div class="kj-box"><small>La frase de tu texto, que irá en la pregunta</small><p lang="ja" class="ja-line">${esc(sent).replace(esc(t.s), `<b class="rd-new">${esc(t.s)}</b>`)}</p>${line.es ? `<small>${esc(line.es)}</small>` : ''}</div>
     ${ks.length ? `<div class="kj-words">${ks.map(k => `<span class="kj-word"><b lang="ja">${esc(k)}</b><small>${kanjiStep(k) ? 'ya lo conoces' : 'nuevo'}</small></span>`).join('')}</div>` : ''}
     ${decks.length > 1 ? `<label class="kj-box"><small>A qué lista</small><select id="rdDeck">${decks.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</select></label>` : ''}
