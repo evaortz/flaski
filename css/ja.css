@@ -170,3 +170,35 @@ button.rd-w{cursor:pointer}
 .jn-src{font-size:13px;line-height:1.5;color:var(--muted)}
 .jn-src summary{cursor:pointer;color:var(--fg);min-height:44px;display:flex;align-items:center}
 .jn-src p{margin:0 0 8px}
+/* Prepárate el JLPT */
+.jx section{display:flex;flex-direction:column;gap:10px}
+.jx-sits{display:flex;flex-direction:column;gap:8px}
+.jx-sit{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 14px;border-radius:16px;border:1.5px solid var(--line);background:var(--bg);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.jx-sit[aria-checked="true"]{border:2px solid var(--fg)}
+.jx-sit > span:last-child{display:flex;flex-direction:column;gap:2px}
+.jx-sit small{font-size:12px;color:var(--muted)}
+.jx-dot{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-strong);box-sizing:border-box}
+.jx-sit[aria-checked="true"] .jx-dot{border:6px solid var(--fg)}
+/* Explorar · los cursos de apuntes (JLPT N5 · Gramática) */
+.jc{display:flex;flex-direction:column;gap:12px}
+.jc-list{margin:0;padding:0 0 0 22px;display:grid;gap:4px;font-size:14px;line-height:1.4}
+.jc-list li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+/* El aviso de bienvenida a lo nuevo de japonés */
+.jin{position:relative;display:flex;flex-direction:column;gap:14px}
+.jin > *{position:relative}
+.jin .jin-bg{position:absolute;right:0;top:-4px;font-family:"Klee One",var(--font);font-weight:600;font-size:60px;line-height:1;color:var(--soft);pointer-events:none}
+.jin h2{margin:0;max-width:16ch}
+.jin p{margin:0;line-height:1.5}
+.jin-pct{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:20px;background:#1F2A8A;color:#FFFFFF}
+.jin-pct b{font-family:"Gochi Hand",var(--font);font-weight:400;font-size:50px;line-height:.85;white-space:nowrap}
+.jin-pct > span{display:flex;flex-direction:column;gap:6px;flex:1;font-size:13px}
+.jin-bar{display:block;height:8px;border-radius:4px;background:#2F3DB5;overflow:hidden}
+.jin-bar i{display:block;height:100%;background:#FFFFFF}
+.jin-list{list-style:none;margin:0;padding:0}
+.jin-list li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.jin-list li > span:last-child{display:flex;flex-direction:column;gap:2px}
+.jin-list small{font-size:12px;color:var(--muted);line-height:1.4}
+.jin-ic{flex:none;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:"Klee One",var(--font);font-weight:600;font-size:20px}
+.jin-ic.c1{background:#FFE1DC;color:#4A1410}.jin-ic.c2{background:#DDF0FF;color:#0B2E4A}.jin-ic.c3{background:#D7F5E5;color:#0E3B25}
+.jin-btns{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.jin-btns .link{min-height:44px}

@@ -225,6 +225,9 @@ document.addEventListener('click', async e => {
   if (ds.jn !== undefined) return import('./pantallas/ja-nivel.js').then(m => m.setLevel({ lvl: ds.jn, all: false }));
   if (ds.jnk !== undefined) return import('./pantallas/ja-nivel.js').then(m => m.setLevel({ kind: ds.jnk }));
   if (ds.jnAll !== undefined) return import('./pantallas/ja-nivel.js').then(m => m.setLevel({ all: true }));
+  // Japonés · Prepárate el JLPT: la convocatoria
+  if (ds.jxDate !== undefined) return import('./pantallas/ja-examen.js').then(m => m.jlptInput({ date: ds.jxDate, other: false }));
+  if (ds.jxOther !== undefined) return import('./pantallas/ja-examen.js').then(m => m.jlptInput({ other: true }));
   if (ds.rd !== undefined) return import('./pantallas/ja-leer.js').then(m => m.wordSheet(ds.rd, ds.rdL));
   if (ds.rdOnly !== undefined) return import('./pantallas/ja-leer.js').then(m => m.showOnlyOne(ds.rdOnly === '1'));
   if (ds.kana !== undefined) return import('./pantallas/ja-kana.js').then(m => m.kanaSheet(ds.kana));
@@ -402,6 +405,8 @@ document.addEventListener('click', async e => {
     case 'ja-verbo-crear': return import('./pantallas/ja-frase.js').then(m => m.createVerbCards(b.dataset.w, b.dataset.cls));
     case 'ja-leer': return import('./pantallas/ja-leer.js').then(m => m.readSheet(S.pageId));
     case 'ja-nivel': return import('./pantallas/ja-nivel.js').then(m => m.levelSheet());
+    case 'jx-open': return import('./pantallas/ja-examen.js').then(m => m.jlptSheet(b.dataset.l));
+    case 'jx-save': return import('./pantallas/ja-examen.js').then(m => m.jlptSave());
     case 'rd-learn': return import('./pantallas/ja-leer.js').then(m => m.learn(b.dataset.w, b.dataset.l));
     case 'rd-know': return import('./pantallas/ja-leer.js').then(m => m.knowIt(b.dataset.w));
     case 'rd-all': return import('./pantallas/ja-leer.js').then(m => m.learnAll());
@@ -944,6 +949,8 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', async e => {
   if (e.target.dataset.p2) return planAction(e.target, 'change');
+  if (e.target.dataset.jxDay !== undefined) { if (e.target.value) import('./pantallas/ja-examen.js').then(m => m.jlptInput({ date: e.target.value })); return; }
+  if (e.target.dataset.jxOnly !== undefined) return import('./pantallas/ja-examen.js').then(m => m.jlptInput({ onlyExam: e.target.checked }));
   if (e.target.id === 'cardSort') { S.cardSort = e.target.value; return renderDeck(); }
   if (e.target.id === 'remindOn') return setRemind('on', e.target.checked);
   if (e.target.id === 'remindCheers') return setRemind('cheers', e.target.checked);

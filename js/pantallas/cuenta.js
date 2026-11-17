@@ -168,7 +168,7 @@ export async function onSignedIn(session) {
     if (S.pendingShare) { const id = S.pendingShare; S.pendingShare = null; S.view = 'explore'; render(); openPublicPreview(id); return; }
     if (S.pendingFriend) { const code = S.pendingFriend; S.pendingFriend = ''; S.view = 'friends'; render(); inviteSheet(code); return; }
     render();
-    if (!maybeResumeSim()) { maybeIntro(); maybeNews(); }
+    if (!maybeResumeSim()) { maybeIntro(); maybeNews(); import('./ja-intro.js').then(m => m.maybeJaIntro()).catch(() => {}); }
     pushAutoSync();
   } catch (e) {
     S.loading = false;
@@ -357,7 +357,7 @@ export async function showIntro() {
   openOnboarding({
     name: S.name,
     langs: LANGS.filter(l => l.id && l.id !== nativeLang()),
-    examples,
+    examples: examples.filter(e => !e.apuntes),
     defaultLang: common || (nativeLang().startsWith('en') ? 'es-ES' : 'en-GB'),
     dark: isDark,
     onFinish: introChosen,
@@ -425,7 +425,7 @@ export function showFirstRun() {
   const drawings = Object.fromEntries(Object.entries(DRAWING_SVG).map(([k, v]) => [k, v.replace('<svg', '<svg class="dw"')]));
   openFirstRun({
     langs: LANGS.filter(l => l.id && l.id !== nativeLang()),
-    examples: () => S.builtin || [],
+    examples: () => (S.builtin || []).filter(e => !e.apuntes),
     defaultLang: nativeLang().startsWith('en') ? 'es-ES' : 'en-GB',
     drawings,
     async readFile(file, say) {

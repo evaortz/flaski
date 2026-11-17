@@ -23,6 +23,18 @@ function mine() {
   return mineFrom({ words, kanjiSteps, kanjiInWords: jaKanjiWords(), sabidas: S.prefs.ja?.sabidas || [] });
 }
 
+// Las palabras del nivel que no tienes en ninguna lista: [{ k, kana, es }]
+export async function missingWords(lvl) {
+  const data = await jlptData();
+  return data ? classify(data[lvl], [], mine()).words.filter(w => w.state === 'missing') : [];
+}
+
+// El porcentaje del nivel (palabras y kanji), o null si aún no hay datos (sin conexión la primera vez)
+export async function levelPct(lvl) {
+  const [data, kanji] = await Promise.all([jlptData(), kanjiData()]);
+  return data ? classify(data[lvl], levelKanji(kanji, lvl), mine()).pct : null;
+}
+
 let D = null;   // { data, kanji }
 export async function levelSheet() {
   S.jn = S.jn || { lvl: 'n5', kind: 'w', all: false };
@@ -59,5 +71,5 @@ function draw() {
       <p>Desde 2010 el JLPT no publica qué palabras ni qué kanji entran: esta lista es orientativa, como todas.</p>
       <p><b>Palabras:</b> las listas de Jonathan Waller, las que usa casi todo el mundo (licencia CC BY), con el significado de nuestro diccionario.<br><b>Kanji:</b> los del nivel oficial del examen anterior a 2010 (${L.id === 'n5' ? 'el 4.º' : 'el 3.º'}), que traen los datos de kanji de Flaski.</p>
       <p><b>«Lo sabes»</b> es lo que recordarías dentro de ${KNOW_DAYS / 7} semanas según tus repasos. Un kanji cuenta cuando sabes qué significa y cómo se lee. Las palabras que marcaste con «Ya me la sé» también cuentan.</p></details>
-    <div class="btnrow"><span class="spacer"></span><button class="ghost" data-act="close-sheet">Cerrar</button></div></div>`, { full: true });
+    <div class="btnrow"><button class="ghost" data-act="close-sheet">Cerrar</button><span class="spacer"></span>${missW.length ? `<button class="primary" data-act="jx-open" data-l="${lvl}">Prepararme el ${L.name}</button>` : ''}</div></div>`, { full: true });
 }

@@ -69,7 +69,9 @@ export function renderExplore() {
   // Si ya la tienes: «La tienes» en vez de «Ver» y «48 preguntas · tú tienes 56»
   const meta = (d, src, by) => { const own = ownedDeck(src); return `${d.count} preguntas${own ? ` · tú tienes ${ownCount(own)}` : by ? ` · ${by}` : ''}`; };
   const go = src => (ownedDeck(src) ? `<span class="go go-own">La tienes</span>` : '<span class="go">Ver</span>');
-  const listRow = d => `<li><button class="deck" data-builtin="${esc(d.file)}"><span class="ex-ic" aria-hidden="true">${esc(d.icono || '')}</span>
+  // Un curso de apuntes (JLPT N5 · Gramática) se abre en su hoja, no en la vista previa de una lista
+  const open = d => (d.apuntes ? `data-ex="see-curso" data-file="${esc(d.file)}"` : `data-builtin="${esc(d.file)}"`);
+  const listRow = d => `<li><button class="deck" ${open(d)}><span class="ex-ic" aria-hidden="true">${esc(d.icono || '')}</span>
     <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'incluido:' + d.file, 'incluida en la app')}</span></span>${go('incluido:' + d.file)}</button></li>`;
   const pubRow = d => `<li><button class="deck" data-pub="${d.id}"><span class="ex-ic" aria-hidden="true">${icon('users', { size: 18 })}</span>
     <span class="info"><span class="dname">${esc(d.name)}</span><span class="meta">${meta(d, 'compartido:' + d.id, `de ${esc(d.author)}${d.owner === S.uid ? ' (tú)' : ''}`)}</span></span>${go('compartido:' + d.id)}</button></li>`;
@@ -86,8 +88,8 @@ export function renderExplore() {
   const sec = (g, body) => `<section class="ex-sec ex-${g}" aria-labelledby="ex-h-${g}"><div class="section-h"><h2 id="ex-h-${g}">${GOAL_TITLE[g]}</h2>${goal === 'all' ? `<button class="link" data-ex="goal" data-g="${g}">ver todo</button>` : ''}</div>${body}</section>`;
   const langCards = lists.filter(d => d.goal === 'idiomas').map(d => {
     const own = ownedDeck('incluido:' + d.file);
-    return `<li class="ex-card"><button class="ex-card-b" data-builtin="${esc(d.file)}"><span class="ex-card-ic" aria-hidden="true">${esc(d.icono || '')}</span><b>${esc(d.name)}</b><span class="meta">${own ? meta(d, 'incluido:' + d.file) : `${d.count} preg.`}</span>${own ? '<span class="go go-own">La tienes</span>' : ''}</button>
-      ${own ? '' : `<button class="ex-add" data-ex="add-builtin" data-file="${esc(d.file)}" aria-label="Añadir ${esc(d.name)}">${icon('plus', { size: 20 })}</button>`}</li>`;
+    return `<li class="ex-card${d.apuntes ? ' ex-curso' : ''}"><button class="ex-card-b" ${open(d)}><span class="ex-card-ic" aria-hidden="true">${esc(d.icono || '')}</span><b>${esc(d.name)}</b><span class="meta">${own ? meta(d, 'incluido:' + d.file) : d.apuntes ? `${d.apuntes} apuntes · ${d.count} preg.` : `${d.count} preg.`}</span>${own ? '<span class="go go-own">La tienes</span>' : ''}</button>
+      ${own ? '' : `<button class="ex-add" data-ex="${d.apuntes ? 'add-curso' : 'add-builtin'}" data-file="${esc(d.file)}" aria-label="Añadir ${esc(d.name)}">${icon('plus', { size: 20 })}</button>`}</li>`;
   }).join('');
   const opos = temas.filter(t => t.goal === 'oposiciones').map(temaRow).join('') + lists.filter(d => d.goal === 'oposiciones').map(listRow).join('');
   const career = temas.filter(t => t.goal === 'carrera').map(temaRow).join('') + lists.filter(d => d.goal === 'carrera').map(listRow).join('');
@@ -147,6 +149,9 @@ export async function exploreClick(b) {
       return toast('No encuentro ese tema en tu Biblioteca');
     }
     case 'see-tema': return temaPreview(Number(ds.i));
+    case 'see-curso': return import('./ja-curso.js').then(m => m.cursoSheet(ds.file));
+    case 'add-curso': return import('./ja-curso.js').then(m => m.addCurso(ds.file, b));
+    case 'open-curso': return import('./ja-curso.js').then(m => m.openCurso(ds.file));
   }
 }
 // «Ver el tema»: el principio del apunte y algunas de sus preguntas

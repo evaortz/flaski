@@ -91,7 +91,7 @@ export async function addTema(t) {
 export async function loadSampleData(btn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Cargando…'; }
   try {
-    const list = await (await fetch('decks/index.json', { cache: 'no-cache' })).json();
+    const list = (await (await fetch('decks/index.json', { cache: 'no-cache' })).json()).filter(d => !d.apuntes);   // los cursos de apuntes, no
     const have = new Set([...S.decks.values()].map(d => d.source));
     const share = [0.55, 0.75, 0.35, 0.6];
     let added = 0;

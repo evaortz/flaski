@@ -15,6 +15,15 @@ export function jlptData() {
 }
 export function _resetJlpt() { dataP = null; }
 
+// Las dos próximas convocatorias del JLPT: el primer domingo de julio y el de diciembre (a partir de mañana).
+// today: 'AAAA-MM-DD'. Devuelve ['AAAA-MM-DD', 'AAAA-MM-DD']
+export function jlptSittings(today) {
+  const [y] = today.split('-').map(Number), out = [];
+  const firstSunday = (yy, m) => { const d = new Date(Date.UTC(yy, m, 1)); d.setUTCDate(1 + ((7 - d.getUTCDay()) % 7)); return d.toISOString().slice(0, 10); };
+  for (let yy = y; out.length < 2; yy++) for (const m of [6, 11]) { const s = firstSunday(yy, m); if (s > today && out.length < 2) out.push(s); }
+  return out;
+}
+
 // Los kanji de un nivel, en el orden de los datos
 export const levelKanji = (kanji, id) => {
   const old = LEVELS.find(l => l.id === id)?.old;

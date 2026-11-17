@@ -2,7 +2,7 @@
 // Escenarios fijos (con fecha y datos fijos) y propiedades con datos al azar.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { medirRitmo, newKernel, forecast, today, whatIf, fixes, sharesToday, toPercent, minutesOn, plan2On } from '../../js/plan2.js';
+import { medirRitmo, newKernel, forecast, today, whatIf, fixes, sharesToday, toPercent, minutesOn, plan2On, applyChange } from '../../js/plan2.js';
 import { addDays, daysBetween } from '../../js/plan.js';
 import { startOfDay } from '../../js/srs.js';
 import { state945, TODAY, deckByName, examByName, invent, rng, randomState } from './plan2-datos.js';
@@ -460,9 +460,28 @@ test('5 · mover la fecha solo con fecha aproximada, y como último recurso', ()
   assert.ok(c.options.length > 0 && c.options.every(o => !o.kinds.includes('date')));
 });
 
+test('cuando ni más nuevas ni más minutos llegan por separado, el arreglo sube las dos cosas a la vez (lo mínimo)', () => {
+  // Un tema, 900 preguntas, 20 días y 20 nuevas al día: el tope frena y el tiempo también
+  const S = invent({ seed: 6, n: 900, nExams: 1, nTopics: 1, seen: 0, days: [20] });
+  S.plan.caps.newPerDay = 20;
+  const fx = fixes(S, 'ex0');
+  assert.equal(fx.base.verdict, 'no');
+  const both = fx.options.find(o => o.kinds === 'cap+minutes');
+  assert.ok(both, JSON.stringify(fx.options.map(o => o.kinds)));
+  assert.ok(reaches(forecast({ ...S, plan: both.plan }).exams.find(e => e.id === 'ex0').verdict));
+  const capL = both.levers.find(l => l.kind === 'cap'), minL = both.levers.find(l => l.kind === 'minutes');
+  assert.ok(capL.newPerDay > 20);
+  // Lo mínimo: con una nueva menos al día, ya no llega
+  const less = applyChange(both.plan, p => { p.caps.newPerDay = capL.newPerDay - 1; });
+  assert.ok(!reaches(forecast({ ...S, plan: less }).exams.find(e => e.id === 'ex0').verdict));
+  // Y ninguna de las dos sola llega
+  for (const k of ['cap', 'minutes']) assert.ok(!fx.options.some(o => o.kinds === k));
+  assert.ok(minL.add > 0);
+});
+
 test('6 · «dejar para el final» nunca quita todo el temario; si ni así llega, lo dice', () => {
-  // Un tema, 900 preguntas, 20 días: no hay nada que dejar
-  const one = invent({ seed: 6, n: 900, nExams: 1, nTopics: 1, seen: 0, days: [20] });
+  // Un tema, 20.000 preguntas, 20 días: ni con todo llega, y no hay nada que dejar
+  const one = invent({ seed: 6, n: 20000, nExams: 1, nTopics: 1, seen: 0, days: [20] });
   one.plan.caps.newPerDay = 20;
   const a = fixes(one, 'ex0');
   assert.deepEqual(a.options, []);

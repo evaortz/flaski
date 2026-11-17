@@ -614,19 +614,33 @@ export function fixes(state, examId) {
   };
   // Si no llegas con el tope de nuevas de Ajustes: «Subir a N nuevas al día», con el N mínimo que llega
   const cap = newCap(state);
-  if (base.verdict === 'no' && Number.isFinite(cap)) {
-    const withCap = n => applyChange(state.plan, p => { p.caps = { ...(p.caps || {}), newPerDay: n }; });
-    const at = n => forecast({ ...state, plan: withCap(n) }, { light: n !== 500 });
-    const free = at(500), hi = Math.max(cap + 1, ...free.days.map(d => d.new));
-    let n = hi;
-    if (reaches(free.exams.find(e => e.id === examId).verdict)) {
-      let lo = cap;                                  // lo: no llega · n: llega
-      while (n - lo > 1) { const mid = (lo + n) >> 1; if (reaches(at(mid).exams.find(e => e.id === examId).verdict)) n = mid; else lo = mid; }
-    }
-    if (n > cap) L.push({ kind: 'cap', from: cap, newPerDay: n, cost: 0.5 + (n - cap) / 10, apply: p => { p.caps = { ...(p.caps || {}), newPerDay: n }; } });
+  const capLever = n => ({ kind: 'cap', from: cap, newPerDay: n, cost: 0.5 + (n - cap) / 10, apply: p => { p.caps = { ...(p.caps || {}), newPerDay: n }; } });
+  // El N mínimo (más que el tope) con el que llegas con este plan; null si ni sin tope llegas
+  const minCap = plan0 => {
+    const at = n => forecast({ ...state, plan: applyChange(plan0, p => { p.caps = { ...(p.caps || {}), newPerDay: n }; }) }, { light: n !== 500 });
+    const free = at(500);
+    if (!reaches(free.exams.find(e => e.id === examId).verdict)) return null;
+    let lo = cap, n = Math.max(cap + 1, ...free.days.map(d => d.new));   // lo: no llega · n: llega
+    while (n - lo > 1) { const mid = (lo + n) >> 1; if (reaches(at(mid).exams.find(e => e.id === examId).verdict)) n = mid; else lo = mid; }
+    return n;
+  };
+  const capped = base.verdict === 'no' && Number.isFinite(cap);
+  if (capped) {
+    const n = minCap(state.plan);
+    // Si ni sin tope llegas, sube al máximo que usarías: ayuda, y puede llegar en pareja
+    const hi = n ?? Math.max(cap + 1, ...forecast({ ...state, plan: applyChange(state.plan, p => { p.caps = { ...(p.caps || {}), newPerDay: 500 }; }) }).days.map(d => d.new));
+    if (hi > cap) L.push(capLever(hi));
   }
   const singles = L.map(l => ({ l, res: run([l]) }));
   tried.push(...singles.map(s => s.res));
+  // Más minutos y más nuevas a la vez: cuando el tope y el tiempo frenan los dos, ninguno llega solo. Con cada
+  // palanca de minutos, el N mínimo que llega
+  if (capped && !singles.some(s => reaches(s.res.exam.verdict))) {
+    for (const l of L.filter(x => x.kind === 'minutes')) {
+      const n = minCap(applyChange(state.plan, l.apply));
+      if (n) { tried.push(run([l, capLever(n)])); break; }   // la primera (la de menos minutos) que llega
+    }
+  }
   // En parejas, solo las que ayudan algo y no llegan solas, y de cada tipo las dos que menos cambian
   const per = new Map();
   for (const s of [...singles].sort((a, b) => a.l.cost - b.l.cost)) {

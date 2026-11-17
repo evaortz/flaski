@@ -42,7 +42,8 @@ test('no llegas (Auxiliar a 26 días): «Para llegar» con las tres opciones del
 });
 
 test('si ningún arreglo llega, propone qué temas dejar para después del examen', async ({ page }) => {
-  await open945(page, p => { p.exams[0].date = '2026-11-02'; p.exams[0].lastWeek = false; });
+  // En dos días no llega ni con más nuevas y más minutos a la vez (a una semana, eso ya llega: el arreglo de la pareja)
+  await open945(page, p => { p.exams[0].date = '2026-10-28'; p.exams[0].lastWeek = false; });
   await toPlan(page);
   await expect(page.locator('#main .p2-vt')).toHaveText('Así no llegas a Auxiliar');
   await expect(page.locator('#p2Fixes')).toContainText('para después del examen');

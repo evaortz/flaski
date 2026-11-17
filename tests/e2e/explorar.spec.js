@@ -51,7 +51,8 @@ test('filtros por objetivo: Idiomas solo enseña las listas de idiomas; «+» a�
   await page.locator('.ex-chip', { hasText: 'Idiomas' }).click();
   await expect(page.locator('.ex-hero')).toHaveCount(0);
   await expect(page.locator('.ex-oposiciones')).toHaveCount(0);
-  await expect(page.locator('.ex-card')).toHaveCount(3);
+  await expect(page.locator('.ex-card')).toHaveCount(4);   // con «JLPT N5 · Gramática»
+  await expect(page.locator('.ex-curso')).toContainText('JLPT N5 · Gramática');
   await page.locator('[data-ex="add-builtin"][data-file="turco-armonia-vocalica.json"]').click();
   await expect(page.locator('#main [data-builtin="turco-armonia-vocalica.json"] .go')).toHaveText('La tienes');
   await page.locator('.ex-chip', { hasText: 'Oposiciones' }).click();

@@ -2,7 +2,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { classify, mineFrom, levelKanji, jlptData, KNOW_DAYS } from '../../js/ja/niveles.js';
+import { classify, mineFrom, levelKanji, jlptData, jlptSittings, KNOW_DAYS } from '../../js/ja/niveles.js';
+
+test('las convocatorias: el primer domingo de diciembre y de julio que vienen', () => {
+  assert.deepEqual(jlptSittings('2026-11-17'), ['2026-12-06', '2027-07-04']);
+  assert.deepEqual(jlptSittings('2026-12-06'), ['2027-07-04', '2027-12-05'], 'el mismo día ya no vale');
+  assert.deepEqual(jlptSittings('2027-01-10'), ['2027-07-04', '2027-12-05']);
+});
 
 const ROOT = new URL('../../', import.meta.url);
 const read = async p => JSON.parse(await readFile(new URL(p, ROOT), 'utf8'));

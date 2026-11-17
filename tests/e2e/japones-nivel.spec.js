@@ -37,6 +37,42 @@ test('Tu japonés: lo asentado cuenta, lo reciente aún no; lo que falta del N5 
   await expect(sh.locator('.jn-src')).toContainText('Jonathan Waller');
 });
 
+test('Prepárate el N5: lo que falta va a una lista nueva, solo como en el examen, y entra en el Plan; si así no llegas, suben las nuevas al día', async ({ page, seed }) => {
+  await seed(SEED);
+  await openApp(page);
+  // Con 5 nuevas al día no se llega a 680 palabras en 60 días
+  await page.evaluate(async () => { const { S } = await import('/js/comun.js'); S.newPerDay = 5; });
+  await nav(page, 'Perfil');
+  await page.locator('#main [data-act="ja-nivel"]').click();
+  await page.locator('#sheetBody [data-act="jx-open"]').click();
+  const sh = page.locator('#sheetBody .jx');
+  await expect(sh.locator('.sheet-hand')).toHaveText('Prepárate el N5');
+  await expect(sh.locator('[data-jx-date]')).toHaveCount(2);
+  await expect(sh).toContainText('680');
+  // Otra fecha: dentro de 60 días
+  const day = await page.evaluate(async () => { const { dayKey, addDays } = await import('/js/plan.js'); return addDays(dayKey(), 60); });
+  await sh.locator('[data-jx-other]').click();
+  await sh.locator('[data-jx-day]').fill(day);
+  await sh.locator('[data-act="jx-save"]').click();
+  // Con 10 min al día tampoco hay tiempo: suben las nuevas y los minutos, lo justo para llegar
+  await expect(page.locator('#toast')).toContainText(/Para llegar al N5: \d+ nuevas al día \(antes 5\) y \d+ min más al día/);
+  const r = await page.evaluate(async () => {
+    const { S } = await import('/js/comun.js');
+    const d = [...S.decks.values()].find(x => x.options?.jlpt === 'n5');
+    const cards = [...S.cards.values()].filter(c => c.deck_id === d.id);
+    const folder = S.folders.get(d.folder_id)?.name;
+    const ex = S.prefs.plan.exams.find(e => e.id === 'ex-jlpt-n5');
+    const { forecastNow } = await import('/js/plan2-app.js');
+    const verdict = forecastNow().exams.find(e => e.id === 'ex-jlpt-n5')?.verdict;
+    return { name: d.name, folder, n: cards.length, t2: cards.filter(c => c.template === 't2').length, aru: cards.find(c => c.fields.t && c.fields.w === '会[あ]う') ? 1 : 0, w: cards.find(c => c.fields.w?.startsWith('明'))?.fields.w, exam: ex && { date: ex.date, decks: ex.scope.decks.length, deck: ex.scope.decks[0] === d.id }, cap: S.prefs.plan.caps?.newPerDay, verdict };
+  });
+  expect(r).toMatchObject({ name: 'JLPT N5 · lo que te falta', folder: 'JLPT N5', n: 680, t2: 0, aru: 0, w: '明[あか]るい', exam: { date: day, decks: 1, deck: true } });
+  expect(r.cap).toBeGreaterThan(5);
+  expect(r.cap).toBeLessThanOrEqual(30);
+  expect(r.verdict).not.toBe('no');
+  await expect(page.locator('#main')).toContainText('JLPT N5');
+});
+
 test('Tu japonés solo sale en Perfil si estudias japonés', async ({ page, seed }) => {
   await seed({ decks: [{ name: 'Inglés', lang: 'en-GB', cards: [['dog', 'perro']] }] });
   await openApp(page);

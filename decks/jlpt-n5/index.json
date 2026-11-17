@@ -1,0 +1,36 @@
+{
+  "name": "JLPT N5 · Gramática",
+  "folder": "JLPT N5",
+  "lang": "ja-JP",
+  "count": 163,
+  "description": "Toda la gramática del N5 en 12 apuntes cortos, con ejemplos, tablas, la trampa de siempre y preguntas como las del examen: completar, ordenar y elegir.",
+  "source": "Temario contrastado con cuatro listas del N5 (JLPT Sensei, Bunpro, Minna no Nihongo I y TRY! N5) y con las preguntas de ejemplo oficiales. Explicaciones, ejemplos y preguntas escritos para Flaski; en cada apunte, la lección de Minna no Nihongo donde sale.",
+  "titles": [
+    "1 · Presentarse",
+    "2 · Esto, eso, aquello",
+    "3 · は y が",
+    "4 · Verbos con ます",
+    "5 · Invitar y proponer",
+    "6 · Adjetivos い y な",
+    "7 · Gustos y razones",
+    "8 · Comparar y contar",
+    "9 · Querer y planes",
+    "10 · La forma て",
+    "11 · Formas ない y de diccionario",
+    "12 · Forma た y hablar en llano"
+  ],
+  "files": [
+    "jlpt-n5/01-presentarse.md",
+    "jlpt-n5/02-esto-eso-aquello.md",
+    "jlpt-n5/03-wa-y-ga.md",
+    "jlpt-n5/04-verbos-con-masu.md",
+    "jlpt-n5/05-invitar-y-proponer.md",
+    "jlpt-n5/06-adjetivos.md",
+    "jlpt-n5/07-gustos-y-razones.md",
+    "jlpt-n5/08-comparar-y-contar.md",
+    "jlpt-n5/09-querer-y-planes.md",
+    "jlpt-n5/10-forma-te.md",
+    "jlpt-n5/11-formas-nai-y-diccionario.md",
+    "jlpt-n5/12-forma-ta-y-llana.md"
+  ]
+}

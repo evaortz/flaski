@@ -71,7 +71,7 @@ export const test = base.extend({
   seeder: [async ({ browser }, use, workerInfo) => {
     const ctx = await browser.newContext({ baseURL: workerInfo.project.use.baseURL, serviceWorkers: 'block' });
     const page = await ctx.newPage();
-    await page.addInitScript(() => { try { if (!sessionStorage.getItem('flaski-seed')) { localStorage.clear(); localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } } catch {} });
+    await page.addInitScript(() => { try { if (!sessionStorage.getItem('flaski-seed')) { localStorage.clear(); localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); localStorage.setItem('flaski-ja-intro', 'never'); } } catch {} });
     await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     await page.route('https://cdn.jsdelivr.net/**', route => route.abort());
     const built = new Map();
@@ -105,7 +105,7 @@ export const test = base.extend({
   sugView: ['lista', { option: true }],
   page: async ({ page, intro, sugView }, use) => {
     // (las Novedades, en ninguna: novedades.spec.js quita la marca)
-    await page.addInitScript(skip => { try { if (skip) localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); } catch {} }, !intro);
+    await page.addInitScript(skip => { try { if (skip) localStorage.setItem('flaski-intro-done', '1'); localStorage.setItem('flaski-news-seen', 'never'); localStorage.setItem('flaski-ja-intro', 'never'); } catch {} }, !intro);
     await page.addInitScript(v => { try { if (!localStorage.getItem('flaski-sug-vista')) localStorage.setItem('flaski-sug-vista', v); } catch {} }, sugView);
     await page.route('**/js/config.js*', route => route.fulfill({ contentType: 'text/javascript', body: LOCAL_CONFIG }));
     // Nada de red externa (trazos de kanji, etc.)
