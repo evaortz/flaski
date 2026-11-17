@@ -155,3 +155,18 @@ button.rd-w{cursor:pointer}
 .rd-list button > span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
 .rd-list small{font-size:12px;color:var(--muted)}
 .kj-sheet .rd-wbig{width:auto;min-width:110px;max-width:62%;padding:0 14px;font-size:56px;white-space:nowrap;box-sizing:border-box}
+/* Tu japonés: cuánto llevas del N5 y del N4 */
+.jn-seg button{min-width:56px;font-weight:600}
+.jn-part{display:flex;flex-direction:column;gap:7px;width:100%;padding:10px 12px;margin:0 -12px;width:calc(100% + 24px);border:0;border-radius:12px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.jn-part[aria-pressed="true"]{background:var(--bg)}
+.jn-part-t{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px}
+.jn-part-t span{font-size:13px;color:var(--muted)}
+.jn-part .rd-bar{background:var(--bg);border:1px solid var(--line)}
+.jn-part[aria-pressed="true"] .rd-bar{background:var(--soft)}
+.rd-key .jn-missing{background:var(--bg);border:1px solid var(--line-strong)}
+.jn-w{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.jn-w > span{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.jn-ok{margin:0;font-size:14px}
+.jn-src{font-size:13px;line-height:1.5;color:var(--muted)}
+.jn-src summary{cursor:pointer;color:var(--fg);min-height:44px;display:flex;align-items:center}
+.jn-src p{margin:0 0 8px}

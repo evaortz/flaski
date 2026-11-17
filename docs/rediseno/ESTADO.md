@@ -964,3 +964,11 @@ Revisión de toda la app buscando fallos (datos y sincronización, Plan y CSS, p
 - **Supabase:** nada nuevo. Todo va en `cards`, `decks` y `prefs`.
 - **Batería completa** (`--workers=2`, rama `japones` con `main` juntado): 493 pasan, 13 omitidas, 0 fallos, a la primera (8,0 min). Antes, dos pasadas: la primera con 13 fallos esperados (la lista «Kanji» que sale en la demo y la presentación del kanji en la tanda; 5 eran de los apuntes de ejemplo con saltos de línea de Windows en esta copia) y la segunda con 1 (`tipos.spec.js`, igual).
 - Comprobado en el navegador (`?local`, móvil): la demo crea «Kanji» con sus 18 kanji, «Tus kanji», la ficha de 水 y la presentación de 食.
+
+## Japonés · niveles del JLPT, paso 1: «Tu japonés» con el N5 y el N4 (17 nov · `flaski-v246`; diseño en el lienzo, página «JLPT · niveles»)
+- **Datos:** `data/ja/jlpt.json`, 684 palabras del N5 y 640 del N4, con significado en español (de nuestro JMdict; 42 traducidas a mano en `tests/tools/jlpt.mjs`, que lo genera). Listas de Jonathan Waller (CC BY) vía `stephenmk/yomitan-jlpt-vocab` (`tests/tools/jlpt/n5.csv` y `n4.csv`). 13 grafías de Waller pasan a la del diccionario (明い → 明るい). Kanji: el nivel antiguo de KANJIDIC2 (103 del N5, 181 del N4). Atribución en Créditos y en `data/ja/LEEME.md`.
+- **Motor** `js/ja/niveles.js` (puro): `classify` y `mineFrom`. «Lo sabes» = estabilidad de la memoria ≥ 21 días (la mejor de las preguntas de la palabra; en un kanji, sus pasos 1 y 2; sin pregunta de kanji, alguna palabra suya sabida); «Ya me la sé» cuenta. En tus listas sin llegar: aprendiéndolo. Lo demás: te falta.
+- **Pantalla** `js/pantallas/ja-nivel.js`: Perfil › «Tu japonés» (solo si estudias japonés). N5/N4, el porcentaje, palabras y kanji con su barra, lo que te falta (40 y «Ver las N»; los kanji tocan su ficha) y «¿De dónde sale?».
+- **Pruebas:** unitarias `ja-niveles.test.js` (4); e2e `japones-nivel.spec.js` (2).
+- **Siguiente (lienzo):** el examen JLPT en el Plan con «Para llegar» (sube las nuevas solo), luego «El N5 completo» en Explorar (palabras, kanji, gramática escrita por Flaski y de oído) y el simulacro.
+- **Minna no Nihongo:** no se copia (repo y web públicos; los mazos gratis de Anki con su contenido no tienen permiso de la editorial). Se puede citar la lección de cada punto y cada uno puede importar su propio mazo.
